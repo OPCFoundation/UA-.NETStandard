@@ -1,0 +1,299 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.7294697Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="XmlElement">i=16</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="ExpandedNodeId">i=18</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Integer">i=27</Alias>
+    <Alias Alias="UInteger">i=28</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+  </Aliases>
+  <UAObjectType NodeId="i=8921" BrowseName="LockType">
+    <DisplayName>LockType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent">i=8922</Reference>
+      <Reference ReferenceType="HasComponent">i=8923</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="i=8922" BrowseName="Lock" ParentNodeId="i=8921">
+    <DisplayName>Lock</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=8921</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=8923" BrowseName="Unlock" ParentNodeId="i=8921">
+    <DisplayName>Unlock</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=8921</Reference>
+    </References>
+  </UAMethod>
+  <UAObject NodeId="i=8924" BrowseName="ServerLock">
+    <DisplayName>ServerLock</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent">i=8925</Reference>
+      <Reference ReferenceType="HasComponent">i=8926</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8921</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="i=8925" BrowseName="Lock" ParentNodeId="i=8924" MethodDeclarationId="i=8922">
+    <DisplayName>Lock</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=8924</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=8926" BrowseName="Unlock" ParentNodeId="i=8924" MethodDeclarationId="i=8923">
+    <DisplayName>Unlock</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=8924</Reference>
+    </References>
+  </UAMethod>
+  <UADataType NodeId="i=398" BrowseName="EnumeratedTestType">
+    <DisplayName>EnumeratedTestType</DisplayName>
+    <Description>A simple enumerated type used for testing.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">i=11886</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="EnumeratedTestType">
+      <Field Name="Red" Value="1">
+        <Description>Operation has halted.</Description>
+      </Field>
+      <Field Name="Yellow" Value="4">
+        <Description>Operation is proceeding with caution.</Description>
+      </Field>
+      <Field Name="Green" Value="5">
+        <Description>Operation is proceeding normally.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="i=11886" BrowseName="EnumValues" ParentNodeId="i=398" DataType="i=7594" ValueRank="1">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=398</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>1</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>Red</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>Operation has halted.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>4</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>Yellow</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>Operation is proceeding with caution.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>5</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>Green</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>Operation is proceeding normally.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="i=399" BrowseName="ScalarTestType">
+    <DisplayName>ScalarTestType</DisplayName>
+    <Description>A complex type containing all possible scalar types used for testing.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="ScalarTestType">
+      <Field Name="Boolean" DataType="i=1" />
+      <Field Name="SByte" DataType="i=2" />
+      <Field Name="Byte" DataType="i=3" />
+      <Field Name="Int16" DataType="i=4" />
+      <Field Name="UInt16" DataType="i=5" />
+      <Field Name="Int32" DataType="i=6" />
+      <Field Name="UInt32" DataType="i=7" />
+      <Field Name="Int64" DataType="i=8" />
+      <Field Name="UInt64" DataType="i=9" />
+      <Field Name="Float" DataType="i=10" />
+      <Field Name="Double" DataType="i=11" />
+      <Field Name="String" DataType="i=12" />
+      <Field Name="DateTime" DataType="i=13" />
+      <Field Name="Guid" DataType="i=14" />
+      <Field Name="ByteString" DataType="i=15" />
+      <Field Name="XmlElement" DataType="i=16" />
+      <Field Name="NodeId" DataType="i=17" />
+      <Field Name="ExpandedNodeId" DataType="i=18" />
+      <Field Name="StatusCode" DataType="i=19" />
+      <Field Name="DiagnosticInfo" DataType="i=25" />
+      <Field Name="QualifiedName" DataType="i=20" />
+      <Field Name="LocalizedText" DataType="i=21" />
+      <Field Name="ExtensionObject" DataType="i=22" />
+      <Field Name="DataValue" DataType="i=23" />
+      <Field Name="EnumeratedValue" DataType="i=398" />
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="i=402" BrowseName="ArrayTestType">
+    <DisplayName>ArrayTestType</DisplayName>
+    <Description>A complex type containing all possible array types used for testing.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="ArrayTestType">
+      <Field Name="Booleans" DataType="i=1" ValueRank="1" />
+      <Field Name="SBytes" DataType="i=2" ValueRank="1" />
+      <Field Name="Int16s" DataType="i=4" ValueRank="1" />
+      <Field Name="UInt16s" DataType="i=5" ValueRank="1" />
+      <Field Name="Int32s" DataType="i=6" ValueRank="1" />
+      <Field Name="UInt32s" DataType="i=7" ValueRank="1" />
+      <Field Name="Int64s" DataType="i=8" ValueRank="1" />
+      <Field Name="UInt64s" DataType="i=9" ValueRank="1" />
+      <Field Name="Floats" DataType="i=10" ValueRank="1" />
+      <Field Name="Doubles" DataType="i=11" ValueRank="1" />
+      <Field Name="Strings" DataType="i=12" ValueRank="1" />
+      <Field Name="DateTimes" DataType="i=13" ValueRank="1" />
+      <Field Name="Guids" DataType="i=14" ValueRank="1" />
+      <Field Name="ByteStrings" DataType="i=15" ValueRank="1" />
+      <Field Name="XmlElements" DataType="i=16" ValueRank="1" />
+      <Field Name="NodeIds" DataType="i=17" ValueRank="1" />
+      <Field Name="ExpandedNodeIds" DataType="i=18" ValueRank="1" />
+      <Field Name="StatusCodes" DataType="i=19" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
+      <Field Name="QualifiedNames" DataType="i=20" ValueRank="1" />
+      <Field Name="LocalizedTexts" DataType="i=21" ValueRank="1" />
+      <Field Name="ExtensionObjects" DataType="i=22" ValueRank="1" />
+      <Field Name="DataValues" DataType="i=23" ValueRank="1" />
+      <Field Name="Variants" ValueRank="1" />
+      <Field Name="EnumeratedValues" DataType="i=398" ValueRank="1" />
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="i=405" BrowseName="CompositeTestType">
+    <DisplayName>CompositeTestType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="CompositeTestType">
+      <Field Name="Field1" DataType="i=399" />
+      <Field Name="Field2" DataType="i=402" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="i=400" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=399</Reference>
+      <Reference ReferenceType="HasDescription">i=8384</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=403" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=402</Reference>
+      <Reference ReferenceType="HasDescription">i=8387</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=406" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=405</Reference>
+      <Reference ReferenceType="HasDescription">i=8390</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=401" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=399</Reference>
+      <Reference ReferenceType="HasDescription">i=7749</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=404" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=402</Reference>
+      <Reference ReferenceType="HasDescription">i=7752</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=407" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=405</Reference>
+      <Reference ReferenceType="HasDescription">i=7755</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

@@ -1,0 +1,24 @@
+﻿<Page
+    x:Class="Opc.Ua.Sample.Controls.SessionOpenDlg"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Sample.Controls"
+    xmlns:other="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Border BorderBrush="Black" BorderThickness="1" Background="{ThemeResource AppBarBackgroundThemeBrush}" HorizontalAlignment="Left" Height="238" VerticalAlignment="Top" Width="408"/>
+        <Button x:Name="OkBTN" Content="OK" HorizontalAlignment="Left" Margin="67,192,0,0" VerticalAlignment="Top"  Click="OkBTN_Click" Width="77"/>
+        <Button x:Name="CancelBTN" Content="Cancel" HorizontalAlignment="Left" Margin="259,192,0,0" VerticalAlignment="Top" Click="CancelBTN_Click" Width="77"/>
+        <ComboBox x:Name="UserIdentityTypeCB" HorizontalAlignment="Left" Margin="172,52,0,0" VerticalAlignment="Top" Width="224" SelectionChanged="UserIdentityTypeCB_SelectionChanged" Height="32"/>
+        <TextBox x:Name="SessionNameTB" HorizontalAlignment="Left" Margin="171,15,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Height="19" Width="224"/>
+        <ComboBox x:Name="UserNameCB" HorizontalAlignment="Left" Margin="172,89,0,0" VerticalAlignment="Top" Width="223" Height="32"/>
+        <PasswordBox x:Name="PasswordTB" HorizontalAlignment="Left" Margin="171,126,0,0" VerticalAlignment="Top" Width="224"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,15,0,0" Text="Session Name" VerticalAlignment="Top" Height="32" Width="151"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,52,0,0" Text="Auth Mode" VerticalAlignment="Top" Height="32" Width="151"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,89,0,0" Text="Username" VerticalAlignment="Top" Height="32" Width="151"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,126,0,0" Text="Password" VerticalAlignment="Top" Height="32" Width="151"/>
+    </Grid>
+</Page>

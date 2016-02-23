@@ -1,0 +1,797 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://test.org/UA/Data/"
+  TargetNamespace="http://test.org/UA/Data/"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="TestData" Prefix="TestData">http://test.org/UA/Data/</opc:Namespace>
+  </opc:Namespaces>
+  
+  <opc:Method SymbolicName="GenerateValuesMethodType" ModellingRule="Mandatory">
+		<opc:InputArguments>
+			<opc:Argument Name="Iterations" DataType="ua:UInt32">
+				<opc:Description>The number of new values to generate.</opc:Description>
+			</opc:Argument>
+		</opc:InputArguments>
+	</opc:Method>
+  
+	<opc:ObjectType SymbolicName="GenerateValuesEventType" BaseType="ua:BaseEventType">
+		<opc:Children>
+			<opc:Property SymbolicName="Iterations" DataType="ua:UInt32" ModellingRule="Mandatory" />
+			<opc:Property SymbolicName="NewValueCount" DataType="ua:UInt32" ModellingRule="Mandatory" />
+		</opc:Children>
+	</opc:ObjectType>
+  
+  <!--
+  <opc:ObjectType SymbolicName="Foo_Bar_Type" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Object SymbolicName="Blue_Fish">
+        <opc:Children>
+          <opc:Property SymbolicName="Apple_Array" DataType="ua:String" ValueRank="Array" MinimumSamplingInterval="1000" />
+          <opc:Property SymbolicName="Orange_Array" DataType="ua:String" ValueRank="Array" MinimumSamplingInterval="1000">
+            <opc:References>
+              <opc:Reference>
+                <opc:ReferenceType>ua:HasEffect</opc:ReferenceType>
+                <opc:TargetId>Foo_Bar_Type_Gold_Fish</opc:TargetId>
+              </opc:Reference>
+              <opc:Reference>
+                <opc:ReferenceType>ua:HasEffect</opc:ReferenceType>
+                <opc:TargetId>Foo_Bar_Type</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="Gold_Fish">
+        <opc:Children>
+          <opc:Property SymbolicName="Apple_Array" DataType="ua:String" ValueRank="Array" MinimumSamplingInterval="1000">
+            <opc:References>
+              <opc:Reference>
+                <opc:ReferenceType>ua:HasEffect</opc:ReferenceType>
+                <opc:TargetId>Foo_Bar_Type_Blue_Fish_Orange_Array</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+          <opc:Property SymbolicName="Namespace_Array" DataType="ua:String" ValueRank="Array" MinimumSamplingInterval="1000" />
+        </opc:Children>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Hello_World" TypeDefinition="ua:FolderType" SupportsEvents="true">
+    <opc:Children>
+      <opc:Object SymbolicName="Foo_Bar_1" TypeDefinition="Foo_Bar_Type" SupportsEvents="true">
+      </opc:Object>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+  -->
+  
+	<opc:ObjectType SymbolicName="TestDataObjectType" BaseType="ua:BaseObjectType">
+		<opc:Children>
+			<opc:Property SymbolicName="SimulationActive" DataType="ua:Boolean" ModellingRule="Mandatory">
+				<opc:Description>If true the server will produce new values for each monitored variable.</opc:Description>
+			</opc:Property>
+			<opc:Method SymbolicName="GenerateValues" TypeDefinition="GenerateValuesMethodType" ModellingRule="Mandatory"></opc:Method>
+      <opc:Object SymbolicName="CycleComplete" TypeDefinition="ua:AcknowledgeableConditionType" ModellingRule="Mandatory">
+        <opc:References>
+          <opc:Reference IsInverse="true">
+            <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+            <opc:TargetId>TestDataObjectType</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+      </opc:Object>
+		</opc:Children>
+	</opc:ObjectType>
+
+  <opc:DataType SymbolicName="ScalarValueDataType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="BooleanValue" DataType="ua:Boolean" />
+      <opc:Field Name="SByteValue" DataType="ua:SByte" />
+      <opc:Field Name="ByteValue" DataType="ua:Byte" />
+      <opc:Field Name="Int16Value" DataType="ua:Int16" />
+      <opc:Field Name="UInt16Value" DataType="ua:UInt16" />
+      <opc:Field Name="Int32Value" DataType="ua:Int32" />
+      <opc:Field Name="UInt32Value" DataType="ua:UInt32" />
+      <opc:Field Name="Int64Value" DataType="ua:Int64" />
+      <opc:Field Name="UInt64Value" DataType="ua:UInt64" />
+      <opc:Field Name="FloatValue" DataType="ua:Float" />
+      <opc:Field Name="DoubleValue" DataType="ua:Double" />
+      <opc:Field Name="StringValue" DataType="ua:String" />
+      <opc:Field Name="DateTimeValue" DataType="ua:DateTime" />
+      <opc:Field Name="GuidValue" DataType="ua:Guid" />
+      <opc:Field Name="ByteStringValue" DataType="ua:ByteString" />
+      <opc:Field Name="XmlElementValue" DataType="ua:XmlElement" />
+      <opc:Field Name="NodeIdValue" DataType="ua:NodeId" />
+      <opc:Field Name="ExpandedNodeIdValue" DataType="ua:ExpandedNodeId" />
+      <opc:Field Name="QualifiedNameValue" DataType="ua:QualifiedName" />
+      <opc:Field Name="LocalizedTextValue" DataType="ua:LocalizedText" />
+      <opc:Field Name="StatusCodeValue" DataType="ua:StatusCode" />
+      <opc:Field Name="VariantValue" DataType="ua:BaseDataType" />
+      <opc:Field Name="EnumerationValue" DataType="ua:Enumeration" />
+      <opc:Field Name="StructureValue" DataType="ua:Structure" />
+      <opc:Field Name="Number" DataType="ua:Number" />
+      <opc:Field Name="Integer" DataType="ua:Integer" />
+      <opc:Field Name="UInteger" DataType="ua:UInteger" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:Method SymbolicName="ScalarValue1MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="BooleanIn" DataType="ua:Boolean" />
+      <opc:Argument Name="SByteIn" DataType="ua:SByte" />
+      <opc:Argument Name="ByteIn" DataType="ua:Byte" />
+      <opc:Argument Name="Int16In" DataType="ua:Int16" />
+      <opc:Argument Name="UInt16In" DataType="ua:UInt16" />
+      <opc:Argument Name="Int32In" DataType="ua:Int32" />
+      <opc:Argument Name="UInt32In" DataType="ua:UInt32" />
+      <opc:Argument Name="Int64In" DataType="ua:Int64" />
+      <opc:Argument Name="UInt64In" DataType="ua:UInt64" />
+      <opc:Argument Name="FloatIn" DataType="ua:Float" />
+      <opc:Argument Name="DoubleIn" DataType="ua:Double" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="BooleanOut" DataType="ua:Boolean" />
+      <opc:Argument Name="SByteOut" DataType="ua:SByte" />
+      <opc:Argument Name="ByteOut" DataType="ua:Byte" />
+      <opc:Argument Name="Int16Out" DataType="ua:Int16" />
+      <opc:Argument Name="UInt16Out" DataType="ua:UInt16" />
+      <opc:Argument Name="Int32Out" DataType="ua:Int32" />
+      <opc:Argument Name="UInt32Out" DataType="ua:UInt32" />
+      <opc:Argument Name="Int64Out" DataType="ua:Int64" />
+      <opc:Argument Name="UInt64Out" DataType="ua:UInt64" />
+      <opc:Argument Name="FloatOut" DataType="ua:Float" />
+      <opc:Argument Name="DoubleOut" DataType="ua:Double" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="ScalarValue2MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="StringIn" DataType="ua:String" />
+      <opc:Argument Name="DateTimeIn" DataType="ua:DateTime" />
+      <opc:Argument Name="GuidIn" DataType="ua:Guid" />
+      <opc:Argument Name="ByteStringIn" DataType="ua:ByteString" />
+      <opc:Argument Name="XmlElementIn" DataType="ua:XmlElement" />
+      <opc:Argument Name="NodeIdIn" DataType="ua:NodeId" />
+      <opc:Argument Name="ExpandedNodeIdIn" DataType="ua:ExpandedNodeId" />
+      <opc:Argument Name="QualifiedNameIn" DataType="ua:QualifiedName" />
+      <opc:Argument Name="LocalizedTextIn" DataType="ua:LocalizedText" />
+      <opc:Argument Name="StatusCodeIn" DataType="ua:StatusCode" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="StringOut" DataType="ua:String" />
+      <opc:Argument Name="DateTimeOut" DataType="ua:DateTime" />
+      <opc:Argument Name="GuidOut" DataType="ua:Guid" />
+      <opc:Argument Name="ByteStringOut" DataType="ua:ByteString" />
+      <opc:Argument Name="XmlElementOut" DataType="ua:XmlElement" />
+      <opc:Argument Name="NodeIdOut" DataType="ua:NodeId" />
+      <opc:Argument Name="ExpandedNodeIdOut" DataType="ua:ExpandedNodeId" />
+      <opc:Argument Name="QualifiedNameOut" DataType="ua:QualifiedName" />
+      <opc:Argument Name="LocalizedTextOut" DataType="ua:LocalizedText" />
+      <opc:Argument Name="StatusCodeOut" DataType="ua:StatusCode" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="ScalarValue3MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="VariantIn" DataType="ua:BaseDataType" />
+      <opc:Argument Name="EnumerationIn" DataType="ua:Enumeration" />
+      <opc:Argument Name="StructureIn" DataType="ua:Structure" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="VariantOut" DataType="ua:BaseDataType" />
+      <opc:Argument Name="EnumerationOut" DataType="ua:Enumeration" />
+      <opc:Argument Name="StructureOut" DataType="ua:Structure" />
+    </opc:OutputArguments>
+  </opc:Method>
+  
+  <opc:ObjectType SymbolicName="ScalarValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="BooleanValue" DataType="ua:Boolean" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SByteValue" DataType="ua:SByte" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteValue" DataType="ua:Byte" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int16Value" DataType="ua:Int16" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt16Value" DataType="ua:UInt16" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int32Value" DataType="ua:Int32" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt32Value" DataType="ua:UInt32" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int64Value" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt64Value" DataType="ua:UInt64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FloatValue" DataType="ua:Float" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DoubleValue" DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StringValue" DataType="ua:String" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DateTimeValue" DataType="ua:DateTime" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="GuidValue" DataType="ua:Guid" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteStringValue" DataType="ua:ByteString" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="XmlElementValue" DataType="ua:XmlElement" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NodeIdValue" DataType="ua:NodeId" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ExpandedNodeIdValue" DataType="ua:ExpandedNodeId" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="QualifiedNameValue" DataType="ua:QualifiedName" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="LocalizedTextValue" DataType="ua:LocalizedText" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StatusCodeValue" DataType="ua:StatusCode" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VariantValue" DataType="ua:BaseDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="EnumerationValue" DataType="ua:Enumeration" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StructureValue" DataType="ua:Structure" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NumberValue" DataType="ua:Number" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="AnalogScalarValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="SByteValue" TypeDefinition="ua:AnalogItemType" DataType="ua:SByte" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Byte" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int16Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int16" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt16Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt16" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int32Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int32" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt32Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt32" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int64Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt64Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt64" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FloatValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Float" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DoubleValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Double" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NumberValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Number" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="IntegerValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Integer" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UIntegerValue" TypeDefinition="ua:AnalogItemType" DataType="ua:UInteger" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:DataType SymbolicName="ArrayValueDataType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="BooleanValue" DataType="ua:Boolean" ValueRank="Array" />
+      <opc:Field Name="SByteValue" DataType="ua:SByte" ValueRank="Array" />
+      <opc:Field Name="ByteValue" DataType="ua:Byte" ValueRank="Array" />
+      <opc:Field Name="Int16Value" DataType="ua:Int16" ValueRank="Array" />
+      <opc:Field Name="UInt16Value" DataType="ua:UInt16" ValueRank="Array" />
+      <opc:Field Name="Int32Value" DataType="ua:Int32" ValueRank="Array" />
+      <opc:Field Name="UInt32Value" DataType="ua:UInt32" ValueRank="Array" />
+      <opc:Field Name="Int64Value" DataType="ua:Int64" ValueRank="Array" />
+      <opc:Field Name="UInt64Value" DataType="ua:UInt64" ValueRank="Array" />
+      <opc:Field Name="FloatValue" DataType="ua:Float" ValueRank="Array" />
+      <opc:Field Name="DoubleValue" DataType="ua:Double" ValueRank="Array" />
+      <opc:Field Name="StringValue" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="DateTimeValue" DataType="ua:DateTime" ValueRank="Array" />
+      <opc:Field Name="GuidValue" DataType="ua:Guid" ValueRank="Array" />
+      <opc:Field Name="ByteStringValue" DataType="ua:ByteString" ValueRank="Array" />
+      <opc:Field Name="XmlElementValue" DataType="ua:XmlElement" ValueRank="Array" />
+      <opc:Field Name="NodeIdValue" DataType="ua:NodeId" ValueRank="Array" />
+      <opc:Field Name="ExpandedNodeIdValue" DataType="ua:ExpandedNodeId" ValueRank="Array" />
+      <opc:Field Name="QualifiedNameValue" DataType="ua:QualifiedName" ValueRank="Array" />
+      <opc:Field Name="LocalizedTextValue" DataType="ua:LocalizedText" ValueRank="Array" />
+      <opc:Field Name="StatusCodeValue" DataType="ua:StatusCode" ValueRank="Array" />
+      <opc:Field Name="VariantValue" DataType="ua:BaseDataType" ValueRank="Array" />
+      <opc:Field Name="EnumerationValue" DataType="ua:Enumeration" ValueRank="Array" />
+      <opc:Field Name="StructureValue" DataType="ua:Structure" ValueRank="Array" />
+      <opc:Field Name="Number" DataType="ua:Number" ValueRank="Array" />
+      <opc:Field Name="Integer" DataType="ua:Integer" ValueRank="Array" />
+      <opc:Field Name="UInteger" DataType="ua:UInteger" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+  
+  <opc:Method SymbolicName="ArrayValue1MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="BooleanIn" DataType="ua:Boolean" ValueRank="Array" />
+      <opc:Argument Name="SByteIn" DataType="ua:SByte" ValueRank="Array" />
+      <opc:Argument Name="ByteIn" DataType="ua:Byte" ValueRank="Array" />
+      <opc:Argument Name="Int16In" DataType="ua:Int16" ValueRank="Array" />
+      <opc:Argument Name="UInt16In" DataType="ua:UInt16" ValueRank="Array" />
+      <opc:Argument Name="Int32In" DataType="ua:Int32" ValueRank="Array" />
+      <opc:Argument Name="UInt32In" DataType="ua:UInt32" ValueRank="Array" />
+      <opc:Argument Name="Int64In" DataType="ua:Int64" ValueRank="Array" />
+      <opc:Argument Name="UInt64In" DataType="ua:UInt64" ValueRank="Array" />
+      <opc:Argument Name="FloatIn" DataType="ua:Float" ValueRank="Array" />
+      <opc:Argument Name="DoubleIn" DataType="ua:Double" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="BooleanOut" DataType="ua:Boolean" ValueRank="Array" />
+      <opc:Argument Name="SByteOut" DataType="ua:SByte" ValueRank="Array" />
+      <opc:Argument Name="ByteOut" DataType="ua:Byte" ValueRank="Array" />
+      <opc:Argument Name="Int16Out" DataType="ua:Int16" ValueRank="Array" />
+      <opc:Argument Name="UInt16Out" DataType="ua:UInt16" ValueRank="Array" />
+      <opc:Argument Name="Int32Out" DataType="ua:Int32" ValueRank="Array" />
+      <opc:Argument Name="UInt32Out" DataType="ua:UInt32" ValueRank="Array" />
+      <opc:Argument Name="Int64Out" DataType="ua:Int64" ValueRank="Array" />
+      <opc:Argument Name="UInt64Out" DataType="ua:UInt64" ValueRank="Array" />
+      <opc:Argument Name="FloatOut" DataType="ua:Float" ValueRank="Array" />
+      <opc:Argument Name="DoubleOut" DataType="ua:Double" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="ArrayValue2MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="StringIn" DataType="ua:String" ValueRank="Array" />
+      <opc:Argument Name="DateTimeIn" DataType="ua:DateTime" ValueRank="Array" />
+      <opc:Argument Name="GuidIn" DataType="ua:Guid" ValueRank="Array" />
+      <opc:Argument Name="ByteStringIn" DataType="ua:ByteString" ValueRank="Array" />
+      <opc:Argument Name="XmlElementIn" DataType="ua:XmlElement" ValueRank="Array" />
+      <opc:Argument Name="NodeIdIn" DataType="ua:NodeId" ValueRank="Array" />
+      <opc:Argument Name="ExpandedNodeIdIn" DataType="ua:ExpandedNodeId" ValueRank="Array" />
+      <opc:Argument Name="QualifiedNameIn" DataType="ua:QualifiedName" ValueRank="Array" />
+      <opc:Argument Name="LocalizedTextIn" DataType="ua:LocalizedText" ValueRank="Array" />
+      <opc:Argument Name="StatusCodeIn" DataType="ua:StatusCode" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="StringOut" DataType="ua:String" ValueRank="Array" />
+      <opc:Argument Name="DateTimeOut" DataType="ua:DateTime" ValueRank="Array" />
+      <opc:Argument Name="GuidOut" DataType="ua:Guid" ValueRank="Array" />
+      <opc:Argument Name="ByteStringOut" DataType="ua:ByteString" ValueRank="Array" />
+      <opc:Argument Name="XmlElementOut" DataType="ua:XmlElement" ValueRank="Array" />
+      <opc:Argument Name="NodeIdOut" DataType="ua:NodeId" ValueRank="Array" />
+      <opc:Argument Name="ExpandedNodeIdOut" DataType="ua:ExpandedNodeId" ValueRank="Array" />
+      <opc:Argument Name="QualifiedNameOut" DataType="ua:QualifiedName" ValueRank="Array" />
+      <opc:Argument Name="LocalizedTextOut" DataType="ua:LocalizedText" ValueRank="Array" />
+      <opc:Argument Name="StatusCodeOut" DataType="ua:StatusCode" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+  
+  <opc:Method SymbolicName="ArrayValue3MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="VariantIn" DataType="ua:BaseDataType" ValueRank="Array" />
+      <opc:Argument Name="EnumerationIn" DataType="ua:Enumeration" ValueRank="Array" />
+      <opc:Argument Name="StructureIn" DataType="ua:Structure" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="VariantOut" DataType="ua:BaseDataType" ValueRank="Array" />
+      <opc:Argument Name="EnumerationOut" DataType="ua:Enumeration" ValueRank="Array" />
+      <opc:Argument Name="StructureOut" DataType="ua:Structure" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:ObjectType SymbolicName="ArrayValueObjectType" BaseType="TestDataObjectType">
+		<opc:Children>
+			<opc:Variable SymbolicName="BooleanValue" DataType="ua:Boolean" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="SByteValue" DataType="ua:SByte" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="ByteValue" DataType="ua:Byte" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="Int16Value" DataType="ua:Int16" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="UInt16Value" DataType="ua:UInt16" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="Int32Value" DataType="ua:Int32" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="UInt32Value" DataType="ua:UInt32" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="Int64Value" DataType="ua:Int64" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="UInt64Value" DataType="ua:UInt64" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="FloatValue" DataType="ua:Float" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="DoubleValue" DataType="ua:Double" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="StringValue" DataType="ua:String" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="DateTimeValue" DataType="ua:DateTime" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="GuidValue" DataType="ua:Guid" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="ByteStringValue" DataType="ua:ByteString" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="XmlElementValue" DataType="ua:XmlElement" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="NodeIdValue" DataType="ua:NodeId" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="ExpandedNodeIdValue" DataType="ua:ExpandedNodeId" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="QualifiedNameValue" DataType="ua:QualifiedName" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="LocalizedTextValue" DataType="ua:LocalizedText" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="StatusCodeValue" DataType="ua:StatusCode" ValueRank="Array" ModellingRule="Mandatory" />
+			<opc:Variable SymbolicName="VariantValue" DataType="ua:BaseDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="EnumerationValue" DataType="ua:Enumeration" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StructureValue" DataType="ua:Structure" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NumberValue" DataType="ua:Number" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ValueRank="Array" ModellingRule="Mandatory" />  
+    </opc:Children>
+	</opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="AnalogArrayValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="SByteValue" TypeDefinition="ua:AnalogItemType" DataType="ua:SByte" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Byte" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int16Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int16" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt16Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt16" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int32Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int32" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt32Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt32" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int64Value" TypeDefinition="ua:AnalogItemType" DataType="ua:Int64" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt64Value" TypeDefinition="ua:AnalogItemType" DataType="ua:UInt64" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FloatValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Float" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DoubleValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Double" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NumberValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Number" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="IntegerValue" TypeDefinition="ua:AnalogItemType" DataType="ua:Integer" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UIntegerValue" TypeDefinition="ua:AnalogItemType" DataType="ua:UInteger" ValueRank="Array" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:DataType SymbolicName="BooleanDataType" BaseType="ua:Boolean" />
+  <opc:DataType SymbolicName="SByteDataType" BaseType="ua:SByte" />
+  <opc:DataType SymbolicName="ByteDataType" BaseType="ua:Byte" />
+  <opc:DataType SymbolicName="Int16DataType" BaseType="ua:Int16" />
+  <opc:DataType SymbolicName="UInt16DataType" BaseType="ua:UInt16" />
+  <opc:DataType SymbolicName="Int32DataType" BaseType="ua:Int32" />
+  <opc:DataType SymbolicName="UInt32DataType" BaseType="ua:UInt32" />
+  <opc:DataType SymbolicName="Int64DataType" BaseType="ua:Int64" />
+  <opc:DataType SymbolicName="UInt64DataType" BaseType="ua:UInt64" />
+  <opc:DataType SymbolicName="FloatDataType" BaseType="ua:Float" />
+  <opc:DataType SymbolicName="DoubleDataType" BaseType="ua:Double" />
+  <opc:DataType SymbolicName="StringDataType" BaseType="ua:String" />
+  <opc:DataType SymbolicName="DateTimeDataType" BaseType="ua:DateTime" />
+  <opc:DataType SymbolicName="GuidDataType" BaseType="ua:Guid" />
+  <opc:DataType SymbolicName="ByteStringDataType" BaseType="ua:ByteString" />
+  <opc:DataType SymbolicName="XmlElementDataType" BaseType="ua:XmlElement" />
+  <opc:DataType SymbolicName="NodeIdDataType" BaseType="ua:NodeId" />
+  <opc:DataType SymbolicName="ExpandedNodeIdDataType" BaseType="ua:ExpandedNodeId" />
+  <opc:DataType SymbolicName="QualifiedNameDataType" BaseType="ua:QualifiedName" />
+  <opc:DataType SymbolicName="LocalizedTextDataType" BaseType="ua:LocalizedText" />
+  <opc:DataType SymbolicName="StatusCodeDataType" BaseType="ua:StatusCode" />
+  <opc:DataType SymbolicName="VariantDataType" BaseType="ua:BaseDataType" />
+
+  <opc:DataType SymbolicName="UserScalarValueDataType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="BooleanDataType" DataType="BooleanDataType" />
+      <opc:Field Name="SByteDataType" DataType="SByteDataType" />
+      <opc:Field Name="ByteDataType" DataType="ByteDataType" />
+      <opc:Field Name="Int16DataType" DataType="Int16DataType" />
+      <opc:Field Name="UInt16DataType" DataType="UInt16DataType" />
+      <opc:Field Name="Int32DataType" DataType="Int32DataType" />
+      <opc:Field Name="UInt32DataType" DataType="UInt32DataType" />
+      <opc:Field Name="Int64DataType" DataType="Int64DataType" />
+      <opc:Field Name="UInt64DataType" DataType="UInt64DataType" />
+      <opc:Field Name="FloatDataType" DataType="FloatDataType" />
+      <opc:Field Name="DoubleDataType" DataType="DoubleDataType" />
+      <opc:Field Name="StringDataType" DataType="StringDataType" />
+      <opc:Field Name="DateTimeDataType" DataType="DateTimeDataType" />
+      <opc:Field Name="GuidDataType" DataType="GuidDataType" />
+      <opc:Field Name="ByteStringDataType" DataType="ByteStringDataType" />
+      <opc:Field Name="XmlElementDataType" DataType="XmlElementDataType" />
+      <opc:Field Name="NodeIdDataType" DataType="NodeIdDataType" />
+      <opc:Field Name="ExpandedNodeIdDataType" DataType="ExpandedNodeIdDataType" />
+      <opc:Field Name="QualifiedNameDataType" DataType="QualifiedNameDataType" />
+      <opc:Field Name="LocalizedTextDataType" DataType="LocalizedTextDataType" />
+      <opc:Field Name="StatusCodeDataType" DataType="StatusCodeDataType" />
+      <opc:Field Name="VariantDataType" DataType="VariantDataType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="UserScalarValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="BooleanValue" DataType="BooleanDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SByteValue" DataType="SByteDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteValue" DataType="ByteDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int16Value" DataType="Int16DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt16Value" DataType="UInt16DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int32Value" DataType="Int32DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt32Value" DataType="UInt32DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int64Value" DataType="Int64DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt64Value" DataType="UInt64DataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FloatValue" DataType="FloatDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DoubleValue" DataType="DoubleDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StringValue" DataType="StringDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DateTimeValue" DataType="DateTimeDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="GuidValue" DataType="GuidDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteStringValue" DataType="ByteStringDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="XmlElementValue" DataType="XmlElementDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NodeIdValue" DataType="NodeIdDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ExpandedNodeIdValue" DataType="ExpandedNodeIdDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="QualifiedNameValue" DataType="QualifiedNameDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="LocalizedTextValue" DataType="LocalizedTextDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StatusCodeValue" DataType="StatusCodeDataType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VariantValue" DataType="VariantDataType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:Method SymbolicName="UserScalarValue1MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="BooleanIn" DataType="BooleanDataType" />
+      <opc:Argument Name="SByteIn" DataType="SByteDataType" />
+      <opc:Argument Name="ByteIn" DataType="ByteDataType" />
+      <opc:Argument Name="Int16In" DataType="Int16DataType" />
+      <opc:Argument Name="UInt16In" DataType="UInt16DataType" />
+      <opc:Argument Name="Int32In" DataType="Int32DataType" />
+      <opc:Argument Name="UInt32In" DataType="UInt32DataType" />
+      <opc:Argument Name="Int64In" DataType="Int64DataType" />
+      <opc:Argument Name="UInt64In" DataType="UInt64DataType" />
+      <opc:Argument Name="FloatIn" DataType="FloatDataType" />
+      <opc:Argument Name="DoubleIn" DataType="DoubleDataType" />
+      <opc:Argument Name="StringIn" DataType="StringDataType" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="BooleanOut" DataType="BooleanDataType" />
+      <opc:Argument Name="SByteOut" DataType="SByteDataType" />
+      <opc:Argument Name="ByteOut" DataType="ByteDataType" />
+      <opc:Argument Name="Int16Out" DataType="Int16DataType" />
+      <opc:Argument Name="UInt16Out" DataType="UInt16DataType" />
+      <opc:Argument Name="Int32Out" DataType="Int32DataType" />
+      <opc:Argument Name="UInt32Out" DataType="UInt32DataType" />
+      <opc:Argument Name="Int64Out" DataType="Int64DataType" />
+      <opc:Argument Name="UInt64Out" DataType="UInt64DataType" />
+      <opc:Argument Name="FloatOut" DataType="FloatDataType" />
+      <opc:Argument Name="DoubleOut" DataType="DoubleDataType" />
+      <opc:Argument Name="StringOut" DataType="StringDataType" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="UserScalarValue2MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="DateTimeIn" DataType="DateTimeDataType" />
+      <opc:Argument Name="GuidIn" DataType="GuidDataType" />
+      <opc:Argument Name="ByteStringIn" DataType="ByteStringDataType" />
+      <opc:Argument Name="XmlElementIn" DataType="XmlElementDataType" />
+      <opc:Argument Name="NodeIdIn" DataType="NodeIdDataType" />
+      <opc:Argument Name="ExpandedNodeIdIn" DataType="ExpandedNodeIdDataType" />
+      <opc:Argument Name="QualifiedNameIn" DataType="QualifiedNameDataType" />
+      <opc:Argument Name="LocalizedTextIn" DataType="LocalizedTextDataType" />
+      <opc:Argument Name="StatusCodeIn" DataType="StatusCodeDataType" />
+      <opc:Argument Name="VariantIn" DataType="VariantDataType" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="DateTimeOut" DataType="DateTimeDataType" />
+      <opc:Argument Name="GuidOut" DataType="GuidDataType" />
+      <opc:Argument Name="ByteStringOut" DataType="ByteStringDataType" />
+      <opc:Argument Name="XmlElementOut" DataType="XmlElementDataType" />
+      <opc:Argument Name="NodeIdOut" DataType="NodeIdDataType" />
+      <opc:Argument Name="ExpandedNodeIdOut" DataType="ExpandedNodeIdDataType" />
+      <opc:Argument Name="QualifiedNameOut" DataType="QualifiedNameDataType" />
+      <opc:Argument Name="LocalizedTextOut" DataType="LocalizedTextDataType" />
+      <opc:Argument Name="StatusCodeOut" DataType="StatusCodeDataType" />
+      <opc:Argument Name="VariantOut" DataType="VariantDataType" />
+    </opc:OutputArguments>
+  </opc:Method>
+  
+  <opc:DataType SymbolicName="UserArrayValueDataType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="BooleanDataType" DataType="BooleanDataType" ValueRank="Array" />
+      <opc:Field Name="SByteDataType" DataType="SByteDataType" ValueRank="Array" />
+      <opc:Field Name="ByteDataType" DataType="ByteDataType" ValueRank="Array" />
+      <opc:Field Name="Int16DataType" DataType="Int16DataType" ValueRank="Array" />
+      <opc:Field Name="UInt16DataType" DataType="UInt16DataType" ValueRank="Array" />
+      <opc:Field Name="Int32DataType" DataType="Int32DataType" ValueRank="Array" />
+      <opc:Field Name="UInt32DataType" DataType="UInt32DataType" ValueRank="Array" />
+      <opc:Field Name="Int64DataType" DataType="Int64DataType" ValueRank="Array" />
+      <opc:Field Name="UInt64DataType" DataType="UInt64DataType" ValueRank="Array" />
+      <opc:Field Name="FloatDataType" DataType="FloatDataType" ValueRank="Array" />
+      <opc:Field Name="DoubleDataType" DataType="DoubleDataType" ValueRank="Array" />
+      <opc:Field Name="StringDataType" DataType="StringDataType" ValueRank="Array" />
+      <opc:Field Name="DateTimeDataType" DataType="DateTimeDataType" ValueRank="Array" />
+      <opc:Field Name="GuidDataType" DataType="GuidDataType" ValueRank="Array" />
+      <opc:Field Name="ByteStringDataType" DataType="ByteStringDataType" ValueRank="Array" />
+      <opc:Field Name="XmlElementDataType" DataType="XmlElementDataType" ValueRank="Array" />
+      <opc:Field Name="NodeIdDataType" DataType="NodeIdDataType" ValueRank="Array" />
+      <opc:Field Name="ExpandedNodeIdDataType" DataType="ExpandedNodeIdDataType" ValueRank="Array" />
+      <opc:Field Name="QualifiedNameDataType" DataType="QualifiedNameDataType" ValueRank="Array" />
+      <opc:Field Name="LocalizedTextDataType" DataType="LocalizedTextDataType" ValueRank="Array" />
+      <opc:Field Name="StatusCodeDataType" DataType="StatusCodeDataType" ValueRank="Array" />
+      <opc:Field Name="VariantDataType" DataType="VariantDataType" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="UserArrayValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="BooleanValue" DataType="BooleanDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="SByteValue" DataType="SByteDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteValue" DataType="ByteDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int16Value" DataType="Int16DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt16Value" DataType="UInt16DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int32Value" DataType="Int32DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt32Value" DataType="UInt32DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Int64Value" DataType="Int64DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="UInt64Value" DataType="UInt64DataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="FloatValue" DataType="FloatDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DoubleValue" DataType="DoubleDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StringValue" DataType="StringDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="DateTimeValue" DataType="DateTimeDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="GuidValue" DataType="GuidDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ByteStringValue" DataType="ByteStringDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="XmlElementValue" DataType="XmlElementDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="NodeIdValue" DataType="NodeIdDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ExpandedNodeIdValue" DataType="ExpandedNodeIdDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="QualifiedNameValue" DataType="QualifiedNameDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="LocalizedTextValue" DataType="LocalizedTextDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="StatusCodeValue" DataType="StatusCodeDataType" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VariantValue" DataType="VariantDataType" ValueRank="Array" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Method SymbolicName="UserArrayValue1MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="BooleanIn" DataType="BooleanDataType" ValueRank="Array" />
+      <opc:Argument Name="SByteIn" DataType="SByteDataType" ValueRank="Array" />
+      <opc:Argument Name="ByteIn" DataType="ByteDataType" ValueRank="Array" />
+      <opc:Argument Name="Int16In" DataType="Int16DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt16In" DataType="UInt16DataType" ValueRank="Array" />
+      <opc:Argument Name="Int32In" DataType="Int32DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt32In" DataType="UInt32DataType" ValueRank="Array" />
+      <opc:Argument Name="Int64In" DataType="Int64DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt64In" DataType="UInt64DataType" ValueRank="Array" />
+      <opc:Argument Name="FloatIn" DataType="FloatDataType" ValueRank="Array" />
+      <opc:Argument Name="DoubleIn" DataType="DoubleDataType" ValueRank="Array" />
+      <opc:Argument Name="StringIn" DataType="StringDataType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="BooleanOut" DataType="BooleanDataType" ValueRank="Array" />
+      <opc:Argument Name="SByteOut" DataType="SByteDataType" ValueRank="Array" />
+      <opc:Argument Name="ByteOut" DataType="ByteDataType" ValueRank="Array" />
+      <opc:Argument Name="Int16Out" DataType="Int16DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt16Out" DataType="UInt16DataType" ValueRank="Array" />
+      <opc:Argument Name="Int32Out" DataType="Int32DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt32Out" DataType="UInt32DataType" ValueRank="Array" />
+      <opc:Argument Name="Int64Out" DataType="Int64DataType" ValueRank="Array" />
+      <opc:Argument Name="UInt64Out" DataType="UInt64DataType" ValueRank="Array" />
+      <opc:Argument Name="FloatOut" DataType="FloatDataType" ValueRank="Array" />
+      <opc:Argument Name="DoubleOut" DataType="DoubleDataType" ValueRank="Array" />
+      <opc:Argument Name="StringOut" DataType="StringDataType" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="UserArrayValue2MethodType" ModellingRule="Mandatory">
+    <opc:InputArguments>
+      <opc:Argument Name="DateTimeIn" DataType="DateTimeDataType" ValueRank="Array" />
+      <opc:Argument Name="GuidIn" DataType="GuidDataType" ValueRank="Array" />
+      <opc:Argument Name="ByteStringIn" DataType="ByteStringDataType" ValueRank="Array" />
+      <opc:Argument Name="XmlElementIn" DataType="XmlElementDataType" ValueRank="Array" />
+      <opc:Argument Name="NodeIdIn" DataType="NodeIdDataType" ValueRank="Array" />
+      <opc:Argument Name="ExpandedNodeIdIn" DataType="ExpandedNodeIdDataType" ValueRank="Array" />
+      <opc:Argument Name="QualifiedNameIn" DataType="QualifiedNameDataType" ValueRank="Array" />
+      <opc:Argument Name="LocalizedTextIn" DataType="LocalizedTextDataType" ValueRank="Array" />
+      <opc:Argument Name="StatusCodeIn" DataType="StatusCodeDataType" ValueRank="Array" />
+      <opc:Argument Name="VariantIn" DataType="VariantDataType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="DateTimeOut" DataType="DateTimeDataType" ValueRank="Array" />
+      <opc:Argument Name="GuidOut" DataType="GuidDataType" ValueRank="Array" />
+      <opc:Argument Name="ByteStringOut" DataType="ByteStringDataType" ValueRank="Array" />
+      <opc:Argument Name="XmlElementOut" DataType="XmlElementDataType" ValueRank="Array" />
+      <opc:Argument Name="NodeIdOut" DataType="NodeIdDataType" ValueRank="Array" />
+      <opc:Argument Name="ExpandedNodeIdOut" DataType="ExpandedNodeIdDataType" ValueRank="Array" />
+      <opc:Argument Name="QualifiedNameOut" DataType="QualifiedNameDataType" ValueRank="Array" />
+      <opc:Argument Name="LocalizedTextOut" DataType="LocalizedTextDataType" ValueRank="Array" />
+      <opc:Argument Name="StatusCodeOut" DataType="StatusCodeDataType" ValueRank="Array" />
+      <opc:Argument Name="VariantOut" DataType="VariantDataType" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+  
+  <opc:ObjectType SymbolicName="MethodTestType" BaseType="ua:FolderType">
+    <opc:Children>
+      <opc:Method SymbolicName="ScalarMethod1" TypeDefinition="ScalarValue1MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ScalarMethod2" TypeDefinition="ScalarValue2MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ScalarMethod3" TypeDefinition="ScalarValue3MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ArrayMethod1" TypeDefinition="ArrayValue1MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ArrayMethod2" TypeDefinition="ArrayValue2MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ArrayMethod3" TypeDefinition="ArrayValue3MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="UserScalarMethod1" TypeDefinition="UserScalarValue1MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="UserScalarMethod2" TypeDefinition="UserScalarValue2MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="UserArrayMethod1" TypeDefinition="UserArrayValue1MethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="UserArrayMethod2" TypeDefinition="UserArrayValue2MethodType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="TestSystemConditionType" BaseType="ua:ConditionType">
+    <opc:Children>
+      <opc:Property SymbolicName="MonitoredNodeCount" DataType="ua:Int32" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+	<opc:Object SymbolicName="Data" TypeDefinition="ua:FolderType" SupportsEvents="true">
+		<opc:Children>
+ 			<opc:Object SymbolicName="Static" TypeDefinition="ua:FolderType" SupportsEvents="true">
+				<opc:Children>
+					<opc:Object SymbolicName="Scalar" TypeDefinition="ScalarValueObjectType" ModellingRule="Mandatory"/>
+					<opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="UserScalar" TypeDefinition="UserScalarValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="UserArray" TypeDefinition="UserArrayValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="AnalogScalar" TypeDefinition="AnalogScalarValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="AnalogArray" TypeDefinition="AnalogArrayValueObjectType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="MethodTest" TypeDefinition="MethodTestType" ModellingRule="Mandatory"/>
+				</opc:Children>
+				<opc:References>
+					<opc:Reference>
+						<opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+						<opc:TargetId>Data_Static_Scalar</opc:TargetId>
+					</opc:Reference>
+					<opc:Reference>
+						<opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+						<opc:TargetId>Data_Static_Array</opc:TargetId>
+					</opc:Reference>
+				</opc:References>
+			</opc:Object>
+			<opc:Object SymbolicName="Dynamic" TypeDefinition="ua:FolderType" SupportsEvents="true">
+				<opc:Children>
+					<opc:Object SymbolicName="Scalar" TypeDefinition="ScalarValueObjectType" ModellingRule="Mandatory">
+						<opc:Children>
+							<opc:Property SymbolicName="SimulationActive">
+								<opc:DefaultValue>
+									<uax:Boolean>true</uax:Boolean>
+								</opc:DefaultValue>
+							</opc:Property>
+						</opc:Children>
+					</opc:Object>
+					<opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory">
+						<opc:Children>
+							<opc:Property SymbolicName="SimulationActive">
+								<opc:DefaultValue>
+									<uax:Boolean>true</uax:Boolean>
+								</opc:DefaultValue>
+							</opc:Property>
+						</opc:Children>
+					</opc:Object>
+          <opc:Object SymbolicName="UserScalar" TypeDefinition="UserScalarValueObjectType" ModellingRule="Mandatory">
+            <opc:Children>
+              <opc:Property SymbolicName="SimulationActive">
+                <opc:DefaultValue>
+                  <uax:Boolean>true</uax:Boolean>
+                </opc:DefaultValue>
+              </opc:Property>
+            </opc:Children>
+          </opc:Object>
+          <opc:Object SymbolicName="UserArray" TypeDefinition="UserArrayValueObjectType" ModellingRule="Mandatory">
+            <opc:Children>
+              <opc:Property SymbolicName="SimulationActive">
+                <opc:DefaultValue>
+                  <uax:Boolean>true</uax:Boolean>
+                </opc:DefaultValue>
+              </opc:Property>
+            </opc:Children>
+          </opc:Object>
+          <opc:Object SymbolicName="AnalogScalar" TypeDefinition="AnalogScalarValueObjectType" ModellingRule="Mandatory">
+            <opc:Children>
+              <opc:Property SymbolicName="SimulationActive">
+                <opc:DefaultValue>
+                  <uax:Boolean>true</uax:Boolean>
+                </opc:DefaultValue>
+              </opc:Property>
+            </opc:Children>
+          </opc:Object>
+          <opc:Object SymbolicName="AnalogArray" TypeDefinition="AnalogArrayValueObjectType" ModellingRule="Mandatory">
+            <opc:Children>
+              <opc:Property SymbolicName="SimulationActive">
+                <opc:DefaultValue>
+                  <uax:Boolean>true</uax:Boolean>
+                </opc:DefaultValue>
+              </opc:Property>
+            </opc:Children>
+          </opc:Object>
+				</opc:Children>
+				<opc:References>
+					<opc:Reference>
+						<opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+						<opc:TargetId>Data_Dynamic_Scalar</opc:TargetId>
+					</opc:Reference>
+					<opc:Reference>
+						<opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+						<opc:TargetId>Data_Dynamic_Array</opc:TargetId>
+					</opc:Reference>
+				</opc:References>
+			</opc:Object>
+     <opc:Object SymbolicName="Conditions" TypeDefinition="ua:FolderType" SupportsEvents="true">
+        <opc:Children>
+          <opc:Object SymbolicName="SystemStatus" TypeDefinition="TestSystemConditionType" ModellingRule="Mandatory" />
+        </opc:Children>
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+            <opc:TargetId>Data_Conditions_SystemStatus</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+        </opc:Object>
+		</opc:Children>
+		<opc:References>
+			<opc:Reference IsInverse="true">
+				<opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+				<opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+			</opc:Reference>
+			<opc:Reference IsInverse="true">
+				<opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+				<opc:TargetId>ua:Server</opc:TargetId>
+			</opc:Reference>
+			<opc:Reference>
+				<opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+				<opc:TargetId>Data_Static</opc:TargetId>
+			</opc:Reference>
+			<opc:Reference>
+				<opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+				<opc:TargetId>Data_Dynamic</opc:TargetId>
+			</opc:Reference>
+      <!--
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>Data_Conditions</opc:TargetId>
+      </opc:Reference>
+      -->
+		</opc:References>
+	</opc:Object>
+  
+</opc:ModelDesign>

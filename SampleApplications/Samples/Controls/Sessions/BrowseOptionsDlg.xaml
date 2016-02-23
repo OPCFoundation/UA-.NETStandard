@@ -1,0 +1,26 @@
+﻿<Page
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Sample.Controls"
+    xmlns:other="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:Controls="using:WinRTXamlToolkit.Controls"
+    x:Class="Opc.Ua.Sample.Controls.BrowseOptionsDlg"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Button x:Name="OkBTN" Content="OK" HorizontalAlignment="Left" Margin="207,306,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="BrowseDirectionCB" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="120"/>
+        <TextBox x:Name="ViewIdTB" HorizontalAlignment="Left" Margin="10,47,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top"/>
+        <CheckBox x:Name="ViewVersionCK" Content="CheckBox" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="IncludeSubtypesCK" Content="CheckBox" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="NodeClassMaskCK" Content="CheckBox" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="ViewTimestampCK" Content="CheckBox" HorizontalAlignment="Left" Margin="10,84,0,0" VerticalAlignment="Top"/>
+        <Controls:NumericUpDown x:Name="ViewVersionNC" HorizontalAlignment="Left" Height="100" Margin="10,121,0,0" VerticalAlignment="Top" Width="100"/>
+        <Controls:NumericUpDown x:Name="MaxReferencesReturnedNC" HorizontalAlignment="Left" Height="100" Margin="10,121,0,0" VerticalAlignment="Top" Width="100"/>
+        <DatePicker x:Name="ViewTimestampDP" HorizontalAlignment="Left" Margin="10,226,0,0" VerticalAlignment="Top"/>
+        <other:ReferenceTypeCtrl x:Name="ReferenceTypeCTRL" HorizontalAlignment="Left" Height="100" Margin="10,306,0,0" VerticalAlignment="Top" Width="100"/>
+        <ListBox x:Name="NodeClassList" HorizontalAlignment="Left" Height="100" Margin="10,338,0,0" VerticalAlignment="Top" Width="100"/>
+    </Grid>
+</Page>
