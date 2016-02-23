@@ -1,0 +1,395 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{AA9D8D17-5DBD-4E77-8496-E32177573BF3}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Opc.Ua.Core</RootNamespace>
+    <AssemblyName>Opc.Ua.Core</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
+    <TargetPlatformVersion>10.0.10240.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
+    <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
+    <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UAP</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\ARM\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>ARM</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|ARM'">
+    <OutputPath>bin\ARM\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>ARM</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
+    <None Include="project.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+    <Compile Include="Documentation\Opc.Ua.Bindings.cs" />
+    <Compile Include="Documentation\Opc.Ua.Configuration.cs" />
+    <Compile Include="Documentation\Opc.Ua.cs" />
+    <Compile Include="Documentation\Opc.Ua.Schema.Binary.cs" />
+    <Compile Include="Documentation\Opc.Ua.Schema.cs" />
+    <Compile Include="Documentation\Opc.Ua.Schema.Xml.cs" />
+    <Compile Include="Schema\ApplicationConfiguration.cs" />
+    <Compile Include="Schema\SecuredApplication.cs" />
+    <Compile Include="Schema\SecuredApplicationHelpers.cs" />
+    <Compile Include="Schema\UANodeSet.cs" />
+    <Compile Include="Schema\UANodeSetHelpers.cs" />
+    <Compile Include="Security\AccessControl\AccessTemplateManager.cs" />
+    <Compile Include="Security\AccessControl\ApplicationAccessRule.cs" />
+    <Compile Include="Security\AccessControl\HttpAccessRule.cs" />
+    <Compile Include="Security\AccessControl\UserRoleManager.cs" />
+    <Compile Include="Security\Audit.cs" />
+    <Compile Include="Security\Certificates\CertificateFactory.cs" />
+    <Compile Include="Security\Certificates\CertificateIdentifier.cs" />
+    <Compile Include="Security\Certificates\CertificateStoreIdentifier.cs" />
+    <Compile Include="Security\Certificates\CertificateTrustList.cs" />
+    <Compile Include="Security\Certificates\CertificateValidator.cs" />
+    <Compile Include="Security\Certificates\DirectoryCertificateStore.cs" />
+    <Compile Include="Security\Certificates\EncryptedData.cs" />
+    <Compile Include="Security\Certificates\ICertificate.cs" />
+    <Compile Include="Security\Certificates\ICertificateStore.cs" />
+    <Compile Include="Security\Certificates\RsaUtils.cs" />
+    <Compile Include="Security\Certificates\SecurityConfiguration.cs" />
+    <Compile Include="Security\Certificates\WindowsCertificateStore.cs" />
+    <Compile Include="Security\Certificates\X509AuthorityKeyIdentifierExtension.cs" />
+    <Compile Include="Security\Certificates\X509SubjectAltNameExtension.cs" />
+    <Compile Include="Security\Constants\SecurityConstants.cs" />
+    <Compile Include="Security\Constants\SecurityPolicies.cs" />
+    <Compile Include="Stack\Bindings\ArraySegmentStream.cs" />
+    <Compile Include="Stack\Bindings\BaseBinding.cs" />
+    <Compile Include="Stack\Bindings\BindingFactory.cs" />
+    <Compile Include="Stack\Bindings\BufferManager.cs" />
+    <Compile Include="Stack\Bindings\UaHttpsSoapBinding.cs" />
+    <Compile Include="Stack\Bindings\UaSoapXmlBinding.cs" />
+    <Compile Include="Stack\Bindings\UaSoapXmlOverTcpBinding.cs" />
+    <Compile Include="Stack\Bindings\UaTcpBinding.cs" />
+    <Compile Include="Stack\Client\ClientBase.cs" />
+    <Compile Include="Stack\Client\DiscoveryClient.cs" />
+    <Compile Include="Stack\Client\IChannelBase.cs" />
+    <Compile Include="Stack\Client\InvokeServiceMessage.cs" />
+    <Compile Include="Stack\Client\IServiceRequest.cs" />
+    <Compile Include="Stack\Client\IUserIdentity.cs" />
+    <Compile Include="Stack\Client\RegistrationClient.cs" />
+    <Compile Include="Stack\Client\SessionChannel.cs" />
+    <Compile Include="Stack\Client\UserIdentity.cs" />
+    <Compile Include="Stack\Client\WcfChannelBase.cs" />
+    <Compile Include="Stack\Configuration\ApplicationConfiguration.cs" />
+    <Compile Include="Stack\Configuration\ConfigurationWatcher.cs" />
+    <Compile Include="Stack\Configuration\ConfiguredEndpoints.cs" />
+    <Compile Include="Stack\Configuration\EndpointConfiguration.cs" />
+    <Compile Include="Stack\Configuration\EndpointDescription.cs" />
+    <Compile Include="Stack\Configuration\ISecurityConfigurationManager.cs" />
+    <Compile Include="Stack\Configuration\SecurityConfigurationManager.cs" />
+    <Compile Include="Stack\Configuration\ServerProperties.cs" />
+    <Compile Include="Stack\Constants\ConditionStateNames.cs" />
+    <Compile Include="Stack\Constants\DataTypes.Helpers.cs" />
+    <Compile Include="Stack\Constants\Namespaces.cs" />
+    <Compile Include="Stack\Constants\ReferenceTypes.Helpers.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Channels.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Classes.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Client.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Constants.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.DataTypes.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Endpoints.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Interfaces.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.Messages.cs" />
+    <Compile Include="Stack\Generated\Opc.Ua.ServerBase.cs" />
+    <Compile Include="Stack\Https\HttpsTransportChannel.cs" />
+    <Compile Include="Stack\Nodes\ContentFilter.cs" />
+    <Compile Include="Stack\Nodes\IFilterTarget.cs" />
+    <Compile Include="Stack\Nodes\INode.cs" />
+    <Compile Include="Stack\Nodes\IOperationContext.cs" />
+    <Compile Include="Stack\Nodes\Node.cs" />
+    <Compile Include="Stack\Nodes\NodeSet.cs" />
+    <Compile Include="Stack\Nodes\NodeTable.cs" />
+    <Compile Include="Stack\Nodes\ReferenceTable.cs" />
+    <Compile Include="Stack\Nodes\TypeTable.cs" />
+    <Compile Include="Stack\Nodes\ViewTable.cs" />
+    <Compile Include="Stack\Server\EndpointBase.cs" />
+    <Compile Include="Stack\Server\IEndpointBase.cs" />
+    <Compile Include="Stack\Server\IServerBase.cs" />
+    <Compile Include="Stack\Server\NonHttpEndpoint.cs" />
+    <Compile Include="Stack\Server\SecureChannelContext.cs" />
+    <Compile Include="Stack\Server\ServerBase.cs" />
+    <Compile Include="Stack\Server\ServiceMessageContextBehaviorAttribute.cs" />
+    <Compile Include="Stack\State\AcknowledgeableConditionState.cs" />
+    <Compile Include="Stack\State\AlarmConditionState.cs" />
+    <Compile Include="Stack\State\AuditEventState.cs" />
+    <Compile Include="Stack\State\BaseEventState.cs" />
+    <Compile Include="Stack\State\BaseInstanceState.cs" />
+    <Compile Include="Stack\State\BaseInstanceStateSnapshot.cs" />
+    <Compile Include="Stack\State\BaseObjectState.cs" />
+    <Compile Include="Stack\State\BaseObjectTypeState.cs" />
+    <Compile Include="Stack\State\BaseTypeState.cs" />
+    <Compile Include="Stack\State\BaseVariableState.cs" />
+    <Compile Include="Stack\State\BaseVariableTypeState.cs" />
+    <Compile Include="Stack\State\ConditionState.cs" />
+    <Compile Include="Stack\State\DataTypeState.cs" />
+    <Compile Include="Stack\State\DialogConditionState.cs" />
+    <Compile Include="Stack\State\ExclusiveLimitAlarmState.cs" />
+    <Compile Include="Stack\State\ExclusiveLimitStateMachineState.cs" />
+    <Compile Include="Stack\State\FiniteStateMachineState.cs" />
+    <Compile Include="Stack\State\ISystemContext.cs" />
+    <Compile Include="Stack\State\LimitAlarmState.cs" />
+    <Compile Include="Stack\State\MethodState.cs" />
+    <Compile Include="Stack\State\NodeBrowser.cs" />
+    <Compile Include="Stack\State\NodeState.cs" />
+    <Compile Include="Stack\State\NodeStateCollection.cs" />
+    <Compile Include="Stack\State\NonExclusiveLimitAlarmState.cs" />
+    <Compile Include="Stack\State\ProgramStateMachineState.cs" />
+    <Compile Include="Stack\State\ReferenceTypeState.cs" />
+    <Compile Include="Stack\State\ShelvedStateMachineState.cs" />
+    <Compile Include="Stack\State\ViewState.cs" />
+    <Compile Include="Stack\Tcp\TcpAsyncOperation.cs" />
+    <Compile Include="Stack\Tcp\TcpChannel.Asymmetric.cs" />
+    <Compile Include="Stack\Tcp\TcpChannel.cs" />
+    <Compile Include="Stack\Tcp\TcpChannel.Rsa.cs" />
+    <Compile Include="Stack\Tcp\TcpChannel.Symmetric.cs" />
+    <Compile Include="Stack\Tcp\TcpChannelQuotas.cs" />
+    <Compile Include="Stack\Tcp\TcpChannelToken.cs" />
+    <Compile Include="Stack\Tcp\TcpClientChannel.cs" />
+    <Compile Include="Stack\Tcp\TcpListener.cs" />
+    <Compile Include="Stack\Tcp\TcpMessageSocket.cs" />
+    <Compile Include="Stack\Tcp\TcpMessageType.cs" />
+    <Compile Include="Stack\Tcp\TcpServerChannel.cs" />
+    <Compile Include="Stack\Tcp\TcpTransportChannel.cs" />
+    <Compile Include="Stack\Transport\AsyncResultBase.cs" />
+    <Compile Include="Stack\Transport\ITransportChannel.cs" />
+    <Compile Include="Stack\Transport\ITransportListener.cs" />
+    <Compile Include="Stack\Transport\ITransportListenerCallback.cs" />
+    <Compile Include="Stack\Transport\TransportChannelSettings.cs" />
+    <Compile Include="Stack\Transport\TransportListenerSettings.cs" />
+    <Compile Include="Stack\Types\Argument.cs" />
+    <Compile Include="Stack\Types\BrowseDescription.cs" />
+    <Compile Include="Stack\Types\BrowsePath.cs" />
+    <Compile Include="Stack\Types\CallMethodRequest.cs" />
+    <Compile Include="Stack\Types\ContentFilter.Evaluate.cs" />
+    <Compile Include="Stack\Types\EUInformation.cs" />
+    <Compile Include="Stack\Types\EventFieldList.cs" />
+    <Compile Include="Stack\Types\HistoryReadValueId.cs" />
+    <Compile Include="Stack\Types\HistoryUpdateDetails.cs" />
+    <Compile Include="Stack\Types\MonitoredItemCreateRequest.cs" />
+    <Compile Include="Stack\Types\MonitoredItemCreateResult.cs" />
+    <Compile Include="Stack\Types\MonitoredItemModifyRequest.cs" />
+    <Compile Include="Stack\Types\MonitoredItemNotification.cs" />
+    <Compile Include="Stack\Types\MonitoringFilter.cs" />
+    <Compile Include="Stack\Types\NotificationMessage.cs" />
+    <Compile Include="Stack\Types\QueryDataSet.cs" />
+    <Compile Include="Stack\Types\Range.cs" />
+    <Compile Include="Stack\Types\ReadValueId.cs" />
+    <Compile Include="Stack\Types\ReferenceDescription.cs" />
+    <Compile Include="Stack\Types\ServiceFault.cs" />
+    <Compile Include="Stack\Types\StatusResult.cs" />
+    <Compile Include="Stack\Types\UserIdentityToken.cs" />
+    <Compile Include="Stack\Types\UserTokenPolicy.cs" />
+    <Compile Include="Stack\Types\VariableAttributes.cs" />
+    <Compile Include="Stack\Types\ViewDescription.cs" />
+    <Compile Include="Stack\Types\WriteValue.cs" />
+    <Compile Include="Types\BuiltIn\AttributeValues.cs" />
+    <Compile Include="Types\BuiltIn\BuiltInTypeCollections.cs" />
+    <Compile Include="Types\BuiltIn\DataValue.cs" />
+    <Compile Include="Types\BuiltIn\DiagnosticInfo.cs" />
+    <Compile Include="Types\BuiltIn\DiagnosticMasks.cs" />
+    <Compile Include="Types\BuiltIn\ExpandedNodeId.cs" />
+    <Compile Include="Types\BuiltIn\ExtensionObject.cs" />
+    <Compile Include="Types\BuiltIn\ITranslatableObject.cs" />
+    <Compile Include="Types\BuiltIn\ITypeTable.cs" />
+    <Compile Include="Types\BuiltIn\LocalizedText.cs" />
+    <Compile Include="Types\BuiltIn\MessageContextExtension.cs" />
+    <Compile Include="Types\BuiltIn\NodeId.cs" />
+    <Compile Include="Types\BuiltIn\QualifiedName.cs" />
+    <Compile Include="Types\BuiltIn\StatusCode.cs" />
+    <Compile Include="Types\BuiltIn\Uuid.cs" />
+    <Compile Include="Types\BuiltIn\Variant.cs" />
+    <Compile Include="Types\Constants\Attributes.Helpers.cs" />
+    <Compile Include="Types\Constants\StatusCodes.Helpers.cs" />
+    <Compile Include="Types\Encoders\BinaryDecoder.cs" />
+    <Compile Include="Types\Encoders\BinaryEncoder.cs" />
+    <Compile Include="Types\Encoders\EncodableObject.cs" />
+    <Compile Include="Types\Encoders\EncodeableFactory.cs" />
+    <Compile Include="Types\Encoders\IDecoder.cs" />
+    <Compile Include="Types\Encoders\IEncodable.cs" />
+    <Compile Include="Types\Encoders\IEncoder.cs" />
+    <Compile Include="Types\Encoders\XmlDecoder.cs" />
+    <Compile Include="Types\Encoders\XmlEncoder.cs" />
+    <Compile Include="Types\Generated\Opc.Ua.Attributes.cs" />
+    <Compile Include="Types\Generated\Opc.Ua.StatusCodes.cs" />
+    <Compile Include="Types\Schemas\BinarySchema.cs" />
+    <Compile Include="Types\Schemas\BinarySchemaValidator.cs" />
+    <Compile Include="Types\Schemas\OPCBinarySchema.cs" />
+    <Compile Include="Types\Schemas\SchemaValidator.cs" />
+    <Compile Include="Types\Schemas\XmlSchemaValidator.cs" />
+    <Compile Include="Types\SoftwareCertficate.cs" />
+    <Compile Include="Types\Utils\DataComparer.cs" />
+    <Compile Include="Types\Utils\DataGenerator.cs" />
+    <Compile Include="Types\Utils\HiResClock.cs" />
+    <Compile Include="Types\Utils\NamespaceTable.cs" />
+    <Compile Include="Types\Utils\NumericRange.cs" />
+    <Compile Include="Types\Utils\ReadOnlyList.cs" />
+    <Compile Include="Types\Utils\RelativePath.cs" />
+    <Compile Include="Types\Utils\ServiceMessageContext.cs" />
+    <Compile Include="Types\Utils\ServiceResult.cs" />
+    <Compile Include="Types\Utils\ServiceResultException.cs" />
+    <Compile Include="Types\Utils\TypeInfo.cs" />
+    <Compile Include="Types\Utils\Utils.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <Content Include="Schema\ApplicationConfiguration.xsd">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Include="Schema\AttributeIds.csv" />
+    <None Include="Schema\BuildSchema.bat" />
+    <None Include="Schema\NodeIds.csv" />
+    <None Include="Schema\Opc.Ua.Endpoints.wsdl" />
+    <None Include="Schema\Opc.Ua.Services.wsdl" />
+    <None Include="Schema\Opc.Ua.StatusCodes.csv" />
+    <None Include="Schema\Opc.Ua.Types.bsd" />
+    <Content Include="Schema\Opc.Ua.Types.xsd">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Schema\SecuredApplication.xsd">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Include="Schema\UANodeSet.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\UAVariant.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <None Include="Types\Schemas\BuiltInTypes.bsd" />
+    <None Include="Types\Schemas\OPCBinarySchema.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Types\Schemas\StandardTypes.bsd" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Properties\Opc.Ua.Core.rd.xml" />
+    <Content Include="Schema\Opc.Ua.NodeSet.xml" />
+    <Content Include="Schema\Opc.Ua.NodeSet2.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part10.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part11.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part13.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part3.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part4.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part5.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part8.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part9.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.Part999.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.NodeSet2.xml" />
+    <Content Include="Stack\Generated\Opc.Ua.PredefinedNodes.xml" />
+    <Content Include="Stack\Server\ClientAccessPolicy.xml" />
+    <Content Include="Types\Schemas\BuiltInTypes.xml" />
+    <EmbeddedResource Include="Types\Utils\LocalizedData.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+  <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
+    <VisualStudioVersion>14.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

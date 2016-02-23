@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  schemaLocation="./Schema/ApplicationConfiguration.xsd"
+>
+  <ApplicationName>Opc.Ua.SampleServer</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:SampleServer</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/SampleServer</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+
+  <SecurityConfiguration>
+    
+    <!-- Where the application instance certificate is stored (MachineDefault) -->
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <SubjectName>UA Sample Server</SubjectName>
+    </ApplicationCertificate>
+
+    <!-- Where the issuer certificate are stored (certificate authorities) -->
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+    </TrustedIssuerCertificates>
+    
+    <!-- Where the trust list is stored (UA Applications) -->
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>OPC Foundation\CertificateStores\UA Applications</StorePath>
+    </TrustedPeerCertificates>
+    
+    <!-- The directory used to store invalid certficates for later review by the administrator. -->
+    <RejectedCertificateStore>
+      <StoreType>Directory</StoreType>
+      <StorePath>OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+    </RejectedCertificateStore>
+
+  </SecurityConfiguration>
+
+
+  <TransportConfigurations></TransportConfigurations>
+  
+  <TransportQuotas>
+    <OperationTimeout>600000</OperationTimeout>
+    <MaxStringLength>1048576</MaxStringLength>
+    <MaxByteStringLength>4194304</MaxByteStringLength>
+    <MaxArrayLength>65535</MaxArrayLength>
+    <MaxMessageSize>4194304</MaxMessageSize>
+    <MaxBufferSize>65535</MaxBufferSize>
+    <ChannelLifetime>300000</ChannelLifetime>
+    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+  </TransportQuotas>
+  
+  <ServerConfiguration>
+    <BaseAddresses>
+      <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
+      <ua:String>http://localhost:51211/UA/SampleServer</ua:String>
+      <ua:String>https://localhost:51212/UA/SampleServer/</ua:String>
+    </BaseAddresses>
+
+    <!-- 
+    These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
+    used to communicate with the server. The URL used by the client when calling
+    FindServers/GetEndpoints or CreateSession will be used to filter the list of
+    endpoints returned by checking for alternate base addresses that have a domain
+    that matches the domain in the url provided by the client.
+    
+    Note that any additional domains should be listed in the server's certificate. If they
+    are left out the client make refuse to connect because it has no way to know if the 
+    alternate domain was authorized by the server administrator.
+    -->
+    <!--
+    <AlternateBaseAddresses>
+      <ua:String>http://mycompany.com:40000/UA/SampleServer</ua:String>
+    </AlternateBaseAddresses>
+    -->
+
+    <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityLevel>3</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityLevel>2</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>None_1</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
+        <SecurityLevel>0</SecurityLevel>
+      </ServerSecurityPolicy>
+      <!--
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityLevel>1</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityLevel>4</SecurityLevel>
+      </ServerSecurityPolicy>
+      -->
+    </SecurityPolicies>
+
+    <MinRequestThreadCount>5</MinRequestThreadCount>
+    <MaxRequestThreadCount>100</MaxRequestThreadCount>
+    <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
+    
+    <UserTokenPolicies>
+      <ua:UserTokenPolicy>
+        <ua:TokenType>Anonymous_0</ua:TokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+      <ua:UserTokenPolicy>
+        <ua:TokenType>UserName_1</ua:TokenType>
+      </ua:UserTokenPolicy>
+      <ua:UserTokenPolicy>
+        <ua:TokenType>Certificate_2</ua:TokenType>
+      </ua:UserTokenPolicy>
+      <!--
+      <ua:UserTokenPolicy>
+        <ua:TokenType>IssuedToken_3</ua:TokenType>
+        <ua:IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</ua:IssuedTokenType>
+      </ua:UserTokenPolicy>
+      -->
+    </UserTokenPolicies>
+    <DiagnosticsEnabled>false</DiagnosticsEnabled>
+    <MaxSessionCount>100</MaxSessionCount>
+    <MinSessionTimeout>10000</MinSessionTimeout>
+    <MaxSessionTimeout>3600000</MaxSessionTimeout>
+    <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>
+    <MaxQueryContinuationPoints>10</MaxQueryContinuationPoints>
+    <MaxHistoryContinuationPoints>100</MaxHistoryContinuationPoints>
+    <MaxRequestAge>600000</MaxRequestAge>
+    <MinPublishingInterval>100</MinPublishingInterval>
+    <MaxPublishingInterval>3600000</MaxPublishingInterval>
+    <PublishingResolution>50</PublishingResolution>
+    <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
+    <MaxMessageQueueSize>100</MaxMessageQueueSize>
+    <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
+    <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+    <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+    <AvailableSamplingRates />
+    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
+    <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
+  </ServerConfiguration>
+
+  <Extensions>
+    <Extension>
+      <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
+        <Buffers>
+          <MemoryBufferInstance>
+            <Name>UInt32</Name>
+            <TagCount>100</TagCount>
+            <DataType>UInt32</DataType>
+          </MemoryBufferInstance>
+          <MemoryBufferInstance>
+            <Name>Double</Name>
+            <TagCount>100</TagCount>
+            <DataType>Double</DataType>
+          </MemoryBufferInstance>
+        </Buffers>
+      </MemoryBufferConfiguration>
+    </Extension>
+  </Extensions>
+
+  <TraceConfiguration>
+    <OutputFilePath>Logs\Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <DeleteOnLoad>true</DeleteOnLoad>
+    <!-- Show Only Errors -->
+    <!-- <TraceMasks>1</TraceMasks> -->
+    <!-- Show Only Security and Errors -->
+    <TraceMasks>515</TraceMasks>
+    <!-- Show Only Security, Errors and Trace -->
+    <!-- <TraceMasks>515</TraceMasks> -->
+    <!-- Show Only Security, COM Calls, Errors and Trace -->
+    <!-- <TraceMasks>771</TraceMasks> -->
+    <!-- Show Only Security, Service Calls, Errors and Trace -->
+    <!-- <TraceMasks>523</TraceMasks> -->
+    <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
+    <!-- <TraceMasks>519</TraceMasks> -->
+  </TraceConfiguration>
+
+  <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->
+  <DisableHiResClock>true</DisableHiResClock>
+
+</ApplicationConfiguration>

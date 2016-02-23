@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+	xmlns:ua="http://opcfoundation.org/UA/"
+	xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://samples.org/UA/memorybuffer"
+	TargetNamespace="http://samples.org/UA/memorybuffer"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="MemoryBuffer" Prefix="MemoryBuffer">http://samples.org/UA/memorybuffer</opc:Namespace>
+  </opc:Namespaces>
+
+	<opc:VariableType SymbolicName="MemoryTagType" BaseType="ua:BaseDataVariableType">
+	</opc:VariableType>
+
+	<opc:ObjectType SymbolicName="MemoryBufferType" BaseType="ua:BaseObjectType">
+		<opc:Children>
+			<opc:Property SymbolicName="StartAddress" DataType="ua:UInt32">
+				<opc:DefaultValue>
+					<uax:UInt32>0</uax:UInt32>
+				</opc:DefaultValue>
+			</opc:Property>
+			<opc:Property SymbolicName="SizeInBytes" DataType="ua:UInt32">
+				<opc:DefaultValue>
+					<uax:UInt32>4096</uax:UInt32>
+				</opc:DefaultValue>
+			</opc:Property>
+		</opc:Children>
+	</opc:ObjectType>
+	
+	<opc:Object SymbolicName="MemoryBuffers" TypeDefinition="ua:FolderType">
+		<opc:References>
+			<opc:Reference IsInverse="true">
+				<opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+				<opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+			</opc:Reference>
+		</opc:References>
+	</opc:Object>
+	
+</opc:ModelDesign>
