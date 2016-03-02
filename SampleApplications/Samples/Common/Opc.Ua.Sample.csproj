@@ -1,0 +1,222 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{F9E0DBB6-FD8D-4871-B179-BBF3A2A3CDA1}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Opc.Ua.Sample</RootNamespace>
+    <AssemblyName>Opc.Ua.Sample</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
+    <TargetPlatformVersion>10.0.10240.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
+    <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
+    <PlatformTarget>ARM</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\ARM\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>ARM</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|ARM'">
+    <PlatformTarget>ARM</PlatformTarget>
+    <OutputPath>bin\ARM\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>ARM</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <PlatformTarget>x86</PlatformTarget>
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize>true</Optimize>
+    <NoWarn>;2008</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
+    <EmbeddedResource Include="Boiler\Boiler.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <None Include="Boiler\Boiler.Types.bsd" />
+    <None Include="Boiler\Boiler.Types.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Boiler\BoilerDesign.csv" />
+    <EmbeddedResource Include="MemoryBuffer\MemoryBuffer.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <None Include="MemoryBuffer\MemoryBuffer.Types.bsd" />
+    <None Include="MemoryBuffer\MemoryBuffer.Types.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="MemoryBuffer\MemoryBufferDesign.csv" />
+    <None Include="project.json" />
+    <EmbeddedResource Include="TestData\TestData.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <None Include="TestData\TestData.Types.bsd" />
+    <None Include="TestData\TestData.Types.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="TestData\TestDataDesign.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Base\CustomNodeManager.cs" />
+    <Compile Include="Base\DataChangeMonitoredItem.cs" />
+    <Compile Include="Base\MonitoredItemQueue.cs" />
+    <Compile Include="Base\MonitoredNode.cs" />
+    <Compile Include="Base\SampleNodeManager.cs" />
+    <Compile Include="Boiler\Boiler.Classes.cs" />
+    <Compile Include="Boiler\Boiler.Constants.cs" />
+    <Compile Include="Boiler\Boiler.DataTypes.cs" />
+    <Compile Include="Boiler\BoilerNodeManager.cs" />
+    <Compile Include="Boiler\BoilerState.cs" />
+    <Compile Include="Boiler\GenericController.cs" />
+    <Compile Include="MemoryBuffer\MemoryBuffer.Classes.cs" />
+    <Compile Include="MemoryBuffer\MemoryBufferBrowser.cs" />
+    <Compile Include="MemoryBuffer\MemoryBufferConfiguration.cs" />
+    <Compile Include="MemoryBuffer\MemoryBufferMonitoredItem.cs" />
+    <Compile Include="MemoryBuffer\MemoryBufferNodeManager.cs" />
+    <Compile Include="MemoryBuffer\MemoryBufferState.cs" />
+    <Compile Include="MemoryBuffer\MemoryTagState.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+    <Compile Include="SampleServer.cs" />
+    <Compile Include="SampleServer.SampleModel.cs" />
+    <Compile Include="SampleServer.UserAuthentication.cs" />
+    <Compile Include="TestData\AnalogArrayValueObjectState.cs" />
+    <Compile Include="TestData\AnalogScalarValueObjectState.cs" />
+    <Compile Include="TestData\ArrayValueObjectState.cs" />
+    <Compile Include="TestData\HistoryArchive.cs" />
+    <Compile Include="TestData\HistoryDataReader.cs" />
+    <Compile Include="TestData\HistoryFile.cs" />
+    <Compile Include="TestData\IHistoryDataSource.cs" />
+    <Compile Include="TestData\MethodTestState.cs" />
+    <Compile Include="TestData\ScalarValueObjectState.cs" />
+    <Compile Include="TestData\TestData.Classes.cs" />
+    <Compile Include="TestData\TestData.Constants.cs" />
+    <Compile Include="TestData\TestData.DataTypes.cs" />
+    <Compile Include="TestData\TestDataNodeManager.cs" />
+    <Compile Include="TestData\TestDataNodeManagerConfiguration.cs" />
+    <Compile Include="TestData\TestDataObjectState.cs" />
+    <Compile Include="TestData\TestDataSystem.cs" />
+    <Compile Include="TestData\TestSystemConditionState.cs" />
+    <Compile Include="TestData\UserArrayValueObjectState.cs" />
+    <Compile Include="TestData\UserScalarValueObjectState.cs" />
+    <Compile Include="UaBasicHttpBinding.cs" />
+    <Content Include="Boiler\Boiler.NodeSet.xml" />
+    <Content Include="Boiler\Boiler.NodeSet2.xml" />
+    <Content Include="Boiler\Boiler.PredefinedNodes.xml" />
+    <Content Include="Boiler\BoilerDesign.xml" />
+    <Content Include="MemoryBuffer\MemoryBuffer.NodeSet.xml" />
+    <Content Include="MemoryBuffer\MemoryBuffer.NodeSet2.xml" />
+    <Content Include="MemoryBuffer\MemoryBuffer.PredefinedNodes.xml" />
+    <Content Include="MemoryBuffer\MemoryBufferDesign.xml" />
+    <Content Include="Properties\Opc.Ua.Sample.rd.xml" />
+    <Content Include="TestData\TestData.NodeSet.xml" />
+    <Content Include="TestData\TestData.NodeSet2.xml" />
+    <Content Include="TestData\TestData.PredefinedNodes.xml" />
+    <Content Include="TestData\TestDataDesign.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Stack\Core\Opc.Ua.Core.csproj">
+      <Project>{aa9d8d17-5dbd-4e77-8496-e32177573bf3}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Client\Opc.Ua.Client.csproj">
+      <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Server\Opc.Ua.Server.csproj">
+      <Project>{abcad618-b747-4794-9563-33e018fdbb93}</Project>
+      <Name>Opc.Ua.Server</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
+    <VisualStudioVersion>14.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

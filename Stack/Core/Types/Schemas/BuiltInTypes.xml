@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<opc:TypeDictionary
+	xmlns="http://opcfoundation.org/UA/BuiltInTypes/"
+	xmlns:opc="http://opcfoundation.org/UA/TypeDictionary/"
+  TargetNamespace="http://opcfoundation.org/UA/BuiltInTypes/"
+>
+  <opc:DataType Name="Boolean" />
+  <opc:DataType Name="SByte" />
+  <opc:DataType Name="Byte" />
+  <opc:DataType Name="Int16" />
+  <opc:DataType Name="UInt16" />
+  <opc:DataType Name="Int32" />
+  <opc:DataType Name="UInt32" />
+  <opc:DataType Name="Int64" />
+  <opc:DataType Name="UInt64" />
+  <opc:DataType Name="Float" />
+  <opc:DataType Name="Double" />
+  <opc:DataType Name="String" />
+  <opc:DataType Name="DateTime" />
+  <opc:DataType Name="Guid" />
+  <opc:DataType Name="ByteString" />
+  <opc:DataType Name="XmlElement" />
+  <opc:DataType Name="Extension" />
+  <opc:DataType Name="NodeId" />
+  <opc:DataType Name="ExpandedNodeId" />
+  <opc:DataType Name="StatusCode" />
+  <opc:DataType Name="DiagnosticInfo" />
+  <opc:DataType Name="QualifiedName" />
+  <opc:DataType Name="LocalizedText" />
+  <opc:DataType Name="ExtensionObject" />
+  <opc:DataType Name="DataValue" />
+  <opc:DataType Name="Variant" />
+  
+</opc:TypeDictionary>

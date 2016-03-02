@@ -1,0 +1,35 @@
+﻿<Page
+    x:Class="Opc.Ua.Client.Controls.ConfiguredServerDlg"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="0,0,-345,-75">
+        <Border BorderBrush="Black" BorderThickness="1" Background="{ThemeResource AppBarBackgroundThemeBrush}" HorizontalAlignment="Left" Height="400" VerticalAlignment="Top" Width="430"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,15,0,0" Text="Protocol" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="ProtocolCB" HorizontalAlignment="Left" Margin="200,10,0,0" VerticalAlignment="Top" Width="210" SelectionChanged="ProtocolCB_SelectionChanged"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,52,0,0" Text="Security Mode" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="SecurityModeCB" HorizontalAlignment="Left" Margin="200,47,0,0" VerticalAlignment="Top" Width="210" SelectionChanged="SecurityModeCB_SelectionChanged"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,89,0,0" Text="Security Policy" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="SecurityPolicyCB" HorizontalAlignment="Left" Margin="200,84,0,0" VerticalAlignment="Top" Width="210" SelectionChanged="SecurityPolicyCB_SelectionChanged"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,126,0,0" Text="Message Encoding" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="EncodingCB" HorizontalAlignment="Left" Margin="200,121,0,0" VerticalAlignment="Top" Width="210"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,163,0,0" Text="User Identity Type" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="UserTokenTypeCB" HorizontalAlignment="Left" Margin="200,158,0,0" VerticalAlignment="Top" Width="210" SelectionChanged="UserTokenTypeCB_SelectionChanged"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,200,0,0" Text="Issued Token Type" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="IssuedTokenTypeCB" HorizontalAlignment="Left" Margin="200,195,0,0" VerticalAlignment="Top" Width="210"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,237,0,0" Text="User Identity" VerticalAlignment="Top" Height="32" Width="150"/>
+        <TextBox x:Name="UserIdentityTB" HorizontalAlignment="Left" Margin="200,232,0,0" TextWrapping="Wrap" Text="User Identity" VerticalAlignment="Top" Width="150"/>
+        <Button x:Name="UserIdentityBTN" Content="User" HorizontalAlignment="Left" Margin="360,232,0,0" VerticalAlignment="Top" Width="50" Click="UserIdentityBTN_Click"/>
+        <TextBlock  HorizontalAlignment="Left" Margin="20,274,0,0" Text="User Default Limits" VerticalAlignment="Top" Height="32" Width="150"/>
+        <ComboBox x:Name="UseDefaultLimitsCB" HorizontalAlignment="Left" Margin="200,269,0,0" VerticalAlignment="Top" Width="43" SelectionChanged="UseDefaultLimitsCB_SelectionChanged"/>
+        <Button x:Name="UseDefaultLimitsBTN" Content="Use Default Limits" HorizontalAlignment="Left" Margin="290,269,0,0" VerticalAlignment="Top" Width="120" />
+        <TextBlock x:Name="StatusTB" FontSize="12" HorizontalAlignment="Left" Margin="20,311,0,0" TextWrapping="Wrap" Text="Status" VerticalAlignment="Top" Width="390" Height="32" />
+        <Button x:Name="OkBTN" Content="OK" HorizontalAlignment="Left" Margin="20,348,0,0" VerticalAlignment="Top"  Width="80" Click="OkBTN_Click"/>
+        <Button x:Name="RefreshBTN" Content="Refresh" HorizontalAlignment="Left" Margin="184,348,0,0" VerticalAlignment="Top"  Width="80" Click="RefreshBTN_Click"/>
+        <Button x:Name="CancelBTN" Content="Cancel" HorizontalAlignment="Left" Margin="330,348,0,0" VerticalAlignment="Top" Width="80" Click="CancelBTN_Click"/>
+    </Grid>
+</Page>

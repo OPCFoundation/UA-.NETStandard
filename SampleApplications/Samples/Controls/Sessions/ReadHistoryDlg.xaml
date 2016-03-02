@@ -1,0 +1,26 @@
+﻿<Page
+    x:Class="Opc.Ua.Sample.Controls.ReadHistoryDlg"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Sample.Controls"
+    xmlns:other="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Button x:Name="OkBTN" Content="OK" HorizontalAlignment="Left" Margin="160,571,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="AggregateCB" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="120"/>
+        <ComboBox x:Name="ReadTypeCB" HorizontalAlignment="Left" Margin="7,54,0,0" VerticalAlignment="Top" Width="120"/>
+        <Button x:Name="GoBTN" Content="Go" HorizontalAlignment="Left" Margin="12,119,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="NextBTN" Content="Next" HorizontalAlignment="Left" Margin="79,119,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="StopBTN" Content="Stop" HorizontalAlignment="Left" Margin="197,119,0,0" VerticalAlignment="Top"/>
+        <ListView x:Name="ResultsLV" HorizontalAlignment="Left" Height="100" Margin="51,231,0,0" VerticalAlignment="Top" Width="100"/>
+        <CheckBox x:Name="StartTimeCK" Content="Start Time" HorizontalAlignment="Left" Margin="12,369,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="EndTimeCK" Content="End Time" HorizontalAlignment="Left" Margin="12,401,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="ReturnBoundsCK" Content="Return Bounds" HorizontalAlignment="Left" Margin="75,331,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="MaxReturnValuesCK" Content="Max Return Values" HorizontalAlignment="Left" Margin="75,226,0,0" VerticalAlignment="Top"/>
+        <TimePicker x:Name="StartTimeDP" HorizontalAlignment="Left" Margin="108,369,0,0" VerticalAlignment="Top"/>
+        <TimePicker x:Name="EndTimeDP" HorizontalAlignment="Left" Margin="108,401,0,0" VerticalAlignment="Top"/>
+    </Grid>
+</Page>

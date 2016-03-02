@@ -1,0 +1,2987 @@
+/* ========================================================================
+ * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Reciprocal Community License ("RCL") Version 1.00
+ * 
+ * Unless explicitly acquired and licensed from Licensor under another 
+ * license, the contents of this file are subject to the Reciprocal 
+ * Community License ("RCL") Version 1.00, or subsequent versions 
+ * as allowed by the RCL, and You may not copy or use this file in either 
+ * source code or executable form, except in compliance with the terms and 
+ * conditions of the RCL.
+ * 
+ * All software distributed under the RCL is provided strictly on an 
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+ * AND LICENSOR HEREBY DISCLAIMS ALL SUCH WARRANTIES, INCLUDING WITHOUT 
+ * LIMITATION, ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+ * PURPOSE, QUIET ENJOYMENT, OR NON-INFRINGEMENT. See the RCL for specific 
+ * language governing rights and limitations under the RCL.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/RCL/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
+using System.Security.Cryptography.X509Certificates;
+using Windows.Storage;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Stores the configurable configuration information for a UA application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public partial class ApplicationConfiguration
+    {        
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public ApplicationConfiguration()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_sourceFilePath = null;
+
+            m_securityConfiguration = new SecurityConfiguration();
+            m_transportConfigurations = new TransportConfigurationCollection();
+            m_disableHiResClock = true;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+		#region Persistent Properties
+        /// <summary>
+        /// A descriptive name for the the application (not necessarily unique).
+        /// </summary>
+        /// <value>The name of the application.</value>
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
+        public string ApplicationName
+        {
+            get { return m_applicationName;  }
+            set { m_applicationName = value; }
+        }
+
+        /// <summary>
+        /// A unique identifier for the application instance.
+        /// </summary>
+        /// <value>The application URI.</value>
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
+        public string ApplicationUri
+        {
+            get { return m_applicationUri;  }
+            set { m_applicationUri = value; }
+        }
+
+        /// <summary>
+        /// A unique identifier for the product.
+        /// </summary>
+        /// <value>The product URI.</value>
+        [DataMember(IsRequired=false, Order=2)]
+        public string ProductUri
+        {
+            get { return m_productUri;  }
+            set { m_productUri = value; }
+        }
+
+        /// <summary>
+        /// The type of application.
+        /// </summary>
+        /// <value>The type of the application.</value>
+        [DataMember(IsRequired=true, Order=3)]
+        public ApplicationType ApplicationType
+        {
+            get { return m_applicationType;  }
+            set { m_applicationType = value; }
+        }
+        
+        /// <summary>
+        /// The security configuration for the application.
+        /// </summary>
+        /// <value>The security configuration.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 4)]
+        public SecurityConfiguration SecurityConfiguration
+        {
+            get 
+            { 
+                return m_securityConfiguration;  
+            }
+            
+            set
+            { 
+                m_securityConfiguration = value; 
+
+                if (m_securityConfiguration == null)
+                {
+                    m_securityConfiguration = new SecurityConfiguration();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The transport configuration for the application.
+        /// </summary>
+        /// <value>The transport configurations.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 5)]
+        public TransportConfigurationCollection TransportConfigurations
+        {
+            get 
+            { 
+                return m_transportConfigurations;  
+            }
+            
+            set
+            { 
+                m_transportConfigurations = value; 
+
+                if (m_transportConfigurations == null)
+                {
+                    m_transportConfigurations = new TransportConfigurationCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The quotas that are used at the transport layer.
+        /// </summary>
+        /// <value>The transport quotas.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
+        public TransportQuotas TransportQuotas
+        {
+            get { return m_transportQuotas;  }
+            set { m_transportQuotas = value; }
+        }
+
+        /// <summary>
+        /// Additional configuration for server applications.
+        /// </summary>
+        /// <value>The server configuration.</value>
+        [DataMember(IsRequired=false, EmitDefaultValue=false, Order=7)]
+        public ServerConfiguration ServerConfiguration
+        {
+            get { return m_serverConfiguration;  }
+            set { m_serverConfiguration = value; }
+        }
+
+        /// <summary>
+        /// Additional configuration for client applications.
+        /// </summary>
+        /// <value>The client configuration.</value>
+        [DataMember(IsRequired=false, EmitDefaultValue=false, Order=8)]
+        public ClientConfiguration ClientConfiguration
+        {
+            get { return m_clientConfiguration;  }
+            set { m_clientConfiguration = value; }
+        }
+
+        /// <summary>
+        /// Additional configuration of the discovery server.
+        /// </summary>
+        /// <value>The discovery server configuration.</value>
+        [DataMember(IsRequired=false, EmitDefaultValue=false, Order=9)]
+        public DiscoveryServerConfiguration DiscoveryServerConfiguration
+        {
+            get { return m_discoveryServerConfiguration;  }
+            set { m_discoveryServerConfiguration = value; }
+        }
+
+        /// <summary>
+        /// A bucket to store additional application specific configuration data.
+        /// </summary>
+        /// <value>The extensions.</value>
+        [DataMember(IsRequired=false, EmitDefaultValue=false, Order=10)]
+        public ExtensionCollection Extensions
+        {
+            get { return m_extensions;  }
+            set { m_extensions = value; }
+        }
+
+        /// <summary>
+        /// Configuration of the trace and information about log file
+        /// </summary>
+        /// <value>The trace configuration.</value>
+        [DataMember(IsRequired=false, EmitDefaultValue=false, Order=11)]
+        public TraceConfiguration TraceConfiguration
+        {
+            get { return m_traceConfiguration;  }
+            set { m_traceConfiguration = value; }
+        }
+
+        /// <summary>
+        /// Disabling / enabling high resolution clock 
+        /// </summary>
+        /// <value><c>true</c> if high resolutioin clock is disabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        public bool DisableHiResClock
+        {
+            get { return m_disableHiResClock; }
+            set { m_disableHiResClock = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_applicationName;
+        private string m_applicationUri;
+        private string m_productUri;
+        private ApplicationType m_applicationType;
+
+        private SecurityConfiguration m_securityConfiguration;
+        private TransportConfigurationCollection m_transportConfigurations;
+
+        private TransportQuotas m_transportQuotas;
+        private ServerConfiguration m_serverConfiguration;
+        private ClientConfiguration m_clientConfiguration;
+        private DiscoveryServerConfiguration m_discoveryServerConfiguration;
+        private TraceConfiguration m_traceConfiguration;
+        private bool m_disableHiResClock;
+        private ExtensionCollection m_extensions;
+        private string m_sourceFilePath;
+
+        private ServiceMessageContext m_messageContext;
+        private CertificateValidator m_certificateValidator;
+        #endregion
+    }
+
+    #region TransportQuotas Class
+    /// <summary>
+    /// Specifies various limits that apply to the transport or secure channel layers.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public class TransportQuotas
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public TransportQuotas()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_operationTimeout = 60000;
+            m_maxStringLength = 65535;
+            m_maxByteStringLength = 65535;
+            m_maxArrayLength = 65535;
+            m_maxMessageSize = 1048576;
+            m_maxBufferSize = 65535;
+            m_channelLifetime = 600000;
+            m_securityTokenLifetime = 3600000;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The default timeout to use when sending requests.
+        /// </summary>
+        /// <value>The operation timeout.</value>
+        [DataMember(IsRequired=false, Order=0)]
+        public int OperationTimeout
+        {
+            get { return m_operationTimeout;  }
+            set { m_operationTimeout = value; }
+        }
+
+        /// <summary>
+        /// The maximum length of string encoded in a message body.
+        /// </summary>
+        /// <value>The max length of the string.</value>
+        [DataMember(IsRequired=false, Order=1)]
+        public int MaxStringLength
+        {
+            get { return m_maxStringLength;  }
+            set { m_maxStringLength = value; }
+        }
+
+        /// <summary>
+        /// The maximum length of a byte string encoded in a message body.
+        /// </summary>
+        /// <value>The max length of the byte string.</value>
+        [DataMember(IsRequired=false, Order=2)]
+        public int MaxByteStringLength
+        {
+            get { return m_maxByteStringLength;  }
+            set { m_maxByteStringLength = value; }
+        }
+
+        /// <summary>
+        /// The maximum length of an array encoded in a message body.
+        /// </summary>
+        /// <value>The max length of the array.</value>
+        [DataMember(IsRequired=false, Order=3)]
+        public int MaxArrayLength
+        {
+            get { return m_maxArrayLength;  }
+            set { m_maxArrayLength = value; }
+        }
+
+        /// <summary>
+        /// The maximum length of a message body.
+        /// </summary>
+        /// <value>The max size of the message.</value>
+        [DataMember(IsRequired=false, Order=4)]
+        public int MaxMessageSize
+        {
+            get { return m_maxMessageSize;  }
+            set { m_maxMessageSize = value; }
+        }
+
+        /// <summary>
+        /// The maximum size of the buffer to use when sending messages.
+        /// </summary>
+        /// <value>The max size of the buffer.</value>
+        [DataMember(IsRequired=false, Order=5)]
+        public int MaxBufferSize
+        {
+            get { return m_maxBufferSize;  }
+            set { m_maxBufferSize = value; }
+        }
+
+        /// <summary>
+        /// The lifetime of a secure channel.
+        /// </summary>
+        /// <value>The channel lifetime.</value>
+        [DataMember(IsRequired=false, Order=6)]
+        public int ChannelLifetime
+        {
+            get { return m_channelLifetime;  }
+            set { m_channelLifetime = value; }
+        }
+
+        /// <summary>
+        /// The lifetime of a security token.
+        /// </summary>
+        /// <value>The security token lifetime.</value>
+        [DataMember(IsRequired=false, Order=7)]
+        public int SecurityTokenLifetime
+        {
+            get { return m_securityTokenLifetime;  }
+            set { m_securityTokenLifetime = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private int m_operationTimeout;
+        private int m_maxStringLength;
+        private int m_maxByteStringLength;
+        private int m_maxArrayLength;
+        private int m_maxMessageSize;
+        private int m_maxBufferSize;
+        private int m_channelLifetime;
+        private int m_securityTokenLifetime;
+        #endregion
+    }
+    #endregion
+
+    #region TraceConfiguration Class
+    /// <summary>
+    /// Specifies parameters used for tracing.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public partial class TraceConfiguration
+    {
+		#region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+		public TraceConfiguration()
+		{
+			Initialize();
+		}
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+		private void Initialize()
+		{
+            m_outputFilePath = null;
+            m_deleteOnLoad = false;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The output file used to log the trace information.
+        /// </summary>
+        /// <value>The output file path.</value>
+        [DataMember(IsRequired=false, Order=0)]
+        public string OutputFilePath
+        {
+            get { return m_outputFilePath;  }
+            set { m_outputFilePath = value; }
+        }
+
+        /// <summary>
+        /// Whether the existing log file should be deleted when the application configuration is loaded.
+        /// </summary>
+        /// <value><c>true</c> if existing log file should be deleted when the application configuration is loaded; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired=false, Order=1)]
+        public bool DeleteOnLoad
+        {
+            get { return m_deleteOnLoad;  }
+            set { m_deleteOnLoad = value; }
+        }
+
+        /// <summary>
+        /// The masks used to select what is written to the output  
+        /// Masks supported by the trace feature:
+        /// - Do not output any messages -None = 0x0;
+        /// - Output error messages - Error = 0x1;
+        /// - Output informational messages - Information = 0x2;
+        /// - Output stack traces - StackTrace = 0x4;
+        /// - Output basic messages for service calls - Service = 0x8;
+        /// - Output detailed messages for service calls - ServiceDetail = 0x10;
+        /// - Output basic messages for each operation - Operation = 0x20;
+        /// - Output detailed messages for each operation - OperationDetail = 0x40;
+        /// - Output messages related to application initialization or shutdown - StartStop = 0x80;
+        /// - Output messages related to a call to an external system - ExternalSystem = 0x100;
+        /// - Output messages related to security. - Security = 0x200;
+        /// </summary>
+        /// <value>The trace masks.</value>
+        [DataMember(IsRequired=false, Order=2)]
+        public int TraceMasks
+        {
+            get { return m_traceMasks;  }
+            set { m_traceMasks = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_outputFilePath;
+        private bool m_deleteOnLoad;
+        private int m_traceMasks;
+        #endregion
+    }
+    #endregion
+
+    #region TransportConfiguration Class
+    /// <summary>
+    /// Specifies the configuration information for a transport protocol
+    /// </summary>
+    /// <remarks>
+    /// Each application is allows to have one transport configure per protocol type.
+    /// </remarks>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public class TransportConfiguration
+    {        
+		#region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public TransportConfiguration()
+        {
+        }
+                
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        /// <param name="urlScheme">The URL scheme.</param>
+        /// <param name="type">The type.</param>
+        public TransportConfiguration(string urlScheme, Type type)
+        {
+            m_uriScheme = urlScheme;
+            m_typeName = type.AssemblyQualifiedName;
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The URL prefix used by the application (http, opc.tcp, net.tpc, etc.).
+        /// </summary>
+        /// <value>The URI scheme.</value>
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
+        public string UriScheme
+        {
+            get { return m_uriScheme;  }
+            set { m_uriScheme = value; }
+        }
+
+        /// <summary>
+        /// The name of the class that defines the binding for the transport.
+        /// </summary>
+        /// <value>The name of the type.</value>
+        /// <remarks>
+        /// This can be any instance of the System.ServiceModel.Channels.Binding class 
+        /// that implements these constructors:
+        /// 
+        /// XxxBinding(EndpointDescription description, EndpointConfiguration configuration);
+        /// XxxBinding(IList{EndpointDescription} descriptions, EndpointConfiguration configuration)
+        /// XxxBinding(EndpointConfiguration configuration)
+        /// </remarks>
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
+        public string TypeName
+        {
+            get { return m_typeName;  }
+            set { m_typeName = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_uriScheme;
+        private string m_typeName;
+        #endregion
+    }
+    #endregion
+
+    #region TransportConfigurationCollection Class
+    /// <summary>
+    /// A collection of TransportConfiguration objects.
+    /// </summary>
+    [CollectionDataContract(Name = "ListOfTransportConfiguration", Namespace = Namespaces.OpcUaConfig, ItemName = "TransportConfiguration")]
+    public partial class TransportConfigurationCollection : List<TransportConfiguration>
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public TransportConfigurationCollection() {}
+        
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection) : base(collection) {}
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public TransportConfigurationCollection(int capacity) : base(capacity) {}
+    }
+    #endregion
+
+    #region ServerSecurityPolicy Class
+    /// <summary>
+    /// A class that defines a group of sampling rates supported by the server.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public class ServerSecurityPolicy
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public ServerSecurityPolicy()
+		{
+			Initialize();
+		}
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+		private void Initialize()
+		{
+            m_securityMode = MessageSecurityMode.None;
+            m_securityPolicyUri = SecurityPolicies.None;
+            m_securityLevel = 0;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+		#endregion
+        
+		#region Public Properties
+        /// <summary>
+        /// Specifies whether the messages are signed and encrypted or simply signed
+        /// </summary>
+        /// <value>The security mode.</value>
+        [DataMember(IsRequired = false, Order = 1)]
+        public MessageSecurityMode SecurityMode
+        {
+            get { return m_securityMode;  }
+            set { m_securityMode = value; }
+        }
+        
+        /// <summary>
+        /// The security policy to use.
+        /// </summary>
+        /// <value>The security policy URI.</value>
+        [DataMember(IsRequired = false, Order = 2)]
+        public string SecurityPolicyUri
+        {
+            get { return m_securityPolicyUri;  }
+            set { m_securityPolicyUri = value; }
+        }
+        
+        /// <summary>
+        /// A relative estimate of the security offered by the policy.
+        /// </summary>
+        /// <value>The security level.</value>
+        /// <remarks>
+        /// This parameter allows servers to rank there policies from weakest to strongest.
+        /// A value of 0 indicates the policy is not recommended.
+        /// By default, clients should use policies with highest value.
+        /// </remarks>
+        [DataMember(IsRequired = false, Order = 3)]
+        public byte SecurityLevel
+        {
+            get { return m_securityLevel;  }
+            set { m_securityLevel = value; }
+        }
+		#endregion
+
+		#region Private Members
+        private MessageSecurityMode m_securityMode;
+        private string m_securityPolicyUri;
+        private byte m_securityLevel;
+		#endregion
+    }
+    #endregion
+
+    #region ServerSecurityPolicyCollection Class
+    /// <summary>
+    /// A collection of ServerSecurityPolicy objects.
+    /// </summary>
+    [CollectionDataContract(Name = "ListOfServerSecurityPolicy", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerSecurityPolicy")]
+    public partial class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public ServerSecurityPolicyCollection() {}
+        
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection) : base(collection) {}
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public ServerSecurityPolicyCollection(int capacity) : base(capacity) {}
+    }
+    #endregion
+
+    #region SecurityConfiguration Class
+    /// <summary>
+    /// The security configuration for the application.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class SecurityConfiguration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public SecurityConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_trustedIssuerCertificates = new CertificateTrustList();
+            m_trustedPeerCertificates = new CertificateTrustList();
+            m_nonceLength = 32;
+            m_autoAcceptUntrustedCertificates = false;
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The application instance certificate.
+        /// </summary>
+        /// <value>The application certificate.</value>
+        /// <remarks>
+        /// This certificate must contain the application uri.
+        /// For servers, URLs for each supported protocol must also be present.
+        /// </remarks>
+        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
+        public CertificateIdentifier ApplicationCertificate
+        {
+            get { return m_applicationCertificate; }
+            set { m_applicationCertificate = value; }
+        }
+
+        /// <summary>
+        /// The trusted certificate store.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public CertificateTrustList TrustedIssuerCertificates
+        {
+            get
+            {
+                return m_trustedIssuerCertificates;
+            }
+
+            set
+            {
+                m_trustedIssuerCertificates = value;
+
+                if (m_trustedIssuerCertificates == null)
+                {
+                    m_trustedIssuerCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The store containing any additional issuer certificates.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public CertificateTrustList TrustedPeerCertificates
+        {
+            get
+            {
+                return m_trustedPeerCertificates;
+            }
+
+            set
+            {
+                m_trustedPeerCertificates = value;
+
+                if (m_trustedPeerCertificates == null)
+                {
+                    m_trustedPeerCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The length of nonce in the CreateSession service.
+        /// </summary>
+        /// <value>
+        /// The length of nonce in the CreateSession service.
+        /// </value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        public int NonceLength
+        {
+            get { return m_nonceLength; }
+            set { m_nonceLength = value; }
+        }
+
+        /// <summary>
+        /// A store where invalid certificates can be placed for later review by the administrator.
+        /// </summary>
+        /// <value> 
+        /// A store where invalid certificates can be placed for later review by the administrator.
+        /// </value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        public CertificateStoreIdentifier RejectedCertificateStore
+        {
+            get { return m_rejectedCertificateStore; }
+            set { m_rejectedCertificateStore = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
+        /// </summary>
+        /// <remarks>
+        /// This flag can be set to by servers that allow anonymous clients or use user credentials for authentication.
+        /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public bool AutoAcceptUntrustedCertificates
+        {
+            get { return m_autoAcceptUntrustedCertificates; }
+            set { m_autoAcceptUntrustedCertificates = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the firewall should be automatically configured by the application.
+        /// </summary>
+        /// <value><c>true</c> if the firewall should be configured; otherwise, <c>false</c>.</value>
+        //[DataMember(IsRequired = false, Order = 6)]
+        public bool ConfigureFirewall
+        {
+            get { return m_configureFirewall; }
+            set { m_configureFirewall = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a directory which contains files representing users roles.
+        /// </summary>
+        [DataMember(Order = 9)]
+        public string UserRoleDirectory
+        {
+            get { return m_userRoleDirectory; }
+            set { m_userRoleDirectory = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private CertificateIdentifier m_applicationCertificate;
+        private CertificateTrustList m_trustedIssuerCertificates;
+        private CertificateTrustList m_trustedPeerCertificates;
+        private int m_nonceLength;
+        private CertificateStoreIdentifier m_rejectedCertificateStore;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_configureFirewall;
+        private string m_userRoleDirectory;
+        #endregion
+    }
+    #endregion
+
+    #region SamplingRateGroup Class
+    /// <summary>
+    /// A class that defines a group of sampling rates supported by the server.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class SamplingRateGroup
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public SamplingRateGroup()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Creates a group with the specified settings.
+        /// </summary>
+        /// <param name="start">The start.</param>
+        /// <param name="increment">The increment.</param>
+        /// <param name="count">The count.</param>
+        public SamplingRateGroup(int start, int increment, int count)
+        {
+            m_start = start;
+            m_increment = increment;
+            m_count = count;
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_start = 1000;
+            m_increment = 0;
+            m_count = 0;
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The first sampling rate in the group (in milliseconds).
+        /// </summary>
+        /// <value>The first sampling rate in the group (in milliseconds).</value>
+        [DataMember(IsRequired = false, Order = 1)]
+        public double Start
+        {
+            get { return m_start; }
+            set { m_start = value; }
+        }
+
+        /// <summary>
+        /// The increment between sampling rates in the group (in milliseconds).
+        /// </summary>
+        /// <value>The increment.</value>
+        /// <remarks>
+        /// An increment of 0 means the group only contains one sampling rate equal to the start.
+        /// </remarks>
+        [DataMember(IsRequired = false, Order = 2)]
+        public double Increment
+        {
+            get { return m_increment; }
+            set { m_increment = value; }
+        }
+
+        /// <summary>
+        /// The number of sampling rates in the group.
+        /// </summary>
+        /// <value>The count.</value>
+        /// <remarks>
+        /// A count of 0 means there is no limit.
+        /// </remarks>
+        [DataMember(IsRequired = false, Order = 3)]
+        public int Count
+        {
+            get { return m_count; }
+            set { m_count = value; }
+        }
+        #endregion
+
+        #region Private Members
+        private double m_start;
+        private double m_increment;
+        private int m_count;
+        #endregion
+    }
+    #endregion
+
+    #region SamplingRateGroupCollection Class
+    /// <summary>
+    /// A collection of SamplingRateGroup objects.
+    /// </summary>
+    [CollectionDataContract(Name = "ListOfSamplingRateGroup", Namespace = Namespaces.OpcUaConfig, ItemName = "SamplingRateGroup")]
+    public partial class SamplingRateGroupCollection : List<SamplingRateGroup>
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public SamplingRateGroupCollection() { }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection) : base(collection) { }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public SamplingRateGroupCollection(int capacity) : base(capacity) { }
+    }
+    #endregion
+
+    #region ServerBaseConfiguration Class
+    /// <summary>
+    /// Specifies the configuration for a server application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public partial class ServerBaseConfiguration
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+        public ServerBaseConfiguration()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_baseAddresses = new StringCollection();
+            m_alternateBaseAddresses = new StringCollection();
+            m_securityPolicies = new ServerSecurityPolicyCollection();
+            m_minRequestThreadCount = 10;
+            m_maxRequestThreadCount = 100;
+            m_maxQueuedRequestCount = 200;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+		#endregion
+        
+		#region Persistent Properties
+        /// <summary>
+        /// The base addresses for the server.
+        /// </summary>
+        /// <value>The base addresses.</value>
+        /// <remarks>
+        /// The actually endpoints are constructed from the security policies.
+        /// On one base address per supported transport protocol is allowed.
+        /// </remarks>
+        [DataMember(IsRequired=false, Order=0)]
+        public StringCollection BaseAddresses
+        {
+            get 
+            {
+                return m_baseAddresses; 
+            }
+            
+            set 
+            { 
+                m_baseAddresses = value;
+
+                if (m_baseAddresses == null)
+                {
+                    m_baseAddresses = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the alternate base addresses.
+        /// </summary>
+        /// <value>The alternate base addresses.</value>
+        /// <remarks>
+        /// These addresses are used to specify alternate paths to ther via firewalls, proxies
+        /// or similar network infrastructure. If these paths are specified in the configuration
+        /// file then the server will use the domain of the URL used by the client to determine
+        /// which, if any, or the alternate addresses to use instead of the primary addresses.
+        /// </remarks>
+        [DataMember(IsRequired=false, Order=1)]
+        public StringCollection AlternateBaseAddresses
+        {
+            get
+            {
+                return m_alternateBaseAddresses;
+            }
+
+            set
+            {
+                m_alternateBaseAddresses = value;
+
+                if (m_alternateBaseAddresses == null)
+                {
+                    m_alternateBaseAddresses = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The security policies supported by the server.
+        /// </summary>
+        /// <value>The security policies.</value>
+        /// <remarks>
+        /// An endpoint description is created for each combination of base address and security policy.
+        /// </remarks>
+        [DataMember(IsRequired=false, Order=2)]
+        public ServerSecurityPolicyCollection SecurityPolicies
+        {
+            get 
+            {
+                return m_securityPolicies; 
+            }
+            
+            set 
+            { 
+                m_securityPolicies = value;
+
+                if (m_securityPolicies == null)
+                {
+                    m_securityPolicies = new ServerSecurityPolicyCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the minimum number of threads assigned to processing requests.
+        /// </summary>
+        /// <value>The minimum request thread count.</value>
+        [DataMember(IsRequired=false, Order=3)]
+        public int MinRequestThreadCount
+        {
+            get { return m_minRequestThreadCount; }
+            set { m_minRequestThreadCount = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum number of threads assigned to processing requests.
+        /// </summary>
+        /// <value>The maximum request thread count.</value>
+        [DataMember(IsRequired=false, Order=4)]
+        public int MaxRequestThreadCount
+        {
+            get { return m_maxRequestThreadCount; }
+            set { m_maxRequestThreadCount = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum number of requests that will be queued waiting for a thread.
+        /// </summary>
+        /// <value>The maximum queued request count.</value>
+        [DataMember(IsRequired=false, Order=5)]
+        public int MaxQueuedRequestCount
+        {
+            get { return m_maxQueuedRequestCount; }
+            set { m_maxQueuedRequestCount = value; }
+        }
+		#endregion
+
+        #region Private Members
+        private StringCollection m_baseAddresses;
+        private StringCollection m_alternateBaseAddresses;
+        private ServerSecurityPolicyCollection m_securityPolicies;
+        private int m_minRequestThreadCount;
+        private int m_maxRequestThreadCount;
+        private int m_maxQueuedRequestCount;
+		#endregion
+    }
+    #endregion
+
+    #region ServerConfiguration Class
+    /// <summary>
+    /// Specifies the configuration for a server application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public partial class ServerConfiguration : ServerBaseConfiguration
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public ServerConfiguration()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_userTokenPolicies = new UserTokenPolicyCollection();
+            m_diagnosticsEnabled = false;
+            m_maxSessionCount = 100;
+            m_maxSessionTimeout = 3600000;
+            m_minSessionTimeout = 10000;
+            m_maxBrowseContinuationPoints = 10;
+            m_maxQueryContinuationPoints = 10;
+            m_maxHistoryContinuationPoints = 100;
+            m_maxRequestAge = 600000;
+            m_minPublishingInterval = 100;
+            m_maxPublishingInterval = 3600000;
+            m_publishingResolution = 100;
+            m_minSubscriptionLifetime = 10000;
+            m_maxSubscriptionLifetime = 3600000;
+            m_maxMessageQueueSize = 10;
+            m_maxNotificationQueueSize = 100;
+            m_maxNotificationsPerPublish = 100;
+            m_minMetadataSamplingInterval = 1000;
+            m_availableSamplingRates = new SamplingRateGroupCollection();
+            m_registrationEndpoint = null;
+            m_maxRegistrationInterval = 30000;
+            m_maxPublishRequestCount = 20;
+            m_maxSubscriptionCount = 100;
+            m_maxEventQueueSize = 10000;
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+		#endregion
+        
+		#region Persistent Properties
+        /// <summary>
+        /// The user tokens accepted by the server.
+        /// </summary>
+        /// <value>The user token policies.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public UserTokenPolicyCollection UserTokenPolicies
+        {
+            get 
+            {
+                return m_userTokenPolicies; 
+            }
+            
+            set 
+            { 
+                m_userTokenPolicies = value;
+
+                if (m_userTokenPolicies == null)
+                {
+                    m_userTokenPolicies = new UserTokenPolicyCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether diagnostics are enabled.
+        /// </summary>
+        /// <value><c>true</c> if diagnostic is enabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired=false, Order=4)]
+        public bool DiagnosticsEnabled
+        {
+            get { return m_diagnosticsEnabled;  }
+            set { m_diagnosticsEnabled = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of open sessions.
+        /// </summary>
+        /// <value>The maximum session count.</value>
+        [DataMember(IsRequired=false, Order=5)]
+        public int MaxSessionCount
+        {
+            get { return m_maxSessionCount;  }
+            set { m_maxSessionCount = value; }
+        }
+        
+        /// <summary>
+        /// That minimum period of that a session is allowed to remain open without communication from the client (in milliseconds).
+        /// </summary>
+        /// <value>The minimum session timeout.</value>
+        [DataMember(IsRequired=false, Order=6)]
+        public int MinSessionTimeout
+        {
+            get { return m_minSessionTimeout;  }
+            set { m_minSessionTimeout = value; }
+        }
+
+        /// <summary>
+        /// That maximum period of that a session is allowed to remain open without communication from the client (in milliseconds).
+        /// </summary>
+        /// <value>The maximum session timeout.</value>
+        [DataMember(IsRequired=false, Order=7)]
+        public int MaxSessionTimeout
+        {
+            get { return m_maxSessionTimeout;  }
+            set { m_maxSessionTimeout = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of continuation points used for Browse/BrowseNext operations.
+        /// </summary>
+        /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
+        [DataMember(IsRequired=false, Order=8)]
+        public int MaxBrowseContinuationPoints
+        {
+            get { return m_maxBrowseContinuationPoints;  }
+            set { m_maxBrowseContinuationPoints = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of continuation points used for Query/QueryNext operations.
+        /// </summary>
+        /// <value>The maximum number of query continuation points.</value>
+        [DataMember(IsRequired=false, Order=9)]
+        public int MaxQueryContinuationPoints
+        {
+            get { return m_maxQueryContinuationPoints;  }
+            set { m_maxQueryContinuationPoints = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of continuation points used for HistoryRead operations.
+        /// </summary>
+        /// <value>The maximum number of  history continuation points.</value>
+        [DataMember(IsRequired=false, Order=10)]
+        public int MaxHistoryContinuationPoints
+        {
+            get { return m_maxHistoryContinuationPoints;  }
+            set { m_maxHistoryContinuationPoints = value; }
+        }
+
+        /// <summary>
+        /// The maximum age of an incoming request (old requests are rejected).
+        /// </summary>
+        /// <value>The maximum age of an incoming request.</value>
+        [DataMember(IsRequired=false, Order=11)]
+        public int MaxRequestAge
+        {
+            get { return m_maxRequestAge;  }
+            set { m_maxRequestAge = value; }
+        }
+
+        /// <summary>
+        /// The minimum publishing interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The minimum publishing interval.</value>
+        [DataMember(IsRequired=false, Order=12)]
+        public int MinPublishingInterval
+        {
+            get { return m_minPublishingInterval;  }
+            set { m_minPublishingInterval = value; }
+        }
+
+        /// <summary>
+        /// The maximum publishing interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The maximum publishing interval.</value>
+        [DataMember(IsRequired=false, Order=13)]
+        public int MaxPublishingInterval
+        {
+            get { return m_maxPublishingInterval;  }
+            set { m_maxPublishingInterval = value; }
+        }
+
+        /// <summary>
+        /// The minimum difference between supported publishing interval (in milliseconds).
+        /// </summary>
+        /// <value>The publishing resolution.</value>
+        [DataMember(IsRequired=false, Order=14)]
+        public int PublishingResolution
+        {
+            get { return m_publishingResolution;  }
+            set { m_publishingResolution = value; }
+        }
+
+        /// <summary>
+        /// How long the subscriptions will remain open without a publish from the client.
+        /// </summary>
+        /// <value>The maximum subscription lifetime.</value>
+        [DataMember(IsRequired=false, Order=15)]
+        public int MaxSubscriptionLifetime
+        {
+            get { return m_maxSubscriptionLifetime;  }
+            set { m_maxSubscriptionLifetime = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of messages saved in the queue for each subscription.
+        /// </summary>
+        /// <value>The maximum size of the  message queue.</value>
+        [DataMember(IsRequired=false, Order=16)]
+        public int MaxMessageQueueSize
+        {
+            get { return m_maxMessageQueueSize;  }
+            set { m_maxMessageQueueSize = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of notificates saved in the queue for each monitored item.
+        /// </summary>
+        /// <value>The maximum size of the notification queue.</value>
+        [DataMember(IsRequired=false, Order=17)]
+        public int MaxNotificationQueueSize
+        {
+            get { return m_maxNotificationQueueSize;  }
+            set { m_maxNotificationQueueSize = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of notifications per publish.
+        /// </summary>
+        /// <value>The maximum number of notifications per publish.</value>
+        [DataMember(IsRequired=false, Order=18)]
+        public int MaxNotificationsPerPublish
+        {
+            get { return m_maxNotificationsPerPublish;  }
+            set { m_maxNotificationsPerPublish = value; }
+        }
+
+        /// <summary>
+        /// The minimum sampling interval for metadata.
+        /// </summary>
+        /// <value>The minimum sampling interval for metadata.</value>
+        [DataMember(IsRequired=false, Order=19)]
+        public int MinMetadataSamplingInterval
+        {
+            get { return m_minMetadataSamplingInterval;  }
+            set { m_minMetadataSamplingInterval = value; }
+        }
+
+        /// <summary>
+        /// The available sampling rates.
+        /// </summary>
+        /// <value>The available sampling rates.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
+        public SamplingRateGroupCollection AvailableSamplingRates
+        {
+            get { return m_availableSamplingRates; }
+            set { m_availableSamplingRates = value; }
+        }
+
+        /// <summary>
+        /// The endpoint description for the registration endpoint.
+        /// </summary>
+        /// <value>The registration endpoint.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
+        public EndpointDescription RegistrationEndpoint
+        {
+            get { return m_registrationEndpoint;  }
+            set { m_registrationEndpoint = value; }
+        }
+
+        /// <summary>
+        /// The maximum time between registration attempts (in milliseconds).
+        /// </summary>
+        /// <value>The maximum time between registration attempts (in milliseconds).</value>
+        [DataMember(IsRequired=false, Order=22)]
+        public int MaxRegistrationInterval
+        {
+            get { return m_maxRegistrationInterval;  }
+            set { m_maxRegistrationInterval = value; }
+        }
+
+        /// <summary>
+        /// The path to the file containing nodes persisted by the core node manager.
+        /// </summary>
+        /// <value>The path to the file containing nodes persisted by the core node manager.</value>
+        [DataMember(IsRequired=false, Order=23)]
+        public string NodeManagerSaveFile
+        {
+            get { return m_nodeManagerSaveFile;  }
+            set { m_nodeManagerSaveFile = value; }
+        }
+
+        /// <summary>
+        /// The minimum lifetime for a subscription.
+        /// </summary>
+        /// <value>The minimum lifetime for a subscription.</value>
+        [DataMember(IsRequired = false, Order = 24)]
+        public int MinSubscriptionLifetime
+        {
+            get { return m_minSubscriptionLifetime; }
+            set { m_minSubscriptionLifetime = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the max publish request count.
+        /// </summary>
+        /// <value>The max publish request count.</value>
+        [DataMember(IsRequired = false, Order = 25)]
+        public int MaxPublishRequestCount
+        {
+            get { return m_maxPublishRequestCount; }
+            set { m_maxPublishRequestCount = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the max subscription count.
+        /// </summary>
+        /// <value>The max subscription count.</value>
+        [DataMember(IsRequired = false, Order = 26)]
+        public int MaxSubscriptionCount
+        {
+            get { return m_maxSubscriptionCount; }
+            set { m_maxSubscriptionCount = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the max size of the event queue.
+        /// </summary>
+        /// <value>The max size of the event queue.</value>
+        [DataMember(IsRequired = false, Order = 27)]
+        public int MaxEventQueueSize
+        {
+            get { return m_maxEventQueueSize; }
+            set { m_maxEventQueueSize = value; }
+        }
+		#endregion
+
+        #region Private Members
+        private UserTokenPolicyCollection m_userTokenPolicies;
+        private bool m_diagnosticsEnabled;
+        private int m_maxSessionCount;
+        private int m_minSessionTimeout;
+        private int m_maxSessionTimeout;
+        private int m_maxBrowseContinuationPoints;
+        private int m_maxQueryContinuationPoints;
+        private int m_maxHistoryContinuationPoints;
+        private int m_maxRequestAge;
+        private int m_minPublishingInterval;
+        private int m_maxPublishingInterval;
+        private int m_publishingResolution;
+        private int m_minSubscriptionLifetime;
+        private int m_maxSubscriptionLifetime;
+        private int m_maxMessageQueueSize;
+        private int m_maxNotificationQueueSize;
+        private int m_maxNotificationsPerPublish;
+        private int m_minMetadataSamplingInterval;
+        private SamplingRateGroupCollection m_availableSamplingRates;
+        private EndpointDescription m_registrationEndpoint;
+        private int m_maxRegistrationInterval;
+        private string m_nodeManagerSaveFile;
+        private int m_maxPublishRequestCount;
+        private int m_maxSubscriptionCount;
+        private int m_maxEventQueueSize;
+		#endregion
+    }
+    #endregion
+
+    #region ClientConfiguration Class
+    /// <summary>
+    /// The configuration for a client application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public partial class ClientConfiguration
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public ClientConfiguration()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_defaultSessionTimeout = 60000;
+            m_minSubscriptionLifetime = 10000;
+            m_wellKnownDiscoveryUrls = new StringCollection();
+            m_discoveryServers = new EndpointDescriptionCollection();
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+		#endregion
+        
+		#region Persistent Properties
+        /// <summary>
+        /// The default session timeout.
+        /// </summary>
+        /// <value>The default session timeout.</value>
+        [DataMember(IsRequired=false, Order=0)]
+        public int DefaultSessionTimeout
+        {
+            get { return m_defaultSessionTimeout;  }
+            set { m_defaultSessionTimeout = value; }
+        }
+
+        /// <summary>
+        /// The well known URLs for the local discovery servers.
+        /// </summary>
+        /// <value>The well known discovery URLs.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        public StringCollection WellKnownDiscoveryUrls
+        {
+            get 
+            {
+                return m_wellKnownDiscoveryUrls; 
+            }
+            
+            set 
+            { 
+                m_wellKnownDiscoveryUrls = value;
+
+                if (m_wellKnownDiscoveryUrls == null)
+                {
+                    m_wellKnownDiscoveryUrls = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The endpoint descriptions for central discovery servers.
+        /// </summary>
+        /// <value>The endpoint descriptions for central discovery servers.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public EndpointDescriptionCollection DiscoveryServers
+        {
+            get 
+            {
+                return m_discoveryServers; 
+            }
+            
+            set 
+            { 
+                m_discoveryServers = value;
+
+                if (m_discoveryServers == null)
+                {
+                    m_discoveryServers = new EndpointDescriptionCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The path to the file containing the cached endpoints.
+        /// </summary>
+        /// <value>The path to the file containing the cached endpoints.</value>
+        [DataMember(IsRequired = false, Order = 3)]
+        public string EndpointCacheFilePath
+        {
+            get { return m_endpointCacheFilePath;  }
+            set { m_endpointCacheFilePath = value; }
+        }
+
+        /// <summary>
+        /// The minimum lifetime for a subscription.
+        /// </summary>
+        /// <value>The minimum lifetime for a subscription.</value>
+        [DataMember(IsRequired = false, Order = 4)]
+        public int MinSubscriptionLifetime
+        {
+            get { return m_minSubscriptionLifetime; }
+            set { m_minSubscriptionLifetime = value; }
+        }
+		#endregion
+          
+		#region Private Members
+        private StringCollection m_wellKnownDiscoveryUrls;
+        private EndpointDescriptionCollection m_discoveryServers;
+        private int m_defaultSessionTimeout;
+        private string m_endpointCacheFilePath;
+        private int m_minSubscriptionLifetime;
+		#endregion
+    }
+    #endregion
+
+    #region DiscoveryServerConfiguration Class
+    /// <summary>
+    /// Specifies the configuration for a discovery server application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public class DiscoveryServerConfiguration : ServerBaseConfiguration
+    {
+		#region Constructors
+		/// <summary>
+		/// The default constructor.
+		/// </summary>
+		public DiscoveryServerConfiguration()
+		{
+			Initialize();
+		}
+
+		/// <summary>
+		/// Sets private members to default values.
+		/// </summary>
+		private void Initialize()
+		{
+            m_serverNames = new LocalizedTextCollection();
+            m_serverRegistrations = new ServerRegistrationCollection();
+		}
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+		#endregion
+        
+		#region Persistent Properties
+        /// <summary>
+        /// The localized names for the discovery server.
+        /// </summary>
+        /// <value>The server names.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public LocalizedTextCollection ServerNames
+        {
+            get 
+            {
+                return m_serverNames; 
+            }
+            
+            set 
+            { 
+                m_serverNames = value;
+
+                if (m_serverNames == null)
+                {
+                    m_serverNames = new LocalizedTextCollection();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// The path to the file containing servers saved by the discovery server.
+        /// </summary>
+        /// <value>The discovery server cache file.</value>
+        [DataMember(IsRequired=false, Order=3)]
+        public string DiscoveryServerCacheFile
+        {
+            get { return m_discoveryServerCacheFile;  }
+            set { m_discoveryServerCacheFile = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the server registrations associated with the discovery server.
+        /// </summary>
+        /// <value>The server registrations.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public ServerRegistrationCollection ServerRegistrations
+        {
+            get { return m_serverRegistrations; }
+            set { m_serverRegistrations = value; }
+        }
+		#endregion
+
+        #region Private Members
+        private LocalizedTextCollection m_serverNames;
+        private string m_discoveryServerCacheFile;
+        private ServerRegistrationCollection m_serverRegistrations;
+		#endregion
+    }
+    #endregion
+
+    #region ServerRegistration Class
+    /// <summary>
+    /// Specifies the configuration for a discovery server application.
+    /// </summary>
+    [DataContract(Namespace=Namespaces.OpcUaConfig)]
+    public class ServerRegistration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ServerRegistration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_applicationUri = null;
+            m_alternateDiscoveryUrls = new StringCollection();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// Gets or sets the application URI of the server which the registration applies to.
+        /// </summary>
+        /// <value>The application uri.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        public string ApplicationUri
+        {
+            get
+            {
+                return m_applicationUri;
+            }
+
+            set
+            {
+                m_applicationUri = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the alternate discovery urls.
+        /// </summary>
+        /// <value>The alternate discovery urls.</value>
+        /// <remarks>
+        /// These addresses are used to specify alternate paths to ther via firewalls, proxies
+        /// or similar network infrastructure. If these paths are specified in the configuration
+        /// file then the server will use the domain of the URL used by the client to determine
+        /// which, if any, or the alternate addresses to use instead of the primary addresses.
+        /// 
+        /// In the ideal world the server would provide these URLs during registration but this
+        /// table allows the administrator to provide the information to the disovery server 
+        /// directly without requiring a patch to the server.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public StringCollection AlternateDiscoveryUrls
+        {
+            get
+            {
+                return m_alternateDiscoveryUrls;
+            }
+
+            set
+            {
+                m_alternateDiscoveryUrls = value;
+
+                if (m_alternateDiscoveryUrls == null)
+                {
+                    m_alternateDiscoveryUrls = new StringCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region Private Members
+        private string m_applicationUri;
+        private StringCollection m_alternateDiscoveryUrls;
+        #endregion
+    }
+    #endregion
+
+    #region ServerRegistrationCollection Class
+    /// <summary>
+    /// A collection of AdditionalServerRegistrationInfo objects.
+    /// </summary>
+    [CollectionDataContract(Name="ListOfServerRegistration", Namespace=Namespaces.OpcUaConfig, ItemName="ServerRegistration")]
+    public partial class ServerRegistrationCollection : List<ServerRegistration>
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public ServerRegistrationCollection() { }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection) : base(collection) { }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public ServerRegistrationCollection(int capacity) : base(capacity) { }
+    }
+    #endregion
+
+    #region CertificateStoreIdentifier Class
+    /// <summary>
+    /// Describes a certificate store.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class CertificateStoreIdentifier
+    {
+        #region Persistent Properties
+        /// <summary>
+        /// The type of certificate store.
+        /// </summary>
+        /// <value>
+        /// If the StoreName is not empty, the CertificateStoreType.Windows is returned, otherwise the StoreType is returned.
+        /// </value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        public string StoreType
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(m_storeName))
+                {
+                    return CertificateStoreType.Windows;
+                }
+
+                return m_storeType;
+            }
+
+            set
+            {
+                m_storeType = value;
+            }
+        }
+
+        /// <summary>
+        /// The path that identifies the certificate store.
+        /// </summary>
+        /// <value>
+        /// If the StoreName is not empty and the StoreLocation is empty, the Utils.Format("LocalMachine\\{0}", m_storeName) is returned.
+        /// If the StoreName is not empty and the StoreLocation is not empty, the Utils.Format("{1}\\{0}", m_storeName, m_storeLocation) is returned.
+        /// If the StoreName is empty, the m_storePath is returned.
+        /// </value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        public string StorePath
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(m_storeName))
+                {
+                    if (String.IsNullOrEmpty(m_storeLocation))
+                    {
+                        return Utils.Format("LocalMachine\\{0}", m_storeName);
+                    }
+
+                    return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
+                }
+
+                return m_storePath;
+            }
+
+            set
+            {
+                if (value.StartsWith(ApplicationData.Current.LocalFolder.Path) == true)
+                {
+                    m_storePath = value;
+                }
+                else
+                {
+                    m_storePath = ApplicationData.Current.LocalFolder.Path + "\\" + value;
+                }
+
+                if (!String.IsNullOrEmpty(m_storePath))
+                {
+                    if (String.IsNullOrEmpty(m_storeType))
+                    {
+                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            m_storeType = CertificateStoreType.Windows;
+                        }
+                        else
+                        {
+                            m_storeType = CertificateStoreType.Directory;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The name of the certifcate store that contains the trusted certficates. 
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [Obsolete("Use StoreType/StorePath instead")]
+        public string StoreName
+        {
+            get { return m_storeName; }
+            set { m_storeName = value; }
+        }
+
+        /// <summary>
+        /// The location of the certifcate store that contains the trusted certficates. 
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [Obsolete("Use StoreType/StorePath instead")]
+        public string StoreLocation
+        {
+            get { return m_storeLocation; }
+            set { m_storeLocation = value; }
+        }
+
+        /// <summary>
+        /// Options that can be used to suppress certificate validation errors.
+        /// </summary>
+        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        private int XmlEncodedValidationOptions
+        {
+            get { return (int)m_validationOptions; }
+            set { m_validationOptions = (CertificateValidationOptions)value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_storeType;
+        private string m_storePath;
+        private string m_storeLocation;
+        private string m_storeName;
+        private CertificateValidationOptions m_validationOptions;
+        #endregion
+    }
+    #endregion
+
+    #region CertificateTrustList Class
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class CertificateTrustList : CertificateStoreIdentifier
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public CertificateTrustList()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_trustedCertificates = new CertificateIdentifierCollection();
+
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The list of trusted certificates.
+        /// </summary>
+        /// <value>
+        /// The list of trusted certificates is set when TrustedCertificates is not a null value, otherwise new CertificateIdentifierCollection is set.
+        /// </value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public CertificateIdentifierCollection TrustedCertificates
+        {
+            get
+            {
+                return m_trustedCertificates;
+            }
+
+            set
+            {
+                m_trustedCertificates = value;
+
+                if (m_trustedCertificates == null)
+                {
+                    m_trustedCertificates = new CertificateIdentifierCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region Private Fields
+        private CertificateIdentifierCollection m_trustedCertificates;
+        #endregion
+    }
+    #endregion
+
+    #region CertificateIdentifierCollection Class
+    [CollectionDataContract(Name = "ListOfCertificateIdentifier", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
+    public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public CertificateIdentifierCollection() { }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection) : base(collection) { }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        public CertificateIdentifierCollection(int capacity) : base(capacity) {}
+    }
+    #endregion
+
+    #region CertificateIdentifier Class
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class CertificateIdentifier 
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public CertificateIdentifier()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the identifier with the raw data from a certificate.
+        /// </summary>
+        public CertificateIdentifier(X509Certificate2 certificate)
+        {
+            Initialize();
+            m_certificate = certificate;
+        }
+
+        /// <summary>
+        /// Initializes the identifier with the raw data from a certificate.
+        /// </summary>
+        public CertificateIdentifier(X509Certificate2 certificate, CertificateValidationOptions validationOptions)
+        {
+            Initialize();
+            m_certificate = certificate;
+            m_validationOptions = validationOptions;
+        }
+
+
+        /// <summary>
+        /// Initializes the identifier with the raw data from a certificate.
+        /// </summary>
+        public CertificateIdentifier(byte[] rawData)
+        {
+            Initialize();
+            m_certificate = CertificateFactory.Create(rawData, true);
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The type of certificate store.
+        /// </summary>
+        /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        public string StoreType
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(m_storeName))
+                {
+                    return CertificateStoreType.Windows;
+                }
+
+                return m_storeType;
+            }
+
+            set
+            {
+                m_storeType = value;
+            }
+        }
+
+        /// <summary>
+        /// The path that identifies the certificate store.
+        /// </summary>
+        /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        public string StorePath
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(m_storeName))
+                {
+                    if (String.IsNullOrEmpty(m_storeLocation))
+                    {
+                        return Utils.Format("LocalMachine\\{0}", m_storeName);
+                    }
+
+                    return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
+                }
+
+                return m_storePath;
+            }
+
+            set
+            {
+                if (value.StartsWith(ApplicationData.Current.LocalFolder.Path))
+                {
+                    m_storePath = value;
+                }
+                else
+                {
+                    m_storePath = ApplicationData.Current.LocalFolder.Path + "\\" + value;
+                }
+
+                if (!String.IsNullOrEmpty(m_storePath))
+                {
+                    if (String.IsNullOrEmpty(m_storeType))
+                    {
+                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            m_storeType = CertificateStoreType.Windows;
+                        }
+                        else
+                        {
+                            m_storeType = CertificateStoreType.Directory;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The name of the store that contains the certificate.
+        /// </summary>
+        /// <value>The name of the store.</value>
+        /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreName"/>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [Obsolete("Use StoreType/StorePath instead")]
+        public string StoreName
+        {
+            get { return m_storeName; }
+            set { m_storeName = value; }
+        }
+
+        /// <summary>
+        /// The location of the store that contains the certificate.
+        /// </summary>
+        /// <value>The store location.</value>
+        /// <seealso cref="System.Security.Cryptography.X509Certificates.StoreLocation"/>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [Obsolete("Use StoreType/StorePath instead")]
+        public string StoreLocation
+        {
+            get { return m_storeLocation; }
+            set { m_storeLocation = value; }
+        }
+
+        /// <summary>
+        /// The certificate's subject name - the distinguished name of an X509 certificate.
+        /// </summary>
+        /// <value>
+        /// The distinguished name of an X509 certificate acording to the Abstract Syntax Notation One (ASN.1) syntax.
+        /// </value>
+        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public 
+        /// key field.  The subject name MAY be carried in the subject field and/or the subjectAltName extension.
+        /// Where it is non-empty, the subject field MUST contain an X.500 distinguished name (DN).
+        /// Name is defined by the following ASN.1 structures:
+        /// Name ::= CHOICE {RDNSequence }
+        /// RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+        /// RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
+        /// AttributeTypeAndValue ::= SEQUENCE {type     AttributeType, value    AttributeValue }
+        /// AttributeType ::= OBJECT IDENTIFIER
+        /// AttributeValue ::= ANY DEFINED BY AttributeType
+        /// DirectoryString ::= CHOICE {
+        ///   teletexString           TeletexString (SIZE (1..MAX)),
+        ///   printableString         PrintableString (SIZE (1..MAX)),
+        ///   universalString         UniversalString (SIZE (1..MAX)),
+        ///   utf8String              UTF8String (SIZE (1..MAX)),
+        ///   bmpString               BMPString (SIZE (1..MAX)) }
+        ///  The Name describes a hierarchical name composed of attributes, such as country name, and 
+        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by 
+        ///  the AttributeType; in general it will be a DirectoryString.
+        /// String X.500 AttributeType:
+        /// <list type="bullet">
+        /// <item>CN commonName</item> 
+        /// <item>L localityName</item>
+        /// <item>ST stateOrProvinceName</item>
+        /// <item>O organizationName</item> 
+        /// <item>OU organizationalUnitName</item>
+        /// <item>C countryName</item>
+        /// <item>STREET streetAddress</item>
+        /// <item>DC domainComponent</item>
+        /// <item>UID userid</item>
+        /// </list>
+        /// This notation is designed to be convenient for common forms of name. This section gives a few 
+        /// examples of distinguished names written using this notation. First is a name containing three relative
+        /// distinguished names (RDNs):
+        /// <code>CN=Steve Kille,O=Isode Limited,C=GB</code>
+        /// 
+        /// RFC 3280 Internet X.509 Public Key Infrastructure, April 2002
+        /// RFC 2253 LADPv3 Distinguished Names, December 1997
+        /// </remarks>
+        /// <seealso cref="System.Security.Cryptography.X509Certificates.X500DistinguishedName"/>
+        /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public string SubjectName
+        {
+            get
+            {
+                if (m_certificate == null)
+                {
+                    return m_subjectName;
+                }
+
+                return m_certificate.Subject;
+            }
+
+            set
+            {
+                if (m_certificate != null && !String.IsNullOrEmpty(value))
+                {
+                    if (m_certificate.Subject != value)
+                    {
+                        throw new ArgumentException("SubjectName does not match the SubjectName of the current certificate.");
+                    }
+                }
+
+                m_subjectName = value;
+            }
+        }
+
+        /// <summary>
+        /// The certificate's thumbprint.
+        /// </summary>
+        /// <value>The thumbprint of a certificate..</value>
+        /// <seealso cref="X509Certificate2"/>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        public string Thumbprint
+        {
+            get
+            {
+                if (m_certificate == null)
+                {
+                    return m_thumbprint;
+                }
+
+                return m_certificate.Thumbprint;
+            }
+
+            set
+            {
+                if (m_certificate != null)
+                {
+                    if (!String.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
+                    {
+                        throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
+                    }
+                }
+
+                m_thumbprint = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the DER encoded certificate data or create emebeded in this instance certifcate using the DER encoded certificate data.
+        /// </summary>
+        /// <value>A byte array containing the X.509 certificate data.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        public byte[] RawData
+        {
+            get
+            {
+                if (m_certificate == null)
+                {
+                    return null;
+                }
+
+                return m_certificate.RawData;
+            }
+
+            set
+            {
+                if (value == null || value.Length == 0)
+                {
+                    m_certificate = null;
+                    return;
+                }
+
+                m_certificate = CertificateFactory.Create(value, true);
+                m_subjectName = m_certificate.Subject;
+                m_thumbprint = m_certificate.Thumbprint;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the XML encoded validation options - use to serialize the validation options.
+        /// </summary>
+        /// <value>The XML encoded validation options.</value>
+        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        private int XmlEncodedValidationOptions
+        {
+            get { return (int)m_validationOptions; }
+            set { m_validationOptions = (CertificateValidationOptions)value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_storeType;
+        private string m_storePath;
+        private string m_storeLocation;
+        private string m_storeName;
+        private string m_subjectName;
+        private string m_thumbprint;
+        private X509Certificate2 m_certificate;
+        private CertificateValidationOptions m_validationOptions;
+        #endregion
+    }
+    #endregion
+
+    #region ConfiguredEndpointCollection Class
+    /// <summary>
+    /// Stores a list of cached enpoints.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class ConfiguredEndpointCollection
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ConfiguredEndpointCollection()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_knownHosts = new StringCollection();
+            m_discoveryUrls = new StringCollection(Utils.DiscoveryUrls);
+            m_endpoints = new List<ConfiguredEndpoint>();
+            m_defaultConfiguration = EndpointConfiguration.Create();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A list of known hosts that can be used for discovery.
+        /// </summary>
+        [DataMember(Name = "KnownHosts", IsRequired = false, Order = 1)]
+        public StringCollection KnownHosts
+        {
+            get
+            {
+                return m_knownHosts;
+            }
+
+            set
+            {
+                if (value == null)
+                {
+                    m_knownHosts = new StringCollection();
+                }
+                else
+                {
+                    m_knownHosts = value;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// The default configuration to use when connecting to an endpoint.
+        /// </summary>
+        [DataMember(Name = "Endpoints", IsRequired = false, Order = 2)]
+        public List<ConfiguredEndpoint> Endpoints
+        {
+            get
+            {
+                return m_endpoints;
+            }
+
+            private set
+            {
+                if (value == null)
+                {
+                    m_endpoints = new List<ConfiguredEndpoint>();
+                }
+                else
+                {
+                    m_endpoints = value;
+                }
+
+                foreach (ConfiguredEndpoint endpoint in m_endpoints)
+                {
+                    endpoint.Collection = this;
+                }
+            }
+        }
+        /// <summary>
+        /// The URL of the UA TCP proxy server.
+        /// </summary>
+        [DataMember(Name = "TcpProxyUrl", EmitDefaultValue = false, Order = 3)]
+        public Uri TcpProxyUrl
+        {
+            get
+            {
+                return m_tcpProxyUrl;
+            }
+
+            set
+            {
+                m_tcpProxyUrl = value;
+            }
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_filepath;
+        private StringCollection m_knownHosts;
+        private StringCollection m_discoveryUrls;
+        private EndpointConfiguration m_defaultConfiguration;
+        private List<ConfiguredEndpoint> m_endpoints;
+        private Uri m_tcpProxyUrl;
+        #endregion
+    }
+    #endregion
+
+    #region ConfiguredEndpoint Class
+    /// <summary>
+    /// Stores the configuration information for an endpoint.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    [KnownType(typeof(UserNameIdentityToken))]
+    [KnownType(typeof(X509IdentityToken))]
+    [KnownType(typeof(IssuedIdentityToken))]
+    public partial class ConfiguredEndpoint
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        private ConfiguredEndpoint()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_collection = null;
+            m_description = new EndpointDescription();
+            m_configuration = null;
+            m_updateBeforeConnect = true;
+            m_binaryEncodingSupport = BinaryEncodingSupport.Optional;
+            m_selectedUserTokenPolicyIndex = 0;
+            m_userIdentity = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The description for the endpoint.
+        /// </summary>
+        [DataMember(Name = "Endpoint", Order = 1, IsRequired = true)]
+        public EndpointDescription Description
+        {
+            get
+            {
+                return m_description;
+            }
+
+            private set
+            {
+                if (value == null)
+                {
+                    m_description = new EndpointDescription();
+                }
+                else
+                {
+                    m_description = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The configuration to use when connecting to an endpoint.
+        /// </summary>
+        [DataMember(Name = "Configuration", Order = 2, IsRequired = false)]
+        public EndpointConfiguration Configuration
+        {
+            get
+            {
+                return m_configuration;
+            }
+
+            set
+            {
+                m_configuration = value;
+
+                // copy default configuration if not already set.
+                if (m_configuration == null)
+                {
+                    if (m_collection != null)
+                    {
+                        Update(m_collection.DefaultConfiguration);
+                    }
+                    else
+                    {
+                        Update(EndpointConfiguration.Create());
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the endpoint information should be updated before connecting to the server.
+        /// </summary>
+        [DataMember(Name = "UpdateBeforeConnect", Order = 3, IsRequired = false)]
+        public bool UpdateBeforeConnect
+        {
+            get { return m_updateBeforeConnect; }
+            set { m_updateBeforeConnect = value; }
+        }
+
+        /// <summary>
+        /// The user identity to use when connecting to the endpoint.
+        /// </summary>
+        [DataMember(Name = "BinaryEncodingSupport", Order = 4, IsRequired = false)]
+        public BinaryEncodingSupport BinaryEncodingSupport
+        {
+            get { return m_binaryEncodingSupport; }
+            set { m_binaryEncodingSupport = value; }
+        }
+
+        /// <summary>
+        /// The user identity to use when connecting to the endpoint.
+        /// </summary>
+        [DataMember(Name = "SelectedUserTokenPolicy", Order = 5, IsRequired = false)]
+        public int SelectedUserTokenPolicyIndex
+        {
+            get { return m_selectedUserTokenPolicyIndex; }
+            set { m_selectedUserTokenPolicyIndex = value; }
+        }
+
+        /// <summary>
+        /// The user identity to use when connecting to the endpoint.
+        /// </summary>
+        [DataMember(Name = "UserIdentity", Order = 6, IsRequired = false)]
+        public UserIdentityToken UserIdentity
+        {
+            get { return m_userIdentity; }
+            set { m_userIdentity = value; }
+        }
+
+        /// <summary>
+        /// A list of COM identities associated with the endpoint.
+        /// </summary>
+        [DataMember(Name = "ComIdentity", Order = 7, IsRequired = false)]
+        public EndpointComIdentity ComIdentity
+        {
+            get { return m_comIdentity; }
+            set { m_comIdentity = value; }
+        }
+
+        /// <summary>
+        /// A bucket to store additional application specific configuration data.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        public ExtensionCollection Extensions
+        {
+            get { return m_extensions; }
+            set { m_extensions = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private ConfiguredEndpointCollection m_collection;
+        private EndpointDescription m_description;
+        private EndpointConfiguration m_configuration;
+        private bool m_updateBeforeConnect;
+        private BinaryEncodingSupport m_binaryEncodingSupport;
+        private int m_selectedUserTokenPolicyIndex;
+        private UserIdentityToken m_userIdentity;
+        private EndpointComIdentity m_comIdentity;
+        private ExtensionCollection m_extensions;
+        #endregion
+    }
+    #endregion
+
+    #region BinaryEncodingSupport Enumeration
+    /// <summary>
+    /// The type of binary encoding support allowed by a channel.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public enum BinaryEncodingSupport
+    {
+        /// <summary>
+        /// The UA binary encoding may be used.
+        /// </summary>
+        [EnumMember()]
+        Optional,
+
+        /// <summary>
+        /// The UA binary encoding must be used.
+        /// </summary>
+        [EnumMember()]
+        Required,
+
+        /// <summary>
+        /// The UA binary encoding may not be used.
+        /// </summary>
+        [EnumMember()]
+        None
+    }   
+    #endregion
+
+    #region EndpointComIdentity Class
+    /// <summary>
+    /// Stores the COM identity for an endpoint.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class EndpointComIdentity 
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public EndpointComIdentity()
+        {
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_clsid = Guid.Empty;
+            m_progId = null;
+            m_specification = ComSpecification.DA;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The CLSID for the COM server.
+        /// </summary>
+        [DataMember(Name = "Clsid", Order = 1, IsRequired = true)]
+        public Uuid XmlClsid
+        {
+            get { return new Uuid(m_clsid); }
+            set { m_clsid = (Guid)value; }
+        }
+
+        /// <summary>
+        /// The ProgID for the COM server.
+        /// </summary>
+        [DataMember(Name = "ProgId", Order = 2, IsRequired = true)]
+        public string ProgId
+        {
+            get { return m_progId; }
+            set { m_progId = value; }
+        }
+
+        /// <summary>
+        /// The COM specification supported by the COM server.
+        /// </summary>
+        [DataMember(Name = "Specification", Order = 3, IsRequired = true)]
+        public ComSpecification Specification
+        {
+            get { return m_specification; }
+            set { m_specification = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private Guid m_clsid;
+        private string m_progId;
+        private ComSpecification m_specification;
+        #endregion
+    }
+    #endregion
+
+    #region ComSpecification Enumeration
+    /// <summary>
+    /// The available COM specifications.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public enum ComSpecification
+    {
+        /// <summary>
+        /// Data Access 2.05a and 3.00
+        /// </summary>        
+        [EnumMember()]
+        DA,
+
+        /// <summary>
+        /// Alarms and Events 1.00
+        /// </summary>    
+        [EnumMember()]
+        AE,
+
+        /// <summary>
+        /// Historical Data Access 1.20
+        /// </summary>    
+        [EnumMember()]
+        HDA
+    }
+    #endregion
+    
+    #region ApplicationAccessRule Class
+    /// <summary>
+    /// An access rule for an application.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class ApplicationAccessRule
+    {
+        #region Public Properties
+        /// <summary>
+        /// The type of access rule.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public AccessControlType RuleType
+        {
+            get { return m_ruleType; }
+            set { m_ruleType = value; }
+        }
+
+        /// <summary>
+        /// The access right affected by the rule.
+        /// </summary>
+        [DataMember(Order = 2)]
+        public ApplicationAccessRight Right
+        {
+            get { return m_right; }
+            set { m_right = value; }
+        }
+
+        /// <summary>
+        /// The name of the NT account principal which the access rule applies to.
+        /// </summary>
+        [DataMember(Order = 3)]
+        public string IdentityName
+        {
+            get
+            {
+                return m_identityName;
+            }
+
+            set { m_identityName = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private AccessControlType m_ruleType;
+        private ApplicationAccessRight m_right;
+        private String m_identityName;
+        #endregion
+    }
+    #endregion
+    #region AccessControlType Enumeration
+    /// <summary>
+    /// The rights to an application that may be granted to the user.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public enum AccessControlType
+    {
+        /// <summary>
+        /// Allows access to the specified account.
+        /// </summary>
+        [EnumMember]
+        Allow = 0x0,
+
+        /// <summary>
+        /// Denies access to the specified account.
+        /// </summary>
+        [EnumMember]
+        Deny = 0x1
+    }
+    #endregion
+
+    #region ApplicationAccessRight Enumeration
+    /// <summary>
+    /// The rights to an application that may be granted to the user.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public enum ApplicationAccessRight
+    {
+        /// <summary>
+        /// The account has no access.
+        /// </summary>
+        [EnumMember]
+        None = 0x0,
+
+        /// <summary>
+        /// The account can run the application.
+        /// </summary>
+        [EnumMember]
+        Run = 0x1,
+
+        /// <summary>
+        /// The account can update the application configuration.
+        /// </summary>
+        [EnumMember]
+        Update = 0x2,
+
+        /// <summary>
+        /// The account can change the application access rights.
+        /// </summary>
+        [EnumMember]
+        Configure = 0x3
+    }
+    #endregion
+    #region ApplicationAccessRuleCollection Class
+    /// <summary>
+    /// A collection of ApplicationAccessRule objects.
+    /// </summary>
+    [CollectionDataContract(Name = "ListOfApplicationAccessRule", Namespace = Namespaces.OpcUaConfig, ItemName = "ApplicationAccessRule")]
+    public partial class ApplicationAccessRuleCollection : List<ApplicationAccessRule>
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public ApplicationAccessRuleCollection() { }
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public ApplicationAccessRuleCollection(int capacity) : base(capacity) { }
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public ApplicationAccessRuleCollection(IEnumerable<ApplicationAccessRule> collection) : base(collection) { }
+        #endregion
+    }
+    #endregion
+}

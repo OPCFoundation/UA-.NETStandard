@@ -1,0 +1,14 @@
+﻿<Page
+    x:Class="Opc.Ua.Client.Controls.ConfiguredServerListDlg"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Button x:Name="OkBTN" Content="OK" HorizontalAlignment="Left" Margin="348,488,0,0" VerticalAlignment="Top"/>
+        <local:ConfiguredServerListCtrl x:Name="ServersCTRL" HorizontalAlignment="Left" Height="269" Margin="142,151,0,0" VerticalAlignment="Top" Width="466"/>
+    </Grid>
+</Page>
