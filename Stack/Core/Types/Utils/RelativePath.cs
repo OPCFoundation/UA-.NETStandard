@@ -1,25 +1,14 @@
-/* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Reciprocal Community License ("RCL") Version 1.00
- * 
- * Unless explicitly acquired and licensed from Licensor under another 
- * license, the contents of this file are subject to the Reciprocal 
- * Community License ("RCL") Version 1.00, or subsequent versions 
- * as allowed by the RCL, and You may not copy or use this file in either 
- * source code or executable form, except in compliance with the terms and 
- * conditions of the RCL.
- * 
- * All software distributed under the RCL is provided strictly on an 
- * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
- * AND LICENSOR HEREBY DISCLAIMS ALL SUCH WARRANTIES, INCLUDING WITHOUT 
- * LIMITATION, ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
- * PURPOSE, QUIET ENJOYMENT, OR NON-INFRINGEMENT. See the RCL for specific 
- * language governing rights and limitations under the RCL.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/RCL/1.00/
- * ======================================================================*/
+/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
 
 using System;
 using System.Text;
