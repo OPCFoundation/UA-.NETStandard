@@ -1,6 +1,9 @@
 # UA Universal Windows Platform
 
-OPC Unified Architecture for the Universal Windows Platform.
+This OPC UA implementation is targeted to Universal Windows Platform (UWP), a platform-homogeneous application architecture. UWP allows developing Metro-style apps that run on both Windows 10 and Windows 10 Mobile without the need to be re-written for each.
+UWP is a part of Windows 10 and Windows 10 Mobile.
+The OPC Foundation provides an OPC UA implementation for .NET (https://github.com/OPCFoundation/UA-.NET) that supports all versions of Windows on PC platforms since Windows XP. The OPC UA Stack for UWP is based on this stack and has been ported to UWP interfaces by Microsoft developers.
+The OPC Foundation will eventually merge the .NET stack and the UWP stack.
 
 Features included:
 
