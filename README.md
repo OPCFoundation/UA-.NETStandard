@@ -1,18 +1,17 @@
 # UA Universal Windows Platform
 
-This OPC UA implementation is targeted to Universal Windows Platform (UWP), a platform-homogeneous application architecture. UWP allows developing Metro-style apps that run on both Windows 10 and Windows 10 Mobile without the need to be re-written for each.
-UWP is a part of Windows 10 and Windows 10 Mobile.
-The OPC Foundation provides an OPC UA implementation for .NET (https://github.com/OPCFoundation/UA-.NET) that supports all versions of Windows on PC platforms since Windows XP. The OPC UA Stack for UWP is based on this stack and has been ported to UWP interfaces by Microsoft developers.
+This OPC UA reference implementation is targeting the Universal Windows Platform (UWP). UWP allows developing apps that run on all Windows 10 editions (including the IoT editions) without requiring edition-specific modifications.
+The OPC Foundation provides an OPC UA reference implementation for .NET (https://github.com/OPCFoundation/UA-.NET) that supports all versions of Windows Desktop editions since Windows XP. The OPC UA reference implementation for UWP is based on this and has been ported to UWP interfaces by Microsoft.
 The OPC Foundation will eventually merge the .NET stack and the UWP stack.
 
 Features included:
 
-1. Fully ported core stack and SDK
+1. Fully ported Core UA stack and SDK
 2. Sample Client and Sample Server, including all required controls
 3. X509 certificate support for client and server authentication
 4. Anonymous user authentication
 5. UA-TCP transport
-6. Folder and Windows-certificate-store support
+6. Folder- and Windows-certificate-store support
 7. Sessions (including UI support in the samples)
 8. Subscriptions (including UI support in the samples)
 
