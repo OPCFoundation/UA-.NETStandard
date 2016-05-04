@@ -1,30 +1,24 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00
+ * OPC Reciprocal Community License ("RCL") Version 1.00
  * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
+ * Unless explicitly acquired and licensed from Licensor under another 
+ * license, the contents of this file are subject to the Reciprocal 
+ * Community License ("RCL") Version 1.00, or subsequent versions 
+ * as allowed by the RCL, and You may not copy or use this file in either 
+ * source code or executable form, except in compliance with the terms and 
+ * conditions of the RCL.
  * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * All software distributed under the RCL is provided strictly on an 
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+ * AND LICENSOR HEREBY DISCLAIMS ALL SUCH WARRANTIES, INCLUDING WITHOUT 
+ * LIMITATION, ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+ * PURPOSE, QUIET ENJOYMENT, OR NON-INFRINGEMENT. See the RCL for specific 
+ * language governing rights and limitations under the RCL.
  *
  * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
+ * http://opcfoundation.org/License/RCL/1.00/
  * ======================================================================*/
 
 using System;

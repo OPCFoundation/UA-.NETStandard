@@ -338,6 +338,11 @@ namespace Opc.Ua
         /// <summary>
         /// XML
         /// </summary>
-        Xml
+        Xml,
+
+        /// <summary>
+        /// JSON
+        /// </summary>
+        Json
     }
 }

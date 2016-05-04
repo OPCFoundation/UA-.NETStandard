@@ -370,14 +370,16 @@ namespace Opc.Ua.Bindings
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
                     }
 
-                    HandleWriteComplete(e.UserToken, e.BytesTransferred, error);
+                    HandleWriteComplete((BufferCollection) e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }
                 catch (Exception ex)
                 {     
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                    HandleWriteComplete(e.UserToken, e.BytesTransferred, error);
+                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }
             }
+
+            e.Dispose();
         }
 
         /// <summary>
@@ -401,13 +403,15 @@ namespace Opc.Ua.Bindings
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
                     }
 
-                    HandleWriteComplete(state, args.BytesTransferred, error);
+                    HandleWriteComplete(null, state, args.BytesTransferred, error);
+                    args.Dispose();
                 }
             }
             catch (Exception ex)
             {     
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                HandleWriteComplete(state, args.BytesTransferred, error);
+                HandleWriteComplete(null, state, args.BytesTransferred, error);
+                args.Dispose();
             }
         }
 
@@ -432,21 +436,27 @@ namespace Opc.Ua.Bindings
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
                     }
 
-                    HandleWriteComplete(state, args.BytesTransferred, error);
+                    HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                    args.Dispose();
                 }
             }
             catch (Exception ex)
             {
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                HandleWriteComplete(state, args.BytesTransferred, error);
+                HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                args.Dispose();
             }
         }
         
         /// <summary>
         /// Called after a write operation completes.
         /// </summary>
-        protected virtual void HandleWriteComplete(object state, int bytesWritten, ServiceResult result)
+        protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
+            if (buffers != null)
+            {
+                buffers.Release(BufferManager, "WriteOperation");
+            }
         }
         
         /// <summary>
