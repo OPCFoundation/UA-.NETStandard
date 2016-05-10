@@ -366,6 +366,10 @@ namespace Opc.Ua.Bindings
                     Utils.Trace(ex, "Unexpected error during OnReadComplete,");
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, ex.Message);
                 }
+                finally
+                {
+                    e.Dispose();
+                }
 
                 if (ServiceResult.IsBad(error))
                 {                
@@ -522,10 +526,13 @@ namespace Opc.Ua.Bindings
                         BufferManager.UnlockBuffer(m_receiveBuffer);
                         throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, null, args.SocketError.ToString());
                     }
+
+                    args.Dispose();
                 }
             }
             catch (Exception ex)
             {
+                args.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
                 throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, ex, "BeginReceive failed.");
             }

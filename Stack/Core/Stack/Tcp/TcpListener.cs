@@ -333,6 +333,10 @@ namespace Opc.Ua.Bindings
                 {
                     Utils.Trace(ex, "Unexpected error accepting a new connection.");
                 }
+                finally
+                {
+                    e.Dispose();
+                }
 
                 // go back and wait for the next connection.
                 try

@@ -649,7 +649,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a write operation completes.
         /// </summary>
-        protected override void HandleWriteComplete(object state, int bytesWritten, ServiceResult result)
+        protected override void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
             lock (DataLock)
             {
@@ -660,10 +660,11 @@ namespace Opc.Ua.Bindings
                     if (ServiceResult.IsBad(result))
                     {
                         operation.Fault(new ServiceResult(StatusCodes.BadSecurityChecksFailed, result));
-                        return;
                     }
                 }
             }
+
+            base.HandleWriteComplete(buffers, state, bytesWritten, result);
         }
 
         /// <summary>
