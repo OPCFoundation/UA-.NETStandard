@@ -300,58 +300,60 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                // check if the accept socket has been created.
-                if (e.AcceptSocket == null || e.SocketError != SocketError.Success)
+                Socket listeningSocket = e.UserToken as Socket;
+
+                if (listeningSocket == null)
                 {
-                    Utils.Trace("OnAccept: No accept socket or error." + e.SocketError.ToString());
+                    Utils.Trace("OnAccept: Listensocket was null." );
+                    e.Dispose();
                     return;
                 }
 
-                try
+                // check if the accept socket has been created.
+                if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
                 {
-                    // create the channel to manage incoming messages.
-                    channel = new TcpServerChannel(
-                        m_listenerId,
-                        this,
-                        m_bufferManager,
-                        m_quotas,
-                        m_serverCertificate,
-                        m_descriptions);
-
-                    // start accepting messages on the channel.
-                    channel.Attach(++m_lastChannelId, e.AcceptSocket);
-
-                    // save the channel for shutdown and reconnects.
-                    m_channels.Add(m_lastChannelId, channel);
-
-                    if (m_callback != null)
+                    try
                     {
-                        channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                        // create the channel to manage incoming messages.
+                        channel = new TcpServerChannel(
+                            m_listenerId,
+                            this,
+                            m_bufferManager,
+                            m_quotas,
+                            m_serverCertificate,
+                            m_descriptions);
+
+                        // start accepting messages on the channel.
+                        channel.Attach(++m_lastChannelId, e.AcceptSocket);
+
+                        // save the channel for shutdown and reconnects.
+                        m_channels.Add(m_lastChannelId, channel);
+
+                        if (m_callback != null)
+                        {
+                            channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace(ex, "Unexpected error accepting a new connection.");
                     }
                 }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Unexpected error accepting a new connection.");
-                }
-                finally
-                {
-                    e.Dispose();
-                }
+
+                e.Dispose();
 
                 // go back and wait for the next connection.
                 try
                 {
-                    Socket listeningSocket = e.UserToken as Socket;
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = listeningSocket;
-                    listeningSocket.AcceptAsync(args);
+                    e = new SocketAsyncEventArgs();
+                    e.Completed += OnAccept;
+                    e.UserToken = listeningSocket;
+                    listeningSocket.AcceptAsync(e);
                 }
                 catch (Exception ex)
                 {
                     Utils.Trace(ex, "Unexpected error listening for a new connection.");
                 }
-
             }
         }
 #endregion
