@@ -403,15 +403,15 @@ namespace Opc.Ua.Bindings
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
                     }
 
-                    args.Dispose();
                     HandleWriteComplete(null, state, args.BytesTransferred, error);
+                    args.Dispose();
                 }
             }
             catch (Exception ex)
             {     
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                args.Dispose();
                 HandleWriteComplete(null, state, args.BytesTransferred, error);
+                args.Dispose();
             }
         }
 
@@ -436,15 +436,15 @@ namespace Opc.Ua.Bindings
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
                     }
 
-                    args.Dispose();
                     HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                    args.Dispose();
                 }
             }
             catch (Exception ex)
             {
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                args.Dispose();
                 HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                args.Dispose();
             }
         }
         
