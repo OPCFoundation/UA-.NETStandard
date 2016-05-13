@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -1793,116 +1810,6 @@ namespace Opc.Ua
             }
         }
         #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// The client side implementation of the TestStack service contract.
-        /// </summary>
-        public TestStackResponseMessage TestStack(TestStackMessage request)
-        {
-            try
-            {
-                IAsyncResult result = null;
-
-                lock (this.Channel)
-                {
-                    result = this.Channel.BeginTestStack(request, null, null);
-                }
-
-                return this.Channel.EndTestStack(result);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-
-        /// <summary>
-        /// The client side implementation of the BeginTestStack service contract.
-        /// </summary>
-        public IAsyncResult BeginTestStack(TestStackMessage request, AsyncCallback callback, object asyncState)
-        {
-            WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
-
-            lock (asyncResult.Lock)
-            {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTestStack(request, asyncResult.OnOperationCompleted, null);
-            }
-
-            return asyncResult;
-        }
-
-        /// <summary>
-        /// The client side implementation of the EndTestStack service contract.
-        /// </summary>
-        public TestStackResponseMessage EndTestStack(IAsyncResult result)
-        {
-            try
-            {
-                WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
-                return asyncResult.Channel.EndTestStack(asyncResult.InnerResult);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// The client side implementation of the TestStackEx service contract.
-        /// </summary>
-        public TestStackExResponseMessage TestStackEx(TestStackExMessage request)
-        {
-            try
-            {
-                IAsyncResult result = null;
-
-                lock (this.Channel)
-                {
-                    result = this.Channel.BeginTestStackEx(request, null, null);
-                }
-
-                return this.Channel.EndTestStackEx(result);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-
-        /// <summary>
-        /// The client side implementation of the BeginTestStackEx service contract.
-        /// </summary>
-        public IAsyncResult BeginTestStackEx(TestStackExMessage request, AsyncCallback callback, object asyncState)
-        {
-            WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
-
-            lock (asyncResult.Lock)
-            {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTestStackEx(request, asyncResult.OnOperationCompleted, null);
-            }
-
-            return asyncResult;
-        }
-
-        /// <summary>
-        /// The client side implementation of the EndTestStackEx service contract.
-        /// </summary>
-        public TestStackExResponseMessage EndTestStackEx(IAsyncResult result)
-        {
-            try
-            {
-                WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
-                return asyncResult.Channel.EndTestStackEx(asyncResult.InnerResult);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-        #endif
     }
     #endregion
 
@@ -1968,6 +1875,61 @@ namespace Opc.Ua
             {
                 WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
                 return asyncResult.Channel.EndFindServers(asyncResult.InnerResult);
+            }
+            catch (FaultException<ServiceFault> e)
+            {
+                throw HandleSoapFault(e);
+            }
+        }
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// The client side implementation of the FindServersOnNetwork service contract.
+        /// </summary>
+        public FindServersOnNetworkResponseMessage FindServersOnNetwork(FindServersOnNetworkMessage request)
+        {
+            try
+            {
+                IAsyncResult result = null;
+
+                lock (this.Channel)
+                {
+                    result = this.Channel.BeginFindServersOnNetwork(request, null, null);
+                }
+
+                return this.Channel.EndFindServersOnNetwork(result);
+            }
+            catch (FaultException<ServiceFault> e)
+            {
+                throw HandleSoapFault(e);
+            }
+        }
+
+        /// <summary>
+        /// The client side implementation of the BeginFindServersOnNetwork service contract.
+        /// </summary>
+        public IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState)
+        {
+            WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
+
+            lock (asyncResult.Lock)
+            {
+                asyncResult.InnerResult = asyncResult.Channel.BeginFindServersOnNetwork(request, asyncResult.OnOperationCompleted, null);
+            }
+
+            return asyncResult;
+        }
+
+        /// <summary>
+        /// The client side implementation of the EndFindServersOnNetwork service contract.
+        /// </summary>
+        public FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult result)
+        {
+            try
+            {
+                WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
+                return asyncResult.Channel.EndFindServersOnNetwork(asyncResult.InnerResult);
             }
             catch (FaultException<ServiceFault> e)
             {
@@ -2048,61 +2010,6 @@ namespace Opc.Ua
         {
         }
 
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// The client side implementation of the FindDnsServices service contract.
-        /// </summary>
-        public FindDnsServicesResponseMessage FindDnsServices(FindDnsServicesMessage request)
-        {
-            try
-            {
-                IAsyncResult result = null;
-
-                lock (this.Channel)
-                {
-                    result = this.Channel.BeginFindDnsServices(request, null, null);
-                }
-
-                return this.Channel.EndFindDnsServices(result);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-
-        /// <summary>
-        /// The client side implementation of the BeginFindDnsServices service contract.
-        /// </summary>
-        public IAsyncResult BeginFindDnsServices(FindDnsServicesMessage request, AsyncCallback callback, object asyncState)
-        {
-            WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
-
-            lock (asyncResult.Lock)
-            {
-                asyncResult.InnerResult = asyncResult.Channel.BeginFindDnsServices(request, asyncResult.OnOperationCompleted, null);
-            }
-
-            return asyncResult;
-        }
-
-        /// <summary>
-        /// The client side implementation of the EndFindDnsServices service contract.
-        /// </summary>
-        public FindDnsServicesResponseMessage EndFindDnsServices(IAsyncResult result)
-        {
-            try
-            {
-                WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
-                return asyncResult.Channel.EndFindDnsServices(asyncResult.InnerResult);
-            }
-            catch (FaultException<ServiceFault> e)
-            {
-                throw HandleSoapFault(e);
-            }
-        }
-        #endif
-
         #if (!OPCUA_EXCLUDE_RegisterServer)
         /// <summary>
         /// The client side implementation of the RegisterServer service contract.
@@ -2150,6 +2057,61 @@ namespace Opc.Ua
             {
                 WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
                 return asyncResult.Channel.EndRegisterServer(asyncResult.InnerResult);
+            }
+            catch (FaultException<ServiceFault> e)
+            {
+                throw HandleSoapFault(e);
+            }
+        }
+        #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// The client side implementation of the RegisterServer2 service contract.
+        /// </summary>
+        public RegisterServer2ResponseMessage RegisterServer2(RegisterServer2Message request)
+        {
+            try
+            {
+                IAsyncResult result = null;
+
+                lock (this.Channel)
+                {
+                    result = this.Channel.BeginRegisterServer2(request, null, null);
+                }
+
+                return this.Channel.EndRegisterServer2(result);
+            }
+            catch (FaultException<ServiceFault> e)
+            {
+                throw HandleSoapFault(e);
+            }
+        }
+
+        /// <summary>
+        /// The client side implementation of the BeginRegisterServer2 service contract.
+        /// </summary>
+        public IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState)
+        {
+            WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
+
+            lock (asyncResult.Lock)
+            {
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer2(request, asyncResult.OnOperationCompleted, null);
+            }
+
+            return asyncResult;
+        }
+
+        /// <summary>
+        /// The client side implementation of the EndRegisterServer2 service contract.
+        /// </summary>
+        public RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult result)
+        {
+            try
+            {
+                WcfChannelAsyncResult asyncResult = WcfChannelAsyncResult.WaitForComplete(result);
+                return asyncResult.Channel.EndRegisterServer2(asyncResult.InnerResult);
             }
             catch (FaultException<ServiceFault> e)
             {

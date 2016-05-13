@@ -14,11 +14,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
-using System.IO;
 using System.Reflection;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Linq;
+using System.Xml.Linq;
 
 namespace Opc.Ua
 {    
@@ -530,9 +529,9 @@ namespace Opc.Ua
                     return String.Format(formatProvider, "Byte[{0}]", ((byte[])m_body).Length);
                 }
                 
-                if (m_body is XmlElement)
+                if (m_body is XElement)
                 {
-                    return String.Format(formatProvider, "<{0}>", ((XmlElement)m_body).Name);
+                    return String.Format(formatProvider, "<{0}>", ((XElement)m_body).Name);
                 }
                 
                 if (m_body is IEncodeable)
@@ -646,8 +645,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Will add null elements if individual elements cannot be converted.
         /// </remarks>
-        public static Array ToArray(Array extensions, Type elementType)
+        public static Array ToArray(object source, Type elementType)
         {
+            var extensions = source as Array;
+
             if (extensions == null)
             {
                 return null;
@@ -693,7 +694,7 @@ namespace Opc.Ua
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        private XmlElement XmlEncodedBody
+        private XElement XmlEncodedBody
         {
             get
             {
@@ -710,11 +711,7 @@ namespace Opc.Ua
                 encoder.WriteExtensionObjectBody(m_body);
 
                 // create document from encoder.
-                XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
-
-                // return root element.
-                return document.DocumentElement;
+                return XElement.Parse(encoder.Close());
             }
 
             set
@@ -727,7 +724,9 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                XmlDecoder decoder = new XmlDecoder(value, m_context);
+                XmlDocument doc = new XmlDocument();
+                doc.Load(value.CreateReader());
+                XmlDecoder decoder = new XmlDecoder(doc.DocumentElement, m_context);
               
                 // read body.
                 Body = decoder.ReadExtensionObjectBody(m_typeId);
@@ -791,7 +790,12 @@ namespace Opc.Ua
         /// <summary>
         /// The extension object has an encodeable object body.
         /// </summary>
-        EncodeableObject = 3
+        EncodeableObject = 3,
+
+        /// <summary>
+        /// The extension object has a JSON encoded body.
+        /// </summary>
+        Json = 4
     }
     #endregion
     

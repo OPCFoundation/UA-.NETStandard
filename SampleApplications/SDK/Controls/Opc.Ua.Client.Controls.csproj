@@ -115,6 +115,7 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClientUtils.cs" />
     <Compile Include="Common %28OLD%29\BaseListCtrl.xaml.cs">
       <DependentUpon>BaseListCtrl.xaml</DependentUpon>
     </Compile>

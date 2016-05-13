@@ -462,14 +462,10 @@ namespace Opc.Ua
 
             SecurityConfiguration.Validate();
 
-            // ensure application uri matches the certificate.
-            X509Certificate2 certificate = await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            // load private key
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
 
-            if (certificate != null)
-            {
-                ApplicationUri = Utils.GetApplicationUriFromCertficate(certificate);
-            }
-            //  generate a default uri.
+            //  generate a default uri if null
             if (String.IsNullOrEmpty(ApplicationUri))
             {
                 StringBuilder buffer = new StringBuilder();

@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 
 
@@ -175,9 +176,7 @@ namespace Opc.Ua.Export
                         Variant variant = new Variant(o.Value);
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
-                        value.Value = document.DocumentElement;
+                        value.Value = XElement.Parse(encoder.Close());
                     }
 
                     exportedNode = value;                 
@@ -234,9 +233,7 @@ namespace Opc.Ua.Export
                         Variant variant = new Variant(o.Value);
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
-                        value.Value = document.DocumentElement;
+                        value.Value = XElement.Parse(encoder.Close());
                     }
 
                     exportedNode = value;
@@ -478,7 +475,9 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDecoder decoder = CreateDecoder(context, o.Value);
+                        XmlDocument doc = new XmlDocument();
+                        doc.Load(o.Value.CreateReader());
+                        XmlDecoder decoder = CreateDecoder(context, doc.DocumentElement);
                         TypeInfo typeInfo = null;
                         value.Value = decoder.ReadVariantContents(out typeInfo);
                         decoder.Close();
@@ -527,7 +526,9 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDecoder decoder = CreateDecoder(context, o.Value);
+                        XmlDocument doc = new XmlDocument();
+                        doc.Load(o.Value.CreateReader());
+                        XmlDecoder decoder = CreateDecoder(context, doc.DocumentElement);
                         TypeInfo typeInfo = null;
                         value.Value = decoder.ReadVariantContents(out typeInfo);
                         decoder.Close();
@@ -783,7 +784,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports a DataTypeDefinition
         /// </summary>
-        private Opc.Ua.Export.DataTypeDefinition Export(Opc.Ua.DataTypeDefinition source, NamespaceTable namespaceUris)
+        private Opc.Ua.Export.DataTypeDefinition Export(Opc.Ua.UADataTypeDefinition source, NamespaceTable namespaceUris)
         {
             if (source == null)
             {
@@ -833,14 +834,14 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a DataTypeDefinition
         /// </summary>
-        private Opc.Ua.DataTypeDefinition Import(Opc.Ua.Export.DataTypeDefinition source, NamespaceTable namespaceUris)
+        private Opc.Ua.UADataTypeDefinition Import(Opc.Ua.Export.DataTypeDefinition source, NamespaceTable namespaceUris)
         {
             if (source == null)
             {
                 return null;
             }
 
-            Opc.Ua.DataTypeDefinition definition = new Opc.Ua.DataTypeDefinition();
+            Opc.Ua.UADataTypeDefinition definition = new Opc.Ua.UADataTypeDefinition();
 
             definition.Name = ImportQualifiedName(source.Name, namespaceUris);
             definition.SymbolicName = source.SymbolicName;

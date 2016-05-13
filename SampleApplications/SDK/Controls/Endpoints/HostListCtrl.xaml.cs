@@ -49,14 +49,10 @@ namespace Opc.Ua.Client.Controls
         public HostListCtrl()
         {
             InitializeComponent();
-            m_enumerator = new HostEnumerator();
-            m_enumerator.HostsDiscovered += new EventHandler<HostEnumeratorEventArgs>(HostEnumerator_HostsDiscovered);
         }
         #endregion
         
         #region Private Fields
-        private HostEnumerator m_enumerator;
-        private bool m_waitingForHosts;
         private bool m_updating = false;
         private int m_updateCount = 0;
         #endregion
@@ -68,11 +64,6 @@ namespace Opc.Ua.Client.Controls
         public void Initialize(string domain)
         {
             ItemsLV.Items.Clear();
-
-            this.Instructions.Text = Utils.Format("Discovering hosts on domain '{0}'.", domain);
-
-            m_waitingForHosts = true;
-            m_enumerator.Start(domain);
         }
         #endregion
 
@@ -172,25 +163,6 @@ namespace Opc.Ua.Client.Controls
         #endregion
         
         #region Event Handlers
-        private void HostEnumerator_HostsDiscovered(object sender, HostEnumeratorEventArgs e)
-        {
-            // check if this is the first callback.
-            if (m_waitingForHosts)
-            {
-                ItemsLV.Items.Clear();
-                m_waitingForHosts = false;
-            }
-
-            // populate list with hostnames.
-            if (e != null && e.Hostnames != null)
-            {
-                foreach (string hostname in e.Hostnames)
-                {
-                    AddItem(hostname);
-                }
-            }
-        }
-
         /// <summary>
 		/// Adds an item to the list.
 		/// </summary>

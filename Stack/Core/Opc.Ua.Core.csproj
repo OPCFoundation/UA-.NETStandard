@@ -142,8 +142,6 @@
     <Compile Include="Security\Certificates\RsaUtils.cs" />
     <Compile Include="Security\Certificates\SecurityConfiguration.cs" />
     <Compile Include="Security\Certificates\WindowsCertificateStore.cs" />
-    <Compile Include="Security\Certificates\X509AuthorityKeyIdentifierExtension.cs" />
-    <Compile Include="Security\Certificates\X509SubjectAltNameExtension.cs" />
     <Compile Include="Security\Constants\SecurityConstants.cs" />
     <Compile Include="Security\Constants\SecurityPolicies.cs" />
     <Compile Include="Stack\Bindings\ArraySegmentStream.cs" />

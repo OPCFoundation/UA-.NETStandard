@@ -11,10 +11,10 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 using System.IO;
+using System.Xml.Linq;
 
 namespace Opc.Ua
 {        
@@ -448,7 +448,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        public XmlElement ReadXmlElement(string fieldName)
+        public XElement ReadXmlElement(string fieldName)
         {
             byte[] bytes = ReadByteString(fieldName);
 
@@ -457,10 +457,7 @@ namespace Opc.Ua
                 return null;
             }
             
-            XmlDocument document = new XmlDocument();
-            document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
-
-            return document.DocumentElement;
+            return XElement.Parse(new UTF8Encoding().GetString(bytes, 0, bytes.Length));
         }
 
         /// <summary>
@@ -851,7 +848,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            XmlElement[] values = new XmlElement[length];
+                            XElement[] values = new XElement[length];
 
                             for (int ii = 0; ii < values.Length; ii++)
                             {

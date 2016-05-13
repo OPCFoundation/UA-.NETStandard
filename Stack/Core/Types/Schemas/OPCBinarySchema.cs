@@ -13,7 +13,7 @@
 namespace Opc.Ua.Schema.Binary
 {
     using System.Runtime.Serialization;
-
+    using System.Xml.Linq;
 
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
@@ -23,15 +23,15 @@ namespace Opc.Ua.Schema.Binary
     [System.Xml.Serialization.XmlRootAttribute(Namespace="http://opcfoundation.org/BinarySchema/", IsNullable=false)]
     public partial class Documentation {
         
-        private System.Xml.XmlElement[] itemsField;
+        private XElement[] itemsField;
         
         private string[] textField;
         
-        private System.Xml.XmlAttribute[] anyAttrField;
+        private string[] anyAttrField;
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
-        public System.Xml.XmlElement[] Items {
+        public XElement[] Items {
             get {
                 return this.itemsField;
             }
@@ -53,7 +53,7 @@ namespace Opc.Ua.Schema.Binary
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyAttributeAttribute()]
-        public System.Xml.XmlAttribute[] AnyAttr {
+        public string[] AnyAttr {
             get {
                 return this.anyAttrField;
             }
@@ -96,7 +96,7 @@ namespace Opc.Ua.Schema.Binary
         
         private byte[] terminatorField;
         
-        private System.Xml.XmlAttribute[] anyAttrField;
+        private string[] anyAttrField;
         
         /// <remarks/>
         public FieldType() {
@@ -248,7 +248,7 @@ namespace Opc.Ua.Schema.Binary
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyAttributeAttribute()]
-        public System.Xml.XmlAttribute[] AnyAttr {
+        public string[] AnyAttr {
             get {
                 return this.anyAttrField;
             }
@@ -426,7 +426,7 @@ namespace Opc.Ua.Schema.Binary
         
         private FieldType[] fieldField;
         
-        private System.Xml.XmlAttribute[] anyAttrField;
+        private string[] anyAttrField;
         
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Field")]
@@ -441,7 +441,7 @@ namespace Opc.Ua.Schema.Binary
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyAttributeAttribute()]
-        public System.Xml.XmlAttribute[] AnyAttr {
+        public string[] AnyAttr {
             get {
                 return this.anyAttrField;
             }

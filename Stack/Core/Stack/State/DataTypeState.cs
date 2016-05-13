@@ -42,13 +42,13 @@ namespace Opc.Ua
         /// <summary>
         /// The abstract definition of the data type.
         /// </summary>
-        public DataTypeDefinition Definition { get; set; }
+        public UADataTypeDefinition Definition { get; set; }
     }
 
     /// <summary>
     /// Defines an abstract description of a type.
     /// </summary>
-    public class DataTypeDefinition
+    public class UADataTypeDefinition
     {
         /// <summary>
         /// The name of the type.
@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// <summary>
         /// A nested description of a structured field.
         /// </summary>
-        public DataTypeDefinition Definition { get; set; }
+        public UADataTypeDefinition Definition { get; set; }
 
         /// <summary>
         /// The value of an enumerated field.

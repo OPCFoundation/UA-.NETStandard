@@ -720,9 +720,6 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // configure HTTP access.
-            ConfigureHttpAccess(configuration, false);
-
             // configure access to the executable, the configuration file and the private key. 
             await ConfigureFileAccess(configuration);
 
@@ -798,9 +795,6 @@ namespace Opc.Ua.Configuration
 
             if (configuration != null)
             {
-                // configure HTTP access.
-                ConfigureHttpAccess(configuration, true);
-
                 // delete certificate.
                 if (InstallConfig.DeleteCertificatesOnUninstall)
                 {
@@ -1530,85 +1524,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Configures the HTTP access.
-        /// </summary>
-        /// <param name="configuration">The configuration.</param>
-        /// <param name="remove">if set to <c>true</c> then the HTTP access should be removed.</param>
-        private void ConfigureHttpAccess(ApplicationConfiguration configuration, bool remove)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Configuring HTTP access.");
-
-            // check for HTTP endpoints which need configuring.
-            StringCollection baseAddresses = new StringCollection();
-
-            if (configuration.DiscoveryServerConfiguration != null)
-            {
-                baseAddresses = configuration.DiscoveryServerConfiguration.BaseAddresses;
-            }
-
-            if (configuration.ServerConfiguration != null)
-            {
-                baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            }
-
-            // configure WCF http access.
-            for (int ii = 0; ii < baseAddresses.Count; ii++)
-            {
-                string url = GetHttpUrlForAccessRule(baseAddresses[ii]);
-
-                if (url != null)
-                {
-                    SetHttpAccessRules(url, remove);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the HTTP URL to use for HTTP access rules.
-        /// </summary>
-        public static string GetHttpUrlForAccessRule(string baseAddress)
-        {
-            Uri url = Utils.ParseUri(baseAddress);
-
-            if (url == null)
-            {
-                return null;
-            }
-            
-            UriBuilder builder = new UriBuilder(url);
-
-            switch (url.Scheme)
-            {
-                case Utils.UriSchemeHttps:
-                {
-                    builder.Path = String.Empty;
-                    builder.Query = String.Empty;
-                    break;
-                }
-
-                case Utils.UriSchemeNoSecurityHttp:
-                {
-                    builder.Scheme = Utils.UriSchemeHttp;
-                    builder.Path = String.Empty;
-                    builder.Query = String.Empty;
-                    break;
-                }
-
-                case Utils.UriSchemeHttp:
-                {
-                    break;
-                }
-
-                default:
-                {
-                    return null;
-                }
-            }
-
-            return builder.ToString();
-        }
-
-        /// <summary>
         /// Gets the access rules to use for the application.
         /// </summary>
         private List<ApplicationAccessRule> GetAccessRules()
@@ -1672,28 +1587,6 @@ namespace Opc.Ua.Configuration
             }
 
             return rules;
-        }
-
-        /// <summary>
-        /// Sets the HTTP access rules for the URL.
-        /// </summary>
-        private void SetHttpAccessRules(string url, bool remove)
-        {
-            try
-            {
-                List<ApplicationAccessRule> rules = new List<ApplicationAccessRule>();
-
-                if (!remove)
-                {
-                    rules = GetAccessRules();
-                }
-
-                HttpAccessRule.SetAccessRules(new Uri(url), rules, false);
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Unexpected configuring the HTTP access rules.");
-            }
         }
 
         /// <summary>

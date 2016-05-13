@@ -745,7 +745,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        public XmlElement ReadXmlElement(string fieldName)
+        public XElement ReadXmlElement(string fieldName)
         {
             object token = null;
 
@@ -765,10 +765,7 @@ namespace Opc.Ua
 
             if (bytes != null && bytes.Length > 0)
             {
-                XmlDocument document = new XmlDocument();
-                document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
-
-                return document.DocumentElement;
+                return XElement.Parse(Encoding.UTF8.GetString(bytes));
             }
 
             return null;

@@ -12,13 +12,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Xml;
 using System.Reflection;
-using System.ServiceModel;
 using System.Runtime.Serialization;
-using System.Threading;
 using System.Linq;
+using System.Threading;
 
 namespace Opc.Ua
 {

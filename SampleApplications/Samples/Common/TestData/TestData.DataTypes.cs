@@ -29,11 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
-using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
+using System.Xml.Linq;
 
 namespace TestData
 {
@@ -255,7 +253,7 @@ namespace TestData
         /// A description for the XmlElementValue field.
         /// </summary>
         [DataMember(Name = "XmlElementValue", IsRequired = false, Order = 16)]
-        public XmlElement XmlElementValue
+        public XElement XmlElementValue
         {
             get { return m_xmlElementValue;  }
             set { m_xmlElementValue = value; }
@@ -387,6 +385,12 @@ namespace TestData
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.ScalarValueDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId
         {
             get { return ObjectIds.ScalarValueDataType_Encoding_DefaultXml; }
         }
@@ -528,7 +532,7 @@ namespace TestData
             clone.m_dateTimeValue = (DateTime)Utils.Clone(this.m_dateTimeValue);
             clone.m_guidValue = (Uuid)Utils.Clone(this.m_guidValue);
             clone.m_byteStringValue = (byte[])Utils.Clone(this.m_byteStringValue);
-            clone.m_xmlElementValue = (XmlElement)Utils.Clone(this.m_xmlElementValue);
+            clone.m_xmlElementValue = (XElement)Utils.Clone(this.m_xmlElementValue);
             clone.m_nodeIdValue = (NodeId)Utils.Clone(this.m_nodeIdValue);
             clone.m_expandedNodeIdValue = (ExpandedNodeId)Utils.Clone(this.m_expandedNodeIdValue);
             clone.m_qualifiedNameValue = (QualifiedName)Utils.Clone(this.m_qualifiedNameValue);
@@ -561,7 +565,7 @@ namespace TestData
         private DateTime m_dateTimeValue;
         private Uuid m_guidValue;
         private byte[] m_byteStringValue;
-        private XmlElement m_xmlElementValue;
+        private XElement m_xmlElementValue;
         private NodeId m_nodeIdValue;
         private ExpandedNodeId m_expandedNodeIdValue;
         private QualifiedName m_qualifiedNameValue;
@@ -1327,6 +1331,12 @@ namespace TestData
             get { return ObjectIds.ArrayValueDataType_Encoding_DefaultXml; }
         }
 
+        /// <summary cref="IEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ScalarValueDataType_Encoding_DefaultXml; }
+        }
+
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
@@ -1798,7 +1808,7 @@ namespace TestData
         /// A description for the XmlElementDataType field.
         /// </summary>
         [DataMember(Name = "XmlElementDataType", IsRequired = false, Order = 16)]
-        public XmlElement XmlElementDataType
+        public XElement XmlElementDataType
         {
             get { return m_xmlElementDataType;  }
             set { m_xmlElementDataType = value; }
@@ -1883,6 +1893,11 @@ namespace TestData
         {
             get { return ObjectIds.UserScalarValueDataType_Encoding_DefaultXml; }
         }
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ScalarValueDataType_Encoding_DefaultXml; }
+        }
+
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2006,7 +2021,7 @@ namespace TestData
             clone.m_dateTimeDataType = (DateTime)Utils.Clone(this.m_dateTimeDataType);
             clone.m_guidDataType = (Uuid)Utils.Clone(this.m_guidDataType);
             clone.m_byteStringDataType = (byte[])Utils.Clone(this.m_byteStringDataType);
-            clone.m_xmlElementDataType = (XmlElement)Utils.Clone(this.m_xmlElementDataType);
+            clone.m_xmlElementDataType = (XElement)Utils.Clone(this.m_xmlElementDataType);
             clone.m_nodeIdDataType = (NodeId)Utils.Clone(this.m_nodeIdDataType);
             clone.m_expandedNodeIdDataType = (ExpandedNodeId)Utils.Clone(this.m_expandedNodeIdDataType);
             clone.m_qualifiedNameDataType = (QualifiedName)Utils.Clone(this.m_qualifiedNameDataType);
@@ -2034,7 +2049,7 @@ namespace TestData
         private DateTime m_dateTimeDataType;
         private Uuid m_guidDataType;
         private byte[] m_byteStringDataType;
-        private XmlElement m_xmlElementDataType;
+        private XElement m_xmlElementDataType;
         private NodeId m_nodeIdDataType;
         private ExpandedNodeId m_expandedNodeIdDataType;
         private QualifiedName m_qualifiedNameDataType;
@@ -2678,6 +2693,12 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.UserArrayValueDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId
+        {
+            get { return ObjectIds.ScalarValueDataType_Encoding_DefaultXml; }
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />

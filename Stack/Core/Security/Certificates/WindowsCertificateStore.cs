@@ -149,39 +149,9 @@ namespace Opc.Ua
         }
 
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
-        public async Task Add(X509Certificate2 certificate)
+        public Task Add(X509Certificate2 certificate)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
-
-            // check for existing certificate.
-            byte[] thumbprint = new byte[certificate.Thumbprint.Length];
-            for (int i = 0; i < certificate.Thumbprint.Length; i++)
-            {
-                thumbprint[i] = (byte) certificate.Thumbprint[i];
-            }
-
-            CertificateQuery query = new CertificateQuery();
-            query.Thumbprint = thumbprint;
-            IReadOnlyList<Certificate> pCertContext  = await CertificateStores.FindAllAsync(query);
-
-            if (pCertContext.Count != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Certificate is already in the store.\r\nType={0}, Name={1}, Subject={2}",
-                    m_storeType,
-                    m_symbolicName,
-                    certificate.Subject);
-            }
-
-            lock (m_lock)
-            {
-                // add certificate.
-                CertificateFactory.AddCertificateToWindowsStore(
-                    m_storeType == WindowsStoreType.LocalMachine,
-                    m_symbolicName,
-                    certificate);
-            }
+            throw new NotImplementedException("Cannot add a certificate to the Windows Certificate Store from a UWP App!");
         }
 
         /// <summary cref="ICertificateStore.Delete(string)" />

@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +50,19 @@ namespace Opc.Ua
             StringCollection                     localeIds,
             StringCollection                     serverUris,
             out ApplicationDescriptionCollection servers);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers);
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -458,30 +488,6 @@ namespace Opc.Ua
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos);
         #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// Invokes the TestStack service.
-        /// </summary>
-        ResponseHeader TestStack(
-            RequestHeader requestHeader,
-            uint          testId,
-            int           iteration,
-            Variant       input,
-            out Variant   output);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// Invokes the TestStackEx service.
-        /// </summary>
-        ResponseHeader TestStackEx(
-            RequestHeader         requestHeader,
-            uint                  testId,
-            int                   iteration,
-            CompositeTestType     input,
-            out CompositeTestType output);
-        #endif
     }
     #endregion
 
@@ -504,6 +510,29 @@ namespace Opc.Ua
             StringCollection                     serverUris,
             out ApplicationDescriptionCollection servers)
         {
+            servers = null;
+
+            ValidateRequest(requestHeader);
+
+            // Insert implementation.
+
+            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
+        }
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public virtual ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers)
+        {
+            lastCounterResetTime = DateTime.MinValue;
             servers = null;
 
             ValidateRequest(requestHeader);
@@ -1279,48 +1308,6 @@ namespace Opc.Ua
             return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
         }
         #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// Invokes the TestStack service.
-        /// </summary>
-        public virtual ResponseHeader TestStack(
-            RequestHeader requestHeader,
-            uint          testId,
-            int           iteration,
-            Variant       input,
-            out Variant   output)
-        {
-            output = new Variant();
-
-            ValidateRequest(requestHeader);
-
-            // Insert implementation.
-
-            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
-        }
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// Invokes the TestStackEx service.
-        /// </summary>
-        public virtual ResponseHeader TestStackEx(
-            RequestHeader         requestHeader,
-            uint                  testId,
-            int                   iteration,
-            CompositeTestType     input,
-            out CompositeTestType output)
-        {
-            output = null;
-
-            ValidateRequest(requestHeader);
-
-            // Insert implementation.
-
-            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
-        }
-        #endif
     }
     #endregion
 
@@ -1332,18 +1319,6 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
     public interface IDiscoveryServer : IServerBase
     {
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// Invokes the FindDnsServices service.
-        /// </summary>
-        ResponseHeader FindDnsServices(
-            RequestHeader                  requestHeader,
-            string                         endpointUrl,
-            StringCollection               serviceNameFilters,
-            StringCollection               serviceTypeFilters,
-            out DnsServiceRecordCollection services);
-        #endif
-
         #if (!OPCUA_EXCLUDE_FindServers)
         /// <summary>
         /// Invokes the FindServers service.
@@ -1354,6 +1329,19 @@ namespace Opc.Ua
             StringCollection                     localeIds,
             StringCollection                     serverUris,
             out ApplicationDescriptionCollection servers);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers);
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -1376,6 +1364,18 @@ namespace Opc.Ua
             RequestHeader    requestHeader,
             RegisteredServer server);
         #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        ResponseHeader RegisterServer2(
+            RequestHeader                requestHeader,
+            RegisteredServer             server,
+            ExtensionObjectCollection    discoveryConfiguration,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos);
+        #endif
     }
     #endregion
 
@@ -1387,27 +1387,6 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
     public partial class DiscoveryServerBase : ServerBase, IDiscoveryServer
     {
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// Invokes the FindDnsServices service.
-        /// </summary>
-        public virtual ResponseHeader FindDnsServices(
-            RequestHeader                  requestHeader,
-            string                         endpointUrl,
-            StringCollection               serviceNameFilters,
-            StringCollection               serviceTypeFilters,
-            out DnsServiceRecordCollection services)
-        {
-            services = null;
-
-            ValidateRequest(requestHeader);
-
-            // Insert implementation.
-
-            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
-        }
-        #endif
-
         #if (!OPCUA_EXCLUDE_FindServers)
         /// <summary>
         /// Invokes the FindServers service.
@@ -1419,6 +1398,29 @@ namespace Opc.Ua
             StringCollection                     serverUris,
             out ApplicationDescriptionCollection servers)
         {
+            servers = null;
+
+            ValidateRequest(requestHeader);
+
+            // Insert implementation.
+
+            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
+        }
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public virtual ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers)
+        {
+            lastCounterResetTime = DateTime.MinValue;
             servers = null;
 
             ValidateRequest(requestHeader);
@@ -1458,6 +1460,28 @@ namespace Opc.Ua
             RequestHeader    requestHeader,
             RegisteredServer server)
         {
+
+            ValidateRequest(requestHeader);
+
+            // Insert implementation.
+
+            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
+        }
+        #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        public virtual ResponseHeader RegisterServer2(
+            RequestHeader                requestHeader,
+            RegisteredServer             server,
+            ExtensionObjectCollection    discoveryConfiguration,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            configurationResults = null;
+            diagnosticInfos = null;
 
             ValidateRequest(requestHeader);
 

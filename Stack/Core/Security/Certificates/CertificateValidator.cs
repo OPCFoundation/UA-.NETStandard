@@ -341,28 +341,6 @@ namespace Opc.Ua
         }
         
         /// <summary>
-        /// Returns the authority key identifier in the certificate.
-        /// </summary>
-        private X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509Extension extension = certificate.Extensions[ii];
-
-                switch (extension.Oid.Value)
-                {
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Determines whether the certificate is allowed to be an issuer.
         /// </summary>
         private bool IsIssuerAllowed(X509Certificate2 certificate)
@@ -552,15 +530,6 @@ namespace Opc.Ua
             string subjectName = certificate.IssuerName.ToString();
             string keyId = null;
             string serialNumber = null;
-
-            // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(certificate);
-
-            if (authority != null)
-            {
-                keyId = authority.KeyId;
-                serialNumber = authority.SerialNumber;
-            }
 
             // check in explicit list.
             if (explicitList != null)

@@ -21,10 +21,8 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Core;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Text;
-using Windows.UI.Popups;
 using Windows.UI;
 using System.Threading;
-using System.Text;
 
 namespace Opc.Ua.SampleClient
 {
@@ -78,7 +76,6 @@ namespace Opc.Ua.SampleClient
             SessionsCTRL.MessageContext = context;
             SessionsCTRL.AddressSpaceCtrl = BrowseCTRL;
             SessionsCTRL.NodeSelected += SessionCtrl_NodeSelected;
-            SessionsCTRL.ContextMenu = new PopupMenu();
 
             // get list of cached endpoints.
             m_endpoints = m_configuration.LoadCachedEndpoints(true);
@@ -91,7 +88,6 @@ namespace Opc.Ua.SampleClient
 
             BrowseCTRL.SessionTreeCtrl = SessionsCTRL;
             BrowseCTRL.NodeSelected += BrowseCTRL_NodeSelected;
-            BrowseCTRL.ContextMenu = new PopupMenu();
 
             // exception dialog
             GuiUtils.ExceptionMessageDlg += ExceptionMessageDlg;
@@ -99,47 +95,82 @@ namespace Opc.Ua.SampleClient
             ServerUrlTB.Text = "None";
         }
 
+        void RemoveAllClickEventsFromButton()
+        {
+            CommandBTN.Click -= ContextMenu_OnDelete;
+            CommandBTN.Click -= ContextMenu_OnCancel;
+            CommandBTN.Click -= ContextMenu_OnDisconnect;
+            CommandBTN.Click -= ContextMenu_OnReport;
+        }
+
         private void SessionCtrl_NodeSelected(object sender, TreeNodeActionEventArgs e)
         {
-            SessionsCTRL.ContextMenu.Commands.Clear();
-
             if (e.Node != null)
             {
                 MonitoredItem item = e.Node as MonitoredItem;
                 if (e.Node is MonitoredItem)
-                    SessionsCTRL.ContextMenu.Commands.Add(new UICommand("Delete", ContextMenu_OnDelete, e.Node));
+                {
+                    CommandBTN.Visibility = Visibility.Visible;
+                    CommandBTN.Content = "Delete";
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Click += ContextMenu_OnDelete;
+                    CommandBTN.Tag = e.Node;
+                }
                 else if (e.Node is Subscription)
-                    SessionsCTRL.ContextMenu.Commands.Add(new UICommand("Cancel", ContextMenu_OnCancel, e.Node));
+                {
+                    CommandBTN.Visibility = Visibility.Visible;
+                    CommandBTN.Content = "Cancel";
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Click += ContextMenu_OnCancel;
+                    CommandBTN.Tag = e.Node;
+                }
                 else if (e.Node is Session)
                 {
-                    SessionsCTRL.ContextMenu.Commands.Add(new UICommand("Disconnect", ContextMenu_OnDisconnect, e.Node));
+                    CommandBTN.Visibility = Visibility.Visible;
+                    CommandBTN.Content = "Disconnect";
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Click += ContextMenu_OnDisconnect;
+                    CommandBTN.Tag = e.Node;
 
                     // Update current session object
                     m_session = (Session)e.Node;
+                }
+                else
+                {
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Visibility = Visibility.Collapsed;
+                    CommandBTN.Tag = null;
                 }
             }
         }
 
         private void BrowseCTRL_NodeSelected(object sender, TreeNodeActionEventArgs e)
         {
-            BrowseCTRL.ContextMenu.Commands.Clear();
-
             if (e.Node != null)
-            { 
+            {
                 ReferenceDescription reference = e.Node as ReferenceDescription;
                 if (reference != null && reference.NodeClass == NodeClass.Variable)
                 {
-                    BrowseCTRL.ContextMenu.Commands.Add(new UICommand("Report", ContextMenu_OnReport, e.Node));
-                    BrowseCTRL.ContextMenu.Commands.Add(new UICommand("Sample", ContextMenu_OnSample, e.Node));
+                    CommandBTN.Visibility = Visibility.Visible;
+                    CommandBTN.Content = "Report";
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Click += ContextMenu_OnReport;
+                    CommandBTN.Tag = e.Node;
+                }
+                else
+                {
+                    RemoveAllClickEventsFromButton();
+                    CommandBTN.Visibility = Visibility.Collapsed;
+                    CommandBTN.Tag = null;
                 }
             }
         }
 
-        private void ContextMenu_OnDisconnect(IUICommand command)
+        private void ContextMenu_OnDisconnect(object sender, RoutedEventArgs e)
         {
             try
             {
-                SessionsCTRL.Delete(command.Id as Session);
+                SessionsCTRL.Delete(CommandBTN.Tag as Session);
             }
             catch (Exception exception)
             {
@@ -147,11 +178,11 @@ namespace Opc.Ua.SampleClient
             }
         }
 
-        private void ContextMenu_OnCancel(IUICommand command)
+        private void ContextMenu_OnCancel(object sender, RoutedEventArgs e)
         {
             try
             {
-                SessionsCTRL.Delete(command.Id as Subscription);
+                SessionsCTRL.Delete(CommandBTN.Tag as Subscription);
             }
             catch (Exception exception)
             {
@@ -159,11 +190,11 @@ namespace Opc.Ua.SampleClient
             }
         }
 
-        private void ContextMenu_OnDelete(IUICommand command)
+        private void ContextMenu_OnDelete(object sender, RoutedEventArgs e)
         {
             try
             {
-                var monitoredItem = command.Id as MonitoredItem;
+                var monitoredItem = CommandBTN.Tag as MonitoredItem;
                 if (monitoredItem == null)
                     return;
                 var subscription = monitoredItem.Subscription;
@@ -171,8 +202,8 @@ namespace Opc.Ua.SampleClient
                 if (subscription.MonitoredItemCount == 0)
                 {
                     // Remove subscription if no more items
-                    command.Id = subscription;
-                    ContextMenu_OnCancel(command);
+                    CommandBTN.Tag = subscription;
+                    ContextMenu_OnCancel(sender, e);
                 }
             }
             catch (Exception exception)
@@ -181,34 +212,16 @@ namespace Opc.Ua.SampleClient
             }
         }
 
-        private void ContextMenu_OnReport(IUICommand command)
+        private void ContextMenu_OnReport(object sender, RoutedEventArgs e)
         {
             try
             {
                 // can only subscribe to local variables. 
-                ReferenceDescription reference = command.Id as ReferenceDescription;
+                ReferenceDescription reference = CommandBTN.Tag as ReferenceDescription;
                 if (m_session != null && reference != null)
                 {
                     CreateMonitoredItem(
                         m_session, null, (NodeId)reference.NodeId, MonitoringMode.Reporting);
-                }
-            }
-            catch (Exception exception)
-            {
-                GuiUtils.HandleException(String.Empty, GuiUtils.CallerName(), exception);
-            }
-        }
-
-        private void ContextMenu_OnSample(IUICommand command)
-        {
-            try
-            {
-                // can only subscribe to local variables. 
-                ReferenceDescription reference = command.Id as ReferenceDescription;
-                if (m_session != null && reference != null)
-                {
-                    CreateMonitoredItem(
-                        m_session, null, (NodeId)reference.NodeId, MonitoringMode.Sampling);
                 }
             }
             catch (Exception exception)
@@ -516,24 +529,24 @@ namespace Opc.Ua.SampleClient
 
         private async void MonitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
         {
-            try
+            if (e.NotificationValue == null)
             {
-                if (e.NotificationValue == null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,() =>
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal,() =>
+            {
+                try
                 {
                     XmlEncoder encoder = new XmlEncoder(monitoredItem.Subscription.Session.MessageContext);
                     e.NotificationValue.Encode(encoder);
                     ServerStatusTB.Text = encoder.Close();
-                });
-            }
-            catch (Exception exception)
-            {
-                Utils.Trace(exception, "Error processing monitored item notification.");
-            }
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace(ex, "Error processing monitored item notification.");
+                }
+            });
         }
 
         private void Task_TestMI_Click(object sender, EventArgs e)
