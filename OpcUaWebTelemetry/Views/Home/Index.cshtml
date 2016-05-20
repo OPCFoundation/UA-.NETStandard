@@ -1,0 +1,128 @@
+﻿@{
+    ViewData["Title"] = "OPC UA Telemetry";
+}
+
+<div class="row">
+    <div class="col-md-10">
+        <br />
+        <br />
+        <h2>@ViewData["Title"]</h2>
+        <br />
+        <br />
+    </div>
+</div>
+
+<input type="button" value="Start" onclick="location.href='@Url.Action("StartProcessor", "Home")'" />
+<input type="button" value="Stop" onclick="location.href='@Url.Action("StopProcessor", "Home")'" />
+
+<div class="container">
+    <br />
+    <br />
+    <ul id="message"></ul>
+    <br />
+    <br />
+</div>
+
+<div id="alert">
+</div>
+
+@section scripts {
+    <script src="~/signalr/hubs"></script>
+    <script>
+        var telemetry = $.connection.telemetryHub;
+        
+        $(function () {
+            // Create a function that the hub can call back to display messages
+            telemetry.client.addNewAlertToPage = function (alert) {
+                if (alert.toString() == "") {
+                    $("#alert").replaceWith("<div id='alert'></div>");
+                }
+                else {
+                    $("#alert").replaceWith("<div id='alert' class='alert alert-danger' role='alert'>" + alert.toString() + "</div>");
+                }
+            }
+        });
+
+        var indexGlobal = 0;
+        $("#device").html("");
+
+        $(function () {
+            // Create a function that the hub can call back to display messages
+            telemetry.client.addNewMessageToPage = function (m_devices) {
+                // Clear result div
+                $("#message").html("");
+
+                // Crate table html tag
+                var table = $("<table class=table id=OPC_UA ></table>").appendTo("#message");
+
+                // Create table header row
+                var rowHeader = $("<tr></tr>").appendTo(table);
+                $("<th></th>").appendTo(rowHeader);
+                $("<th></th>").appendTo(rowHeader);
+                $("<th></th>").text(" Id ").appendTo(rowHeader);
+                $("<th></th>").text(" Device ").appendTo(rowHeader);
+                $("<th></th").text(" Value ").appendTo(rowHeader);
+                $("<th></th>").text(" Timestamp ").appendTo(rowHeader);
+
+                // populate the table
+                $.each(m_devices, function (index, data) {
+                    //Create new row for each record
+                    var row = $("<tr></tr>").appendTo(table);
+                    $("<td></td>").appendTo(row);
+                    $("<td>" + "<button class=delbtn + >delete</button>" + "</td>").appendTo(row);
+                    $("<td></td>").text(data[data.length - 1].MonitoredItem.Id).appendTo(row);
+                    var img = loadLogo(data[data.length - 1].MonitoredItem.Uri);
+                    if (img != null) {
+                        $("<td>" + img + "</td>").appendTo(row);
+                    }
+                    else {
+                        $("<td></td>").text(data[data.length - 1].MonitoredItem.Uri).appendTo(row);
+                    }
+                    $("<td></td>").text(data[data.length - 1].Value.Value).appendTo(row);
+                    $("<td></td>").text(data[data.length - 1].Value.SourceTimestamp).appendTo(row);
+                });
+
+                $('button.delbtn').click(function () {
+                    var row = $(this).closest('tr');
+                    row.css("background-color", "#FF3700");
+                    row.fadeOut(400, function () {
+                        row.remove();
+                    });
+
+                    var rowIndex = $(this).closest('tr')[0].sectionRowIndex;
+                    var url = '@Url.Action("Delete", "Home", new {value = "replaceToken"}, null)';
+                    location.href = url.replace("replaceToken", rowIndex.toString());
+                });
+
+            }
+
+            // Start/update the connection
+            $.connection.hub.start().done(function () { });
+        });
+
+        function loadLogo(data) {
+            var img = null;
+            var manufacturers = ["Linux"];
+            if (data != null) {
+                for (var i = 0; i < manufacturers.length; i++) {
+                    if (data.indexOf(manufacturers[i]) != -1) {
+                        data = manufacturers[i];
+                        break;
+                    }
+                }
+                switch (data) {
+                    case "Sample":
+                        img = "<img id='theImg' width='150' height='auto' src='../content/windows.png'/>";
+                        break;
+                    case "Linux":
+                        img = "<img id='theImg' width='150' height='auto' src='../content/linux.png'/>";
+                        break;
+                }
+            }
+            return img;
+        }
+    </script>
+}
+
+
+
