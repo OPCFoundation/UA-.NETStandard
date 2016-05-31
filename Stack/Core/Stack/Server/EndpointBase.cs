@@ -524,6 +524,30 @@ namespace Opc.Ua
             // fetch the current operation context.
             OperationContext context = OperationContext.Current;
         }
+
+        /// <summary>
+        /// Called when a new request is received by the endpoint.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        protected virtual void OnRequestReceived(IServiceRequest request)
+        {
+        }
+
+        /// <summary>
+        /// Called when a response sent via the endpoint.
+        /// </summary>
+        /// <param name="response">The response.</param>
+        protected virtual void OnResponseSent(IServiceResponse response)
+        {
+        }
+
+        /// <summary>
+        /// Called when a response fault sent via the endpoint.
+        /// </summary>
+        /// <param name="fault">The fault.</param>
+        protected virtual void OnResponseFaultSent(Exception fault)
+        {
+        }
         #endregion
 
         #region ServiceDefinition Classe

@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -314,24 +331,6 @@ namespace Opc.Ua
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/DeleteSubscriptions", ReplyAction = Namespaces.OpcUaWsdl + "/DeleteSubscriptionsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/DeleteSubscriptionsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
         DeleteSubscriptionsResponseMessage DeleteSubscriptions(DeleteSubscriptionsMessage request);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// The operation contract for the TestStack service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/TestStack", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        TestStackResponseMessage TestStack(TestStackMessage request);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// The operation contract for the TestStackEx service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/TestStackEx", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackExResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackExFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        TestStackExResponseMessage TestStackEx(TestStackExMessage request);
         #endif
     }
     #else
@@ -789,34 +788,6 @@ namespace Opc.Ua
         /// The method used to retrieve the results of a DeleteSubscriptions service request.
         /// </summary>
         DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult result);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// The operation contract for the TestStack service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/TestStack", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackFault", Name = "ServiceFault", Namespace = Namespaces.OpcUaXsd)]
-        IAsyncResult BeginTestStack(TestStackMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a TestStack service request.
-        /// </summary>
-        TestStackResponseMessage EndTestStack(IAsyncResult result);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// The operation contract for the TestStackEx service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/TestStackEx", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackExResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackExFault", Name = "ServiceFault", Namespace = Namespaces.OpcUaXsd)]
-        IAsyncResult BeginTestStackEx(TestStackExMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a TestStackEx service request.
-        /// </summary>
-        TestStackExResponseMessage EndTestStackEx(IAsyncResult result);
         #endif
     }
     #endif
@@ -1470,46 +1441,6 @@ namespace Opc.Ua
         /// </summary>
         DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult result);
         #endif
-
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// The operation contract for the TestStack service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/TestStack", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        TestStackResponseMessage TestStack(TestStackMessage request);
-
-        /// <summary>
-        /// The operation contract for the TestStack service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/TestStack", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackResponse")]
-        IAsyncResult BeginTestStack(TestStackMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a TestStack service request.
-        /// </summary>
-        TestStackResponseMessage EndTestStack(IAsyncResult result);
-        #endif
-
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// The operation contract for the TestStackEx service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/TestStackEx", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackExResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TestStackExFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        TestStackExResponseMessage TestStackEx(TestStackExMessage request);
-
-        /// <summary>
-        /// The operation contract for the TestStackEx service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/TestStackEx", ReplyAction = Namespaces.OpcUaWsdl + "/TestStackExResponse")]
-        IAsyncResult BeginTestStackEx(TestStackExMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a TestStackEx service request.
-        /// </summary>
-        TestStackExResponseMessage EndTestStackEx(IAsyncResult result);
-        #endif
     }
     #endregion
 
@@ -1530,6 +1461,15 @@ namespace Opc.Ua
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindServers", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
         FindServersResponseMessage FindServers(FindServersMessage request);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// The operation contract for the FindServersOnNetwork service.
+        /// </summary>
+        [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindServersOnNetwork", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersOnNetworkResponse")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersOnNetworkFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
+        FindServersOnNetworkResponseMessage FindServersOnNetwork(FindServersOnNetworkMessage request);
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -1562,6 +1502,20 @@ namespace Opc.Ua
         /// The method used to retrieve the results of a FindServers service request.
         /// </summary>
         FindServersResponseMessage EndFindServers(IAsyncResult result);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// The operation contract for the FindServersOnNetwork service.
+        /// </summary>
+        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/FindServersOnNetwork", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersOnNetworkResponse")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersOnNetworkFault", Name = "ServiceFault", Namespace = Namespaces.OpcUaXsd)]
+        IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState);
+
+        /// <summary>
+        /// The method used to retrieve the results of a FindServersOnNetwork service request.
+        /// </summary>
+        FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult result);
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -1610,6 +1564,26 @@ namespace Opc.Ua
         FindServersResponseMessage EndFindServers(IAsyncResult result);
         #endif
 
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// The operation contract for the FindServersOnNetwork service.
+        /// </summary>
+        [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindServersOnNetwork", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersOnNetworkResponse")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersOnNetworkFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
+        FindServersOnNetworkResponseMessage FindServersOnNetwork(FindServersOnNetworkMessage request);
+
+        /// <summary>
+        /// The operation contract for the FindServersOnNetwork service.
+        /// </summary>
+        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/FindServersOnNetwork", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersOnNetworkResponse")]
+        IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState);
+
+        /// <summary>
+        /// The method used to retrieve the results of a FindServersOnNetwork service request.
+        /// </summary>
+        FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult result);
+        #endif
+
         #if (!OPCUA_EXCLUDE_GetEndpoints)
         /// <summary>
         /// The operation contract for the GetEndpoints service.
@@ -1642,15 +1616,6 @@ namespace Opc.Ua
     [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IRegistrationEndpoint : IEndpointBase
     {
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// The operation contract for the FindDnsServices service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindDnsServices", ReplyAction = Namespaces.OpcUaWsdl + "/FindDnsServicesResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindDnsServicesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        FindDnsServicesResponseMessage FindDnsServices(FindDnsServicesMessage request);
-        #endif
-
         #if (!OPCUA_EXCLUDE_RegisterServer)
         /// <summary>
         /// The operation contract for the RegisterServer service.
@@ -1658,6 +1623,15 @@ namespace Opc.Ua
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterServer", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServerResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServerFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
         RegisterServerResponseMessage RegisterServer(RegisterServerMessage request);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// The operation contract for the RegisterServer2 service.
+        /// </summary>
+        [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterServer2", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServer2Response")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServer2Fault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
+        RegisterServer2ResponseMessage RegisterServer2(RegisterServer2Message request);
         #endif
     }
     #else
@@ -1669,20 +1643,6 @@ namespace Opc.Ua
     [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IRegistrationEndpoint : IEndpointBase
     {
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// The operation contract for the FindDnsServices service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/FindDnsServices", ReplyAction = Namespaces.OpcUaWsdl + "/FindDnsServicesResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindDnsServicesFault", Name = "ServiceFault", Namespace = Namespaces.OpcUaXsd)]
-        IAsyncResult BeginFindDnsServices(FindDnsServicesMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a FindDnsServices service request.
-        /// </summary>
-        FindDnsServicesResponseMessage EndFindDnsServices(IAsyncResult result);
-        #endif
-
         #if (!OPCUA_EXCLUDE_RegisterServer)
         /// <summary>
         /// The operation contract for the RegisterServer service.
@@ -1695,6 +1655,20 @@ namespace Opc.Ua
         /// The method used to retrieve the results of a RegisterServer service request.
         /// </summary>
         RegisterServerResponseMessage EndRegisterServer(IAsyncResult result);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// The operation contract for the RegisterServer2 service.
+        /// </summary>
+        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/RegisterServer2", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServer2Response")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServer2Fault", Name = "ServiceFault", Namespace = Namespaces.OpcUaXsd)]
+        IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState);
+
+        /// <summary>
+        /// The method used to retrieve the results of a RegisterServer2 service request.
+        /// </summary>
+        RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult result);
         #endif
     }
     #endif
@@ -1709,26 +1683,6 @@ namespace Opc.Ua
     [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IRegistrationChannel : IChannelBase
     {
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// The operation contract for the FindDnsServices service.
-        /// </summary>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindDnsServices", ReplyAction = Namespaces.OpcUaWsdl + "/FindDnsServicesResponse")]
-        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindDnsServicesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
-        FindDnsServicesResponseMessage FindDnsServices(FindDnsServicesMessage request);
-
-        /// <summary>
-        /// The operation contract for the FindDnsServices service.
-        /// </summary>
-        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/FindDnsServices", ReplyAction = Namespaces.OpcUaWsdl + "/FindDnsServicesResponse")]
-        IAsyncResult BeginFindDnsServices(FindDnsServicesMessage request, AsyncCallback callback, object asyncState);
-
-        /// <summary>
-        /// The method used to retrieve the results of a FindDnsServices service request.
-        /// </summary>
-        FindDnsServicesResponseMessage EndFindDnsServices(IAsyncResult result);
-        #endif
-
         #if (!OPCUA_EXCLUDE_RegisterServer)
         /// <summary>
         /// The operation contract for the RegisterServer service.
@@ -1747,6 +1701,26 @@ namespace Opc.Ua
         /// The method used to retrieve the results of a RegisterServer service request.
         /// </summary>
         RegisterServerResponseMessage EndRegisterServer(IAsyncResult result);
+        #endif
+
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// The operation contract for the RegisterServer2 service.
+        /// </summary>
+        [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterServer2", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServer2Response")]
+        [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServer2Fault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
+        RegisterServer2ResponseMessage RegisterServer2(RegisterServer2Message request);
+
+        /// <summary>
+        /// The operation contract for the RegisterServer2 service.
+        /// </summary>
+        [OperationContractAttribute(AsyncPattern=true, Action=Namespaces.OpcUaWsdl + "/RegisterServer2", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServer2Response")]
+        IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState);
+
+        /// <summary>
+        /// The method used to retrieve the results of a RegisterServer2 service request.
+        /// </summary>
+        RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult result);
         #endif
     }
     #endregion

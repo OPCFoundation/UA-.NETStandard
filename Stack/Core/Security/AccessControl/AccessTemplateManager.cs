@@ -58,49 +58,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the permissions to match the template on the specified directory.
-        /// </summary>
-        public void SetPermissions(string template, Uri url, bool exactMatch)
-        {
-            if (url == null)
-            {
-                throw new ArgumentException("Target URI is not valid.", "target");
-            }
-
-            string filePath = Utils.GetAbsoluteFilePath(m_directory.FullName + "\\" + template + m_FileExtension, false, false, false);
-
-            // nothing more to do if no file.
-            if (filePath == null)
-            {
-                return;
-            }
-
-            string urlMask = null;
-
-            if (!exactMatch)
-            {
-                urlMask = url.Scheme;
-                urlMask += "://+:";
-                urlMask += url.Port;
-                urlMask += url.PathAndQuery;
-
-                if (!urlMask.EndsWith("/"))
-                {
-                    urlMask += "/";
-                }
-            }
-            else
-            {
-                urlMask = url.ToString();
-            }
-
-            FileInfo templateFile = new FileInfo(filePath);
-            List<HttpAccessRule> httpRules = new List<HttpAccessRule>();
-
-            HttpAccessRule.SetAccessRules(urlMask, httpRules, true);
-        }
-
-        /// <summary>
         /// Deletes an access template file.
         /// </summary>
         public static void DeleteTemplate(string directory, string templateName)

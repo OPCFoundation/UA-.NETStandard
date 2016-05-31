@@ -15,6 +15,7 @@ Features included:
 7. Sessions (including UI support in the samples)
 8. Subscriptions (including UI support in the samples)
 
+This Publishing_Prototype branch furthermore contains the **Publisher sample application** as demonstrated at Hannover Fair 2016.  The Publisher Demo acts as a Gateway and allows users to create traditional monitored Item subscriptions that are JSON encoded and published to one or more configured AMQP endpoint(s).  The Publisher Demo is based on the Sample Client.  Its AMQP publishing connections can be configured in the sample's Opc.UA.Publisher.Config.xml file, AMQPConnectionConfiguration section, which is extensively documented.  So far the Publisher has been tested against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue, but should work against any AMQP Broker that provides a standard AMQP 1.0 interface.
 
 ## License
 This repository includes the UA .NET Stack, sample libraries, and sample applications. The UA .NET Stack follows a dual-license:

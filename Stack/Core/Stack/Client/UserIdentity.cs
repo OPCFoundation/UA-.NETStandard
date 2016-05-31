@@ -174,14 +174,6 @@ namespace Opc.Ua
             GC.SuppressFinalize(this);
         }
 
-        #region PInvoke Declarations
-        private static class Win32
-        {
-            [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-            public extern static bool CloseHandle(IntPtr handle);
-        }
-        #endregion
-
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -189,7 +181,6 @@ namespace Opc.Ua
         {
             if (Handle != IntPtr.Zero)
             {
-                Win32.CloseHandle(Handle);
                 Handle = IntPtr.Zero;
             }
         }

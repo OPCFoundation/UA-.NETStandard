@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -121,10 +138,6 @@ namespace Opc.Ua
                 serverSignature            = response.ServerSignature;
                 maxRequestMessageSize      = response.MaxRequestMessageSize;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(request, response, "CreateSession");
@@ -225,10 +238,6 @@ namespace Opc.Ua
                 serverSignature            = response.ServerSignature;
                 maxRequestMessageSize      = response.MaxRequestMessageSize;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "CreateSession");
@@ -297,10 +306,6 @@ namespace Opc.Ua
                 serverNonce     = response.ServerNonce;
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -383,10 +388,6 @@ namespace Opc.Ua
                 serverNonce     = response.ServerNonce;
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -511,10 +512,6 @@ namespace Opc.Ua
                 }
 
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "CloseSession");
@@ -571,10 +568,6 @@ namespace Opc.Ua
                 }
 
                 cancelCount = response.CancelCount;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -646,10 +639,6 @@ namespace Opc.Ua
 
                 cancelCount = response.CancelCount;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Cancel");
@@ -708,10 +697,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -785,10 +770,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "AddNodes");
@@ -847,10 +828,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -924,10 +901,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "AddReferences");
@@ -986,10 +959,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1063,10 +1032,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "DeleteNodes");
@@ -1125,10 +1090,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1202,10 +1163,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "DeleteReferences");
@@ -1268,10 +1225,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1349,10 +1302,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Browse");
@@ -1413,10 +1362,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1492,10 +1437,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "BrowseNext");
@@ -1554,10 +1495,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1631,10 +1568,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "TranslateBrowsePathsToNodeIds");
@@ -1691,10 +1624,6 @@ namespace Opc.Ua
                 }
 
                 registeredNodeIds = response.RegisteredNodeIds;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1766,10 +1695,6 @@ namespace Opc.Ua
 
                 registeredNodeIds = response.RegisteredNodeIds;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "RegisterNodes");
@@ -1824,10 +1749,6 @@ namespace Opc.Ua
                     ValidateResponse(response.ResponseHeader);
                 }
 
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1896,10 +1817,6 @@ namespace Opc.Ua
                     ValidateResponse(response.ResponseHeader);
                 }
 
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -1973,10 +1890,6 @@ namespace Opc.Ua
                 parsingResults    = response.ParsingResults;
                 diagnosticInfos   = response.DiagnosticInfos;
                 filterResult      = response.FilterResult;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2064,10 +1977,6 @@ namespace Opc.Ua
                 diagnosticInfos   = response.DiagnosticInfos;
                 filterResult      = response.FilterResult;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "QueryFirst");
@@ -2128,10 +2037,6 @@ namespace Opc.Ua
 
                 queryDataSets            = response.QueryDataSets;
                 revisedContinuationPoint = response.RevisedContinuationPoint;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2207,10 +2112,6 @@ namespace Opc.Ua
                 queryDataSets            = response.QueryDataSets;
                 revisedContinuationPoint = response.RevisedContinuationPoint;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "QueryNext");
@@ -2273,10 +2174,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2354,10 +2251,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Read");
@@ -2422,10 +2315,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2505,10 +2394,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "HistoryRead");
@@ -2567,10 +2452,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2644,10 +2525,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Write");
@@ -2706,10 +2583,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2783,10 +2656,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "HistoryUpdate");
@@ -2845,10 +2714,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -2922,10 +2787,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Call");
@@ -2988,10 +2849,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3069,10 +2926,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "CreateMonitoredItems");
@@ -3135,10 +2988,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3216,10 +3065,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "ModifyMonitoredItems");
@@ -3282,10 +3127,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3363,10 +3204,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "SetMonitoringMode");
@@ -3435,10 +3272,6 @@ namespace Opc.Ua
                 addDiagnosticInfos    = response.AddDiagnosticInfos;
                 removeResults         = response.RemoveResults;
                 removeDiagnosticInfos = response.RemoveDiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3522,10 +3355,6 @@ namespace Opc.Ua
                 removeResults         = response.RemoveResults;
                 removeDiagnosticInfos = response.RemoveDiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "SetTriggering");
@@ -3586,10 +3415,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3665,10 +3490,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "DeleteMonitoredItems");
@@ -3741,10 +3562,6 @@ namespace Opc.Ua
                 revisedPublishingInterval = response.RevisedPublishingInterval;
                 revisedLifetimeCount      = response.RevisedLifetimeCount;
                 revisedMaxKeepAliveCount  = response.RevisedMaxKeepAliveCount;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3832,10 +3649,6 @@ namespace Opc.Ua
                 revisedLifetimeCount      = response.RevisedLifetimeCount;
                 revisedMaxKeepAliveCount  = response.RevisedMaxKeepAliveCount;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "CreateSubscription");
@@ -3906,10 +3719,6 @@ namespace Opc.Ua
                 revisedPublishingInterval = response.RevisedPublishingInterval;
                 revisedLifetimeCount      = response.RevisedLifetimeCount;
                 revisedMaxKeepAliveCount  = response.RevisedMaxKeepAliveCount;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -3995,10 +3804,6 @@ namespace Opc.Ua
                 revisedLifetimeCount      = response.RevisedLifetimeCount;
                 revisedMaxKeepAliveCount  = response.RevisedMaxKeepAliveCount;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "ModifySubscription");
@@ -4059,10 +3864,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -4138,10 +3939,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "SetPublishingMode");
@@ -4208,10 +4005,6 @@ namespace Opc.Ua
                 notificationMessage      = response.NotificationMessage;
                 results                  = response.Results;
                 diagnosticInfos          = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -4293,10 +4086,6 @@ namespace Opc.Ua
                 results                  = response.Results;
                 diagnosticInfos          = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Publish");
@@ -4355,10 +4144,6 @@ namespace Opc.Ua
                 }
 
                 notificationMessage = response.NotificationMessage;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -4432,10 +4217,6 @@ namespace Opc.Ua
 
                 notificationMessage = response.NotificationMessage;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "Republish");
@@ -4496,10 +4277,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -4575,10 +4352,6 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "TransferSubscriptions");
@@ -4637,10 +4410,6 @@ namespace Opc.Ua
 
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -4714,299 +4483,9 @@ namespace Opc.Ua
                 results         = response.Results;
                 diagnosticInfos = response.DiagnosticInfos;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "DeleteSubscriptions");
-            }
-
-            return response.ResponseHeader;
-        }
-        #endif
-        #endregion
-
-        #region TestStack Methods
-        #if (!OPCUA_EXCLUDE_TestStack)
-        /// <summary>
-        /// Invokes the TestStack service.
-        /// </summary>
-        public virtual ResponseHeader TestStack(
-            RequestHeader requestHeader,
-            uint          testId,
-            int           iteration,
-            Variant       input,
-            out Variant   output)
-        {
-            TestStackRequest request = new TestStackRequest();
-            TestStackResponse response = null;
-
-            request.RequestHeader = requestHeader;
-            request.TestId        = testId;
-            request.Iteration     = iteration;
-            request.Input         = input;
-
-            UpdateRequestHeader(request, requestHeader == null, "TestStack");
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.SendRequest(request);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (TestStackResponse)genericResponse;
-                }
-                else
-                {
-                    TestStackResponseMessage responseMessage = InnerChannel.TestStack(new TestStackMessage(request));
-
-                    if (responseMessage == null || responseMessage.TestStackResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.TestStackResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                output = response.Output;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(request, response, "TestStack");
-            }
-
-            return response.ResponseHeader;
-        }
-
-        /// <summary>
-        /// Begins an asynchronous invocation of the TestStack service.
-        /// </summary>
-        public IAsyncResult BeginTestStack(
-            RequestHeader requestHeader,
-            uint          testId,
-            int           iteration,
-            Variant       input,
-            AsyncCallback callback,
-            object        asyncState)
-        {
-            TestStackRequest request = new TestStackRequest();
-
-            request.RequestHeader = requestHeader;
-            request.TestId        = testId;
-            request.Iteration     = iteration;
-            request.Input         = input;
-
-            UpdateRequestHeader(request, requestHeader == null, "TestStack");
-
-            if (UseTransportChannel)
-            {
-                return TransportChannel.BeginSendRequest(request, callback, asyncState);
-            }
-
-            return InnerChannel.BeginTestStack(new TestStackMessage(request), callback, asyncState);
-        }
-
-        /// <summary>
-        /// Finishes an asynchronous invocation of the TestStack service.
-        /// </summary>
-        public ResponseHeader EndTestStack(
-            IAsyncResult result,
-            out Variant output)
-        {
-            TestStackResponse response = null;
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.EndSendRequest(result);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (TestStackResponse)genericResponse;
-                }
-                else
-                {
-                    TestStackResponseMessage responseMessage = InnerChannel.EndTestStack(result);
-
-                    if (responseMessage == null || responseMessage.TestStackResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.TestStackResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                output = response.Output;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(null, response, "TestStack");
-            }
-
-            return response.ResponseHeader;
-        }
-        #endif
-        #endregion
-
-        #region TestStackEx Methods
-        #if (!OPCUA_EXCLUDE_TestStackEx)
-        /// <summary>
-        /// Invokes the TestStackEx service.
-        /// </summary>
-        public virtual ResponseHeader TestStackEx(
-            RequestHeader         requestHeader,
-            uint                  testId,
-            int                   iteration,
-            CompositeTestType     input,
-            out CompositeTestType output)
-        {
-            TestStackExRequest request = new TestStackExRequest();
-            TestStackExResponse response = null;
-
-            request.RequestHeader = requestHeader;
-            request.TestId        = testId;
-            request.Iteration     = iteration;
-            request.Input         = input;
-
-            UpdateRequestHeader(request, requestHeader == null, "TestStackEx");
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.SendRequest(request);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (TestStackExResponse)genericResponse;
-                }
-                else
-                {
-                    TestStackExResponseMessage responseMessage = InnerChannel.TestStackEx(new TestStackExMessage(request));
-
-                    if (responseMessage == null || responseMessage.TestStackExResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.TestStackExResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                output = response.Output;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(request, response, "TestStackEx");
-            }
-
-            return response.ResponseHeader;
-        }
-
-        /// <summary>
-        /// Begins an asynchronous invocation of the TestStackEx service.
-        /// </summary>
-        public IAsyncResult BeginTestStackEx(
-            RequestHeader     requestHeader,
-            uint              testId,
-            int               iteration,
-            CompositeTestType input,
-            AsyncCallback     callback,
-            object            asyncState)
-        {
-            TestStackExRequest request = new TestStackExRequest();
-
-            request.RequestHeader = requestHeader;
-            request.TestId        = testId;
-            request.Iteration     = iteration;
-            request.Input         = input;
-
-            UpdateRequestHeader(request, requestHeader == null, "TestStackEx");
-
-            if (UseTransportChannel)
-            {
-                return TransportChannel.BeginSendRequest(request, callback, asyncState);
-            }
-
-            return InnerChannel.BeginTestStackEx(new TestStackExMessage(request), callback, asyncState);
-        }
-
-        /// <summary>
-        /// Finishes an asynchronous invocation of the TestStackEx service.
-        /// </summary>
-        public ResponseHeader EndTestStackEx(
-            IAsyncResult          result,
-            out CompositeTestType output)
-        {
-            TestStackExResponse response = null;
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.EndSendRequest(result);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (TestStackExResponse)genericResponse;
-                }
-                else
-                {
-                    TestStackExResponseMessage responseMessage = InnerChannel.EndTestStackEx(result);
-
-                    if (responseMessage == null || responseMessage.TestStackExResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.TestStackExResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                output = response.Output;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(null, response, "TestStackEx");
             }
 
             return response.ResponseHeader;
@@ -5096,10 +4575,6 @@ namespace Opc.Ua
 
                 servers = response.Servers;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(request, response, "FindServers");
@@ -5174,13 +4649,148 @@ namespace Opc.Ua
 
                 servers = response.Servers;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "FindServers");
+            }
+
+            return response.ResponseHeader;
+        }
+        #endif
+        #endregion
+
+        #region FindServersOnNetwork Methods
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public virtual ResponseHeader FindServersOnNetwork(
+            RequestHeader                 requestHeader,
+            uint                          startingRecordId,
+            uint                          maxRecordsToReturn,
+            StringCollection              serverCapabilityFilter,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers)
+        {
+            FindServersOnNetworkRequest request = new FindServersOnNetworkRequest();
+            FindServersOnNetworkResponse response = null;
+
+            request.RequestHeader          = requestHeader;
+            request.StartingRecordId       = startingRecordId;
+            request.MaxRecordsToReturn     = maxRecordsToReturn;
+            request.ServerCapabilityFilter = serverCapabilityFilter;
+
+            UpdateRequestHeader(request, requestHeader == null, "FindServersOnNetwork");
+
+            try
+            {
+                if (UseTransportChannel)
+                {
+                    IServiceResponse genericResponse = TransportChannel.SendRequest(request);
+
+                    if (genericResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    ValidateResponse(genericResponse.ResponseHeader);
+                    response = (FindServersOnNetworkResponse)genericResponse;
+                }
+                else
+                {
+                    FindServersOnNetworkResponseMessage responseMessage = InnerChannel.FindServersOnNetwork(new FindServersOnNetworkMessage(request));
+
+                    if (responseMessage == null || responseMessage.FindServersOnNetworkResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    response = responseMessage.FindServersOnNetworkResponse;
+                    ValidateResponse(response.ResponseHeader);
+                }
+
+                lastCounterResetTime = response.LastCounterResetTime;
+                servers              = response.Servers;
+            }
+            finally
+            {
+                RequestCompleted(request, response, "FindServersOnNetwork");
+            }
+
+            return response.ResponseHeader;
+        }
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the FindServersOnNetwork service.
+        /// </summary>
+        public IAsyncResult BeginFindServersOnNetwork(
+            RequestHeader    requestHeader,
+            uint             startingRecordId,
+            uint             maxRecordsToReturn,
+            StringCollection serverCapabilityFilter,
+            AsyncCallback    callback,
+            object           asyncState)
+        {
+            FindServersOnNetworkRequest request = new FindServersOnNetworkRequest();
+
+            request.RequestHeader          = requestHeader;
+            request.StartingRecordId       = startingRecordId;
+            request.MaxRecordsToReturn     = maxRecordsToReturn;
+            request.ServerCapabilityFilter = serverCapabilityFilter;
+
+            UpdateRequestHeader(request, requestHeader == null, "FindServersOnNetwork");
+
+            if (UseTransportChannel)
+            {
+                return TransportChannel.BeginSendRequest(request, callback, asyncState);
+            }
+
+            return InnerChannel.BeginFindServersOnNetwork(new FindServersOnNetworkMessage(request), callback, asyncState);
+        }
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the FindServersOnNetwork service.
+        /// </summary>
+        public ResponseHeader EndFindServersOnNetwork(
+            IAsyncResult                  result,
+            out DateTime                  lastCounterResetTime,
+            out ServerOnNetworkCollection servers)
+        {
+            FindServersOnNetworkResponse response = null;
+
+            try
+            {
+                if (UseTransportChannel)
+                {
+                    IServiceResponse genericResponse = TransportChannel.EndSendRequest(result);
+
+                    if (genericResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    ValidateResponse(genericResponse.ResponseHeader);
+                    response = (FindServersOnNetworkResponse)genericResponse;
+                }
+                else
+                {
+                    FindServersOnNetworkResponseMessage responseMessage = InnerChannel.EndFindServersOnNetwork(result);
+
+                    if (responseMessage == null || responseMessage.FindServersOnNetworkResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    response = responseMessage.FindServersOnNetworkResponse;
+                    ValidateResponse(response.ResponseHeader);
+                }
+
+                lastCounterResetTime = response.LastCounterResetTime;
+                servers              = response.Servers;
+            }
+            finally
+            {
+                RequestCompleted(null, response, "FindServersOnNetwork");
             }
 
             return response.ResponseHeader;
@@ -5238,10 +4848,6 @@ namespace Opc.Ua
                 }
 
                 endpoints = response.Endpoints;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -5317,10 +4923,6 @@ namespace Opc.Ua
 
                 endpoints = response.Endpoints;
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "GetEndpoints");
@@ -5362,149 +4964,6 @@ namespace Opc.Ua
         #endregion
 
         #region Client API
-        #region FindDnsServices Methods
-        #if (!OPCUA_EXCLUDE_FindDnsServices)
-        /// <summary>
-        /// Invokes the FindDnsServices service.
-        /// </summary>
-        public virtual ResponseHeader FindDnsServices(
-            RequestHeader                  requestHeader,
-            string                         endpointUrl,
-            StringCollection               serviceNameFilters,
-            StringCollection               serviceTypeFilters,
-            out DnsServiceRecordCollection services)
-        {
-            FindDnsServicesRequest request = new FindDnsServicesRequest();
-            FindDnsServicesResponse response = null;
-
-            request.RequestHeader      = requestHeader;
-            request.EndpointUrl        = endpointUrl;
-            request.ServiceNameFilters = serviceNameFilters;
-            request.ServiceTypeFilters = serviceTypeFilters;
-
-            UpdateRequestHeader(request, requestHeader == null, "FindDnsServices");
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.SendRequest(request);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (FindDnsServicesResponse)genericResponse;
-                }
-                else
-                {
-                    FindDnsServicesResponseMessage responseMessage = InnerChannel.FindDnsServices(new FindDnsServicesMessage(request));
-
-                    if (responseMessage == null || responseMessage.FindDnsServicesResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.FindDnsServicesResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                services = response.Services;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(request, response, "FindDnsServices");
-            }
-
-            return response.ResponseHeader;
-        }
-
-        /// <summary>
-        /// Begins an asynchronous invocation of the FindDnsServices service.
-        /// </summary>
-        public IAsyncResult BeginFindDnsServices(
-            RequestHeader    requestHeader,
-            string           endpointUrl,
-            StringCollection serviceNameFilters,
-            StringCollection serviceTypeFilters,
-            AsyncCallback    callback,
-            object           asyncState)
-        {
-            FindDnsServicesRequest request = new FindDnsServicesRequest();
-
-            request.RequestHeader      = requestHeader;
-            request.EndpointUrl        = endpointUrl;
-            request.ServiceNameFilters = serviceNameFilters;
-            request.ServiceTypeFilters = serviceTypeFilters;
-
-            UpdateRequestHeader(request, requestHeader == null, "FindDnsServices");
-
-            if (UseTransportChannel)
-            {
-                return TransportChannel.BeginSendRequest(request, callback, asyncState);
-            }
-
-            return InnerChannel.BeginFindDnsServices(new FindDnsServicesMessage(request), callback, asyncState);
-        }
-
-        /// <summary>
-        /// Finishes an asynchronous invocation of the FindDnsServices service.
-        /// </summary>
-        public ResponseHeader EndFindDnsServices(
-            IAsyncResult                   result,
-            out DnsServiceRecordCollection services)
-        {
-            FindDnsServicesResponse response = null;
-
-            try
-            {
-                if (UseTransportChannel)
-                {
-                    IServiceResponse genericResponse = TransportChannel.EndSendRequest(result);
-
-                    if (genericResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    ValidateResponse(genericResponse.ResponseHeader);
-                    response = (FindDnsServicesResponse)genericResponse;
-                }
-                else
-                {
-                    FindDnsServicesResponseMessage responseMessage = InnerChannel.EndFindDnsServices(result);
-
-                    if (responseMessage == null || responseMessage.FindDnsServicesResponse == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-                    }
-
-                    response = responseMessage.FindDnsServicesResponse;
-                    ValidateResponse(response.ResponseHeader);
-                }
-
-                services = response.Services;
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
-            finally
-            {
-                RequestCompleted(null, response, "FindDnsServices");
-            }
-
-            return response.ResponseHeader;
-        }
-        #endif
-        #endregion
-
         #region RegisterServer Methods
         #if (!OPCUA_EXCLUDE_RegisterServer)
         /// <summary>
@@ -5549,10 +5008,6 @@ namespace Opc.Ua
                     ValidateResponse(response.ResponseHeader);
                 }
 
-            }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
             }
             finally
             {
@@ -5622,13 +5077,144 @@ namespace Opc.Ua
                 }
 
             }
-            catch (Exception e)
-            {
-                throw new ServiceResultException(e.Message, e);
-            }
             finally
             {
                 RequestCompleted(null, response, "RegisterServer");
+            }
+
+            return response.ResponseHeader;
+        }
+        #endif
+        #endregion
+
+        #region RegisterServer2 Methods
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        /// <summary>
+        /// Invokes the RegisterServer2 service.
+        /// </summary>
+        public virtual ResponseHeader RegisterServer2(
+            RequestHeader                requestHeader,
+            RegisteredServer             server,
+            ExtensionObjectCollection    discoveryConfiguration,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            RegisterServer2Request request = new RegisterServer2Request();
+            RegisterServer2Response response = null;
+
+            request.RequestHeader          = requestHeader;
+            request.Server                 = server;
+            request.DiscoveryConfiguration = discoveryConfiguration;
+
+            UpdateRequestHeader(request, requestHeader == null, "RegisterServer2");
+
+            try
+            {
+                if (UseTransportChannel)
+                {
+                    IServiceResponse genericResponse = TransportChannel.SendRequest(request);
+
+                    if (genericResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    ValidateResponse(genericResponse.ResponseHeader);
+                    response = (RegisterServer2Response)genericResponse;
+                }
+                else
+                {
+                    RegisterServer2ResponseMessage responseMessage = InnerChannel.RegisterServer2(new RegisterServer2Message(request));
+
+                    if (responseMessage == null || responseMessage.RegisterServer2Response == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    response = responseMessage.RegisterServer2Response;
+                    ValidateResponse(response.ResponseHeader);
+                }
+
+                configurationResults = response.ConfigurationResults;
+                diagnosticInfos      = response.DiagnosticInfos;
+            }
+            finally
+            {
+                RequestCompleted(request, response, "RegisterServer2");
+            }
+
+            return response.ResponseHeader;
+        }
+
+        /// <summary>
+        /// Begins an asynchronous invocation of the RegisterServer2 service.
+        /// </summary>
+        public IAsyncResult BeginRegisterServer2(
+            RequestHeader             requestHeader,
+            RegisteredServer          server,
+            ExtensionObjectCollection discoveryConfiguration,
+            AsyncCallback             callback,
+            object                    asyncState)
+        {
+            RegisterServer2Request request = new RegisterServer2Request();
+
+            request.RequestHeader          = requestHeader;
+            request.Server                 = server;
+            request.DiscoveryConfiguration = discoveryConfiguration;
+
+            UpdateRequestHeader(request, requestHeader == null, "RegisterServer2");
+
+            if (UseTransportChannel)
+            {
+                return TransportChannel.BeginSendRequest(request, callback, asyncState);
+            }
+
+            return InnerChannel.BeginRegisterServer2(new RegisterServer2Message(request), callback, asyncState);
+        }
+
+        /// <summary>
+        /// Finishes an asynchronous invocation of the RegisterServer2 service.
+        /// </summary>
+        public ResponseHeader EndRegisterServer2(
+            IAsyncResult                 result,
+            out StatusCodeCollection     configurationResults,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            RegisterServer2Response response = null;
+
+            try
+            {
+                if (UseTransportChannel)
+                {
+                    IServiceResponse genericResponse = TransportChannel.EndSendRequest(result);
+
+                    if (genericResponse == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    ValidateResponse(genericResponse.ResponseHeader);
+                    response = (RegisterServer2Response)genericResponse;
+                }
+                else
+                {
+                    RegisterServer2ResponseMessage responseMessage = InnerChannel.EndRegisterServer2(result);
+
+                    if (responseMessage == null || responseMessage.RegisterServer2Response == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+
+                    response = responseMessage.RegisterServer2Response;
+                    ValidateResponse(response.ResponseHeader);
+                }
+
+                configurationResults = response.ConfigurationResults;
+                diagnosticInfos      = response.DiagnosticInfos;
+            }
+            finally
+            {
+                RequestCompleted(null, response, "RegisterServer2");
             }
 
             return response.ResponseHeader;

@@ -28,21 +28,12 @@
  * ======================================================================*/
 
 
-
-
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using Windows.UI;
-using Windows.UI.Popups;
-using Windows.Foundation;
-using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
 using WinRTXamlToolkit.Controls;
-using WinRTXamlToolkit.Imaging;
-using WinRTXamlToolkit.Tools;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Windows.UI.Xaml.Input;
@@ -334,8 +325,6 @@ namespace Opc.Ua.Client.Controls
             set { m_enableDragging = value; }
         }
 
-        public PopupMenu ContextMenu { get; set; }
-
         /// <summary>
         /// Clears the contents of the TreeView
         /// </summary>
@@ -502,14 +491,6 @@ namespace Opc.Ua.Client.Controls
         private void TreeView_RightTapped(object sender, RightTappedRoutedEventArgs e)
         {
             TreeView tv = sender as TreeView;
-            if (ContextMenu != null)
-            {
-                FrameworkElement element = (FrameworkElement)e.OriginalSource;
-                GeneralTransform buttonTransform = element.TransformToVisual(null);
-                Point point = buttonTransform.TransformPoint(new Point());
-                Rect selection = new Rect(point, new Size(element.ActualWidth, element.ActualHeight));
-                var chosenCommand = ContextMenu.ShowForSelectionAsync(selection);
-            }
         }
     }
 

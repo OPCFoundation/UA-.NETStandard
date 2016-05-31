@@ -60,19 +60,6 @@ namespace Opc.Ua
         /// Defines a global instance.
         /// </summary>
         private static readonly HiResClock s_Default = new HiResClock();
-
-        /// <summary>
-        /// Defines the native methods used by the class.
-        /// </summary>
-        private static class NativeMethods
-        {
-            [DllImport("Kernel32.dll")]
-            public static extern int QueryPerformanceFrequency(out long lpFrequency);
-
-            [DllImport("Kernel32.dll")]
-            public static extern int QueryPerformanceCounter(out long lpFrequency);
-        }
-        
         private bool m_disabled;
     }
 

@@ -35,6 +35,7 @@ using System.Xml;
 using System.IO;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System.Xml.Linq;
 
 namespace TestData
 {   
@@ -665,7 +666,7 @@ namespace TestData
                 value.DateTimeValue = m_generator.GetRandom<DateTime>(false);
                 value.GuidValue = m_generator.GetRandom<Uuid>(false);
                 value.ByteStringValue = m_generator.GetRandom<byte[]>(false);
-                value.XmlElementValue = m_generator.GetRandom<XmlElement>(false);
+                value.XmlElementValue = m_generator.GetRandom<XElement>(false);
                 value.NodeIdValue = m_generator.GetRandom<Opc.Ua.NodeId>(false);
                 value.ExpandedNodeIdValue = m_generator.GetRandom<ExpandedNodeId>(false);
                 value.QualifiedNameValue = m_generator.GetRandom<QualifiedName>(false);
@@ -694,7 +695,7 @@ namespace TestData
                 value.DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false);
                 value.GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false);
                 value.ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false);
-                value.XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false);
+                value.XmlElementValue = m_generator.GetRandomArray<XElement>(false, 10, false);
                 value.NodeIdValue = m_generator.GetRandomArray<Opc.Ua.NodeId>(false, 10, false);
                 value.ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false);
                 value.QualifiedNameValue = m_generator.GetRandomArray<QualifiedName>(false, 10, false);

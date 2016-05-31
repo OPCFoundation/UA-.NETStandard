@@ -1107,7 +1107,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of XmlElement values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfXmlElement", Namespace = Namespaces.OpcUaXsd, ItemName = "XmlElement")]
-    public partial class XmlElementCollection : List<XmlElement>
+    public partial class XmlElementCollection : List<XElement>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1133,7 +1133,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of XmlElement's to add to this collection</param>
-        public XmlElementCollection(IEnumerable<XmlElement> collection) : base(collection) {}
+        public XmlElementCollection(IEnumerable<XElement> collection) : base(collection) {}
                           
         /// <summary>
         /// Converts an array to a collection.
@@ -1142,7 +1142,7 @@ namespace Opc.Ua
         /// Converts an array to a collection.
         /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
-        public static XmlElementCollection ToXmlElementCollection(XmlElement[] values)
+        public static XmlElementCollection ToXmlElementCollection(XElement[] values)
         {
             if (values != null)
             {
@@ -1159,7 +1159,7 @@ namespace Opc.Ua
         /// Converts an array to a collection.
         /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
-        public static implicit operator XmlElementCollection(XmlElement[] values)
+        public static implicit operator XmlElementCollection(XElement[] values)
         {
             return ToXmlElementCollection(values);
         }
@@ -1174,9 +1174,9 @@ namespace Opc.Ua
         {
             XmlElementCollection clone = new XmlElementCollection(this.Count);
 
-            foreach (XmlElement element in this)
+            foreach (XElement element in this)
             {
-                clone.Add((XmlElement)Utils.Clone(element));
+                clone.Add((XElement)Utils.Clone(element));
             }
 
             return clone;

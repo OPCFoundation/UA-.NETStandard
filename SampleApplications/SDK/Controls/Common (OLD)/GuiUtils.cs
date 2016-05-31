@@ -32,12 +32,12 @@ using System.Collections.Generic;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Popups;
 using Windows.UI.Xaml.Controls.Primitives;
 using System.Runtime.CompilerServices;
 using Windows.Storage;
 using System.Threading.Tasks;
-using Windows.UI.Xaml;
+using System.Xml.Linq;
+using System.Xml;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -725,11 +725,16 @@ namespace Opc.Ua.Client.Controls
                     return System.Guid.Empty;
                 }
 
-                if (type == typeof(System.Xml.XmlElement))
+                if (type == typeof(System.Xml.XmlElement)) 
                 {
-                    System.Xml.XmlDocument document = new System.Xml.XmlDocument();
+                    XmlDocument document = new XmlDocument();
                     document.InnerXml = "<Null/>";
                     return document.DocumentElement;
+                }
+
+                if (type == typeof(XElement))
+                {
+                    return XElement.Parse("<Null/>");
                 }
 
                 return Activator.CreateInstance(type);

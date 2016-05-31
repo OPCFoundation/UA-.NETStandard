@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
-  <Identity Name="c3b0a699-42c2-470b-a324-154855af0eee" Publisher="CN=erichb" Version="1.0.0.0" />
+  <Identity Name="78FB71DD-8A52-459B-8108-6F3BA5189CB5" Publisher="CN=OPC Foundation" Version="1.0.2.0" />
   <mp:PhoneIdentity PhoneProductId="c3b0a699-42c2-470b-a324-154855af0eee" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Opc.Ua.SampleClient</DisplayName>
-    <PublisherDisplayName>erichb</PublisherDisplayName>
+    <PublisherDisplayName>OPC Foundation</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>

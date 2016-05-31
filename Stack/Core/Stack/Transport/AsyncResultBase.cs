@@ -229,6 +229,19 @@ namespace Opc.Ua
             return true;
         }
 
+        public void Reset()
+        {
+            lock (m_lock)
+            {
+                m_isCompleted = false;
+
+                if (m_waitHandle != null)
+                {
+                    m_waitHandle.Reset();
+                }
+            }
+        }
+
         /// <summary>
         /// Called to invoke the callback after the asynchronous operation completes.
         /// </summary>

@@ -273,7 +273,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(id);
                                
-                Utils.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                //Utils.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
                 foreach (KeyValuePair<int,Allocation> current in m_allocations)
                 {

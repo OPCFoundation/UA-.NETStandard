@@ -20,7 +20,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.IO;
-using System.Runtime.InteropServices;
 using Windows.Storage;
 using System.Linq;
 using Windows.ApplicationModel;
@@ -858,19 +857,6 @@ namespace Opc.Ua
 		private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
 		private const uint FORMAT_MESSAGE_FROM_SYSTEM    = 0x00001000;
 
-        private static class NativeMethods
-        {
-            [DllImport("Kernel32.dll")]
-            public static extern int FormatMessageW(
-                int dwFlags,
-                IntPtr lpSource,
-                int dwMessageId,
-                int dwLanguageId,
-                IntPtr lpBuffer,
-                int nSize,
-                IntPtr Arguments);
-        }
-        
         /// <summary>
         /// Supresses any exceptions while disposing the object.
         /// </summary>
@@ -1664,6 +1650,68 @@ namespace Opc.Ua
                 }
             }
 
+            // copy EventFilter.
+            {
+                EventFilter castedObject = value as EventFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SimpleAttributeOperandCollection.
+            {
+                SimpleAttributeOperandCollection castedObject = value as SimpleAttributeOperandCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SimpleAttributeOperand.
+            {
+                SimpleAttributeOperand castedObject = value as SimpleAttributeOperand;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy QualifiedNameCollection.
+            {
+                QualifiedNameCollection castedObject = value as QualifiedNameCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ContentFilter.
+            {
+                ContentFilter castedObject = value as ContentFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ContentFilterElementCollection.
+            {
+                ContentFilterElementCollection castedObject = value as ContentFilterElementCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy SubscriptionDiagnosticsDataType.
+            {
+                SubscriptionDiagnosticsDataType castedObject = value as SubscriptionDiagnosticsDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
@@ -2656,82 +2704,18 @@ namespace Opc.Ua
                 dnsNames.Add(builder.ToString().ToUpperInvariant());
             }
             
-            // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = null;
-
-            foreach (X509Extension extension in certificate.Extensions)
-            {
-                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                {
-                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
-                    break;
-                }
-            }
-
-            if (alternateName != null)
-            {
-                for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
-                {
-                    string hostname = alternateName.DomainNames[ii];
-
-                    // do not add duplicates to the list.
-                    bool found = false;
-
-                    for (int jj = 0; jj < dnsNames.Count; jj++)
-                    {
-                        if (String.Compare(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase) == 0)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        dnsNames.Add(hostname.ToUpperInvariant());
-                    }
-                }
-
-                for (int ii = 0; ii < alternateName.IPAddresses.Count; ii++)
-                {
-                    string ipAddress = alternateName.IPAddresses[ii];
-
-                    if (!dnsNames.Contains(ipAddress))
-                    {
-                        dnsNames.Add(ipAddress);
-                    }
-                }
-            }
             // return the list.
             return dnsNames;
         }
 
         /// <summary>
-        /// Extracts the the application URI specified in the certificate.
+        /// Extracts the application URI specified in the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
         public static string GetApplicationUriFromCertficate(X509Certificate2 certificate)
         {
-            // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = null;
-
-            foreach (X509Extension extension in certificate.Extensions)
-            {
-                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                {
-                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
-                    break;
-                }
-            }
-
-            // get the application uri.
-            if (alternateName != null && alternateName.Uris.Count > 0)
-            {
-                return alternateName.Uris[0];
-            }
-            // return the list.
-            return null;
+            return string.Empty;
         }
 
         /// <summary>
