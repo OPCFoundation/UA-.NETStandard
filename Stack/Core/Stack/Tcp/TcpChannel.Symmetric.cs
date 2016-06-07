@@ -13,9 +13,6 @@
 using System;
 using System.Text;
 using System.IO;
-using Windows.Security.Cryptography.Core;
-using Windows.Storage.Streams;
-using Windows.Security.Cryptography;
 using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
@@ -151,21 +148,27 @@ namespace Opc.Ua.Bindings
             {
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
-                {
-                    // create encryptors. 
-                    SymmetricKeyAlgorithmProvider AesCbcProvider = SymmetricKeyAlgorithmProvider.OpenAlgorithm(SymmetricAlgorithmNames.AesCbc);
+                    {
+                        // create encryptors. 
+                        SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
+                        AesCbcEncryptorProvider.Mode = CipherMode.CBC;
+                        AesCbcEncryptorProvider.Padding = PaddingMode.None;
+                        AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
+                        AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
+                        token.ClientEncryptor = AesCbcEncryptorProvider;
 
-                    IBuffer buffer = CryptographicBuffer.CreateFromByteArray(token.ClientEncryptingKey);
-                    token.ClientEncryptor = AesCbcProvider.CreateSymmetricKey(buffer);
+                        SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
+                        AesCbcDecryptorProvider.Mode = CipherMode.CBC;
+                        AesCbcDecryptorProvider.Padding = PaddingMode.None;
+                        AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
+                        AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
+                        token.ServerEncryptor = AesCbcDecryptorProvider;
 
-                    buffer = CryptographicBuffer.CreateFromByteArray(token.ServerEncryptingKey);
-                    token.ServerEncryptor = AesCbcProvider.CreateSymmetricKey(buffer);
-
-                    // create HMACs.
-                    token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
-                    token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
-                    break;
-                }
+                        // create HMACs.
+                        token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
+                        token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
+                        break;
+                    }
 
                 default:
                 case SecurityPolicies.None:             
@@ -658,29 +661,27 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             bool               useClientKeys)
         {
-            // get the encrypting key.
-            CryptographicKey encryptingKey = (useClientKeys)? token.ClientEncryptor : token.ServerEncryptor;
-            IBuffer IV = (useClientKeys) ? CryptographicBuffer.CreateFromByteArray(token.ClientInitializationVector) : CryptographicBuffer.CreateFromByteArray(token.ServerInitializationVector);
+             SymmetricAlgorithm encryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
 
             if (encryptingKey == null)
             {
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
             }
 
-            SymmetricKeyAlgorithmProvider AesCbcProvider = SymmetricKeyAlgorithmProvider.OpenAlgorithm(SymmetricAlgorithmNames.AesCbc);
-            if (dataToEncrypt.Count % AesCbcProvider.BlockLength != 0)
+            using (ICryptoTransform encryptor = encryptingKey.CreateEncryptor())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
+                byte[] blockToEncrypt = dataToEncrypt.Array;
+
+                int start = dataToEncrypt.Offset;
+                int count = dataToEncrypt.Count;
+
+                if (count % encryptor.InputBlockSize != 0)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
+                }
+
+                encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
             }
-
-            byte[] blockToEncrypt = new byte[dataToEncrypt.Count];
-            Array.ConstrainedCopy(dataToEncrypt.Array, dataToEncrypt.Offset, blockToEncrypt, 0, dataToEncrypt.Count);
-
-            IBuffer block = CryptographicBuffer.CreateFromByteArray(blockToEncrypt);
-            IBuffer encryptedBuffer = CryptographicEngine.Encrypt(encryptingKey, block, IV);
-            CryptographicBuffer.CopyToByteArray(encryptedBuffer, out blockToEncrypt);
-
-            Array.ConstrainedCopy(blockToEncrypt, 0, dataToEncrypt.Array, dataToEncrypt.Offset, dataToEncrypt.Count);
         }
 
         /// <summary>
@@ -691,29 +692,28 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToDecrypt,
             bool               useClientKeys)
         {
-            // get the decrypting key.
-            CryptographicKey decryptingKey = (useClientKeys) ? token.ClientEncryptor : token.ServerEncryptor;
-            IBuffer IV = (useClientKeys) ? CryptographicBuffer.CreateFromByteArray(token.ClientInitializationVector) : CryptographicBuffer.CreateFromByteArray(token.ServerInitializationVector);
+            // get the encrypting key.
+            SymmetricAlgorithm encryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
 
-            if (decryptingKey == null)
+            if (encryptingKey == null)
             {
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
             }
 
-            SymmetricKeyAlgorithmProvider AesCbcProvider = SymmetricKeyAlgorithmProvider.OpenAlgorithm(SymmetricAlgorithmNames.AesCbc);
-            if (dataToDecrypt.Count % AesCbcProvider.BlockLength != 0)
+            using (ICryptoTransform decryptor = encryptingKey.CreateDecryptor())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
+                byte[] blockToDecrypt = dataToDecrypt.Array;
+
+                int start = dataToDecrypt.Offset;
+                int count = dataToDecrypt.Count;
+
+                if (count % decryptor.InputBlockSize != 0)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
+                }
+
+                decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
             }
-
-            byte[] blockToDecrypt = new byte[dataToDecrypt.Count];
-            Array.ConstrainedCopy(dataToDecrypt.Array, dataToDecrypt.Offset, blockToDecrypt, 0, dataToDecrypt.Count);
-            
-            IBuffer block = CryptographicBuffer.CreateFromByteArray(blockToDecrypt);
-            IBuffer encryptedBuffer = CryptographicEngine.Decrypt(decryptingKey, block, IV);
-            CryptographicBuffer.CopyToByteArray(encryptedBuffer, out blockToDecrypt);
-
-            Array.ConstrainedCopy(blockToDecrypt, 0, dataToDecrypt.Array, dataToDecrypt.Offset, dataToDecrypt.Count);
         }
         #endregion
 

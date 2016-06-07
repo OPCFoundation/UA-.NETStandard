@@ -426,15 +426,17 @@ namespace Opc.Ua
                         (password == null) ? String.Empty : password,
                         X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
 
-                    RSA rsa = certificate.GetRSAPrivateKey();
-                    if (rsa != null)
+                    using (RSA rsa = certificate.GetRSAPrivateKey())
                     {
-                        int inputBlockSize = rsa.KeySize / 8 - 42;
-                        byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
-                        byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
-                        if (bytes2 != null)
+                        if (rsa != null)
                         {
-                            return certificate;
+                            int inputBlockSize = rsa.KeySize / 8 - 42;
+                            byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
+                            byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
+                            if (bytes2 != null)
+                            {
+                                return certificate;
+                            }
                         }
                     }
                 }
