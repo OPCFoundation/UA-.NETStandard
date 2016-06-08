@@ -11,11 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using Windows.Security.Cryptography.Core;
 
 namespace Opc.Ua.Bindings
 {
@@ -169,7 +165,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The SymmetricAlgorithm object used by the client to encrypt messages.
         /// </summary>
-        public CryptographicKey ClientEncryptor
+        public SymmetricAlgorithm ClientEncryptor
         {
             get { return m_clientEncryptor;  }            
             set { m_clientEncryptor = value; }
@@ -178,7 +174,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The SymmetricAlgorithm object used by the server to encrypt messages.
         /// </summary>
-        public CryptographicKey ServerEncryptor
+        public SymmetricAlgorithm ServerEncryptor
         {
             get { return m_serverEncryptor;  }            
             set { m_serverEncryptor = value; }
@@ -218,8 +214,8 @@ namespace Opc.Ua.Bindings
         private byte[] m_serverInitializationVector;
         private HMAC m_clientHmac;
         private HMAC m_serverHmac;
-        private CryptographicKey m_clientEncryptor;
-        private CryptographicKey m_serverEncryptor;
+        private SymmetricAlgorithm m_clientEncryptor;
+        private SymmetricAlgorithm m_serverEncryptor;
         #endregion
     }
 }

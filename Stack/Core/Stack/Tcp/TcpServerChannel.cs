@@ -16,7 +16,6 @@ using System.Text;
 using System.IO;
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
-using Windows.Networking.Sockets;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 

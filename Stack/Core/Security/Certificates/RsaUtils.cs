@@ -14,9 +14,6 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Windows.Security.Cryptography;
-using Windows.Security.Cryptography.Core;
-using Windows.Storage.Streams;
 
 namespace Opc.Ua
 {
@@ -31,20 +28,20 @@ namespace Opc.Ua
         /// </summary>
         public static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
         {
-            RSA rsa = encryptingCertificate.GetRSAPublicKey();
-
-            if (rsa != null)
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                if (useOaep)
+                if (rsa != null)
                 {
-                    return rsa.KeySize / 8 - 42;
-                }
-                else
-                {
-                    return rsa.KeySize / 8 - 11;
+                    if (useOaep)
+                    {
+                        return rsa.KeySize / 8 - 42;
+                    }
+                    else
+                    {
+                        return rsa.KeySize / 8 - 11;
+                    }
                 }
             }
-
             return -1;
         }
 
@@ -53,13 +50,13 @@ namespace Opc.Ua
         /// </summary>
         public static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
         {
-            RSA rsa = encryptingCertificate.GetRSAPublicKey();
-
-            if (rsa != null)
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                return rsa.KeySize / 8;
+                if (rsa != null)
+                {
+                    return rsa.KeySize / 8;
+                }
             }
-
             return -1;
         }
 
@@ -68,14 +65,15 @@ namespace Opc.Ua
         /// </summary>
         public static int RsaPkcs15Sha1_GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            RSA rsa = signingCertificate.GetRSAPublicKey();
-
-            if (rsa == null)
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+                if (rsa == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+                }
 
-            return rsa.KeySize / 8;
+                return rsa.KeySize / 8;
+            }
         }
 
         /// <summary>
@@ -86,27 +84,17 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            RSA rsa = signingCertificate.GetRSAPrivateKey();
-
-            if (rsa == null)
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+
+                if (rsa == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+                }
+
+                // create the signature.
+                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             }
-
-            // compute the hash of message.
-            MemoryStream istrm = new MemoryStream(dataToSign.Array, dataToSign.Offset, dataToSign.Count, false);
-
-            // create the hmac.
-            HashAlgorithmProvider sha1Provider = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Sha1);
-            IBuffer buffer = CryptographicBuffer.CreateFromByteArray(istrm.ToArray());
-            buffer = sha1Provider.HashData(buffer);
-            byte[] digest = new byte[buffer.Length];
-            CryptographicBuffer.CopyToByteArray(buffer, out digest);
-
-            istrm.Dispose();
-
-            // create the signature.
-            return rsa.SignHash(digest, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
         }
 
         /// <summary>
@@ -118,26 +106,17 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            RSA rsa = signingCertificate.GetRSAPublicKey();
-
-            if (rsa == null)
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+
+                if (rsa == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+                }
+
+                // verify signature.
+                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             }
-
-            // compute the hash of message.
-            MemoryStream istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
-
-            HashAlgorithmProvider sha1Provider = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Sha1);
-            IBuffer buffer = CryptographicBuffer.CreateFromByteArray(istrm.ToArray());
-            buffer = sha1Provider.HashData(buffer);
-            byte[] digest = new byte[buffer.Length];
-            CryptographicBuffer.CopyToByteArray(buffer, out digest);
-
-            istrm.Dispose();
-
-            // verify signature.
-            return rsa.VerifyHash(digest, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
         }
 
         /// <summary>
@@ -181,54 +160,56 @@ namespace Opc.Ua
             ArraySegment<byte> outputBuffer)
         {
             // get the encrypting key.
-            RSA rsa = encryptingCertificate.GetRSAPublicKey();
-
-            if (rsa == null)
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
 
-            int inputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
-            int outputBlockSize = rsa.KeySize / 8;
-
-            // verify the input data is the correct block size.
-            if (dataToEncrypt.Count % inputBlockSize != 0)
-            {
-                Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
-            }
-
-            byte[] encryptedBuffer = outputBuffer.Array;
-
-            MemoryStream ostrm = new MemoryStream(
-                encryptedBuffer,
-                outputBuffer.Offset,
-                outputBuffer.Count);
-
-            // encrypt body.
-            byte[] input = new byte[inputBlockSize];
-
-            for (int ii = dataToEncrypt.Offset; ii < dataToEncrypt.Offset + dataToEncrypt.Count; ii += inputBlockSize)
-            {
-                Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
-                if (useOaep == true)
+                if (rsa == null)
                 {
-                    byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.OaepSHA1);
-                    ostrm.Write(cipherText, 0, cipherText.Length);
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
-                else
+
+                int inputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
+                int outputBlockSize = rsa.KeySize / 8;
+
+                // verify the input data is the correct block size.
+                if (dataToEncrypt.Count % inputBlockSize != 0)
                 {
-                    byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.Pkcs1);
-                    ostrm.Write(cipherText, 0, cipherText.Length);
+                    Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
                 }
+
+                byte[] encryptedBuffer = outputBuffer.Array;
+
+                using (MemoryStream ostrm = new MemoryStream(
+                    encryptedBuffer,
+                    outputBuffer.Offset,
+                    outputBuffer.Count))
+                {
+
+                    // encrypt body.
+                    byte[] input = new byte[inputBlockSize];
+
+                    for (int ii = dataToEncrypt.Offset; ii < dataToEncrypt.Offset + dataToEncrypt.Count; ii += inputBlockSize)
+                    {
+                        Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
+                        if (useOaep == true)
+                        {
+                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.OaepSHA1);
+                            ostrm.Write(cipherText, 0, cipherText.Length);
+                        }
+                        else
+                        {
+                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.Pkcs1);
+                            ostrm.Write(cipherText, 0, cipherText.Length);
+                        }
+                    }
+                }
+
+                // return buffer
+                return new ArraySegment<byte>(
+                    encryptedBuffer,
+                    outputBuffer.Offset,
+                    (dataToEncrypt.Count / inputBlockSize) * outputBlockSize);
             }
-
-            ostrm.Dispose();
-
-            // return buffer
-            return new ArraySegment<byte>(
-                encryptedBuffer,
-                outputBuffer.Offset,
-                (dataToEncrypt.Count / inputBlockSize) * outputBlockSize);
         }
 
         /// <summary>
@@ -270,51 +251,52 @@ namespace Opc.Ua
             ArraySegment<byte> outputBuffer)
         {
             // get the encrypting key.
-            RSA rsa = encryptingCertificate.GetRSAPrivateKey();
-
-            if (rsa == null)
+            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            }
-
-            int inputBlockSize = rsa.KeySize / 8;
-            int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
-
-            // verify the input data is the correct block size.
-            if (dataToDecrypt.Count % inputBlockSize != 0)
-            {
-                Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
-            }
-
-            byte[] decryptedBuffer = outputBuffer.Array;
-
-            MemoryStream ostrm = new MemoryStream(
-                decryptedBuffer,
-                outputBuffer.Offset,
-                outputBuffer.Count);
-
-            // decrypt body.
-            byte[] input = new byte[inputBlockSize];
-
-            for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
-            {
-                Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
-                if (useOaep == true)
+                if (rsa == null)
                 {
-                    byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.OaepSHA1);
-                    ostrm.Write(plainText, 0, plainText.Length);
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
                 }
-                else
+
+                int inputBlockSize = rsa.KeySize / 8;
+                int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
+
+                // verify the input data is the correct block size.
+                if (dataToDecrypt.Count % inputBlockSize != 0)
                 {
-                    byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.Pkcs1);
-                    ostrm.Write(plainText, 0, plainText.Length);
+                    Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
                 }
+
+                byte[] decryptedBuffer = outputBuffer.Array;
+
+                using (MemoryStream ostrm = new MemoryStream(
+                    decryptedBuffer,
+                    outputBuffer.Offset,
+                    outputBuffer.Count))
+                {
+
+                    // decrypt body.
+                    byte[] input = new byte[inputBlockSize];
+
+                    for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
+                    {
+                        Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
+                        if (useOaep == true)
+                        {
+                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.OaepSHA1);
+                            ostrm.Write(plainText, 0, plainText.Length);
+                        }
+                        else
+                        {
+                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.Pkcs1);
+                            ostrm.Write(plainText, 0, plainText.Length);
+                        }
+                    }
+                }
+
+                // return buffers.
+                return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
             }
-
-            ostrm.Dispose();
-
-            // return buffers.
-            return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
         }
         #endregion
     }
