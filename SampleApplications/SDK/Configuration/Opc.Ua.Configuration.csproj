@@ -129,12 +129,6 @@
     <Compile Include="Schema\InstalledApplicationHelper.cs" />
     <Compile Include="Service.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Core\Opc.Ua.Core.csproj">
-      <Project>{aa9d8d17-5dbd-4e77-8496-e32177573bf3}</Project>
-      <Name>Opc.Ua.Core</Name>
-    </ProjectReference>
-  </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>

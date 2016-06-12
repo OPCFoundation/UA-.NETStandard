@@ -195,10 +195,6 @@
     <Content Include="TestData\TestDataDesign.xml" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Core\Opc.Ua.Core.csproj">
-      <Project>{aa9d8d17-5dbd-4e77-8496-e32177573bf3}</Project>
-      <Name>Opc.Ua.Core</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\SDK\Client\Opc.Ua.Client.csproj">
       <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
       <Name>Opc.Ua.Client</Name>
