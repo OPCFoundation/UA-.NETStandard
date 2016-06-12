@@ -182,16 +182,6 @@
     <Content Include="Properties\Opc.Ua.Client.Controls.rd.xml" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Client\Opc.Ua.Client.csproj">
-      <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
-      <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{26a56753-9326-48c3-95bb-11594293b7a8}</Project>
-      <Name>Opc.Ua.Configuration</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Page Include="Common %28OLD%29\BaseListCtrl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

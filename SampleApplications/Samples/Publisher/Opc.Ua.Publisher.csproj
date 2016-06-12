@@ -139,21 +139,9 @@
     </ApplicationDefinition>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SDK\Client\Opc.Ua.Client.csproj">
-      <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
-      <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{26a56753-9326-48c3-95bb-11594293b7a8}</Project>
-      <Name>Opc.Ua.Configuration</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\SDK\Controls\Opc.Ua.Client.Controls.csproj">
       <Project>{0bacfd1f-8bd1-45e2-81ad-f9dbb5fbe028}</Project>
       <Name>Opc.Ua.Client.Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Server\Opc.Ua.Server.csproj">
-      <Project>{abcad618-b747-4794-9563-33e018fdbb93}</Project>
-      <Name>Opc.Ua.Server</Name>
     </ProjectReference>
     <ProjectReference Include="..\Common\Opc.Ua.Sample.csproj">
       <Project>{f9e0dbb6-fd8d-4871-b179-bbf3a2a3cda1}</Project>

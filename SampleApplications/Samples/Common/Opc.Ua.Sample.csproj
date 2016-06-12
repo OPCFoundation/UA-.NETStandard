@@ -194,16 +194,6 @@
     <Content Include="TestData\TestData.PredefinedNodes.xml" />
     <Content Include="TestData\TestDataDesign.xml" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SDK\Client\Opc.Ua.Client.csproj">
-      <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
-      <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Server\Opc.Ua.Server.csproj">
-      <Project>{abcad618-b747-4794-9563-33e018fdbb93}</Project>
-      <Name>Opc.Ua.Server</Name>
-    </ProjectReference>
-  </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>
