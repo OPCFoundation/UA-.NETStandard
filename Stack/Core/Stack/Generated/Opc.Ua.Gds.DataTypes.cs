@@ -300,7 +300,7 @@ namespace Opc.Ua.Gds
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationRecordDataType", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd, ItemName = "ApplicationRecordDataType")]
-    public partial class ApplicationRecordDataTypeCollection : List<ApplicationRecordDataType>, ICloneable
+    public partial class ApplicationRecordDataTypeCollection : List<ApplicationRecordDataType>
     {
         #region Constructors
         /// <summary>

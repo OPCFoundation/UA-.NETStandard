@@ -11,7 +11,6 @@
 */
 
 
-using Windows.Storage;
 
 namespace Opc.Ua
 {

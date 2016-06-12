@@ -15,9 +15,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Diagnostics;
 using System.IO;
-using Windows.Storage;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -336,7 +334,9 @@ namespace Opc.Ua
 
                 if (storeType == CertificateStoreType.Windows)
                 {
+#if TODO
                     store = new Opc.Ua.WindowsCertificateStore();
+#endif
                 }
                 else
                 {
@@ -765,8 +765,8 @@ namespace Opc.Ua
             return certificate;
         }
 
-        #endregion
-        #region PInvoke Declarations
+#endregion
+#region PInvoke Declarations
         private const string KEY_CONTAINER_NAME = "UASDKDefaultKeyContainer3";
         private const string MS_STRONG_PROV_W = "Microsoft Strong Cryptographic Provider";
         private const string DEFAULT_CRYPTO_PROVIDER = MS_STRONG_PROV_W;
@@ -1508,9 +1508,9 @@ namespace Opc.Ua
                 
         private const int CERT_CLOSE_STORE_FORCE_FLAG = 0x00000001;
         private const int CERT_CLOSE_STORE_CHECK_FLAG = 0x00000002;
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1800,7 +1800,7 @@ namespace Opc.Ua
 	        }
         }
 
-        #endregion
+#endregion
       
     }
 }

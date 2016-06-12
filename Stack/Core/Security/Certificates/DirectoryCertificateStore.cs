@@ -17,7 +17,6 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
-using Windows.Storage;
 
 namespace Opc.Ua
 {
@@ -81,6 +80,7 @@ namespace Opc.Ua
         public async Task Open(string location)
         {
             bool certsInRemovableStorageRootFound = false;
+#if TODO
             IReadOnlyList<StorageFolder> folders = new List<StorageFolder>();
 
             try
@@ -99,9 +99,10 @@ namespace Opc.Ua
             {
                 // do nothing
             }
-
+#endif
             lock (m_lock)
             {
+#if TODO
                 if (certsInRemovableStorageRootFound && (folders.Count > 0))
                 {
                     m_directory = new DirectoryInfo(folders[0].Path);
@@ -109,6 +110,7 @@ namespace Opc.Ua
                     m_privateKeySubdir = m_directory;
                 }
                 else
+#endif
                 {
                     location = Utils.ReplaceSpecialFolderNames(location);
                     m_directory = new DirectoryInfo(location);
@@ -426,17 +428,15 @@ namespace Opc.Ua
                         (password == null) ? String.Empty : password,
                         X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
 
-                    using (RSA rsa = certificate.GetRSAPrivateKey())
+                    RSA rsa = certificate.GetRSAPrivateKey();
+                    if (rsa != null)
                     {
-                        if (rsa != null)
+                        int inputBlockSize = rsa.KeySize / 8 - 42;
+                        byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
+                        byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
+                        if (bytes2 != null)
                         {
-                            int inputBlockSize = rsa.KeySize / 8 - 42;
-                            byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
-                            byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
-                            if (bytes2 != null)
-                            {
-                                return certificate;
-                            }
+                            return certificate;
                         }
                     }
                 }
@@ -486,9 +486,9 @@ namespace Opc.Ua
             // can't find a valid CRL.
             return StatusCodes.BadCertificateRevocationUnknown;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
@@ -725,9 +725,9 @@ namespace Opc.Ua
             m_certificateSubdir.Refresh();
             m_privateKeySubdir.Refresh();
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private class Entry
         {
             public FileInfo CertificateFile;
@@ -735,15 +735,15 @@ namespace Opc.Ua
             public FileInfo PrivateKeyFile;
             public X509Certificate2 CertificateWithPrivateKey;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private object m_lock = new object();
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-        #endregion
+#endregion
     }
 }

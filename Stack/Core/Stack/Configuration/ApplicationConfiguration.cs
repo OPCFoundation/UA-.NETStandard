@@ -14,12 +14,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Windows.ApplicationModel;
-using Windows.Storage;
+
+
 
 namespace Opc.Ua
 {
@@ -28,7 +27,7 @@ namespace Opc.Ua
 	/// </summary>
 	public class ApplicationConfigurationSection	
 	{
-		#region IConfigurationSectionHandler Members	
+#region IConfigurationSectionHandler Members	
         /// <summary>
         /// Creates the configuration object from the configuration section.
         /// </summary>
@@ -63,7 +62,7 @@ namespace Opc.Ua
                 reader.Dispose();
             }
 		}
-		#endregion
+#endregion
 	}
     /// <summary>
     /// Represents the location of a configuration file.
@@ -71,7 +70,7 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ConfigurationLocation
     {
-        #region Persistent Properties
+#region Persistent Properties
         /// <summary>
         /// Gets or sets the relative or absolute path to the configuration file.
         /// </summary>
@@ -82,11 +81,11 @@ namespace Opc.Ua
             get { return m_filePath; }
             set { m_filePath = value; }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_filePath;
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -94,7 +93,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class ApplicationConfiguration
     {        
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Gets the file that was used to load the configuration.
         /// </summary>
@@ -403,7 +402,7 @@ namespace Opc.Ua
             string filePath = null;
             
             // get the default application name from the executable file.
-            FileInfo file = new FileInfo(Package.Current.DisplayName);
+            FileInfo file = new FileInfo(/*Package.Current.DisplayName*/"TODO: Displayname");
             
             // choose a default configuration file.
             filePath = Utils.Format(

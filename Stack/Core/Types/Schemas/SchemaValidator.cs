@@ -17,8 +17,6 @@ using System.Xml.Serialization;
 using System.IO;
 using System.Reflection;
 using System.Globalization;
-using Windows.Storage;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Schema
 {
@@ -155,7 +153,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads the dictionary from a file.
         /// </summary>
-        protected async Task<object> Load(System.Type type, string namespaceUri, string path)
+        protected object Load(System.Type type, string namespaceUri, string path)
         {
             // check if already loaded.
             if (m_loadedFiles.ContainsKey(namespaceUri))
@@ -164,12 +162,16 @@ namespace Opc.Ua.Schema
             }
 
             // check if a valid path provided.
-            StorageFile fileInfo = null;
+            FileInfo fileInfo = null;
 
             if (!String.IsNullOrEmpty(path))
             {
-                fileInfo = await StorageFile.GetFileFromPathAsync(path);
-                return LoadFile(type, path);
+                fileInfo = new FileInfo(path);
+
+                if (fileInfo.Exists)
+                {
+                    return LoadFile(type, path);
+                }
             }
 
             // check if path specified in the file table.
@@ -177,30 +179,43 @@ namespace Opc.Ua.Schema
 
             if (m_knownFiles.TryGetValue(namespaceUri, out location))
             {
-                try
+                fileInfo = new FileInfo(location);
+                
+                if (fileInfo.Exists)
                 {
-                    fileInfo = await StorageFile.GetFileFromPathAsync(location);
                     return LoadFile(type, location);
                 }
-                catch (Exception)
-                {
-                    // load embedded resource.
-                    return LoadResource(type, location, null);
-                }
+
+                // load embedded resource.
+                return LoadResource(type, location, null);
             }
 
-            //check for file in the same directory as the input file.
-            try
+            if (!String.IsNullOrEmpty(path))
             {
-                fileInfo = await StorageFile.GetFileFromPathAsync(m_inputPath + "\\" + fileInfo.Name);
-                return LoadFile(type, fileInfo.Path);
-            }
-            catch (Exception)
-            {
+                if (!File.Exists(path))
+                {
+                    // load embedded resource.
+                    return LoadResource(type, path, null);
+                }
+
+                // check for file in the same directory as the input file.
+                FileInfo inputInfo = new FileInfo(m_inputPath);
+                                        
+                fileInfo = new FileInfo(inputInfo.DirectoryName + "\\" + fileInfo.Name);
+
+                if (fileInfo.Exists)
+                {       
+                    return LoadFile(type, fileInfo.FullName);
+                }
+                 
                 // check for file in the process directory.
-                fileInfo = await StorageFile.GetFileFromPathAsync(Windows.Storage.ApplicationData.Current.LocalFolder + "\\" + fileInfo.Name);
-                return LoadFile(type, fileInfo.Path);
-            }            
+                fileInfo = new FileInfo(ApplicationData.Current.LocalFolder.Path + "\\" + fileInfo.Name);
+            
+                if (fileInfo.Exists)
+                {
+                    return LoadFile(type, fileInfo.FullName);
+                }
+            }
             
             throw Exception("Cannot import file '{0}' from '{1}'.", namespaceUri, path);    
         }
@@ -208,10 +223,9 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads a schema from a file.
         /// </summary>
-        protected static async Task<object> LoadFile(System.Type type, string path)
+        protected static object LoadFile(System.Type type, string path)
         {
-            StorageFile file = await StorageFile.GetFileFromPathAsync(path);
-            StreamReader reader = new StreamReader(await file.OpenStreamForReadAsync());
+	        StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open));
 
             try
             {
@@ -283,9 +297,9 @@ namespace Opc.Ua.Schema
                 }
             }
         }
-        #endregion
+#endregion
                 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
@@ -293,12 +307,12 @@ namespace Opc.Ua.Schema
         {
             return null;
         } 
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_inputPath;
         private Dictionary<string,string> m_knownFiles; 
         private Dictionary<string,object> m_loadedFiles; 
-        #endregion
+#endregion
     }
 }

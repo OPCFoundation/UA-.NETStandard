@@ -693,14 +693,14 @@ namespace Opc.Ua.Bindings
             bool               useClientKeys)
         {
             // get the encrypting key.
-            SymmetricAlgorithm decryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
+            SymmetricAlgorithm encryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
 
-            if (decryptingKey == null)
+            if (encryptingKey == null)
             {
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
             }
 
-            using (ICryptoTransform decryptor = decryptingKey.CreateDecryptor())
+            using (ICryptoTransform decryptor = encryptingKey.CreateDecryptor())
             {
                 byte[] blockToDecrypt = dataToDecrypt.Array;
 

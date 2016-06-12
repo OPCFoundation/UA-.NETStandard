@@ -189,7 +189,7 @@ namespace Opc.Ua.Schema.Binary
                 return;
             }
 
-            TypeDictionary dictionary = (TypeDictionary) await Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
+            TypeDictionary dictionary = (TypeDictionary) Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
 
             // verify namespace.
             if (!String.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)

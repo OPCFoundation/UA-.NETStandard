@@ -135,7 +135,9 @@ namespace Opc.Ua
             {
                 case CertificateStoreType.Windows:
                 {
-                    store = new WindowsCertificateStore();
+#if TODO
+                        store = new WindowsCertificateStore();
+#endif
                     break;
                 }
 
@@ -158,10 +160,10 @@ namespace Opc.Ua
             t.Wait();
             return store;
         }
-        #endregion
+#endregion
     }
 
-    #region CertificateStoreType Class
+#region CertificateStoreType Class
     /// <summary>
     /// The type of certificate store.
     /// </summary>
@@ -177,5 +179,5 @@ namespace Opc.Ua
         /// </summary>
         public const string Directory = "Directory";
     }
-    #endregion
+#endregion
 }

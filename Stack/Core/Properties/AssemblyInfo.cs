@@ -23,8 +23,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("OPC UA SDK")]
 [assembly: AssemblyCopyright(AssemblyVersionInfo.Copyright)]
 
-[assembly: ComVisible(false)]
-[assembly: Guid("b59483cd-5ba9-4e53-8451-5ab7e1edd192")]
-
 [assembly: AssemblyVersion(AssemblyVersionInfo.CurrentVersion)]
 [assembly: AssemblyFileVersion(AssemblyVersionInfo.CurrentFileVersion)]
