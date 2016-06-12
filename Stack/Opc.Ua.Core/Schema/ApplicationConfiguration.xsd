@@ -1,0 +1,341 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="ApplicationConfiguration"
+    targetNamespace="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+    elementFormDefault="qualified"
+    xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+>
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" schemaLocation="./Opc.Ua.Types.xsd"/>
+  
+  <xs:complexType name="ListOfExtensions">
+    <xs:sequence>
+      <xs:element name="Extension" minOccurs="0" maxOccurs="unbounded" nillable="true">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ApplicationConfiguration">
+    <xs:sequence>
+      <xs:element name="ApplicationName" type="xs:string" />
+      <xs:element name="ApplicationUri" type="xs:string"/>
+      <xs:element name="ProductUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="ApplicationType" type="ua:ApplicationType" />
+      <xs:element name="SecurityConfiguration" type="SecurityConfiguration" minOccurs="0" nillable="true" />
+      <xs:element name="TransportConfigurations" type="ListOfTransportConfiguration" minOccurs="0" nillable="true" />
+      <xs:element name="TransportQuotas" type="TransportQuotas" minOccurs="0" nillable="true" />
+      <xs:element name="ServerConfiguration" type="ServerConfiguration" minOccurs="0" />
+      <xs:element name="ClientConfiguration" type="ClientConfiguration" minOccurs="0" />
+      <xs:element name="DiscoveryServerConfiguration" type="DiscoveryServerConfiguration" minOccurs="0" />
+      <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0"  />
+      <xs:element name="TraceConfiguration" type="TraceConfiguration" minOccurs="0" />
+      <xs:element name="DisableHiResClock" type="xs:boolean" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <DefaultValue EmitDefaultValue="false" xmlns="http://schemas.microsoft.com/2003/10/Serialization/" />
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ApplicationConfiguration" type="ApplicationConfiguration" />
+
+  <xs:complexType name="SecurityConfiguration">
+    <xs:sequence>
+      <xs:element name="ApplicationCertificate" type="CertificateIdentifier" />
+      <xs:element name="TrustedIssuerCertificates" type="CertificateTrustList" minOccurs="0" />
+      <xs:element name="TrustedPeerCertificates" type="CertificateTrustList" minOccurs="0" />
+      <xs:element name="NonceLength" type="xs:int" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <DefaultValue EmitDefaultValue="false" xmlns="http://schemas.microsoft.com/2003/10/Serialization/" />
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="RejectedCertificateStore" type="CertificateStoreIdentifier" minOccurs="0" />
+      <xs:element name="AutoAcceptUntrustedCertificates" type="xs:boolean" minOccurs="0" />
+      <xs:element name="UserRoleDirectory" type="xs:string"  minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ListOfTransportConfiguration">
+    <xs:sequence>
+      <xs:element name="TransportConfiguration" type="TransportConfiguration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="TransportConfiguration">
+    <xs:sequence>
+      <xs:element name="UriScheme" type="xs:string" />
+      <xs:element name="TypeName" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="TransportQuotas">
+    <xs:sequence>
+      <xs:element name="OperationTimeout" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxStringLength" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxByteStringLength" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxArrayLength" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxMessageSize" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxBufferSize" type="xs:int" minOccurs="0" />
+      <xs:element name="ChannelLifetime" type="xs:int" minOccurs="0" />
+      <xs:element name="SecurityTokenLifetime" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ServerBaseConfiguration">
+    <xs:sequence>
+      <xs:element name="BaseAddresses" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="AlternateBaseAddresses" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="SecurityPolicies" type="ListOfServerSecurityPolicy" minOccurs="0" nillable="true" />
+      <xs:element name="MinRequestThreadCount" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxRequestThreadCount" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxQueuedRequestCount" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfServerSecurityPolicy">
+    <xs:sequence>
+      <xs:element name="ServerSecurityPolicy" type="ServerSecurityPolicy" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ServerSecurityPolicy">
+    <xs:sequence>
+      <xs:element name="SecurityMode" type="ua:MessageSecurityMode" minOccurs="0" />
+      <xs:element name="SecurityPolicyUri" type="xs:string" minOccurs="0"  nillable="true" />
+      <xs:element name="SecurityLevel" type="xs:unsignedByte" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfSamplingRateGroup">
+    <xs:sequence>
+      <xs:element name="SamplingRateGroup" type="SamplingRateGroup" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SamplingRateGroup">
+    <xs:sequence>
+      <xs:element name="Start" type="xs:double" minOccurs="0" />
+      <xs:element name="Increment" type="xs:double" minOccurs="0" />
+      <xs:element name="Count" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ServerConfiguration">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ServerBaseConfiguration">
+        <xs:sequence>
+          <xs:element name="UserTokenPolicies" type="ua:ListOfUserTokenPolicy" minOccurs="0" />
+          <xs:element name="DiagnosticsEnabled" type="xs:boolean" minOccurs="0" />
+          <xs:element name="MaxSessionCount" type="xs:int" minOccurs="0" />
+          <xs:element name="MinSessionTimeout" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxSessionTimeout" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxBrowseContinuationPoints" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxQueryContinuationPoints" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxHistoryContinuationPoints" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxRequestAge" type="xs:int" minOccurs="0" />
+          <xs:element name="MinPublishingInterval" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxPublishingInterval" type="xs:int" minOccurs="0" />
+          <xs:element name="PublishingResolution" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxSubscriptionLifetime" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxMessageQueueSize" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxNotificationQueueSize" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxNotificationsPerPublish" type="xs:int" minOccurs="0" />
+          <xs:element name="MinMetadataSamplingInterval" type="xs:int" minOccurs="0" />
+          <xs:element name="AvailableSamplingRates" type="ListOfSamplingRateGroup" minOccurs="0" />
+          <xs:element name="RegistrationEndpoint" type="ua:EndpointDescription" minOccurs="0" />
+          <xs:element name="MaxRegistrationInterval" type="xs:int" minOccurs="0" />
+          <xs:element name="NodeManagerSaveFile" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxPublishRequestCount" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxSubscriptionCount" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxEventQueueSize" type="xs:int" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="DiscoveryServerConfiguration">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ServerBaseConfiguration">
+        <xs:sequence>
+          <xs:element name="ServerNames" type="ua:ListOfLocalizedText" minOccurs="0" />
+          <xs:element name="DiscoveryServerCacheFile" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="ServerRegistrations" type="ListOfServerRegistration" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <xs:complexType name="ListOfServerRegistration">
+    <xs:sequence>
+      <xs:element name="ServerRegistration" type="ServerRegistration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ServerRegistration">
+    <xs:sequence>
+      <xs:element name="ApplicationUri" type="xs:string" minOccurs="0" />
+      <xs:element name="AlternateDiscoveryUrls" type="ua:ListOfString" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="ClientConfiguration">
+    <xs:sequence>
+      <xs:element name="DefaultSessionTimeout" type="xs:int" minOccurs="0" />
+      <xs:element name="WellKnownDiscoveryUrls" type="ua:ListOfString" minOccurs="0" />
+      <xs:element name="DiscoveryServers" type="ua:ListOfEndpointDescription" minOccurs="0" />
+      <xs:element name="EndpointCacheFilePath" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="TraceConfiguration">
+    <xs:sequence>
+      <xs:element name="OutputFilePath" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="DeleteOnLoad" type="xs:boolean" minOccurs="0" />
+      <xs:element name="TraceMasks" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="CertificateIdentifier">
+    <xs:sequence>
+      <xs:element name="StoreType" type="xs:string" minOccurs="0" />
+      <xs:element name="StorePath" type="xs:string" minOccurs="0" />
+      <xs:element name="StoreName" type="xs:string" minOccurs="0" />
+      <xs:element name="StoreLocation" type="xs:string" minOccurs="0" />
+      <xs:element name="SubjectName" type="xs:string" minOccurs="0" />
+      <xs:element name="Thumbprint" type="xs:string" minOccurs="0" />
+      <xs:element name="RawData" type="xs:base64Binary" minOccurs="0" />
+      <xs:element name="ValidationOptions" type="xs:int" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <DefaultValue EmitDefaultValue="false" xmlns="http://schemas.microsoft.com/2003/10/Serialization/" />
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfCertificateIdentifier">
+    <xs:sequence>
+      <xs:element name="CertificateIdentifier" type="CertificateIdentifier"  minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="CertificateStoreIdentifier">
+    <xs:sequence>
+      <xs:element name="StoreType" type="xs:string" minOccurs="0" />
+      <xs:element name="StorePath" type="xs:string" minOccurs="0" />
+      <xs:element name="StoreName" type="xs:string" minOccurs="0" />
+      <xs:element name="StoreLocation" type="xs:string" minOccurs="0" />
+      <xs:element name="ValidationOptions" type="xs:int" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <DefaultValue EmitDefaultValue="false" xmlns="http://schemas.microsoft.com/2003/10/Serialization/" />
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="CertificateTrustList">
+    <xs:complexContent mixed="false">
+      <xs:extension base="CertificateStoreIdentifier">
+        <xs:sequence>
+          <xs:element name="TrustedCertificates" type="ListOfCertificateIdentifier" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ConfiguredEndpointCollection">
+    <xs:sequence>
+      <xs:element name="KnownHosts" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="Endpoints" type="ListOfConfiguredEndpoint" minOccurs="0" nillable="true" />
+      <xs:element name="TcpProxyUrl" type="xs:anyURI" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ConfiguredEndpointCollection" type="ConfiguredEndpointCollection" />
+
+  <xs:complexType name="ListOfConfiguredEndpoint">
+    <xs:sequence>
+      <xs:element name="ConfiguredEndpoint" type="ConfiguredEndpoint"  minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ConfiguredEndpoint">
+    <xs:sequence>
+      <xs:element name="Endpoint" type="ua:EndpointDescription" minOccurs="0" />
+      <xs:element name="Configuration" type="ua:EndpointConfiguration" minOccurs="0" />
+      <xs:element name="UpdateBeforeConnect" type="xs:boolean" minOccurs="0" />
+      <xs:element name="BinaryEncodingSupport" type="BinaryEncodingSupport" minOccurs="0" />
+      <xs:element name="SelectedUserTokenPolicy" type="xs:int" minOccurs="0" />
+      <xs:element name="UserIdentity" type="ua:UserIdentityToken" minOccurs="0" />
+      <xs:element name="ComIdentity" type="EndpointComIdentity" minOccurs="0" />
+      <xs:element name="Extensions" type="ua:ListOfXmlElement" minOccurs="0"  />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="BinaryEncodingSupport">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Optional" />
+      <xs:enumeration value="Required" />
+      <xs:enumeration value="None" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="EndpointComIdentity">
+    <xs:sequence>
+      <xs:element name="Clsid" type="ua:Guid" minOccurs="0" />
+      <xs:element name="ProgId" type="xs:string" minOccurs="0" />
+      <xs:element name="Specification" type="ComSpecification" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="ComSpecification">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="DA" />
+      <xs:enumeration value="AE" />
+      <xs:enumeration value="HDA" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="ApplicationAccessRule">
+    <xs:sequence>
+      <xs:element name="IdentityName" type="xs:string" minOccurs="0" />
+      <xs:element name="RuleType" type="AccessControlType" minOccurs="0" />
+      <xs:element name="Right" type="ApplicationAccessRight" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfApplicationAccessRule">
+    <xs:sequence>
+      <xs:element name="ApplicationAccessRule" type="ApplicationAccessRule" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="AccessControlType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Allow" />
+      <xs:enumeration value="Deny" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ApplicationAccessRight">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None" />
+      <xs:enumeration value="Run" />
+      <xs:enumeration value="Update" />
+      <xs:enumeration value="Configure" />
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

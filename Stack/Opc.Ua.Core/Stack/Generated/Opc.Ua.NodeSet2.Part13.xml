@@ -1,0 +1,341 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.7284696Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="XmlElement">i=16</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="ExpandedNodeId">i=18</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Integer">i=27</Alias>
+    <Alias Alias="UInteger">i=28</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+  </Aliases>
+  <UAObjectType NodeId="i=11187" BrowseName="AggregateConfigurationType">
+    <DisplayName>AggregateConfigurationType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=11188</Reference>
+      <Reference ReferenceType="HasProperty">i=11189</Reference>
+      <Reference ReferenceType="HasProperty">i=11190</Reference>
+      <Reference ReferenceType="HasProperty">i=11191</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=11188" BrowseName="TreatUncertainAsBad" ParentNodeId="i=11187" DataType="Boolean">
+    <DisplayName>TreatUncertainAsBad</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=11187</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=11189" BrowseName="PercentDataBad" ParentNodeId="i=11187" DataType="Byte">
+    <DisplayName>PercentDataBad</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=11187</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=11190" BrowseName="PercentDataGood" ParentNodeId="i=11187" DataType="Byte">
+    <DisplayName>PercentDataGood</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=11187</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=11191" BrowseName="UseSlopedExtrapolation" ParentNodeId="i=11187" DataType="Boolean">
+    <DisplayName>UseSlopedExtrapolation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=11187</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="i=2341" BrowseName="Interpolative" SymbolicName="AggregateFunction_Interpolative">
+    <DisplayName>Interpolative</DisplayName>
+    <Description>At the beginning of each interval, retrieve the calculated value from the data points on either side of the requested timestamp.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2342" BrowseName="Average" SymbolicName="AggregateFunction_Average">
+    <DisplayName>Average</DisplayName>
+    <Description>Retrieve the average value of the data over the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2343" BrowseName="TimeAverage" SymbolicName="AggregateFunction_TimeAverage">
+    <DisplayName>TimeAverage</DisplayName>
+    <Description>Retrieve the time weighted average data over the interval using Interpolated Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11285" BrowseName="TimeAverage2" SymbolicName="AggregateFunction_TimeAverage2">
+    <DisplayName>TimeAverage2</DisplayName>
+    <Description>Retrieve the time weighted average data over the interval using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2344" BrowseName="Total" SymbolicName="AggregateFunction_Total">
+    <DisplayName>Total</DisplayName>
+    <Description>Retrieve the total (time integral) of the data over the interval using Interpolated Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11304" BrowseName="Total2" SymbolicName="AggregateFunction_Total2">
+    <DisplayName>Total2</DisplayName>
+    <Description>Retrieve the total (time integral) of the data over the interval using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2346" BrowseName="Minimum" SymbolicName="AggregateFunction_Minimum">
+    <DisplayName>Minimum</DisplayName>
+    <Description>Retrieve the minimum raw value in the interval with the timestamp of the start of the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2347" BrowseName="Maximum" SymbolicName="AggregateFunction_Maximum">
+    <DisplayName>Maximum</DisplayName>
+    <Description>Retrieve the maximum raw value in the interval with the timestamp of the start of the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2348" BrowseName="MinimumActualTime" SymbolicName="AggregateFunction_MinimumActualTime">
+    <DisplayName>MinimumActualTime</DisplayName>
+    <Description>Retrieve the minimum value in the interval and the Timestamp of the minimum value.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2349" BrowseName="MaximumActualTime" SymbolicName="AggregateFunction_MaximumActualTime">
+    <DisplayName>MaximumActualTime</DisplayName>
+    <Description>Retrieve the maximum value in the interval and the Timestamp of the maximum value.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2350" BrowseName="Range" SymbolicName="AggregateFunction_Range">
+    <DisplayName>Range</DisplayName>
+    <Description>Retrieve the difference between the minimum and maximum Value over the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11286" BrowseName="Minimum2" SymbolicName="AggregateFunction_Minimum2">
+    <DisplayName>Minimum2</DisplayName>
+    <Description>Retrieve the minimum value in the interval including the Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11287" BrowseName="Maximum2" SymbolicName="AggregateFunction_Maximum2">
+    <DisplayName>Maximum2</DisplayName>
+    <Description>Retrieve the maximum value in the interval including the Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11305" BrowseName="MinimumActualTime2" SymbolicName="AggregateFunction_MinimumActualTime2">
+    <DisplayName>MinimumActualTime2</DisplayName>
+    <Description>Retrieve the minimum value with the actual timestamp including the Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11306" BrowseName="MaximumActualTime2" SymbolicName="AggregateFunction_MaximumActualTime2">
+    <DisplayName>MaximumActualTime2</DisplayName>
+    <Description>Retrieve the maximum value with the actual timestamp including the Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11288" BrowseName="Range2" SymbolicName="AggregateFunction_Range2">
+    <DisplayName>Range2</DisplayName>
+    <Description>Retrieve the difference between the Minimum2 and Maximum2 value over the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2351" BrowseName="AnnotationCount" SymbolicName="AggregateFunction_AnnotationCount">
+    <DisplayName>AnnotationCount</DisplayName>
+    <Description>Retrieve the number of Annotations in the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2352" BrowseName="Count" SymbolicName="AggregateFunction_Count">
+    <DisplayName>Count</DisplayName>
+    <Description>Retrieve the number of raw values over the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11307" BrowseName="DurationInStateZero" SymbolicName="AggregateFunction_DurationInStateZero">
+    <DisplayName>DurationInStateZero</DisplayName>
+    <Description>Retrieve the time a Boolean or numeric was in a zero state using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11308" BrowseName="DurationInStateNonZero" SymbolicName="AggregateFunction_DurationInStateNonZero">
+    <DisplayName>DurationInStateNonZero</DisplayName>
+    <Description>Retrieve the time a Boolean or numeric was in a non-zero state using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2355" BrowseName="NumberOfTransitions" SymbolicName="AggregateFunction_NumberOfTransitions">
+    <DisplayName>NumberOfTransitions</DisplayName>
+    <Description>Retrieve the number of changes between zero and non-zero that a Boolean or Numeric value experienced in the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2357" BrowseName="Start" SymbolicName="AggregateFunction_Start">
+    <DisplayName>Start</DisplayName>
+    <Description>Retrieve the value at the beginning of the interval using Interpolated Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2358" BrowseName="End" SymbolicName="AggregateFunction_End">
+    <DisplayName>End</DisplayName>
+    <Description>Retrieve the value at the end of the interval using Interpolated Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2359" BrowseName="Delta" SymbolicName="AggregateFunction_Delta">
+    <DisplayName>Delta</DisplayName>
+    <Description>Retrieve the difference between the Start and End value in the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11505" BrowseName="StartBound" SymbolicName="AggregateFunction_StartBound">
+    <DisplayName>StartBound</DisplayName>
+    <Description>Retrieve the value at the beginning of the interval using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11506" BrowseName="EndBound" SymbolicName="AggregateFunction_EndBound">
+    <DisplayName>EndBound</DisplayName>
+    <Description>Retrieve the value at the end of the interval using Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11507" BrowseName="DeltaBounds" SymbolicName="AggregateFunction_DeltaBounds">
+    <DisplayName>DeltaBounds</DisplayName>
+    <Description>Retrieve the difference between the StartBound and EndBound value in the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2360" BrowseName="DurationGood" SymbolicName="AggregateFunction_DurationGood">
+    <DisplayName>DurationGood</DisplayName>
+    <Description>Retrieve the total duration of time in the interval during which the data is good.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2361" BrowseName="DurationBad" SymbolicName="AggregateFunction_DurationBad">
+    <DisplayName>DurationBad</DisplayName>
+    <Description>Retrieve the total duration of time in the interval during which the data is bad.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2362" BrowseName="PercentGood" SymbolicName="AggregateFunction_PercentGood">
+    <DisplayName>PercentGood</DisplayName>
+    <Description>Retrieve the percent of data (0 to 100) in the interval which has a good StatusCode.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2363" BrowseName="PercentBad" SymbolicName="AggregateFunction_PercentBad">
+    <DisplayName>PercentBad</DisplayName>
+    <Description>Retrieve the percent of data (0 to 100) in the interval which has a bad StatusCode.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=2364" BrowseName="WorstQuality" SymbolicName="AggregateFunction_WorstQuality">
+    <DisplayName>WorstQuality</DisplayName>
+    <Description>Retrieve the worst StatusCode of data in the interval.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11292" BrowseName="WorstQuality2" SymbolicName="AggregateFunction_WorstQuality2">
+    <DisplayName>WorstQuality2</DisplayName>
+    <Description>Retrieve the worst StatusCode of data in the interval including the Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11426" BrowseName="StandardDeviationSample" SymbolicName="AggregateFunction_StandardDeviationSample">
+    <DisplayName>StandardDeviationSample</DisplayName>
+    <Description>Retrieve the standard deviation for the interval for a sample of the population (n-1).</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11427" BrowseName="StandardDeviationPopulation" SymbolicName="AggregateFunction_StandardDeviationPopulation">
+    <DisplayName>StandardDeviationPopulation</DisplayName>
+    <Description>Retrieve the standard deviation for the interval for a complete population (n) which includes Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11428" BrowseName="VarianceSample" SymbolicName="AggregateFunction_VarianceSample">
+    <DisplayName>VarianceSample</DisplayName>
+    <Description>Retrieve the variance for the interval as calculated by the StandardDeviationSample.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=11429" BrowseName="VariancePopulation" SymbolicName="AggregateFunction_VariancePopulation">
+    <DisplayName>VariancePopulation</DisplayName>
+    <Description>Retrieve the variance for the interval as calculated by the StandardDeviationPopulation which includes Simple Bounding Values.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2340</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>
