@@ -33,7 +33,6 @@ using System.Text;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
-using Windows.System;
 
 namespace Opc.Ua.Configuration
 {
@@ -177,14 +176,14 @@ namespace Opc.Ua.Configuration
 
             // create account info object.
             AccountInfo account = new AccountInfo();
-
+#if TODO
             account.Name = KnownUserProperties.DisplayName;
             account.SidType = AccountSidType.User;
             account.Sid = KnownUserProperties.AccountName;
             account.Domain = KnownUserProperties.DomainName;
             account.Description = String.Empty;
             account.Status = String.Empty;
-
+#endif
             return account;
         }
 
@@ -251,19 +250,19 @@ namespace Opc.Ua.Configuration
 
             return true;
         }
-        #endregion 
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_name;
         private string m_domain;
         private string m_sid;
         private AccountSidType m_sidType;
         private string m_description;
         private string m_status;
-        #endregion 
+#endregion
     }
     
-    #region AccountSidType Enumeration
+#region AccountSidType Enumeration
     /// <summary>
     /// The type of SID used by the account.
     /// </summary>
@@ -294,15 +293,15 @@ namespace Opc.Ua.Configuration
         /// </summary>
         BuiltIn = 0x5
     }
-    #endregion 
+#endregion
     
-    #region AccountFilters Class
+#region AccountFilters Class
     /// <summary>
     /// Filters that can be used to restrict the set of accounts returned.
     /// </summary>
     public class AccountFilters
     {
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The name of the account (supports the '*' wildcard).
         /// </summary>
@@ -330,17 +329,17 @@ namespace Opc.Ua.Configuration
             get { return m_accountTypeMask;  } 
             set { m_accountTypeMask = value; }
         }
-        #endregion 
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_name;
         private string m_domain;
         private AccountTypeMask m_accountTypeMask;
-        #endregion 
+#endregion
     }
-    #endregion 
+#endregion
     
-    #region AccountTypeMask Enumeration
+#region AccountTypeMask Enumeration
     /// <summary>
     /// The masks that can be use to filter a list of accounts.
     /// </summary>
@@ -367,9 +366,9 @@ namespace Opc.Ua.Configuration
         /// </summary>
         WellKnownGroup = 0x10
     }
-    #endregion 
+#endregion
     
-    #region WellKnownSids Class
+#region WellKnownSids Class
     /// <summary>
     /// The well known NT security identifiers.
     /// </summary>
@@ -420,5 +419,5 @@ namespace Opc.Ua.Configuration
         /// </summary>   
         public const string Guests = "S-1-5-32-546";
     }
-    #endregion
+#endregion
 }

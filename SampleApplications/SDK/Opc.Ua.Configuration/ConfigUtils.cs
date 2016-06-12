@@ -35,7 +35,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Xml;
-using Windows.Storage;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Configuration
@@ -755,6 +754,7 @@ namespace Opc.Ua.Configuration
                     // permentently delete any UA defined stores if they are now empty.
                     try
                     {
+#if TODO
                         WindowsCertificateStore store = new WindowsCertificateStore();
                         await store.Open("LocalMachine\\UA Applications");
 
@@ -763,6 +763,7 @@ namespace Opc.Ua.Configuration
                         {
                             store.PermanentlyDeleteStore();
                         }
+#endif
                     }
                     catch (Exception e)
                     {

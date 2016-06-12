@@ -166,7 +166,6 @@ namespace Opc.Ua.Server
             revisedSessionTimeout = requestedSessionTimeout;
                  
             Session session = null;
-            IBuffer buffer = null;
 
             lock (m_lock)
             {
@@ -191,8 +190,10 @@ namespace Opc.Ua.Server
                 if (authenticationToken == null)
                 {
                     byte[] token = new byte[32];
+#if TODO
                     buffer = CryptographicBuffer.GenerateRandom(32);
                     CryptographicBuffer.CopyToByteArray(buffer, out token);
+#endif
                     authenticationToken = new NodeId(token);
                 }
                 
@@ -209,9 +210,10 @@ namespace Opc.Ua.Server
                 
                 // create server nonce.
                 serverNonce = new byte[m_minNonceLength];
+#if TODO
                 buffer = CryptographicBuffer.GenerateRandom((uint) m_minNonceLength);
                 CryptographicBuffer.CopyToByteArray(buffer, out serverNonce);
-                
+#endif
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
                 {
@@ -277,9 +279,10 @@ namespace Opc.Ua.Server
                 
                 // create new server nonce.
                 serverNonce = new byte[m_minNonceLength];
+#if TODO // call Utils here
                 IBuffer buffer = CryptographicBuffer.GenerateRandom((uint) m_minNonceLength);
                 CryptographicBuffer.CopyToByteArray(buffer, out serverNonce);
-                
+#endif
                 // validate before activation.
                 session.ValidateBeforeActivate(
                     context,
@@ -464,9 +467,9 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
             }
         }
-        #endregion
+#endregion
         
-        #region Protected Methods
+#region Protected Methods
         /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
@@ -533,9 +536,9 @@ namespace Opc.Ua.Server
                 }
             } 
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
@@ -584,9 +587,9 @@ namespace Opc.Ua.Server
                 Utils.Trace(e, "Server: Session Monitor Thread Exited Unexpectedly");
             }
         }
-        #endregion
+#endregion
         
-        #region Private Fields
+#region Private Fields
         private object m_lock = new object();
         private IServerInternal m_server;
         private Dictionary<NodeId,Session> m_sessions;
@@ -606,9 +609,9 @@ namespace Opc.Ua.Server
         private event SessionEventHandler m_SessionActivated;
         private event SessionEventHandler m_SessionClosing;
         private event ImpersonateEventHandler m_ImpersonateUser;
-        #endregion
+#endregion
 
-        #region ISessionManager Members
+#region ISessionManager Members
         /// <summary cref="ISessionManager.SessionCreated" />
         public event SessionEventHandler SessionCreated
         {
@@ -700,7 +703,7 @@ namespace Opc.Ua.Server
                 return new List<Session>(m_sessions.Values);
             }
         }
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -769,13 +772,13 @@ namespace Opc.Ua.Server
     /// </summary>
     public delegate void SessionEventHandler(Session session, SessionEventReason reason);
     
-    #region ImpersonateEventArgs Class
+#region ImpersonateEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ImpersonateEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -784,9 +787,9 @@ namespace Opc.Ua.Server
             m_newIdentity = newIdentity;
             m_userTokenPolicy = userTokenPolicy;
         }
-        #endregion
+#endregion
         
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
@@ -829,20 +832,20 @@ namespace Opc.Ua.Server
             get { return m_identityValidationError;  }
             set { m_identityValidationError = value; }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private UserIdentityToken  m_newIdentity;
         private UserTokenPolicy m_userTokenPolicy;
         private ServiceResult m_identityValidationError;
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
     public delegate void ImpersonateEventHandler(Session session, ImpersonateEventArgs args);
-    #endregion
+#endregion
 }

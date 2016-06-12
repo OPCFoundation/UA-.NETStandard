@@ -29,7 +29,6 @@
 
 using System.Runtime.Serialization;
 using System.IO;
-using Windows.Storage;
 
 namespace Opc.Ua.Configuration
 {

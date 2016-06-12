@@ -34,10 +34,7 @@ using System.Reflection;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using Windows.UI.Popups;
 using System.Threading.Tasks;
-using Windows.UI.Xaml;
-using Windows.Storage;
 using System.Net;
 
 namespace Opc.Ua.Configuration
