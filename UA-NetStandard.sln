@@ -1,0 +1,82 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.xproj", "{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.xproj", "{99A94D4A-810D-49EF-B043-7F560E654A41}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Opc.Ua.Configuration", "SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.xproj", "{C444E219-EED3-4775-B399-B81FF2B900AF}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Opc.Ua.Server", "SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.xproj", "{6C449A1E-244E-4515-9949-A7E22012537C}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NetCoreWebAppClient", "SampleApplications\Samples\NetCoreWebAppClient\NetCoreWebAppClient.xproj", "{68C3C557-1565-421F-B613-99A0E51EBC54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAppClient", "SampleApplications\Samples\WebAppClient\WebAppClient.csproj", "{0F9FAD7C-4B7A-42B7-891E-3A8B5EA9520B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsFormsClient", "SampleApplications\Samples\WindowsFormsClient\WindowsFormsClient.csproj", "{BE0E2B04-A946-48C8-B93E-EB0C59013E3A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleClient", "SampleApplications\Samples\ConsoleClient\ConsoleClient.csproj", "{D1C63E60-8EAF-4109-9135-E70450C1AA79}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NetCoreConsoleClient", "SampleApplications\Samples\NetCoreConsoleClient\NetCoreConsoleClient.xproj", "{EEAA5DAD-349E-4384-83BE-8D362DA1CDD3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinClient", "SampleApplications\Samples\XamarinClient\XamarinClient.csproj", "{3D9C730D-28BA-42FE-993F-166B16F7E093}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfClient", "SampleApplications\Samples\WpfClient\WpfClient.csproj", "{4435C870-4963-4815-9E65-8FAEB931F9B2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99A94D4A-810D-49EF-B043-7F560E654A41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99A94D4A-810D-49EF-B043-7F560E654A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99A94D4A-810D-49EF-B043-7F560E654A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99A94D4A-810D-49EF-B043-7F560E654A41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C444E219-EED3-4775-B399-B81FF2B900AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C444E219-EED3-4775-B399-B81FF2B900AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C444E219-EED3-4775-B399-B81FF2B900AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C444E219-EED3-4775-B399-B81FF2B900AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C449A1E-244E-4515-9949-A7E22012537C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C449A1E-244E-4515-9949-A7E22012537C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C449A1E-244E-4515-9949-A7E22012537C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C449A1E-244E-4515-9949-A7E22012537C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68C3C557-1565-421F-B613-99A0E51EBC54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68C3C557-1565-421F-B613-99A0E51EBC54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68C3C557-1565-421F-B613-99A0E51EBC54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68C3C557-1565-421F-B613-99A0E51EBC54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0F9FAD7C-4B7A-42B7-891E-3A8B5EA9520B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F9FAD7C-4B7A-42B7-891E-3A8B5EA9520B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F9FAD7C-4B7A-42B7-891E-3A8B5EA9520B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F9FAD7C-4B7A-42B7-891E-3A8B5EA9520B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE0E2B04-A946-48C8-B93E-EB0C59013E3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE0E2B04-A946-48C8-B93E-EB0C59013E3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE0E2B04-A946-48C8-B93E-EB0C59013E3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE0E2B04-A946-48C8-B93E-EB0C59013E3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1C63E60-8EAF-4109-9135-E70450C1AA79}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1C63E60-8EAF-4109-9135-E70450C1AA79}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1C63E60-8EAF-4109-9135-E70450C1AA79}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1C63E60-8EAF-4109-9135-E70450C1AA79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEAA5DAD-349E-4384-83BE-8D362DA1CDD3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEAA5DAD-349E-4384-83BE-8D362DA1CDD3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEAA5DAD-349E-4384-83BE-8D362DA1CDD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEAA5DAD-349E-4384-83BE-8D362DA1CDD3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D9C730D-28BA-42FE-993F-166B16F7E093}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D9C730D-28BA-42FE-993F-166B16F7E093}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D9C730D-28BA-42FE-993F-166B16F7E093}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D9C730D-28BA-42FE-993F-166B16F7E093}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4435C870-4963-4815-9E65-8FAEB931F9B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4435C870-4963-4815-9E65-8FAEB931F9B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4435C870-4963-4815-9E65-8FAEB931F9B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4435C870-4963-4815-9E65-8FAEB931F9B2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
