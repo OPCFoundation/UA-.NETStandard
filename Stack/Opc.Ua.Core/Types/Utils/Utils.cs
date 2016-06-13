@@ -993,7 +993,7 @@ namespace Opc.Ua
 
         public static string GetHostName()
         {
-            return null;// Environment.MachineName;
+            return Dns.GetHostName();
         }
 
         /// <summary>
@@ -2687,7 +2687,7 @@ namespace Opc.Ua
             {
                 dnsNames.Add(builder.ToString().ToUpperInvariant());
             }
-            
+
             // return the list.
             return dnsNames;
         }
