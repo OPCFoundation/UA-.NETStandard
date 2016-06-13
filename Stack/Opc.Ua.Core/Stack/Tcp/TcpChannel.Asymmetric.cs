@@ -98,17 +98,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected byte[] CreateNonce()
         {
-            byte[] bytes = new byte[GetNonceLength()];
-
-#if TODO
-            RandomNumberGenerator r = new RandomNumberGenerator();
-            private static RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider();
-            rngCsp.GetBytes();
-
-            IBuffer buffer = CryptographicBuffer.GenerateRandom((uint) GetNonceLength());
-            CryptographicBuffer.CopyToByteArray(buffer, out bytes);
-#endif
-            return bytes;
+            uint length = GetNonceLength();
+            if (length > 0)
+            {
+                return Utils.CreateNonce("TCPChannel", GetNonceLength());
+            }
+            return null;
         }
 
         /// <summary>
@@ -194,7 +189,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the length of the symmetric encryption key.
         /// </summary>
-        protected int GetNonceLength()
+        protected uint GetNonceLength()
         {
             switch (SecurityPolicyUri)
             {

@@ -189,11 +189,7 @@ namespace Opc.Ua.Server
                 // must assign a hard-to-guess id if not secured.
                 if (authenticationToken == null)
                 {
-                    byte[] token = new byte[32];
-#if TODO
-                    buffer = CryptographicBuffer.GenerateRandom(32);
-                    CryptographicBuffer.CopyToByteArray(buffer, out token);
-#endif
+                    byte [] token = Utils.CreateNonce("SessionManager", 32);
                     authenticationToken = new NodeId(token);
                 }
                 
@@ -209,11 +205,8 @@ namespace Opc.Ua.Server
                 }
                 
                 // create server nonce.
-                serverNonce = new byte[m_minNonceLength];
-#if TODO
-                buffer = CryptographicBuffer.GenerateRandom((uint) m_minNonceLength);
-                CryptographicBuffer.CopyToByteArray(buffer, out serverNonce);
-#endif
+                serverNonce = Utils.CreateNonce("CreateSession", (uint) m_minNonceLength);
+
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
                 {
@@ -278,11 +271,8 @@ namespace Opc.Ua.Server
                 }
                 
                 // create new server nonce.
-                serverNonce = new byte[m_minNonceLength];
-#if TODO // call Utils here
-                IBuffer buffer = CryptographicBuffer.GenerateRandom((uint) m_minNonceLength);
-                CryptographicBuffer.CopyToByteArray(buffer, out serverNonce);
-#endif
+                serverNonce = Utils.CreateNonce("ActivateSession", (uint)m_minNonceLength);
+
                 // validate before activation.
                 session.ValidateBeforeActivate(
                     context,

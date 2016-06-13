@@ -1953,11 +1953,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = new byte[length];
-#if TODO
-            IBuffer buffer = CryptographicBuffer.GenerateRandom(length);
-            CryptographicBuffer.CopyToByteArray(buffer, out clientNonce);
-#endif
+            byte[] clientNonce = Utils.CreateNonce("Session", length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
             byte[] serverNonce = new byte[0];

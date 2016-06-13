@@ -2409,6 +2409,11 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+        public static byte[] CreateNonce(string secret, uint length)
+        {
+            return PSHA1(new UTF8Encoding().GetBytes(secret), null, null, (int)DateTime.UtcNow.Ticks, (int)length);
+        }
+
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
@@ -2416,7 +2421,7 @@ namespace Opc.Ua
         {
             if (secret == null) throw new ArgumentNullException("secret");
             if (offset < 0)     throw new ArgumentOutOfRangeException("offset");
-            if (length < 0)     throw new ArgumentOutOfRangeException("offset");
+            if (length < 0)     throw new ArgumentOutOfRangeException("length");
 
             byte[] seed = null;
 
