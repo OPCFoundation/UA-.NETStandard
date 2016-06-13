@@ -2411,7 +2411,8 @@ namespace Opc.Ua
 
         public static byte[] CreateNonce(string secret, uint length)
         {
-            return PSHA1(new UTF8Encoding().GetBytes(secret), null, null, (int)DateTime.UtcNow.Ticks, (int)length);
+            string label = DateTime.UtcNow.Ticks.ToString();
+            return PSHA1(new UTF8Encoding().GetBytes(secret), label, null, 0, (int)length);
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ namespace Opc.Ua
         {
             public static class LocalFolder
             {
-                public static string Path;
+                public static string Path = "<enter your cert root>";
             }
             public static class LocalSettings
             {

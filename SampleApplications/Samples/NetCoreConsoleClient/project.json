@@ -1,4 +1,4 @@
-﻿{
+{
   "version": "1.0.0-*",
   "buildOptions": {
     "emitEntryPoint": true
@@ -8,7 +8,12 @@
     "Microsoft.NETCore.App": {
       "type": "platform",
       "version": "1.0.0-rc2-3002702"
-    }
+    },
+    "Opc.Ua.Client": "1.0.0-*",
+    "Opc.Ua.Configuration": "1.0.0-*",
+    "Opc.Ua.Core": "1.0.0-*",
+    "Opc.Ua.Server": "1.0.0-*",
+    "System.Net.NameResolution": "4.0.0-rc2-24027"
   },
 
   "frameworks": {
