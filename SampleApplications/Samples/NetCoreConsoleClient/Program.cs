@@ -11,12 +11,29 @@ namespace NetCoreConsoleClient
     {
         public static void Main(string[] args)
         {
-            Console.WriteLine(".NetCore Opc.Ua Console Client sample ");
-            Task t = ConsoleSampleClient();
-            t.Wait();
+            Console.WriteLine(".Net Core OPC UA Console Client sample");
+            string endpointURL;
+            if (args.Length == 0)
+            {
+                // use OPC UA .Net Sample server 
+                endpointURL = "opc.tcp://" + Dns.GetHostName() + ":51210/UA/SampleServer";
+            }
+            else
+            {
+                endpointURL = args[0];
+            }
+            try
+            {
+                Task t = ConsoleSampleClient(endpointURL);
+                t.Wait();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exit due to Exception: {0}", e.Message);
+            }
         }
 
-        public static async Task ConsoleSampleClient()
+        public static async Task ConsoleSampleClient(string endpointURL)
         {
             Console.WriteLine("1 - Create an Application Configuration.");
             var config = new ApplicationConfiguration()
@@ -51,22 +68,21 @@ namespace NetCoreConsoleClient
             };
             await config.Validate(ApplicationType.Client);
 
-            if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
 
-            Console.WriteLine("2 - Discover endpoints of .Net UA Sample server.");
-            string endpointURL = "opc.tcp://" + Dns.GetHostName() + ":51210/UA/SampleServer";
+            Console.WriteLine("2 - Discover endpoints of OPC UA server.");
             var endpointCollection = DiscoverEndpoints(config, new Uri(endpointURL), 10);
 
-            Console.WriteLine("3 - Create a secure session with .Net UA Sample server.");
-            var secureEndpoint = SelectSecureEndpoint(endpointCollection);
+            Console.WriteLine("3 - Create a secure session with OPC UA server.");
+            var secureEndpoint = SelectSecureUaTcpEndpoint(endpointCollection);
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(secureEndpoint.Server, endpointConfiguration);
-            var session = await Session.Create(config, endpoint, true, ".NetCore Console Client", 60000, null, null);
+            var session = await Session.Create(config, endpoint, true, ".Net Core OPC UA Console Client", 60000, null, null);
 
-            Console.WriteLine("4 - Browse the server namespace.");
+            Console.WriteLine("4 - Browse the OPC UA server namespace.");
             ReferenceDescriptionCollection references;
             Byte[] continuationPoint;
 
@@ -112,7 +128,12 @@ namespace NetCoreConsoleClient
             var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
 
             Console.WriteLine("6 - Add a list of items (server current time and status) to the subscription.");
-            var list = new List<MonitoredItem> { new MonitoredItem(subscription.DefaultItem) { DisplayName = "ServerStatusCurrentTime", StartNodeId = "i=2258" } };
+            var list = new List<MonitoredItem> {
+                new MonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = "ServerStatusCurrentTime", StartNodeId = "i=2258"
+                }
+            };
             list.ForEach(i => i.Notification += OnNotification);
             subscription.AddItems(list);
 
@@ -135,6 +156,7 @@ namespace NetCoreConsoleClient
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
+            Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
             e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
         }
 
@@ -156,13 +178,14 @@ namespace NetCoreConsoleClient
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace("Could not fetch endpoints from url: {0}. Reason={1}", discoveryUrl, e.Message);
+                    Console.WriteLine("Could not fetch endpoints from url: {0}", discoveryUrl);
+                    Console.WriteLine("Reason = {0}", e.Message);
                     throw e;
                 }
             }
         }
 
-        private static EndpointDescription SelectSecureEndpoint(EndpointDescriptionCollection endpointCollection)
+        private static EndpointDescription SelectSecureUaTcpEndpoint(EndpointDescriptionCollection endpointCollection)
         {
             EndpointDescription bestEndpoint = null;
             foreach (EndpointDescription endpoint in endpointCollection)
