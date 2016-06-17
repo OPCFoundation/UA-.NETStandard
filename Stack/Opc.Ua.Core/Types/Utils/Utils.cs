@@ -925,71 +925,12 @@ namespace Opc.Ua
 
 			return (int)timeSpan.TotalMilliseconds;
         }
-#if TODO
-        public static IPAddress[] GetIPAddresses()
-        {
-            IPAddress[] addresses = null;
 
-            if (System.Net.NetworkInformation.GetHostNames().Count > 0)
-            {
-                int count = 0;
-                addresses = new IPAddress[NetworkInformation.GetHostNames().Count];
-                foreach (HostName localHostInfo in NetworkInformation.GetHostNames())
-                {
-                    if (localHostInfo.Type == HostNameType.Ipv4 ||
-                        localHostInfo.Type == HostNameType.Ipv6)
-                    {
-                        addresses[count++] = IPAddress.Parse(localHostInfo.DisplayName);
-                    }
-                }
-                if (count > 0)
-                {
-                    Array.Resize(ref addresses, count);
-                    return addresses;
-                }
-            }
-
-            return null;
-        }
-#endif
         public static async Task<IPAddress[]> GetHostAddresses(string remoteHostName)
         {
-            IPAddress[] addresses = null;
-#if TODO
-            if (remoteHostName == GetHostName() && System.Net.NetworkInformation.GetHostNames().Count > 0)
-            {
-                addresses = GetIPAddresses();
-                if (addresses != null)
-                {
-                    return addresses;
-                }
-            }
-
-            IReadOnlyList<EndpointPair> data = null;
-            try
-            {
-                data = await DatagramSocket.GetEndpointPairsAsync(new HostName(remoteHostName), "0");
-            }
-            catch (Exception ex) // For debugging
-            {
-                Utils.Trace("GetEndpointPairsAsync({0}) failed. {1}", remoteHostName, ex);
-            }
-
-            if (data != null && data.Count > 0)
-            {
-                addresses = new IPAddress[data.Count];
-                for (int ii = 0; ii < data.Count; ii++)
-                {
-                    if (data[ii] != null && data[ii].RemoteHostName != null)
-                    {
-                        addresses[ii] = IPAddress.Parse(data[ii].RemoteHostName.CanonicalName);
-                    }
-                }
-            }
-#endif
+            IPAddress[] addresses = await Dns.GetHostAddressesAsync(remoteHostName);
             return addresses;
         }
-
 
         public static string GetHostName()
         {

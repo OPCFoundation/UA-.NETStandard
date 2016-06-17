@@ -1,21 +1,17 @@
-﻿using System;
+﻿using Microsoft.Extensions.PlatformAbstractions;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
 
     public static class ApplicationData
     {
-        //public static AppData ApplicationData;
 
         public static class Current
         {
             public static class LocalFolder
             {
-                public static string Path = "<enter your cert root>";
+                public static string Path = PlatformServices.Default.Application.ApplicationBasePath;
             }
             public static class LocalSettings
             {

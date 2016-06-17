@@ -2,6 +2,7 @@
     "version": "1.0.0-*",
 
   "dependencies": {
+    "Microsoft.Extensions.PlatformAbstractions": "1.0.0-rc2-final",
     "Newtonsoft.Json": "8.0.3",
     "System.Data.Common": "4.0.1-rc2-24027",
     "System.Runtime.InteropServices": "4.1.0-rc2-24027",
