@@ -68,18 +68,27 @@ namespace NetCoreConsoleClient
             };
             await config.Validate(ApplicationType.Client);
 
-            if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            bool haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
+
+            if (haveAppCertificate && config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
 
-            Console.WriteLine("2 - Discover endpoints of OPC UA server.");
-            var endpointCollection = DiscoverEndpoints(config, new Uri(endpointURL), 10);
+            if (!haveAppCertificate)
+            {
+                Console.WriteLine("    WARN: missing application certificate, using unsecure connection.");
+            }
 
-            Console.WriteLine("3 - Create a secure session with OPC UA server.");
-            var secureEndpoint = SelectSecureUaTcpEndpoint(endpointCollection);
+            Console.WriteLine("2 - Discover endpoints of OPC UA server.");
+            Uri endpointURI = new Uri(endpointURL);
+            var endpointCollection = DiscoverEndpoints(config, endpointURI, 10);
+            var selectedEndpoint = SelectUaTcpEndpoint(endpointCollection, haveAppCertificate);
+
+            Console.WriteLine("3 - Create a session with OPC UA server.");
             var endpointConfiguration = EndpointConfiguration.Create(config);
-            var endpoint = new ConfiguredEndpoint(secureEndpoint.Server, endpointConfiguration);
+            var endpoint = new ConfiguredEndpoint(selectedEndpoint.Server, endpointConfiguration);
+            endpoint.Update(selectedEndpoint);
             var session = await Session.Create(config, endpoint, true, ".Net Core OPC UA Console Client", 60000, null, null);
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
@@ -185,14 +194,16 @@ namespace NetCoreConsoleClient
             }
         }
 
-        private static EndpointDescription SelectSecureUaTcpEndpoint(EndpointDescriptionCollection endpointCollection)
+        private static EndpointDescription SelectUaTcpEndpoint(EndpointDescriptionCollection endpointCollection, bool haveCert)
         {
             EndpointDescription bestEndpoint = null;
             foreach (EndpointDescription endpoint in endpointCollection)
             {
                 if (endpoint.TransportProfileUri == Profiles.UaTcpTransport)
                 {
-                    if (bestEndpoint == null || endpoint.SecurityLevel > bestEndpoint.SecurityLevel)
+                    if (bestEndpoint == null || 
+                        haveCert && (endpoint.SecurityLevel > bestEndpoint.SecurityLevel) ||
+                        !haveCert && (endpoint.SecurityLevel < bestEndpoint.SecurityLevel))
                     {
                         bestEndpoint = endpoint;
                     }
