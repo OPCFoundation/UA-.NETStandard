@@ -155,51 +155,13 @@ namespace Opc.Ua
     /// </summary>
     public static class Profiles
     {
-        /// <summary>
-        /// Communicates with UA TCP, UA Security and UA Binary.
-        /// </summary>
-        internal const string UaTcpTransport_DoesNotMatchSpec = "http://opcfoundation.org/UA/profiles/transport/uatcp";
-        
-        /// <summary>
-        /// Communicates with SOAP 1.2, WS Security and UA XML.
-        /// </summary>
-        internal const string WsHttpXmlTransport_DoesNotMatchSpec = "http://opcfoundation.org/UA/profiles/transport/wsxml";
-
-        /// <summary>
-        /// Communicates with SOAP 1.2, WS Security and UA XML or UA Binary.
-        /// </summary>
-        internal const string WsHttpXmlOrBinaryTransport_DoesNotMatchSpec = "http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary";
-        
-        /// <summary>
-        /// Communicates with SOAP 1.2, WS Security and UA Binary.
-        /// </summary>
-        internal const string WsHttpBinaryTransport_DoesNotMatchSpec = "http://opcfoundation.org/UA/profiles/transport/wsbinary";
+       
 
         /// <summary>
         /// Communicates with UA TCP, UA Security and UA Binary.
         /// </summary>
         public const string UaTcpTransport = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
         
-        /// <summary>
-        /// Communicates with SOAP 1.2, WS Security and UA XML.
-        /// </summary>
-        public const string WsHttpXmlTransport = "http://opcfoundation.org/UA-Profile/Transport/soaphttp-wssc-uaxml";
-
-        /// <summary>
-        /// Communicates with SOAP 1.2, WS Security and UA XML or UA Binary.
-        /// </summary>
-        public const string WsHttpXmlOrBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/soaphttp-wssc-uaxml-uabinary";
-
-        /// <summary>
-        /// Communicates with UA XML or UA Binary over HTTPS.
-        /// </summary>
-        public const string HttpsXmlOrBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uasoapxml-uabinary";
-
-        /// <summary>
-        /// Communicates with UA XML over HTTPS.
-        /// </summary>
-        public const string HttpsXmlTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uasoapxml";
-
         /// <summary>
         /// Communicates with UA Binary over HTTPS.
         /// </summary>
@@ -215,13 +177,6 @@ namespace Opc.Ua
             if (System.String.IsNullOrEmpty(profileUri))
             {
                 return profileUri;
-            }
-
-            switch (profileUri)
-            {
-                case Profiles.UaTcpTransport_DoesNotMatchSpec: { return Profiles.UaTcpTransport; }
-                case Profiles.WsHttpXmlOrBinaryTransport_DoesNotMatchSpec: { return Profiles.WsHttpXmlOrBinaryTransport; }
-                case Profiles.WsHttpXmlTransport_DoesNotMatchSpec: { return Profiles.WsHttpXmlTransport; }
             }
 
             return profileUri;

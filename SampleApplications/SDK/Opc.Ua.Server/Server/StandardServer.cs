@@ -2124,7 +2124,7 @@ namespace Opc.Ua.Server
 
                         if (updateRequired)
                         {
-                            endpoint.UpdateFromServer(m_bindingFactory);
+                            endpoint.UpdateFromServer();
                         }
 
                         lock (m_registrationLock)
@@ -2137,7 +2137,6 @@ namespace Opc.Ua.Server
                             configuration,
                             endpoint.Description,
                             endpoint.Configuration,
-                            m_bindingFactory,
                             base.InstanceCertificate);
 
                         // register the server.
@@ -2590,16 +2589,15 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns IList of a host for a UA service which type is <seealso cref="ServiceHost"/>.
         /// </returns>
-        protected override IList<IBackgroundTask> InitializeServiceHosts(
+        protected override IList<Task> InitializeServiceHosts(
             ApplicationConfiguration          configuration, 
-            BindingFactory                    bindingFactory,
             out ApplicationDescription        serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
             endpoints = null;
 
-            Dictionary<string, IBackgroundTask> hosts = new Dictionary<string, IBackgroundTask>();
+            Dictionary<string, Task> hosts = new Dictionary<string, Task>();
 
             // ensure at least one security policy exists.
             if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
@@ -2630,32 +2628,10 @@ namespace Opc.Ua.Server
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
-            // create hosts for protocols that require one endpoints per security policy
-            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
-            {
-                endpointsForHost = CreateSinglePolicyServiceHost(
-                    hosts,
-                    configuration,
-                    bindingFactory, 
-                    configuration.ServerConfiguration.BaseAddresses, 
-                    serverDescription,
-                    securityPolicy.SecurityMode, 
-                    securityPolicy.SecurityPolicyUri,
-                    String.Empty);
-
-                for (int ii = 0; ii < endpointsForHost.Count; ii++)
-                {
-                    endpointsForHost[ii].SecurityLevel = securityPolicy.SecurityLevel;
-                }
-
-                endpoints.AddRange(endpointsForHost);
-            }
-
             // create UA TCP host.
             endpointsForHost = CreateUaTcpServiceHost(
                 hosts,
                 configuration,
-                bindingFactory,
                 configuration.ServerConfiguration.BaseAddresses,
                 serverDescription,
                 configuration.ServerConfiguration.SecurityPolicies);
@@ -2666,14 +2642,13 @@ namespace Opc.Ua.Server
             endpointsForHost = CreateHttpsServiceHost(
                 hosts,
                 configuration,
-                bindingFactory, 
                 configuration.ServerConfiguration.BaseAddresses, 
                 serverDescription,
                 configuration.ServerConfiguration.SecurityPolicies);
 
             endpoints.AddRange(endpointsForHost);
 
-            return new List<IBackgroundTask>(hosts.Values);
+            return new List<Task>(hosts.Values);
         }
 
         /// <summary>
@@ -2758,7 +2733,6 @@ namespace Opc.Ua.Server
                     // setup registration information.
                     lock (m_registrationLock)
                     {
-                        m_bindingFactory = BindingFactory.Create(configuration, MessageContext);
                         m_maxRegistrationInterval = configuration.ServerConfiguration.MaxRegistrationInterval;
 
                         ApplicationDescription serverDescription = ServerDescription;
@@ -3053,7 +3027,6 @@ namespace Opc.Ua.Server
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
-        private BindingFactory m_bindingFactory;
         #endregion
     }
 }

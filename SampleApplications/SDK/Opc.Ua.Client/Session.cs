@@ -746,8 +746,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect)
             {
-                BindingFactory bindingFactory = BindingFactory.Create(configuration, messageContext);
-                endpoint.UpdateFromServer(bindingFactory);
+                endpoint.UpdateFromServer();
 
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;

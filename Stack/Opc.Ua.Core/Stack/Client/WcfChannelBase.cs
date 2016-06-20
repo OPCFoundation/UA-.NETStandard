@@ -11,16 +11,9 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
 using System.ServiceModel;
-using System.Runtime.Serialization;
 using Opc.Ua.Bindings;
-using System.ServiceModel.Description;
-using System.ServiceModel.Channels;
 using System.Security.Cryptography.X509Certificates;
-using System.ServiceModel.Security;
-using System.Net;
 
 namespace Opc.Ua
 {        
@@ -673,29 +666,19 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             ServiceMessageContext messageContext)
         {
-            // check if the server if configured to use the ANSI C stack.
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
 
-            bool useAnsiCStack = false;
 
             switch (description.TransportProfileUri)
             {
                 case Profiles.UaTcpTransport:
                     {
                         useUaTcp = true;
-
-                        if (configuration != null)
-                        {
-                            useAnsiCStack = configuration.UseNativeStack;
-                        }
-
                         break;
                     }
 
-                case Profiles.HttpsXmlTransport:
                 case Profiles.HttpsBinaryTransport:
-                case Profiles.HttpsXmlOrBinaryTransport:
                     {
                         useHttps = true;
                         break;
@@ -735,25 +718,11 @@ namespace Opc.Ua
 
             if (useUaTcp)
             {
-                Type type = null;
-
-                if (useAnsiCStack)
-                {
-                    type = Type.GetType("Opc.Ua.NativeStack.NativeStackChannel,Opc.Ua.NativeStackWrapper");
-                }
-
-                if (useAnsiCStack && type != null)
-                {
-                    channel = (ITransportChannel)Activator.CreateInstance(type);
-                }
-                else
-                {
-                    channel = new Opc.Ua.Bindings.TcpTransportChannel();
-                }
+                channel = new TcpTransportChannel();
             }
             else if (useHttps)
             {
-                channel = new Opc.Ua.Bindings.HttpsTransportChannel();
+                channel = new HttpsTransportChannel();
             }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);

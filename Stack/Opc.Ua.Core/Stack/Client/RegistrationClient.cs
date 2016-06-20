@@ -29,14 +29,12 @@ namespace Opc.Ua
         /// <param name="configuration">The configuration.</param>
         /// <param name="description">The description.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
-        /// <param name="bindingFactory">The binding factory.</param>
         /// <param name="instanceCertificate">The instance certificate.</param>
         /// <returns></returns>
         public static RegistrationClient Create( 
             ApplicationConfiguration configuration,
             EndpointDescription      description,
             EndpointConfiguration    endpointConfiguration,
-            BindingFactory           bindingFactory,
             X509Certificate2         instanceCertificate)
         {
             if (configuration == null) throw new ArgumentNullException("configuration");

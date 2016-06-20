@@ -32,7 +32,7 @@ namespace Opc.Ua
         {            
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            m_hosts = new List<IBackgroundTask>();
+            m_hosts = new List<Task>();
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
@@ -153,7 +153,7 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
-        public IBackgroundTask Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
+        public Task Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
         {
             if (configuration == null) throw new ArgumentNullException("configuration");
 
@@ -163,9 +163,6 @@ namespace Opc.Ua
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
-            // create the binding factory.
-            BindingFactory bindingFactory = BindingFactory.Create(configuration, MessageContext);
-
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
 
@@ -173,9 +170,8 @@ namespace Opc.Ua
             ApplicationDescription serverDescription = null;
             EndpointDescriptionCollection endpoints = null;
 
-            IList<IBackgroundTask> hosts = InitializeServiceHosts(
+            IList<Task> hosts = InitializeServiceHosts(
                 configuration,
-                bindingFactory,
                 out serverDescription,
                 out endpoints);
 
@@ -222,9 +218,6 @@ namespace Opc.Ua
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
-            // create the binding factory.
-            BindingFactory bindingFactory = BindingFactory.Create(configuration, MessageContext);
-
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
 
@@ -232,9 +225,8 @@ namespace Opc.Ua
             ApplicationDescription serverDescription = null;
             EndpointDescriptionCollection endpoints = null;
 
-            IList<IBackgroundTask> hosts = InitializeServiceHosts(
+            IList<Task> hosts = InitializeServiceHosts(
                 configuration,
-                bindingFactory,
                 out serverDescription,
                 out endpoints);
 
@@ -248,7 +240,7 @@ namespace Opc.Ua
             // open the hosts.
             lock (m_hosts)
             {
-                foreach (IBackgroundTask serviceHost in hosts)
+                foreach (Task serviceHost in hosts)
                 {
                     m_hosts.Add(serviceHost);
                 }
@@ -306,39 +298,9 @@ namespace Opc.Ua
 
                 switch (address.Url.Scheme)
                 {
-                    case Utils.UriSchemeHttp:
-                    case Utils.UriSchemeNetTcp:
-                    case Utils.UriSchemeNetPipe:
-                    {
-                        address.ProfileUri = Profiles.WsHttpXmlOrBinaryTransport;
-                        address.DiscoveryUrl = new Uri(address.Url.ToString() + "/discovery");
-                        break;
-                    }
-
                     case Utils.UriSchemeHttps:
                     {
-                        address.ProfileUri = Profiles.HttpsXmlOrBinaryTransport;
-                        address.DiscoveryUrl = address.Url;
-                        break;
-                    }
-
-                    case Utils.UriSchemeNoSecurityHttp:
-                    {
-                        UriBuilder builder = new UriBuilder(address.Url);
-                        builder.Scheme = Utils.UriSchemeHttp;
-                        address.Url = builder.Uri;
-
-                        if (address.AlternateUrls != null)
-                        {
-                            for (int ii = 0; ii < address.AlternateUrls.Count; ii++)
-                            {
-                                builder = new UriBuilder(address.AlternateUrls[ii]);
-                                builder.Scheme = Utils.UriSchemeHttp;
-                                address.AlternateUrls[ii] = builder.Uri;
-                            }
-                        }
-
-                        address.ProfileUri = Profiles.HttpsXmlOrBinaryTransport;
+                        address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
                     }
@@ -387,17 +349,6 @@ namespace Opc.Ua
                     foreach (Uri alternateUrl in baseAddress.AlternateUrls)
                     {
                         builder = new UriBuilder(alternateUrl);
-
-                        switch (baseAddress.ProfileUri)
-                        {
-                            case Profiles.WsHttpXmlOrBinaryTransport:
-                            case Profiles.WsHttpXmlTransport:
-                            {
-                                builder.Path += "/discovery";
-                                break;
-                            }
-                        }
-
                         discoveryUrls.Add(builder.ToString());
                     }
                 }
@@ -489,6 +440,14 @@ namespace Opc.Ua
             // close the hosts.
             lock (m_hosts)
             {
+                foreach (Task host in m_hosts)
+                {
+                    if (host.Status == TaskStatus.Running)
+                    {
+                        //TODO: Kill task
+                    }
+                }
+
                 m_hosts.Clear();
             }
         }
@@ -622,15 +581,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the list of WCF service hosts used by the server instance.
-        /// </summary>
-        /// <value>The WCF service hosts.</value>
-        protected List<IBackgroundTask> ServiceHosts
-        {
-            get { return m_hosts; }
-        }
-
-        /// <summary>
         /// Gets the list of transport listeners used by the server instance.
         /// </summary>
         /// <value>The transport listeners.</value>
@@ -655,122 +605,6 @@ namespace Opc.Ua
         protected virtual EndpointBase GetEndpointInstance(ServerBase server)
         {
             return null;
-        }
-
-        /// <summary>
-        /// Create a new service host for protocols that support only one policy per host.
-        /// </summary>
-        /// <param name="hosts">The hosts.</param>
-        /// <param name="configuration">The configuration.</param>
-        /// <param name="bindingFactory">The binding factory.</param>
-        /// <param name="baseAddresses">The base addresses.</param>
-        /// <param name="serverDescription">The server description.</param>
-        /// <param name="securityMode">The security mode.</param>
-        /// <param name="securityPolicyUri">The security policy URI.</param>
-        /// <param name="basePath">The base path to use when constructing the hosts.</param>
-        /// <returns>Returns list of descriptions for the EndpointDescription DataType, return type is list of <seealso cref="EndpointDescription"/>.</returns>
-        protected List<EndpointDescription> CreateSinglePolicyServiceHost(
-            IDictionary<string, IBackgroundTask> hosts,
-            ApplicationConfiguration configuration,
-            BindingFactory bindingFactory,
-            IList<string> baseAddresses,
-            ApplicationDescription serverDescription,
-            MessageSecurityMode securityMode,
-            string securityPolicyUri,
-            string basePath)
-        {
-            // generate a unique host name.
-            string hostName = basePath;
-
-            if (hosts.ContainsKey(hostName))
-            {
-                hostName += Utils.Format("/{0}", SecurityPolicies.GetDisplayName(securityPolicyUri));
-            }
-
-            if (hosts.ContainsKey(hostName))
-            {
-                hostName += Utils.Format("/{0}", securityMode);
-            }
-
-            if (hosts.ContainsKey(hostName))
-            {
-                hostName += Utils.Format("/{0}", hosts.Count);
-            }
-
-            // build list of uris.
-            List<Uri> uris = new List<Uri>();
-            List<EndpointDescription> endpoints = new List<EndpointDescription>();
-            string computerName = Utils.GetHostName();
-
-            for (int ii = 0; ii < baseAddresses.Count; ii++)
-            {
-                // UA TCP and HTTPS endpoints have their own host.
-                if (baseAddresses[ii].StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal) ||
-                    baseAddresses[ii].StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal)  ||
-                    baseAddresses[ii].StartsWith(Utils.UriSchemeNoSecurityHttp, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                UriBuilder uri = new UriBuilder(baseAddresses[ii]);
-
-                if (String.Compare(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    uri.Host = computerName;
-                }
-
-                uri.Path += hostName;
-                uris.Add(uri.Uri);
-
-                // create the endpoint description.
-                EndpointDescription description = new EndpointDescription();
-
-                description.EndpointUrl = uri.ToString();
-                description.Server = serverDescription;
-                
-                description.SecurityMode = securityMode;
-                description.SecurityPolicyUri = securityPolicyUri;
-                description.TransportProfileUri = Profiles.WsHttpXmlTransport; 
-                description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
-
-                bool requireEncryption = RequireEncryption(description);
-
-                if (!requireEncryption)
-                {
-                    foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
-                    {
-                        if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
-                        {
-                            requireEncryption = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (requireEncryption)
-                {
-                    if (InstanceCertificate == null)
-                    {
-                        throw new ServiceResultException( StatusCodes.BadConfigurationError,
-                            "Server does not have an instance certificate assigned." );
-                    }
-
-                    description.ServerCertificate = InstanceCertificate.RawData;
-                }
-
-                endpoints.Add(description);
-            }
-
-            // check if nothing to do.
-            if (uris.Count == 0)
-            {
-                return endpoints;
-            }
-
-            // create the endpoint configuration to use.
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
-
-            return endpoints;
         }
 
         /// <summary>
@@ -800,9 +634,8 @@ namespace Opc.Ua
         /// Create a new service host for UA TCP.
         /// </summary>
         protected List<EndpointDescription> CreateUaTcpServiceHost(
-            IDictionary<string, IBackgroundTask> hosts,
+            IDictionary<string, Task> hosts,
             ApplicationConfiguration configuration,
-            BindingFactory bindingFactory,
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies)
@@ -819,9 +652,6 @@ namespace Opc.Ua
             {
                 hostName += Utils.Format("/{0}", hosts.Count);
             }
-
-            // check if the server if configured to use the ANSI C stack.
-            bool useAnsiCStack = configuration.UseNativeStack;
 
             // build list of uris.
             List<Uri> uris = new List<Uri>();
@@ -896,23 +726,7 @@ namespace Opc.Ua
                     settings.NamespaceUris = this.MessageContext.NamespaceUris;
                     settings.Factory = this.MessageContext.Factory;
 
-                    ITransportListener listener = null;
-
-                    Type type = null;
-
-                    if (useAnsiCStack)
-                    {
-                        type = Type.GetType("Opc.Ua.NativeStack.NativeStackListener,Opc.Ua.NativeStackWrapper");
-                    }
-
-                    if (useAnsiCStack && type != null)
-                    {
-                        listener = (ITransportListener)Activator.CreateInstance(type);
-                    }
-                    else
-                    {
-                        listener = new Opc.Ua.Bindings.UaTcpChannelListener();
-                    }
+                    ITransportListener listener = new Opc.Ua.Bindings.UaTcpChannelListener();
 
                     listener.Open(
                        uri.Uri,
@@ -935,9 +749,8 @@ namespace Opc.Ua
         /// Create a new service host for UA HTTPS.
         /// </summary>
         protected List<EndpointDescription> CreateHttpsServiceHost(
-            IDictionary<string, IBackgroundTask> hosts,
+            IDictionary<string, Task> hosts,
             ApplicationConfiguration configuration,
-            BindingFactory bindingFactory,
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies)
@@ -965,18 +778,12 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
-                if (!baseAddresses[ii].StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) &&
-                    !baseAddresses[ii].StartsWith(Utils.UriSchemeNoSecurityHttp, StringComparison.Ordinal))
+                if (!baseAddresses[ii].StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
                 {
                     continue;
                 }
 
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
-
-                if (uri.Scheme == Utils.UriSchemeNoSecurityHttp)
-                {
-                    uri.Scheme = Utils.UriSchemeHttp;
-                }
 
                 if (uri.Path[uri.Path.Length-1] != '/')
                 {
@@ -1027,25 +834,6 @@ namespace Opc.Ua
                     description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
                     endpoints.Add(description);
-
-                    // create the endpoint description.
-                    description = new EndpointDescription();
-
-                    description.EndpointUrl = uri.ToString();
-                    description.Server = serverDescription;
-
-                    if (InstanceCertificate != null)
-                    {
-                        description.ServerCertificate = InstanceCertificate.RawData;
-                    }
-
-                    description.SecurityMode = MessageSecurityMode.None;
-                    description.SecurityPolicyUri = SecurityPolicies.None;
-                    description.SecurityLevel = 0;
-                    description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
-                    description.TransportProfileUri = Profiles.HttpsXmlTransport;
-
-                    endpoints.Add(description);
                 }
 
                 // create the stack listener.
@@ -1060,7 +848,7 @@ namespace Opc.Ua
                     settings.NamespaceUris = this.MessageContext.NamespaceUris;
                     settings.Factory = this.MessageContext.Factory;
 
-                    ITransportListener listener = new Opc.Ua.Bindings.UaTcpChannelListener();
+                    ITransportListener listener = new Opc.Ua.Bindings.UaHttpsChannelListener();
 
                     listener.Open(
                        uri.Uri,
@@ -1253,7 +1041,7 @@ namespace Opc.Ua
         {
             string url = baseAddress.Url.ToString();
 
-            if (baseAddress.ProfileUri == Profiles.WsHttpXmlOrBinaryTransport || baseAddress.ProfileUri == Profiles.WsHttpXmlTransport)
+            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) && (!(url.EndsWith("discovery"))))
             {
                 url += "/discovery";
             }
@@ -1327,17 +1115,11 @@ namespace Opc.Ua
                 foreach (BaseAddress baseAddress in baseAddresses)
                 {
 					bool translateHttpsEndpoint = false;
-					if ((endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsXmlOrBinaryTransport)
-						|| endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+					if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
 					{
 						translateHttpsEndpoint = true;
 					}
-					if ((endpoint.TransportProfileUri == Profiles.HttpsXmlTransport && baseAddress.ProfileUri == Profiles.HttpsXmlOrBinaryTransport)
-						|| endpoint.TransportProfileUri == Profiles.HttpsXmlTransport && baseAddress.ProfileUri == Profiles.HttpsXmlTransport)
-					{
-						translateHttpsEndpoint = true;
-					}
-
+					
                     if (endpoint.TransportProfileUri != baseAddress.ProfileUri && !translateHttpsEndpoint)
                     {
                         continue;
@@ -1547,19 +1329,17 @@ namespace Opc.Ua
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
-        /// <param name="bindingFactory">The object of a class that manages a mapping between a URL scheme and a binding.</param>
         /// <param name="serverDescription">The object of the class that contains a description for the ApplicationDescription DataType.</param>
         /// <param name="endpoints">The collection of <see cref="EndpointDescription"/> objects.</param>
         /// <returns>Returns list of hosts for a UA service.</returns>
-        protected virtual IList<IBackgroundTask> InitializeServiceHosts(
+        protected virtual IList<Task> InitializeServiceHosts(
             ApplicationConfiguration          configuration, 
-            BindingFactory                    bindingFactory,
             out ApplicationDescription        serverDescription,
             out EndpointDescriptionCollection endpoints)            
         {
             serverDescription = null;
             endpoints = null;
-            return new List<IBackgroundTask>();
+            return new List<Task>();
         }
 
         /// <summary>
@@ -1679,14 +1459,10 @@ namespace Opc.Ua
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;
-        private List<IBackgroundTask> m_hosts;
+        private List<Task> m_hosts;
         private List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
 #endregion
-    }
-    // TODO: implement interface
-    public interface IBackgroundTask
-    {
     }
 }

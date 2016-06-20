@@ -647,12 +647,7 @@ namespace Opc.Ua
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
-            else
-            {
-                description.TransportProfileUri = Profiles.WsHttpXmlOrBinaryTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl + "/discovery");
-            }
-            
+                      
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(this, description, null);
             endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
@@ -824,11 +819,6 @@ namespace Opc.Ua
                     m_description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                     m_description.SecurityPolicyUri = SecurityPolicies.Basic128Rsa15;
                     m_description.UserIdentityTokens.Add(new UserTokenPolicy(UserTokenType.Anonymous));
-
-                    if (url.Scheme == Utils.UriSchemeHttp)
-                    {
-                        m_description.TransportProfileUri = Profiles.WsHttpXmlOrBinaryTransport;
-                    }
 
                     if (url.Scheme == Utils.UriSchemeHttps)
                     {
@@ -1029,22 +1019,13 @@ namespace Opc.Ua
         /// </summary>
         public void UpdateFromServer()
         {
-            UpdateFromServer(BindingFactory.Default,  EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
+            UpdateFromServer(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
         }
         
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public void UpdateFromServer(BindingFactory bindingFactory)
-        {
-            UpdateFromServer(bindingFactory, EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
-        }
-
-        /// <summary>
-        /// Updates an endpoint with information from the server's discovery endpoint.
-        /// </summary>
         public void UpdateFromServer(
-            BindingFactory      bindingFactory,
             Uri                 endpointUrl,
             MessageSecurityMode securityMode, 
             string              securityPolicyUri)

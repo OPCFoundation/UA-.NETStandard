@@ -67,21 +67,9 @@ namespace Opc.Ua
 
                 switch (TransportProfileUri)
                 {
-                    case Profiles.WsHttpXmlOrBinaryTransport:
-                    case Profiles.HttpsXmlOrBinaryTransport:
-                    {
-                        return BinaryEncodingSupport.Optional;
-                    }
-
                     case Profiles.HttpsBinaryTransport:
                     {
                         return BinaryEncodingSupport.Required;
-                    }
-
-                    case Profiles.WsHttpXmlTransport:
-                    case Profiles.HttpsXmlTransport:
-                    {
-                        return BinaryEncodingSupport.None;
                     }
                 }
     

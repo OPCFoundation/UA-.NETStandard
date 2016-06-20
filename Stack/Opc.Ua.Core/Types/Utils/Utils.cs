@@ -38,35 +38,15 @@ namespace Opc.Ua
     {
         #region Public Constants
         /// <summary>
-        /// The URI scheme for the HTTP protocol. 
-        /// </summary>
-        public const string UriSchemeHttp = "http";
-
-        /// <summary>
         /// The URI scheme for the HTTPS protocol. 
         /// </summary>
         public const string UriSchemeHttps = "https";
-
-        /// <summary>
-        /// The URI scheme for using HTTP protocol without any security. 
-        /// </summary>
-        public const string UriSchemeNoSecurityHttp = "nosecurityhttp";
 
         /// <summary>
         /// The URI scheme for the UA TCP protocol. 
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";
         
-        /// <summary>
-        /// The URI scheme for the .NET TCP protocol. 
-        /// </summary>
-        public const string UriSchemeNetTcp = "net.tcp";
-
-        /// <summary>
-        /// The URI scheme for the .NET Named Pipes protocol. 
-        /// </summary>
-        public const string UriSchemeNetPipe = "net.pipe";
-
         /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
@@ -88,11 +68,6 @@ namespace Opc.Ua
         /// The class that provides the default implementation for the UA TCP protocol.
         /// </summary>
         public const string UaTcpBindingDefault = "Opc.Ua.Bindings.UaTcpBinding";
-
-        /// <summary>
-        /// The class that wraps the ANSI C implementation of the UA TCP protocol.
-        /// </summary>
-        public const string UaTcpBindingNativeStack = "Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStackWrapper";
 
         /// <summary>
         /// The default certificate store's type.
@@ -1059,7 +1034,7 @@ namespace Opc.Ua
             {
                 UriBuilder builder = new UriBuilder();
                 
-                builder.Scheme = Utils.UriSchemeHttp;
+                builder.Scheme = Utils.UriSchemeHttps;
                 builder.Host   = GetHostName();
                 builder.Port   = -1;
                 builder.Path   = Guid.NewGuid().ToString();
@@ -1068,11 +1043,11 @@ namespace Opc.Ua
             }
 
             // prefix non-urls with the hostname.
-            if (!instanceUri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
+            if (!instanceUri.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
             {                
                 UriBuilder builder = new UriBuilder();
                 
-                builder.Scheme = Utils.UriSchemeHttp;
+                builder.Scheme = Utils.UriSchemeHttps;
                 builder.Host   = GetHostName();
                 builder.Port   = -1;
                 builder.Path   = Uri.EscapeDataString(instanceUri);

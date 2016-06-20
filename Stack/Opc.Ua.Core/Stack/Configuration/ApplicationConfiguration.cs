@@ -169,46 +169,7 @@ namespace Opc.Ua
 
             return domainNames;
         }
-        public bool UseNativeStack
-        {
-            get
-            {
-                for (int ii = 0; ii < TransportConfigurations.Count; ii++)
-                {
-                    TransportConfiguration transport = TransportConfigurations[ii];
-
-                    if (transport.UriScheme == Utils.UriSchemeOpcTcp)
-                    {
-                        return transport.TypeName == Utils.UaTcpBindingNativeStack;
-                    }
-                }
-
-                return false;
-            }
-
-            set
-            {
-                for (int ii = 0; ii < TransportConfigurations.Count; ii++)
-                {
-                    TransportConfiguration transport = TransportConfigurations[ii];
-
-                    if (transport.UriScheme == Utils.UriSchemeOpcTcp)
-                    {
-                        if (value)
-                        {
-                            transport.TypeName = Utils.UaTcpBindingNativeStack;
-                        }
-                        else
-                        {
-                            transport.TypeName = Utils.UaTcpBindingDefault;
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-
+     
         /// <summary>
         /// Creates the message context from the configuration.
         /// </summary>
