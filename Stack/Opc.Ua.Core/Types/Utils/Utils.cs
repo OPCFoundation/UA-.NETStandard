@@ -28,6 +28,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua
 {
@@ -84,7 +85,7 @@ namespace Opc.Ua
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
 
-        private static string s_traceFileName = null;
+        private static string s_traceFileName = PlatformServices.Default.Application.ApplicationName + ".log";
         private static long s_BaseLineTicks = DateTime.UtcNow.Ticks;
         private static object s_traceFileLock = new object();
 
@@ -798,7 +799,7 @@ namespace Opc.Ua
             }
 
             // keep first path segment.
-            int start = filePath.IndexOf('\\');
+            int start = filePath.IndexOf(Path.DirectorySeparatorChar);
 
             if (start == -1)
             {
@@ -806,15 +807,15 @@ namespace Opc.Ua
             }
             
             // keep file name.
-            int end = filePath.LastIndexOf('\\');
+            int end = filePath.LastIndexOf(Path.DirectorySeparatorChar);
             
             while (end > start && filePath.Length - end < maxLength)
             {
-                end = filePath.LastIndexOf('\\', end-1);
+                end = filePath.LastIndexOf(Path.DirectorySeparatorChar, end-1);
 
                 if (filePath.Length - end > maxLength)
                 {
-                    end = filePath.IndexOf('\\', end+1);
+                    end = filePath.IndexOf(Path.DirectorySeparatorChar, end+1);
                     break;
                 }
             }
@@ -909,7 +910,7 @@ namespace Opc.Ua
 
         public static string GetHostName()
         {
-            return Dns.GetHostName();
+            return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
         }
 
         /// <summary>

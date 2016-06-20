@@ -12,6 +12,8 @@
 
 
 
+using System.IO;
+
 namespace Opc.Ua
 {
     #region SecurityConfiguration Class
@@ -47,7 +49,7 @@ namespace Opc.Ua
             {
                 RejectedCertificateStore = new CertificateStoreIdentifier();
                 RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-                RejectedCertificateStore.StorePath = ApplicationData.Current.LocalFolder.Path + "\\OPC Foundation\\CertificateStores\\RejectedCertificates";
+                RejectedCertificateStore.StorePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Rejected";
             }             
         }
 

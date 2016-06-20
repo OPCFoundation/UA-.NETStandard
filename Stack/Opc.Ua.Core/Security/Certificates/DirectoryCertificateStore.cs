@@ -114,8 +114,8 @@ namespace Opc.Ua
                 {
                     location = Utils.ReplaceSpecialFolderNames(location);
                     m_directory = new DirectoryInfo(location);
-                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + "\\certs");
-                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + "\\private");
+                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
+                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
                 }
             }
         }
@@ -418,7 +418,7 @@ namespace Opc.Ua
 
                     StringBuilder filePath = new StringBuilder();
                     filePath.Append(m_privateKeySubdir.FullName);
-                    filePath.Append("\\");
+                    filePath.Append(Path.DirectorySeparatorChar);
                     filePath.Append(fileRoot);
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
@@ -470,7 +470,7 @@ namespace Opc.Ua
             }
 
             // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + "\\crl");
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
 
             if (info.Exists)
             {
@@ -547,7 +547,7 @@ namespace Opc.Ua
 
                             StringBuilder filePath = new StringBuilder();
                             filePath.Append(m_privateKeySubdir.FullName);
-                            filePath.Append("\\");
+                            filePath.Append(Path.DirectorySeparatorChar);
                             filePath.Append(fileRoot);
 
                             entry.PrivateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
@@ -689,7 +689,7 @@ namespace Opc.Ua
                 filePath.Append(m_certificateSubdir.FullName);
             }
 
-            filePath.Append("\\");
+            filePath.Append(Path.DirectorySeparatorChar);
             filePath.Append(fileName);
 
             if (includePrivateKey)

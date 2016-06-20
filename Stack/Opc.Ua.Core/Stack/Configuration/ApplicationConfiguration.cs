@@ -367,8 +367,9 @@ namespace Opc.Ua
             
             // choose a default configuration file.
             filePath = Utils.Format(
-                "{0}\\{1}.Config.xml", 
+                "{0}{1}{2}.Config.xml", 
                 file.DirectoryName, 
+                Path.DirectorySeparatorChar,
                 file.Name);
             
             // convert to absolute file path (expands environment strings).
@@ -516,11 +517,11 @@ namespace Opc.Ua
             if (filePath == null)
             {
                 filePath = m_clientConfiguration.EndpointCacheFilePath;
-
+                // TODO: ////
                 if (!filePath.StartsWith("\\\\", StringComparison.Ordinal) && filePath.IndexOf(":", StringComparison.Ordinal) != 1)
                 {
                     FileInfo sourceFile = new FileInfo(this.SourceFilePath);
-                    filePath = Utils.Format("{0}\\{1}", sourceFile.DirectoryName, filePath);
+                    filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);
                 }
             }
 

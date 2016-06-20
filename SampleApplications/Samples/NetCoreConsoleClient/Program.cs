@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
-using System.Net;
 
 namespace NetCoreConsoleClient
 {
@@ -16,7 +15,7 @@ namespace NetCoreConsoleClient
             if (args.Length == 0)
             {
                 // use OPC UA .Net Sample server 
-                endpointURL = "opc.tcp://" + Dns.GetHostName() + ":51210/UA/SampleServer";
+                endpointURL = "opc.tcp://" + Utils.GetHostName() + ":51210/UA/SampleServer";
             }
             else
             {
@@ -46,18 +45,18 @@ namespace NetCoreConsoleClient
                     ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = @"Directory",
-                        StorePath = @".",
-                        SubjectName = Utils.Format(@"CN={0}, DC={1}", "UA Sample Client", Dns.GetHostName())
+                        StorePath = @"",
+                        SubjectName = Utils.Format(@"CN={0}, DC={1}", "UA Sample Client", Utils.GetHostName())
                     },
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = @"Directory",
-                        StorePath = @".",
+                        StorePath = @"",
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
                         StoreType = @"Directory",
-                        StorePath = @".",
+                        StorePath = @"",
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true
@@ -152,7 +151,6 @@ namespace NetCoreConsoleClient
 
             Console.WriteLine("8 - Running...Press any key to exit...");
             Console.ReadKey(true);
-
         }
 
         private static void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)

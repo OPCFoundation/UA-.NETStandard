@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -1976,7 +1977,11 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_storePath = ApplicationData.Current.LocalFolder.Path + "\\" + value;
+                    m_storePath = ApplicationData.Current.LocalFolder.Path;
+                    if (!String.IsNullOrEmpty(value))
+                    {
+                        m_storePath += Path.DirectorySeparatorChar + value;
+                    }
                 }
 
                 if (!String.IsNullOrEmpty(m_storePath))
@@ -2239,7 +2244,11 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_storePath = ApplicationData.Current.LocalFolder.Path + "\\" + value;
+                    m_storePath = ApplicationData.Current.LocalFolder.Path;
+                    if (!String.IsNullOrEmpty(value))
+                    {
+                        m_storePath += Path.DirectorySeparatorChar + value;
+                    }
                 }
 
                 if (!String.IsNullOrEmpty(m_storePath))

@@ -261,7 +261,7 @@ namespace Opc.Ua.Configuration
             {
                 application.RejectedCertificatesStore = new Opc.Ua.Security.CertificateStoreIdentifier();
                 application.RejectedCertificatesStore.StoreType = CertificateStoreType.Directory;
-                application.RejectedCertificatesStore.StorePath = ApplicationData.Current.LocalFolder.Path + "\\OPC Foundation\\CertificateStores\\RejectedCertificates";
+                application.RejectedCertificatesStore.StorePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Rejected";
             }
 
             if (application.RejectedCertificatesStore.StoreType == CertificateStoreType.Directory)
