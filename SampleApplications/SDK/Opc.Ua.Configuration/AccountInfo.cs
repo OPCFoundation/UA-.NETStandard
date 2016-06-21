@@ -29,9 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
 
 namespace Opc.Ua.Configuration
@@ -176,14 +174,15 @@ namespace Opc.Ua.Configuration
 
             // create account info object.
             AccountInfo account = new AccountInfo();
-#if TODO
-            account.Name = KnownUserProperties.DisplayName;
+
+            //TODO: account.Name = KnownUserProperties.DisplayName;
+            //TODO: account.Sid = KnownUserProperties.AccountName;
+            //TODO: account.Domain = KnownUserProperties.DomainName;
+
             account.SidType = AccountSidType.User;
-            account.Sid = KnownUserProperties.AccountName;
-            account.Domain = KnownUserProperties.DomainName;
             account.Description = String.Empty;
             account.Status = String.Empty;
-#endif
+
             return account;
         }
 
