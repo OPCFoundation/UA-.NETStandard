@@ -133,14 +133,6 @@ namespace Opc.Ua
 
             switch (storeType)
             {
-                case CertificateStoreType.Windows:
-                {
-#if TODO
-                        store = new WindowsCertificateStore();
-#endif
-                    break;
-                }
-
                 case CertificateStoreType.Directory:
                 {
                     store = new DirectoryCertificateStore();

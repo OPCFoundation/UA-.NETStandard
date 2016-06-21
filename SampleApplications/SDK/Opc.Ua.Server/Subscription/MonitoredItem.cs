@@ -1759,7 +1759,7 @@ namespace Opc.Ua.Server
 
                             if ((m_typeMask & MonitoredItemTypeMask.Events) != 0)
                             {
-                                m_queueSize = 1000; //TODO define the default value for quesize - posibly have a configuration for it
+                                m_queueSize = 1000;
                             }
                         }
 

@@ -42,9 +42,6 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            // TODO: We could add Microsoft Live ID account identity here (which is the
-            // supported user identity in Universal Windows Platform apps), but I'm not
-            // sure how useful this would be in industrial contexts.
         }
 
         /// <summary>

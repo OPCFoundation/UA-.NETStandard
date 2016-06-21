@@ -39,7 +39,7 @@ internal static class AssemblyVersionInfo
     /// <summary>
     /// The current copy right notice.
     /// </summary>
-    public const string Copyright = "Copyright © 2004-2013 OPC Foundation, Inc";
+    public const string Copyright = "Copyright © 2004-2016 OPC Foundation, Inc";
 
     /// <summary>
     /// The current build version.

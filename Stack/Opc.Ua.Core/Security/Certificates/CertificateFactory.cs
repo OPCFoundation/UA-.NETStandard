@@ -330,18 +330,7 @@ namespace Opc.Ua
             // add it to the store.
             if (!String.IsNullOrEmpty(storePath))
             {
-                ICertificateStore store = null;
-
-                if (storeType == CertificateStoreType.Windows)
-                {
-#if TODO
-                    store = new Opc.Ua.WindowsCertificateStore();
-#endif
-                }
-                else
-                {
-                    store = new Opc.Ua.DirectoryCertificateStore();
-                }
+                ICertificateStore store = new Opc.Ua.DirectoryCertificateStore();
 
                 await store.Open(storePath);
                 await store.Add(certificate);

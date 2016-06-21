@@ -68,9 +68,20 @@ namespace Opc.Ua.Test
         /// <summary cref="IRandomSource.NextBytes" />
         public void NextBytes(byte[] bytes, int offset, int count)
         {
-            if (bytes == null) throw new ArgumentNullException("bytes");
-            if (offset < 0 || (offset != 0 && offset >= bytes.Length)) throw new ArgumentOutOfRangeException("offset");
-            if (count < 0 || offset+count > bytes.Length) throw new ArgumentOutOfRangeException("count");
+            if (bytes == null)
+            {
+                throw new ArgumentNullException("bytes");
+            }
+
+            if (offset < 0 || (offset != 0 && offset >= bytes.Length))
+            {
+                throw new ArgumentOutOfRangeException("offset");
+            }
+
+            if (count < 0 || offset + count > bytes.Length)
+            {
+                throw new ArgumentOutOfRangeException("count");
+            }
 
             if (bytes.Length == 0)
             {
@@ -93,7 +104,10 @@ namespace Opc.Ua.Test
         /// <summary cref="IRandomSource.NextInt32" />
         public int NextInt32(int max)
         {
-            if (max < 0) throw new ArgumentOutOfRangeException("max");
+            if (max < 0)
+            {
+                throw new ArgumentOutOfRangeException("max");
+            }
             
             if (max < Int32.MaxValue)
             {
@@ -1033,8 +1047,16 @@ namespace Opc.Ua.Test
                 string locale = null;
                 List<string> tokens = null;
 
-                using (StreamReader reader = new StreamReader(typeof(DataGenerator).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName)))
+                Stream istrm = typeof(DataGenerator).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName);
+                if (istrm == null)
                 {
+                    // try to load from app directory
+                    FileInfo file = new FileInfo(resourceName);
+                    istrm = file.OpenRead();
+                }
+
+                using (StreamReader reader = new StreamReader(istrm))
+                { 
                     for (string line = reader.ReadLine(); line != null; line = reader.ReadLine())
                     {
                         string token = line.Trim();

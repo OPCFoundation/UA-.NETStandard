@@ -750,25 +750,6 @@ namespace Opc.Ua.Configuration
                     {
                         Utils.Trace("Could not delete certificate '{0}' from store. Error={1}", id, e.Message);
                     }
-                    
-                    // permentently delete any UA defined stores if they are now empty.
-                    try
-                    {
-#if TODO
-                        WindowsCertificateStore store = new WindowsCertificateStore();
-                        await store.Open("LocalMachine\\UA Applications");
-
-                        X509Certificate2Collection collection = await store.Enumerate();
-                        if (collection.Count == 0)
-                        {
-                            store.PermanentlyDeleteStore();
-                        }
-#endif
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.Trace("Could not delete certificate '{0}' from store. Error={1}", id, e.Message);
-                    }
                 }
             }
         }

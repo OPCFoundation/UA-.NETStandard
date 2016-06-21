@@ -49,10 +49,6 @@ namespace Opc.Ua.SampleServer
                 // load the application configuration.
                 await application.LoadApplicationConfiguration(false);
 
-                // This call registers the certificate with HTTP.SYS 
-                // It must be called once after installation if the HTTPS endpoint is enabled.
-                // HttpAccessRule.SetHttpsCertificate(c.SecurityConfiguration.ApplicationCertificate.Find(true), 51212, false);
-
                 // check the application certificate.
                 await application.CheckApplicationInstanceCertificate(false, 0);
 

@@ -22,12 +22,10 @@ using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Xml.Linq;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua
@@ -753,40 +751,7 @@ namespace Opc.Ua
             ApplicationDataContainer settings = ApplicationData.Current.LocalSettings.CreateContainer(applicationName, ApplicationDataCreateDisposition.Always);
             return (List<string>) settings.Values["Recent File List"];
         }
-#if TODO
-        /// <summary>
-        /// Updates the contents of the recent file list for the application.
-        /// </summary>
-        public static void UpdateRecentFileList(string applicationName, string filePath, int maxEntries)
-        {
-            if (String.IsNullOrEmpty(applicationName)) throw new ArgumentNullException("applicationName");
 
-            // update existing list.
-            List<string> files = GetRecentFileList(applicationName);
-
-            if (maxEntries > 0)
-            {
-                if (String.IsNullOrEmpty(filePath))
-                {
-                    return;
-                }
-
-                for (int ii = 0; ii < files.Count; ii++)
-                {
-                    if (String.Compare(files[ii], filePath, StringComparison.OrdinalIgnoreCase) == 0)
-                    {
-                        files.RemoveAt(ii);
-                        break;
-                    }
-                }
-
-                files.Insert(0, filePath);
-            }
-
-            ApplicationDataContainer settings = ApplicationData.Current.LocalSettings.CreateContainer(applicationName, ApplicationDataCreateDisposition.Always);
-            settings.Values["Recent File List"] = files;
-        }
-#endif
         /// <summary>
         /// Truncates a file path so it can be displayed in a limited width view.
         /// </summary>
@@ -2217,14 +2182,13 @@ namespace Opc.Ua
         {
             return DateTime.Now;
         }
-#if TODO
+
         /// <summary>
         /// Returns the major/minor version number for an assembly formatted as a string.
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            PackageVersion version = Package.Current.Id.Version;
-            return Utils.Format("{0}.{1}", version.Major, version.Minor);
+            return AssemblyVersionInfo.CurrentVersion;
         }
 
         /// <summary>
@@ -2232,10 +2196,9 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-            PackageVersion version = Package.Current.Id.Version;
-            return Utils.Format("{0}.{1}", version.Build, (version.Revision << 16) + version.Build);
+            return AssemblyVersionInfo.CurrentFileVersion;
         }
-#endif
+
 #endregion
         
 #region Security Helper Functions

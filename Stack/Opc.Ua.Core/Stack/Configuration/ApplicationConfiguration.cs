@@ -360,27 +360,16 @@ namespace Opc.Ua
         /// <returns>File path from the application configuration file.</returns>
         public static string GetFilePathFromAppConfig(string sectionName)
         {
-            string filePath = null;
-            
-            // get the default application name from the executable file.
-            FileInfo file = new FileInfo(/*Package.Current.DisplayName*/"TODO: Displayname");
-            
-            // choose a default configuration file.
-            filePath = Utils.Format(
-                "{0}{1}{2}.Config.xml", 
-                file.DirectoryName, 
-                Path.DirectorySeparatorChar,
-                file.Name);
-            
             // convert to absolute file path (expands environment strings).
-            string absolutePath = Utils.GetAbsoluteFilePath(filePath, true, false, false);
-
+            string absolutePath = Utils.GetAbsoluteFilePath(sectionName + ".Config.xml", true, false, false);
             if (absolutePath != null)
             {
                 return absolutePath;
             }
-            // return the invalid file path.
-            return filePath;
+            else
+            {
+                return sectionName + ".Config.xml";
+            }
         }
 
         /// <summary>

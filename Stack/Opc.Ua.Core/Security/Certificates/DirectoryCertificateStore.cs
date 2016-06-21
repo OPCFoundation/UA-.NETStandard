@@ -79,8 +79,8 @@ namespace Opc.Ua
         /// <summary cref="ICertificateStore.Open(string)" />
         public async Task Open(string location)
         {
-            bool certsInRemovableStorageRootFound = false;
 #if TODO
+            bool certsInRemovableStorageRootFound = false;
             IReadOnlyList<StorageFolder> folders = new List<StorageFolder>();
 
             try

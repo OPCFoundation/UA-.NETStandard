@@ -440,14 +440,6 @@ namespace Opc.Ua
             // close the hosts.
             lock (m_hosts)
             {
-                foreach (Task host in m_hosts)
-                {
-                    if (host.Status == TaskStatus.Running)
-                    {
-                        //TODO: Kill task
-                    }
-                }
-
                 m_hosts.Clear();
             }
         }

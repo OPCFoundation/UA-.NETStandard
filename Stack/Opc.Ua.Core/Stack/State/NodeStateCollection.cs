@@ -409,10 +409,15 @@ namespace Opc.Ua
             if (assembly == null) throw new ArgumentNullException("assembly");
             
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
-
             if (istrm == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                // try to load from app directory
+                FileInfo file = new FileInfo(resourcePath);
+                istrm = file.OpenRead();
+                if (istrm == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                }
             }
 
             LoadFromXml(context, istrm, updateTables);
@@ -432,10 +437,15 @@ namespace Opc.Ua
             if (assembly == null) throw new ArgumentNullException("assembly");
             
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
-
             if (istrm == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                // try to load from app directory
+                FileInfo file = new FileInfo(resourcePath);
+                istrm = file.OpenRead();
+                if (istrm == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                }
             }
 
             LoadFromBinary(context, istrm, updateTables);

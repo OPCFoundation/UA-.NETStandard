@@ -1,16 +1,50 @@
 ﻿{
-  "dependencies": {
-    "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0"
-  },
-  "frameworks": {
-    "uap10.0": {}
-  },
-  "runtimes": {
-    "win10-arm": {},
-    "win10-arm-aot": {},
-    "win10-x86": {},
-    "win10-x86-aot": {},
-    "win10-x64": {},
-    "win10-x64-aot": {}
-  }
+  "version": "1.0.0-*",
+    "dependencies": {
+        "Opc.Ua.Core": "1.0.0-*",
+        "Opc.Ua.Server": "1.0.0-*",
+        "System.Data.Common": "4.0.1-rc2-24027",
+        "System.Runtime.InteropServices": "4.1.0-rc2-24027",
+    },
+    "frameworks": {
+        "netstandard1.4": {
+            "imports": "dnxcore50",
+            "dependencies": {
+                "NETStandard.Library": "1.5.0-rc2-24027",
+                "System.Private.ServiceModel": "4.1.0-rc2-24027",
+                "System.ServiceModel.Http": "4.1.0-rc2-24027",
+                "System.ServiceModel.NetTcp": "4.1.0-rc2-24027",
+                "System.ServiceModel.Security": "4.0.1-rc2-24027",
+                "System.Net.NetworkInformation": "4.1.0-rc2-24027",
+                "System.Security.Cryptography.X509Certificates": "4.1.0-rc2-24027",
+                "System.Security.Cryptography.Algorithms": "4.1.0-rc2-24027",
+                "System.ServiceModel.Primitives": "4.1.0-rc2-24027",
+                "System.Net.Sockets": "4.1.0-rc2-24027",
+                "System.Net.Requests": "4.0.11-rc2-24027"
+            }
+        },
+        "netstandard1.5": {
+            "imports": "dnxcore50",
+            "dependencies": {
+                "NETStandard.Library": "1.5.0-rc2-24027",
+                "System.Private.ServiceModel": "4.1.0-rc2-24027",
+                "System.ServiceModel.Http": "4.1.0-rc2-24027",
+                "System.ServiceModel.NetTcp": "4.1.0-rc2-24027",
+                "System.ServiceModel.Security": "4.0.1-rc2-24027",
+                "System.Net.NetworkInformation": "4.1.0-rc2-24027",
+                "System.Security.Cryptography.X509Certificates": "4.1.0-rc2-24027",
+                "System.Security.Cryptography.Algorithms": "4.1.0-rc2-24027",
+                "System.ServiceModel.Primitives": "4.1.0-rc2-24027",
+                "System.Net.Sockets": "4.1.0-rc2-24027",
+                "System.Net.Requests": "4.0.11-rc2-24027"
+            }
+        },
+        "uap10.0": {
+            "dependencies": {
+                "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0",
+                "System.Security.Cryptography.X509Certificates": "4.1.0-rc2-24027",
+                "System.Security.Cryptography.Algorithms": "4.1.0-rc2-24027"
+            }
+        }
+    }
 }
