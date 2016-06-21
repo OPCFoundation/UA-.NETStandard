@@ -29,6 +29,7 @@
 
 using System.Runtime.Serialization;
 using System.IO;
+using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -48,7 +49,7 @@ namespace Opc.Ua.Configuration
             // look in current directory.
             if (!file.Exists)
             {
-                file = new FileInfo(Utils.Format("{0}\\{1}", ApplicationData.Current.LocalFolder.Path, filePath));
+                file = new FileInfo(Utils.Format("{0}{1}{2}", PlatformServices.Default.Application.ApplicationBasePath, Path.DirectorySeparatorChar, filePath));
             }
 
             // look in executable directory.
@@ -64,7 +65,7 @@ namespace Opc.Ua.Configuration
                     StatusCodes.BadConfigurationError,
                     "File does not exist: {0}\r\nCurrent directory is: {1}",
                     filePath,
-                    ApplicationData.Current.LocalFolder.Path);
+                    PlatformServices.Default.Application.ApplicationBasePath);
             }
 
             return Load(file);

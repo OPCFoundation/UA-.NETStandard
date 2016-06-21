@@ -77,46 +77,14 @@ namespace Opc.Ua
 
         #region ICertificateStore Members
         /// <summary cref="ICertificateStore.Open(string)" />
-        public async Task Open(string location)
+        public void Open(string location)
         {
-#if TODO
-            bool certsInRemovableStorageRootFound = false;
-            IReadOnlyList<StorageFolder> folders = new List<StorageFolder>();
-
-            try
-            {
-                folders = await KnownFolders.RemovableDevices.GetFoldersAsync();
-                if (folders.Count > 0)
-                {
-                    IReadOnlyList<StorageFile> files = await folders[0].GetFilesAsync();
-                    if (files.Count > 0)
-                    {
-                        certsInRemovableStorageRootFound = true;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // do nothing
-            }
-#endif
             lock (m_lock)
             {
-#if TODO
-                if (certsInRemovableStorageRootFound && (folders.Count > 0))
-                {
-                    m_directory = new DirectoryInfo(folders[0].Path);
-                    m_certificateSubdir = m_directory;
-                    m_privateKeySubdir = m_directory;
-                }
-                else
-#endif
-                {
-                    location = Utils.ReplaceSpecialFolderNames(location);
-                    m_directory = new DirectoryInfo(location);
-                    m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
-                    m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
-                }
+                location = Utils.ReplaceSpecialFolderNames(location);
+                m_directory = new DirectoryInfo(location);
+                m_certificateSubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "certs");
+                m_privateKeySubdir = new DirectoryInfo(m_directory.FullName + Path.DirectorySeparatorChar + "private");
             }
         }
 

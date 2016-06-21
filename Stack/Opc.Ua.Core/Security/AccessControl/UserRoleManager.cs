@@ -93,7 +93,7 @@ namespace Opc.Ua
         /// </summary>
         public static void DeleteRole(string directory, string roleName)
         {
-            string filePath = directory + " \\" + roleName + m_FileExtension;
+            string filePath = directory + Path.DirectorySeparatorChar + roleName + m_FileExtension;
             AccessTemplateManager.DeleteFile(filePath);
         }
 

@@ -436,7 +436,7 @@ namespace Opc.Ua
             }
 
             // check for absolute path.
-            if (input.Length > 1 && ((input[0] == '\\' && input[1] == '\\') || input[1] == ':'))
+            if (Path.IsPathRooted(input))
             {
                 return input;
             }
@@ -489,57 +489,28 @@ namespace Opc.Ua
                 return null;
             }
 
-            // check installation folder.
-            StringBuilder buffer = new StringBuilder();
-            buffer.Append("%CommonProgramFiles%\\OPC Foundation\\UA\\v1.0\\Bin\\");
-            buffer.Append(fileName);
+            string path = null; 
+            
+            // check source tree.
+            DirectoryInfo directory = new DirectoryInfo(PlatformServices.Default.Application.ApplicationBasePath);
 
-            string path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
-
-            if (path == null)
+            while (directory != null)
             {
-                // check x86 installation folder.
-                path = Utils.GetAbsoluteDirectoryPath("%CommonProgramFiles%", false, false, false);
+                StringBuilder buffer = new StringBuilder();
+                buffer.Append(directory.FullName);
+                buffer.Append(Path.DirectorySeparatorChar + "Bin" + Path.DirectorySeparatorChar);
+                buffer.Append(fileName);
+
+                path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
 
                 if (path != null)
                 {
-                    DirectoryInfo directory = new DirectoryInfo(path);
-
-                    buffer = new StringBuilder();
-
-                    buffer.Append(directory.Parent.FullName);
-                    buffer.Append(" (x86)\\");
-                    buffer.Append(directory.Name);
-                    buffer.Append("\\OPC Foundation\\UA\\v1.0\\Bin\\");
-                    buffer.Append(fileName);
-
-                    path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
+                    break;
                 }
+
+                directory = directory.Parent;
             }
-
-            if (path == null)
-            {
-                // check source tree.
-                DirectoryInfo directory = new DirectoryInfo(ApplicationData.Current.LocalFolder.Path);
-
-                while (directory != null)
-                {
-                    buffer = new StringBuilder();
-                    buffer.Append(directory.FullName);
-                    buffer.Append("\\Bin\\");
-                    buffer.Append(fileName);
-
-                    path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
-
-                    if (path != null)
-                    {
-                        break;
-                    }
-
-                    directory = directory.Parent;
-                }
-            }
-
+            
             // return what was found.
             return path;
         }
@@ -564,7 +535,7 @@ namespace Opc.Ua
                 FileInfo file = new FileInfo(filePath);
 
                 // check for absolute path.
-                bool isAbsolute = filePath.StartsWith("\\\\", StringComparison.Ordinal) || filePath.IndexOf(':') == 1;
+                bool isAbsolute = Path.IsPathRooted(filePath);
                 
                 if (isAbsolute)
                 {
@@ -585,7 +556,7 @@ namespace Opc.Ua
                     if (checkCurrentDirectory)
                     {
                         // first check in local folder
-                        FileInfo localFile = new FileInfo(Utils.Format("{0}\\{1}", ApplicationData.Current.LocalFolder.Path, filePath));
+                        FileInfo localFile = new FileInfo(Utils.Format("{0}{1}{2}", PlatformServices.Default.Application.ApplicationBasePath, Path.DirectorySeparatorChar, filePath));
                         if (localFile.Exists)
                         {
                             return localFile.FullName;
@@ -611,7 +582,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "File does not exist: {0}\r\nCurrent directory is: {1}",
                     filePath,
-                    ApplicationData.Current.LocalFolder.Path);
+                    PlatformServices.Default.Application.ApplicationBasePath);
             }
 
             return null;
@@ -670,7 +641,7 @@ namespace Opc.Ua
                 DirectoryInfo directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
-                bool isAbsolute = dirPath.StartsWith("\\\\", StringComparison.Ordinal) || dirPath.IndexOf(':') == 1;
+                bool isAbsolute = Path.IsPathRooted(dirPath);
                 
                 if (isAbsolute)
                 {
@@ -693,7 +664,7 @@ namespace Opc.Ua
                     {
                         if (!directory.Exists)
                         {
-                            directory = new DirectoryInfo(Utils.Format("{0}\\{1}", ApplicationData.Current.LocalFolder.Path, dirPath));
+                            directory = new DirectoryInfo(Utils.Format("{0}{1}{2}", PlatformServices.Default.Application.ApplicationBasePath, Path.DirectorySeparatorChar, dirPath));
                         }
                     }
 
@@ -719,37 +690,10 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Directory does not exist: {0}\r\nCurrent directory is: {1}",
                     originalPath,
-                    ApplicationData.Current.LocalFolder.Path);
+                    PlatformServices.Default.Application.ApplicationBasePath);
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Returns the value of the user setting.
-        /// </summary>
-        public static string GetUserSetting(string applicationName, string keyName)
-        {
-            ApplicationDataContainer settings = ApplicationData.Current.LocalSettings.CreateContainer(applicationName, ApplicationDataCreateDisposition.Always);
-            return settings.Values[keyName].ToString();
-        }
-
-        /// <summary>
-        /// Sets the value of the user setting.
-        /// </summary>
-        public static void SetUserSetting(string applicationName, string keyName, string value)
-        {
-            ApplicationDataContainer settings = ApplicationData.Current.LocalSettings.CreateContainer(applicationName, ApplicationDataCreateDisposition.Always);
-            settings.Values[keyName] = value;
-        }
-
-        /// <summary>
-        /// Returns the contents of the recent file list for the application.
-        /// </summary>
-        public static List<string> GetRecentFileList(string applicationName)
-        {
-            ApplicationDataContainer settings = ApplicationData.Current.LocalSettings.CreateContainer(applicationName, ApplicationDataCreateDisposition.Always);
-            return (List<string>) settings.Values["Recent File List"];
         }
 
         /// <summary>

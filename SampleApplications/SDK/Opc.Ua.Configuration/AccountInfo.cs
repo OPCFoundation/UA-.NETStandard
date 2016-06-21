@@ -108,7 +108,7 @@ namespace Opc.Ua.Configuration
             
             if (!String.IsNullOrEmpty(m_domain))
             {
-                return Utils.Format(@"{0}\{1}", m_domain, m_name);
+                return Utils.Format("{0}{1}{2}", m_domain, Path.DirectorySeparatorChar, m_name);
             }
 
             return m_name;

@@ -17,6 +17,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua
 {
@@ -332,7 +333,7 @@ namespace Opc.Ua
             {
                 ICertificateStore store = new Opc.Ua.DirectoryCertificateStore();
 
-                await store.Open(storePath);
+                store.Open(storePath);
                 await store.Add(certificate);
             }
 
@@ -347,7 +348,7 @@ namespace Opc.Ua
             string executablePath = null;
 
             //first check on the same folder as the current executable
-            executablePath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "Opc.Ua.CertificateGenerator.exe");
+            executablePath = Path.Combine(PlatformServices.Default.Application.ApplicationBasePath, "Opc.Ua.CertificateGenerator.exe");
             executablePath = Utils.GetAbsoluteFilePath(executablePath, false, false, false);
 
             if (executablePath != null)
@@ -358,12 +359,12 @@ namespace Opc.Ua
             // recursively go up the tree looking for /Bin directories.
             if (executablePath == null)
             {
-                DirectoryInfo dirInfo = new DirectoryInfo(ApplicationData.Current.LocalFolder.Path);
+                DirectoryInfo dirInfo = new DirectoryInfo(PlatformServices.Default.Application.ApplicationBasePath);
 
                 while (dirInfo != null)
                 {
                     executablePath = dirInfo.FullName;
-                    executablePath += "\\Bin\\Opc.Ua.CertificateGenerator.exe";
+                    executablePath += (Path.DirectorySeparatorChar + "Bin" + Path.DirectorySeparatorChar + "Opc.Ua.CertificateGenerator.exe");
                     executablePath = Utils.GetAbsoluteFilePath(executablePath, false, false, false);
 
                     if (executablePath != null)
@@ -375,15 +376,15 @@ namespace Opc.Ua
                 }
             }
 
-            // hard the the proxy path name for now.
-            string commonFilesDir = Utils.GetAbsoluteDirectoryPath(@"%CommonProgramFiles%", false, false);
-            string relativePath = @"\OPC Foundation\UA\v1.0\Bin\Opc.Ua.CertificateGenerator.exe";
+            // hardcode the proxy path name for now.
+            string commonFilesDir = Utils.GetAbsoluteDirectoryPath("%CommonProgramFiles%", false, false);
+            string relativePath = Path.DirectorySeparatorChar + "OPC Foundation"+ Path.DirectorySeparatorChar + "UA" + Path.DirectorySeparatorChar + "v1.0" + Path.DirectorySeparatorChar + "Bin" + Path.DirectorySeparatorChar + "Opc.Ua.CertificateGenerator.exe";
             executablePath = Utils.GetAbsoluteFilePath(commonFilesDir + relativePath, false, false, false);
 
             if (executablePath == null)
             {
                 // try the x86 directory.
-                int index = commonFilesDir.LastIndexOf('\\', commonFilesDir.Length - 2);
+                int index = commonFilesDir.LastIndexOf(Path.DirectorySeparatorChar, commonFilesDir.Length - 2);
 
                 if (index != -1)
                 {
@@ -588,7 +589,7 @@ namespace Opc.Ua
 
                 // load the new certificate from the store.
                 ICertificateStore store = new Opc.Ua.DirectoryCertificateStore();
-                await store.Open(storePath);
+                store.Open(storePath);
                 X509Certificate2Collection certificates = await store.FindByThumbprint(thumbprint);
                 store.Close();
 
@@ -743,7 +744,7 @@ namespace Opc.Ua
         {
             X509Certificate2 certificate = await CreateCertificate(
                 CertificateStoreType.Windows,
-                storeLocation + "\\" + storeName,
+                storeLocation + Path.DirectorySeparatorChar + storeName,
                 applicationUri,
                 applicationName,
                 null,

@@ -12,6 +12,7 @@
 
 
 
+using Microsoft.Extensions.PlatformAbstractions;
 using System.IO;
 
 namespace Opc.Ua
@@ -49,7 +50,7 @@ namespace Opc.Ua
             {
                 RejectedCertificateStore = new CertificateStoreIdentifier();
                 RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-                RejectedCertificateStore.StorePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Rejected";
+                RejectedCertificateStore.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "Rejected";
             }             
         }
 

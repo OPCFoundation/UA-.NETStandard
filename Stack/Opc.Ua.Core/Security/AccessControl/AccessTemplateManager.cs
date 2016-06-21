@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// </summary>
         public static void DeleteTemplate(string directory, string templateName)
         {
-            string filePath = directory + " \\" + templateName + m_FileExtension;
+            string filePath = directory + Path.DirectorySeparatorChar + templateName + m_FileExtension;
             AccessTemplateManager.DeleteFile(filePath);
         }
 

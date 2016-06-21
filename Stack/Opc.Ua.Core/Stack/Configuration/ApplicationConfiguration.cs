@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using Microsoft.Extensions.PlatformAbstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -241,7 +242,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Configuration file does not exist: {0}\r\nCurrent directory is: {1}",
                     filePath,
-                    ApplicationData.Current.LocalFolder.Path);
+                    PlatformServices.Default.Application.ApplicationBasePath);
             }
 
             return await Load(file, applicationType, systemType);
@@ -506,8 +507,8 @@ namespace Opc.Ua
             if (filePath == null)
             {
                 filePath = m_clientConfiguration.EndpointCacheFilePath;
-                // TODO: ////
-                if (!filePath.StartsWith("\\\\", StringComparison.Ordinal) && filePath.IndexOf(":", StringComparison.Ordinal) != 1)
+                
+                if (!Path.IsPathRooted(filePath))
                 {
                     FileInfo sourceFile = new FileInfo(this.SourceFilePath);
                     filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);

@@ -44,19 +44,19 @@ namespace NetCoreConsoleClient
                 {
                     ApplicationCertificate = new CertificateIdentifier
                     {
-                        StoreType = @"Directory",
-                        StorePath = @"",
-                        SubjectName = Utils.Format(@"CN={0}, DC={1}", "UA Sample Client", Utils.GetHostName())
+                        StoreType = "Directory",
+                        StorePath = "",
+                        SubjectName = Utils.Format("CN={0}, DC={1}", "UA Sample Client", Utils.GetHostName())
                     },
                     TrustedPeerCertificates = new CertificateTrustList
                     {
-                        StoreType = @"Directory",
-                        StorePath = @"",
+                        StoreType = "Directory",
+                        StorePath = "",
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
-                        StoreType = @"Directory",
-                        StorePath = @"",
+                        StoreType = "Directory",
+                        StorePath = "",
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true

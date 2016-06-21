@@ -36,6 +36,7 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Net;
+using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -243,7 +244,7 @@ namespace Opc.Ua.Configuration
 
             // update fixed fields in the installation config.
             InstallConfig.ApplicationType = (Opc.Ua.Security.ApplicationType)(int)ApplicationType;
-            InstallConfig.ExecutableFile = ApplicationData.Current.LocalFolder.Path;
+            InstallConfig.ExecutableFile = PlatformServices.Default.Application.ApplicationBasePath;
 
             if (InstallConfig.TraceConfiguration != null)
             {
@@ -747,7 +748,11 @@ namespace Opc.Ua.Configuration
                 try
                 {
                     // install the GDS agent configuration file
-                    string agentPath = Utils.GetAbsoluteDirectoryPath(ApplicationData.Current.LocalFolder.Path + "\\OPC Foundation\\GDS\\Applications", false, false, true);
+                    string agentPath = Utils.GetAbsoluteDirectoryPath(
+                        PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
+                        false,
+                        false,
+                        true);
 
                     if (agentPath != null)
                     {
@@ -756,7 +761,7 @@ namespace Opc.Ua.Configuration
 
                         DataContractSerializer serializer = new DataContractSerializer(typeof(Opc.Ua.Security.SecuredApplication));
 
-                        using (FileStream ostrm = File.Open(agentPath + "\\" + configuration.ApplicationName + ".xml", FileMode.Create))
+                        using (FileStream ostrm = File.Open(agentPath + Path.DirectorySeparatorChar + configuration.ApplicationName + ".xml", FileMode.Create))
                         {
                             serializer.WriteObject(ostrm, export);
                             Utils.Trace(Utils.TraceMasks.Information, "Created GDS agent configuration file.");
@@ -803,11 +808,15 @@ namespace Opc.Ua.Configuration
             {
                 try
                 {
-                    string agentPath = Utils.GetAbsoluteDirectoryPath(ApplicationData.Current.LocalFolder.Path + "\\OPC Foundation\\GDS\\Applications", false, false, false);
+                    string agentPath = Utils.GetAbsoluteDirectoryPath(
+                        PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
+                        false,
+                        false,
+                        false);
 
                     if (agentPath != null)
                     {
-                        File.Delete(agentPath + "\\" + configuration.ApplicationName + ".xml");
+                        File.Delete(agentPath + Path.DirectorySeparatorChar + configuration.ApplicationName + ".xml");
                     }
                 }
                 catch (Exception e)
@@ -1341,7 +1350,7 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                string configurationPath = Utils.GetAbsoluteFilePath(ApplicationData.Current.LocalFolder.Path + @"\OPC Foundation\Config\Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
+                string configurationPath = Utils.GetAbsoluteFilePath(PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Config" + Path.DirectorySeparatorChar + "Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
 
                 if (configurationPath == null)
                 {

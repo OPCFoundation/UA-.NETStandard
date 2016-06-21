@@ -34,6 +34,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
 using System.Threading.Tasks;
+using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -203,35 +204,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Saves the specified file path.
-        /// </summary>
-        /// <param name="filePath">The file path. Uses the original source file path if not provided.</param>
-        public void Save(string filePath)
-        {
-            if (String.IsNullOrEmpty(filePath))
-            {
-                if (m_sourceFile == null)
-                {
-                    filePath = Utils.GetAbsoluteDirectoryPath("%LocalApplicationData%\\OPC Foundation\\Applications\\", false, false, true);
-                    filePath += m_displayName;
-                    filePath += "*.xml";
-                }
-                else
-                {
-                    filePath = m_sourceFile.FullName;
-                }
-            }
-
-            using (Stream ostrm = File.Open(filePath, FileMode.Create))
-            {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(ManagedApplication));
-                serializer.WriteObject(ostrm, this);
-            }
-
-            m_sourceFile = new FileInfo(filePath);
-        }
-
-        /// <summary>
         /// Sets the executable file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
@@ -304,7 +276,7 @@ namespace Opc.Ua.Configuration
             }
 
             FileInfo executablePath = new FileInfo(m_executablePath);
-            string currentDirectory = ApplicationData.Current.LocalFolder.Path;
+            string currentDirectory = PlatformServices.Default.Application.ApplicationBasePath;
             
             try
             {

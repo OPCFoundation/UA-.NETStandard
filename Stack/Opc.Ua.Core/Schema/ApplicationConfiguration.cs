@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using Microsoft.Extensions.PlatformAbstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1971,13 +1972,13 @@ namespace Opc.Ua
 
             set
             {
-                if (value.StartsWith(ApplicationData.Current.LocalFolder.Path) == true)
+                if (value.StartsWith(PlatformServices.Default.Application.ApplicationBasePath) == true)
                 {
                     m_storePath = value;
                 }
                 else
                 {
-                    m_storePath = ApplicationData.Current.LocalFolder.Path;
+                    m_storePath = PlatformServices.Default.Application.ApplicationBasePath;
                     if (!String.IsNullOrEmpty(value))
                     {
                         m_storePath += Path.DirectorySeparatorChar + value;
@@ -2238,13 +2239,13 @@ namespace Opc.Ua
 
             set
             {
-                if (value.StartsWith(ApplicationData.Current.LocalFolder.Path))
+                if (value.StartsWith(PlatformServices.Default.Application.ApplicationBasePath))
                 {
                     m_storePath = value;
                 }
                 else
                 {
-                    m_storePath = ApplicationData.Current.LocalFolder.Path;
+                    m_storePath = PlatformServices.Default.Application.ApplicationBasePath;
                     if (!String.IsNullOrEmpty(value))
                     {
                         m_storePath += Path.DirectorySeparatorChar + value;
