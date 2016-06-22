@@ -166,27 +166,6 @@ namespace Opc.Ua.Configuration
  
         #region Public Methods
         /// <summary>
-        /// Creates an account info object from an identity name.
-        /// </summary>
-        public static AccountInfo Create(string identityName)
-        {
-            Debug.WriteLine("CONFIGURATION CONSOLE AccountInfo {0}", identityName);
-
-            // create account info object.
-            AccountInfo account = new AccountInfo();
-
-            //TODO: account.Name = KnownUserProperties.DisplayName;
-            //TODO: account.Sid = KnownUserProperties.AccountName;
-            //TODO: account.Domain = KnownUserProperties.DomainName;
-
-            account.SidType = AccountSidType.User;
-            account.Description = String.Empty;
-            account.Status = String.Empty;
-
-            return account;
-        }
-
-        /// <summary>
         /// Applies the filters to the accounts.
         /// </summary>
         public static IList<AccountInfo> ApplyFilters(AccountFilters filters, IList<AccountInfo> accounts)
