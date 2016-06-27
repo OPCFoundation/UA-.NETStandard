@@ -490,6 +490,16 @@
         
       </ListOfAmqpConnectionConfigurations>
     </Extension>
+    
+    <Extension>
+      <ListOfPublishedNodes xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <NodeId>
+          <!-- Current Server Time -->
+          <ua:Identifier>i=2258</ua:Identifier>
+        </NodeId>
+      </ListOfPublishedNodes>
+    </Extension>
+  
   </Extensions>
 
   <!--

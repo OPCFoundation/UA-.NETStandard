@@ -1968,6 +1968,11 @@ namespace Opc.Ua
                     DataContractSerializer serializer = new DataContractSerializer(typeof(T));
                     return (T)serializer.ReadObject(reader);
                 }
+                catch (Exception ex)
+                {
+                    Utils.Trace("Exception parsing extension: " + ex.Message);
+                    throw ex;
+                }
                 finally
                 {
                    reader.Dispose();

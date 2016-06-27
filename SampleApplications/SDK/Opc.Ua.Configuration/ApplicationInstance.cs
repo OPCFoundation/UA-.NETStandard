@@ -1024,39 +1024,6 @@ namespace Opc.Ua.Configuration
         }
         #endregion
 
-        #region HTTPS Support
-        /// <summary>
-        /// Uses the UA validation logic for HTTPS certificates.
-        /// </summary>
-        /// <param name="validator">The validator.</param>
-        public static void SetUaValidationForHttps(CertificateValidator validator)
-        {
-            m_validator = validator;
-        }
-
-        /// <summary>
-        /// Remotes the certificate validate.
-        /// </summary>
-        private static bool HttpsCertificateValidation(
-            object sender,
-            X509Certificate2 cert,
-            System.Net.Security.SslPolicyErrors error)
-        {
-            try
-            {
-                m_validator.Validate(new X509Certificate2(cert.RawData));
-                return true;
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not verify SSL certificate: {0}", cert.Subject);
-                return false;
-            }
-        }
-
-        private static CertificateValidator m_validator;
-        #endregion
-
         #region Private Methods
         /// <summary>
         /// Handles a certificate validation error.

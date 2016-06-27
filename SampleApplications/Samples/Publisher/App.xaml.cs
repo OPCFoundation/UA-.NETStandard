@@ -48,15 +48,11 @@ namespace Opc.Ua.Publisher
                 // load the application configuration.
                 await application.LoadApplicationConfiguration(false);
 
-                // allow UA servers to use the same certificate for HTTPS validation.
-                ApplicationInstance.SetUaValidationForHttps(application.ApplicationConfiguration.CertificateValidator);
-
                 // run the application interactively.
                 Window.Current.Content = new ClientPage(application.ApplicationConfiguration.CreateMessageContext(), application, null, application.ApplicationConfiguration);
 
                 // Ensure the current window is active
                 Window.Current.Activate();
-
             }
             catch (ServiceResultException ex)
             {
