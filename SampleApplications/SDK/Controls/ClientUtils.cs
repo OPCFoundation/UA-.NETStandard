@@ -318,7 +318,7 @@ namespace Opc.Ua.Client.Controls
         public static EndpointDescription SelectEndpoint(ApplicationConfiguration application, string discoveryUrl, bool useSecurity)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttps))
             {
                 if (!discoveryUrl.EndsWith("/discovery"))
                 {

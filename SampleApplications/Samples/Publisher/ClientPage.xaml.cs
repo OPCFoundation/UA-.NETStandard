@@ -11,7 +11,6 @@
 */
 
 using Opc.Ua.Client;
-using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
@@ -24,6 +23,7 @@ using Windows.UI.Text;
 using Windows.UI;
 using System.Threading;
 using System.Text;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.Publisher
 {

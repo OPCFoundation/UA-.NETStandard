@@ -33,7 +33,6 @@ using Windows.UI.Xaml;
 using System.Threading.Tasks;
 using Windows.UI.Xaml.Controls.Primitives;
 using Opc.Ua.Configuration;
-using System;
 
 namespace Opc.Ua.Client.Controls
 {

@@ -30,13 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Threading;
 using Windows.UI.Xaml.Controls;
-using Opc.Ua;
 using System.Threading.Tasks;
 using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Popups;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 
@@ -466,22 +463,13 @@ namespace Opc.Ua.Client.Controls
             {
                 Url = Utils.ParseUri(url.EndpointUrl);
 
-                if (Url.Scheme == Utils.UriSchemeHttp)
+                if (Url.Scheme == Utils.UriSchemeHttps)
                 {
                     switch (url.TransportProfileUri)
                     {
-                        case Profiles.HttpsXmlTransport:
                         case Profiles.HttpsBinaryTransport:
-                        case Profiles.HttpsXmlOrBinaryTransport:
                         {
                             Profile = "REST";
-                            break;
-                        }
-
-                        case Profiles.WsHttpXmlTransport:
-                        case Profiles.WsHttpXmlOrBinaryTransport:
-                        {
-                            Profile = "WS-*";
                             break;
                         }
                     }

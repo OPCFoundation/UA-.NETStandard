@@ -1,8 +1,9 @@
 ﻿{
-  "dependencies": {
-    "AMQPNetLite": "1.1.8",
-    "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0"
-  },
+    "dependencies": {
+        "AMQPNetLite": "1.1.8",
+        "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0",
+        "System.Security.Cryptography.Algorithms": "4.1.0-rc2-24027"
+    },
   "frameworks": {
     "uap10.0": {}
   },
