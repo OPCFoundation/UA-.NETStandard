@@ -26,6 +26,10 @@ namespace NetCoreConsolePublisher
     [CollectionDataContract(Name = "ListOfPublishedNodes", Namespace = Namespaces.OpcUaConfig, ItemName = "NodeId")]
     public partial class PublishedNodesCollection : List<NodeId>
     {
+        public PublishedNodesCollection()
+        {
+        }
+
         public static PublishedNodesCollection Load(ApplicationConfiguration configuration)
         {
             return configuration.ParseExtension<PublishedNodesCollection>();

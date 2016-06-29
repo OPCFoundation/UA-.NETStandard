@@ -10,9 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
-
-using Microsoft.Extensions.PlatformAbstractions;
 using System.IO;
 
 namespace Opc.Ua
@@ -50,7 +47,7 @@ namespace Opc.Ua
             {
                 RejectedCertificateStore = new CertificateStoreIdentifier();
                 RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-                RejectedCertificateStore.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "Rejected";
+                RejectedCertificateStore.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "Rejected";
             }             
         }
 

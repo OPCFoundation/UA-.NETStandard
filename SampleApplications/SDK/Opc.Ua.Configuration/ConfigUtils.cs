@@ -29,14 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Xml;
 using System.Threading.Tasks;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -59,7 +55,7 @@ namespace Opc.Ua.Configuration
         public static string GetLogFileDirectory()
         {
             // try the program data directory.
-            string logFileDirectory = PlatformServices.Default.Application.ApplicationBasePath;
+            string logFileDirectory = Directory.GetCurrentDirectory();
             logFileDirectory += Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Logs";
 
             try
@@ -102,7 +98,7 @@ namespace Opc.Ua.Configuration
             catch (Exception)
             {
                 // try the MyDocuments directory instead.
-                logFileDirectory = PlatformServices.Default.Application.ApplicationBasePath;
+                logFileDirectory = Directory.GetCurrentDirectory();
                 logFileDirectory += "OPC Foundation" + Path.DirectorySeparatorChar + "Logs";
 
                 if (!Directory.Exists(logFileDirectory))
@@ -231,7 +227,7 @@ namespace Opc.Ua.Configuration
             {
                 application.ApplicationCertificate = new Opc.Ua.Security.CertificateIdentifier();
                 application.ApplicationCertificate.StoreType = Utils.DefaultStoreType;
-                application.ApplicationCertificate.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault";
+                application.ApplicationCertificate.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault";
                 application.ApplicationCertificate.SubjectName = application.ApplicationName;
             }
 
@@ -239,14 +235,14 @@ namespace Opc.Ua.Configuration
             {
                 application.IssuerCertificateStore = new Opc.Ua.Security.CertificateStoreIdentifier();
                 application.IssuerCertificateStore.StoreType = Utils.DefaultStoreType;
-                application.IssuerCertificateStore.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault";
+                application.IssuerCertificateStore.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault";
             }
 
             if (application.TrustedCertificateStore == null)
             {
                 application.TrustedCertificateStore = new Opc.Ua.Security.CertificateStoreIdentifier();
                 application.TrustedCertificateStore.StoreType = Utils.DefaultStoreType;
-                application.TrustedCertificateStore.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + Path.DirectorySeparatorChar + "MachineDefault";
+                application.TrustedCertificateStore.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + Path.DirectorySeparatorChar + "MachineDefault";
             }
 
             try
@@ -262,7 +258,7 @@ namespace Opc.Ua.Configuration
             {
                 application.RejectedCertificatesStore = new Opc.Ua.Security.CertificateStoreIdentifier();
                 application.RejectedCertificatesStore.StoreType = CertificateStoreType.Directory;
-                application.RejectedCertificatesStore.StorePath = PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "Rejected";
+                application.RejectedCertificatesStore.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "Rejected";
             }
 
             if (application.RejectedCertificatesStore.StoreType == CertificateStoreType.Directory)

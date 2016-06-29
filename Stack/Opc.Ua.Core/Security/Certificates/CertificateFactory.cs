@@ -17,7 +17,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua
 {
@@ -348,7 +347,7 @@ namespace Opc.Ua
             string executablePath = null;
 
             //first check on the same folder as the current executable
-            executablePath = Path.Combine(PlatformServices.Default.Application.ApplicationBasePath, "Opc.Ua.CertificateGenerator.exe");
+            executablePath = Path.Combine(Directory.GetCurrentDirectory(), "Opc.Ua.CertificateGenerator.exe");
             executablePath = Utils.GetAbsoluteFilePath(executablePath, false, false, false);
 
             if (executablePath != null)
@@ -359,7 +358,7 @@ namespace Opc.Ua
             // recursively go up the tree looking for /Bin directories.
             if (executablePath == null)
             {
-                DirectoryInfo dirInfo = new DirectoryInfo(PlatformServices.Default.Application.ApplicationBasePath);
+                DirectoryInfo dirInfo = new DirectoryInfo(Directory.GetCurrentDirectory());
 
                 while (dirInfo != null)
                 {

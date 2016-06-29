@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using Microsoft.Extensions.PlatformAbstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,8 +17,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-
-
 
 namespace Opc.Ua
 {
@@ -242,7 +239,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Configuration file does not exist: {0}\r\nCurrent directory is: {1}",
                     filePath,
-                    PlatformServices.Default.Application.ApplicationBasePath);
+                    Directory.GetCurrentDirectory());
             }
 
             return await Load(file, applicationType, systemType);

@@ -17,6 +17,10 @@ namespace Opc.Ua.Publisher
     [CollectionDataContract(Name = "ListOfAmqpConnectionConfigurations", Namespace = Namespaces.OpcUaConfig, ItemName = "AmqpConnectionConfiguration")]
     public partial class AmqpConnectionCollection : List<AmqpConnection>
     {
+        public AmqpConnectionCollection()
+        {
+        }
+
         public static AmqpConnectionCollection Load(ApplicationConfiguration configuration)
         {
             return configuration.ParseExtension<AmqpConnectionCollection>();

@@ -17,7 +17,6 @@ using System.Xml.Serialization;
 using System.IO;
 using System.Reflection;
 using System.Globalization;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Schema
 {
@@ -210,7 +209,7 @@ namespace Opc.Ua.Schema
                 }
                  
                 // check for file in the process directory.
-                fileInfo = new FileInfo(PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + fileInfo.Name);
+                fileInfo = new FileInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
             
                 if (fileInfo.Exists)
                 {

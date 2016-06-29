@@ -26,7 +26,6 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Xml.Linq;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua
 {
@@ -83,7 +82,7 @@ namespace Opc.Ua
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
 
-        private static string s_traceFileName = PlatformServices.Default.Application.ApplicationName + ".log";
+        private static string s_traceFileName = "trace.log";
         private static long s_BaseLineTicks = DateTime.UtcNow.Ticks;
         private static object s_traceFileLock = new object();
 
@@ -492,7 +491,7 @@ namespace Opc.Ua
             string path = null; 
             
             // check source tree.
-            DirectoryInfo directory = new DirectoryInfo(PlatformServices.Default.Application.ApplicationBasePath);
+            DirectoryInfo directory = new DirectoryInfo(Directory.GetCurrentDirectory());
 
             while (directory != null)
             {
@@ -556,7 +555,7 @@ namespace Opc.Ua
                     if (checkCurrentDirectory)
                     {
                         // first check in local folder
-                        FileInfo localFile = new FileInfo(Utils.Format("{0}{1}{2}", PlatformServices.Default.Application.ApplicationBasePath, Path.DirectorySeparatorChar, filePath));
+                        FileInfo localFile = new FileInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
                         if (localFile.Exists)
                         {
                             return localFile.FullName;
@@ -582,7 +581,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "File does not exist: {0}\r\nCurrent directory is: {1}",
                     filePath,
-                    PlatformServices.Default.Application.ApplicationBasePath);
+                    Directory.GetCurrentDirectory());
             }
 
             return null;
@@ -664,7 +663,7 @@ namespace Opc.Ua
                     {
                         if (!directory.Exists)
                         {
-                            directory = new DirectoryInfo(Utils.Format("{0}{1}{2}", PlatformServices.Default.Application.ApplicationBasePath, Path.DirectorySeparatorChar, dirPath));
+                            directory = new DirectoryInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, dirPath));
                         }
                     }
 
@@ -690,7 +689,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Directory does not exist: {0}\r\nCurrent directory is: {1}",
                     originalPath,
-                    PlatformServices.Default.Application.ApplicationBasePath);
+                    Directory.GetCurrentDirectory());
             }
 
             return null;

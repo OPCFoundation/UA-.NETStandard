@@ -36,7 +36,6 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Net;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -244,7 +243,7 @@ namespace Opc.Ua.Configuration
 
             // update fixed fields in the installation config.
             InstallConfig.ApplicationType = (Opc.Ua.Security.ApplicationType)(int)ApplicationType;
-            InstallConfig.ExecutableFile = PlatformServices.Default.Application.ApplicationBasePath;
+            InstallConfig.ExecutableFile = Directory.GetCurrentDirectory();
 
             if (InstallConfig.TraceConfiguration != null)
             {
@@ -749,7 +748,7 @@ namespace Opc.Ua.Configuration
                 {
                     // install the GDS agent configuration file
                     string agentPath = Utils.GetAbsoluteDirectoryPath(
-                        PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
+                        Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
                         false,
                         false,
                         true);
@@ -809,7 +808,7 @@ namespace Opc.Ua.Configuration
                 try
                 {
                     string agentPath = Utils.GetAbsoluteDirectoryPath(
-                        PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
+                        Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "GDS" + Path.DirectorySeparatorChar + "Applications",
                         false,
                         false,
                         false);
@@ -1317,7 +1316,7 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                string configurationPath = Utils.GetAbsoluteFilePath(PlatformServices.Default.Application.ApplicationBasePath + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Config" + Path.DirectorySeparatorChar + "Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
+                string configurationPath = Utils.GetAbsoluteFilePath(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Config" + Path.DirectorySeparatorChar + "Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
 
                 if (configurationPath == null)
                 {

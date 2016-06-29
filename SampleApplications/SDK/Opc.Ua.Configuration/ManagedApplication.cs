@@ -28,13 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Text;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
-using System.Threading.Tasks;
-using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Opc.Ua.Configuration
 {
@@ -276,7 +272,7 @@ namespace Opc.Ua.Configuration
             }
 
             FileInfo executablePath = new FileInfo(m_executablePath);
-            string currentDirectory = PlatformServices.Default.Application.ApplicationBasePath;
+            string currentDirectory = Directory.GetCurrentDirectory();
             
             try
             {
