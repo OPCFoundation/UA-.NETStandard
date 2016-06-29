@@ -2588,7 +2588,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        private ConfiguredEndpoint()
+        public ConfiguredEndpoint()
         {
             Initialize();
         }

@@ -15,12 +15,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Xml;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
-{   
+{
     /// <summary>
     /// Stores a list of cached enpoints.
     /// </summary>

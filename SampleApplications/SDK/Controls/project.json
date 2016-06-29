@@ -1,8 +1,6 @@
 ﻿{
   "dependencies": {
     "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.0",
-    "System.Security.Cryptography.Algorithms": "4.2.0",
-    "System.Security.Cryptography.X509Certificates": "4.1.0",
     "WinRTXamlToolkit.UWP": "2.0.0"
   },
   "frameworks": {

@@ -249,7 +249,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        FileInfo file = new FileInfo(traceFileName);
+                        FileInfo file = new FileInfo(Utils.Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, traceFileName));
 
                         // limit the file size. hard coded for now - fix later.
                         bool truncated = false;
@@ -260,7 +260,7 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (StreamWriter writer = new StreamWriter(File.Open(traceFileName, FileMode.Append)))
+                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append)))
                         {
                             if (truncated)
                             {
@@ -555,7 +555,15 @@ namespace Opc.Ua
                     if (checkCurrentDirectory)
                     {
                         // first check in local folder
-                        FileInfo localFile = new FileInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
+                        FileInfo localFile = null;
+                        if (!writable)
+                        {
+                            localFile = new FileInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
+                        }
+                        else
+                        {
+                            localFile = new FileInfo(Utils.Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath));
+                        }
                         if (localFile.Exists)
                         {
                             return localFile.FullName;

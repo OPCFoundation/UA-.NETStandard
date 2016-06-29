@@ -182,7 +182,6 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>http://localhost:61211/UA/SampleClient</ua:String>
       <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
       <!--<ua:String>net.tcp://localhost:61214/UA/SampleClient</ua:String>
       <ua:String>net.pipe://localhost/UA/SampleClient</ua:String>-->
