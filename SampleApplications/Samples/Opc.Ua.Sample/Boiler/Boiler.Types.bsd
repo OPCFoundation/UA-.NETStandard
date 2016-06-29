@@ -1,0 +1,12 @@
+<opc:TypeDictionary
+  xmlns:opc="http://opcfoundation.org/BinarySchema/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:tns="http://opcfoundation.org/UA/Boiler/"
+  DefaultByteOrder="LittleEndian"
+  TargetNamespace="http://opcfoundation.org/UA/Boiler/"
+>
+  <!-- This File was generated on 2013-01-22 and supports the specifications supported by version 1.1.334.0 of the OPC UA deliverables. -->
+  <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
+
+</opc:TypeDictionary>

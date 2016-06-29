@@ -14,7 +14,6 @@ using System;
 using Windows.UI.Xaml.Controls;
 using System.Threading;
 using Windows.UI.Core;
-
 using Opc.Ua.Server;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;

@@ -1,0 +1,333 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://opcfoundation.org/UA/Boiler/"
+  TargetNamespace="http://opcfoundation.org/UA/Boiler/"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="Boiler" Prefix="Boiler">http://opcfoundation.org/UA/Boiler/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ReferenceType SymbolicName="FlowTo" BaseType="ua:NonHierarchicalReferences">
+    <opc:Description>A reference that indicates a flow between two objects.</opc:Description>
+    <opc:InverseName>FlowFrom</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HotFlowTo" BaseType="FlowTo">
+    <opc:Description>A reference that indicates a high temperature flow between two objects.</opc:Description>
+    <opc:InverseName>HotFlowFrom</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="SignalTo" BaseType="ua:NonHierarchicalReferences">
+    <opc:Description>A reference that indicates an electrical signal between two variables.</opc:Description>
+    <opc:InverseName>SignalFrom</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ObjectType SymbolicName="GenericControllerType" BaseType="ua:BaseObjectType">
+    <opc:Description>A generic PID controller</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="Measurement" DataType="ua:Double" ValueRank="Scalar" />
+      <opc:Property SymbolicName="SetPoint" DataType="ua:Double" ValueRank="Scalar" AccessLevel="ReadWrite" />
+      <opc:Property SymbolicName="ControlOut" DataType="ua:Double" ValueRank="Scalar" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="GenericSensorType" BaseType="ua:BaseObjectType">
+    <opc:Description>A generic sensor that read a process value.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="Output" DataType="ua:Double" ValueRank="Scalar" TypeDefinition="ua:AnalogItemType" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="GenericActuatorType" BaseType="ua:BaseObjectType">
+    <opc:Description>Represents a piece of equipment that causes some action to occur.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="Input" DataType="ua:Double" ValueRank="Scalar" TypeDefinition="ua:AnalogItemType" AccessLevel="Write" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="CustomControllerType" BaseType="ua:BaseObjectType">
+    <opc:Description>A custom PID controller with 3 inputs</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="Input1" DataType="ua:Double" ValueRank="Scalar" AccessLevel="Write" />
+      <opc:Property SymbolicName="Input2" DataType="ua:Double" ValueRank="Scalar" AccessLevel="Write" />
+      <opc:Property SymbolicName="Input3" DataType="ua:Double" ValueRank="Scalar" AccessLevel="Write" />
+      <opc:Property SymbolicName="ControlOut" DataType="ua:Double" />
+      <opc:Property SymbolicName="DescriptionX" DataType="ua:LocalizedText">
+        <opc:BrowseName>Description</opc:BrowseName>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ValveType" BaseType="GenericActuatorType">
+    <opc:Description>An actuator that controls the flow through a pipe.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="LevelControllerType" BaseType="GenericControllerType">
+    <opc:Description>A controller for the level of a fluid in a drum.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="FlowControllerType" BaseType="GenericControllerType">
+    <opc:Description>A controller for the flow of a fluid through a pipe.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="LevelIndicatorType" BaseType="GenericSensorType">
+    <opc:Description>A sensor that reports the level of a liquid in a tank.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="FlowTransmitterType" BaseType="GenericSensorType">
+    <opc:Description>A sensor that reports the flow of a liquid through a pipe.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="BoilerStateMachineType" BaseType="ua:ProgramStateMachineType">
+    <opc:Description>A program that produces simulated values for a running boiler.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="UpdateRate" DataType="ua:UInt32" ValueRank="Scalar" AccessLevel="ReadWrite">
+        <opc:Description>The rate at which the simulation runs.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="BoilerInputPipeType" BaseType="ua:FolderType">
+    <opc:Children>
+      <opc:Object SymbolicName="FlowTransmitter1" TypeDefinition="FlowTransmitterType" SupportsEvents="true">
+        <opc:BrowseName>FTX001</opc:BrowseName>
+      </opc:Object>
+      <opc:Object SymbolicName="Valve" TypeDefinition="ValveType" SupportsEvents="true">
+        <opc:BrowseName>ValveX001</opc:BrowseName>
+      </opc:Object>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerInputPipeType_FlowTransmitter1</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="BoilerDrumType" BaseType="ua:FolderType">
+    <opc:Children>
+      <opc:Object SymbolicName="LevelIndicator" TypeDefinition="LevelIndicatorType" SupportsEvents="true">
+        <opc:BrowseName>LIX001</opc:BrowseName>
+      </opc:Object>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerDrumType_LevelIndicator</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="BoilerOutputPipeType" BaseType="ua:FolderType">
+    <opc:Children>
+      <opc:Object SymbolicName="FlowTransmitter2" TypeDefinition="FlowTransmitterType" SupportsEvents="true">
+        <opc:BrowseName>FTX002</opc:BrowseName>
+      </opc:Object>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerOutputPipeType_FlowTransmitter2</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="BoilerType" BaseType="ua:BaseObjectType" SupportsEvents="true">
+    <opc:Description>A boiler used to produce steam for a turbine.</opc:Description>
+    <opc:Children>
+      <opc:Object SymbolicName="InputPipe" TypeDefinition="BoilerInputPipeType" SupportsEvents="true">
+        <opc:BrowseName>PipeX001</opc:BrowseName>
+        <opc:Children>
+          <opc:Object SymbolicName="FlowTransmitter1">
+            <opc:BrowseName>FTX001</opc:BrowseName>
+            <opc:Children>
+              <opc:Variable SymbolicName="Output" />
+            </opc:Children>
+          </opc:Object>
+          <opc:Object SymbolicName="Valve">
+            <opc:BrowseName>ValveX001</opc:BrowseName>
+            <opc:Children>
+              <opc:Variable SymbolicName="Input" />
+            </opc:Children>
+          </opc:Object>
+        </opc:Children>
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>FlowTo</opc:ReferenceType>
+            <opc:TargetId>BoilerType_Drum</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="Drum" TypeDefinition="BoilerDrumType" SupportsEvents="true">
+        <opc:BrowseName>DrumX001</opc:BrowseName>
+        <opc:Children>
+          <opc:Object SymbolicName="LevelIndicator">
+            <opc:BrowseName>LIX001</opc:BrowseName>
+            <opc:Children>
+              <opc:Variable Declaration="GenericSensorType_Output" />
+            </opc:Children>
+          </opc:Object>
+        </opc:Children>
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>HotFlowTo</opc:ReferenceType>
+            <opc:TargetId>BoilerType_OutputPipe</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="OutputPipe" TypeDefinition="BoilerOutputPipeType" SupportsEvents="true">
+        <opc:BrowseName>PipeX002</opc:BrowseName>
+        <opc:Children>
+          <opc:Object SymbolicName="FlowTransmitter2">
+            <opc:BrowseName>FTX002</opc:BrowseName>
+            <opc:Children>
+              <opc:Variable SymbolicName="Output" />
+            </opc:Children>
+          </opc:Object>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="FlowController" TypeDefinition="FlowControllerType">
+        <opc:BrowseName>FCX001</opc:BrowseName>
+        <opc:Children>
+          <opc:Property SymbolicName="Measurement">
+            <opc:References>
+              <opc:Reference IsInverse="true">
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_InputPipe_FlowTransmitter1_Output</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+          <opc:Property SymbolicName="SetPoint" />
+          <opc:Property SymbolicName="ControlOut">
+            <opc:References>
+              <opc:Reference>
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_InputPipe_Valve_Input</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="LevelController" TypeDefinition="LevelControllerType">
+        <opc:BrowseName>LCX001</opc:BrowseName>
+        <opc:Children>
+          <opc:Property SymbolicName="Measurement">
+            <opc:References>
+              <opc:Reference IsInverse="true">
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_Drum_LevelIndicator_Output</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+          <opc:Property SymbolicName="SetPoint" />
+          <opc:Property SymbolicName="ControlOut">
+            <opc:References>
+              <opc:Reference>
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_CustomController_Input1</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="CustomController" TypeDefinition="CustomControllerType">
+        <opc:BrowseName>CCX001</opc:BrowseName>
+        <opc:Children>
+          <opc:Property SymbolicName="Input1" />
+          <opc:Property SymbolicName="Input2">
+            <opc:References>
+              <opc:Reference IsInverse="true">
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_InputPipe_FlowTransmitter1_Output</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+          <opc:Property SymbolicName="Input3">
+            <opc:References>
+              <opc:Reference IsInverse="true">
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_OutputPipe_FlowTransmitter2_Output</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+          <opc:Property SymbolicName="ControlOut">
+            <opc:References>
+              <opc:Reference>
+                <opc:ReferenceType>SignalTo</opc:ReferenceType>
+                <opc:TargetId>BoilerType_FlowController_SetPoint</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="Simulation" TypeDefinition="BoilerStateMachineType" SupportsEvents="true" />
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerType_InputPipe</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerType_Drum</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>BoilerType_OutputPipe</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+        <opc:TargetId>BoilerType_Simulation</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Boilers" TypeDefinition="ua:FolderType" SupportsEvents="true">
+    <opc:Children>
+      <opc:Object SymbolicName="Boiler1" TypeDefinition="BoilerType">
+        <opc:BrowseName>Boiler #1</opc:BrowseName>
+        <opc:Children>
+          <opc:Object SymbolicName="InputPipe">
+            <opc:DisplayName>Pipe1001</opc:DisplayName>
+          </opc:Object>
+          <opc:Object SymbolicName="Drum">
+            <opc:DisplayName>Drum1001</opc:DisplayName>
+          </opc:Object>
+          <opc:Object SymbolicName="OutputPipe">
+            <opc:DisplayName>Pipe1002</opc:DisplayName>
+          </opc:Object>
+          <opc:Object SymbolicName="FlowController">
+            <opc:DisplayName>FC1001</opc:DisplayName>
+          </opc:Object>
+          <opc:Object SymbolicName="LevelController">
+            <opc:DisplayName>LC1001</opc:DisplayName>
+          </opc:Object>
+          <opc:Object SymbolicName="CustomController">
+            <opc:DisplayName>CC1001</opc:DisplayName>
+          </opc:Object>
+        </opc:Children>
+      </opc:Object>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>Boilers_Boiler1</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>ua:Server</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+  
+</opc:ModelDesign>

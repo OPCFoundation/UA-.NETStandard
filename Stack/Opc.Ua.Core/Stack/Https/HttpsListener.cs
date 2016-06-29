@@ -533,7 +533,6 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private object m_lock = new object();
-
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
@@ -541,15 +540,11 @@ namespace Opc.Ua.Bindings
         private TcpChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
         private Task m_host;
-
-        private BufferManager m_bufferManager;
-        private X509Certificate2 m_serverCertificate;
-
-        private uint m_lastChannelId;
-
+        //private X509Certificate2 m_serverCertificate;
+        //private uint m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
-        private Dictionary<uint, TcpServerChannel> m_channels;
+        //private Dictionary<uint, TcpServerChannel> m_channels;
         #endregion
     }
 }

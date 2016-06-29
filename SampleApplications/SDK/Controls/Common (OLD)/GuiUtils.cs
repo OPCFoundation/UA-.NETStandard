@@ -37,7 +37,7 @@ using System.Runtime.CompilerServices;
 using Windows.Storage;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using System.Xml;
+using Windows.Data.Xml.Dom;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -725,10 +725,10 @@ namespace Opc.Ua.Client.Controls
                     return System.Guid.Empty;
                 }
 
-                if (type == typeof(System.Xml.XmlElement)) 
+                if (type == typeof(XmlElement)) 
                 {
                     XmlDocument document = new XmlDocument();
-                    document.InnerXml = "<Null/>";
+                    document.LoadXml("<Null/>");
                     return document.DocumentElement;
                 }
 

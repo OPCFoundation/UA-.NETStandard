@@ -11,8 +11,9 @@
 */
 
 using System;
-using System.Net;
 using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -116,64 +117,41 @@ namespace Opc.Ua.Bindings
 
         public IServiceResponse SendRequest(IServiceRequest request)
         {
-            HttpWebRequest webRequest = (HttpWebRequest)HttpWebRequest.Create(m_url.ToString());
-            webRequest.Method = "POST";
-            webRequest.ContentType = "application/octet-stream";
-            webRequest.UseDefaultCredentials = true;
-            
-            Task<Stream> t = Task.Run(() => webRequest.GetRequestStreamAsync());
-            t.Wait();
-            Stream ostrm = (Stream)t.Result;
+            HttpClientHandler clientHandler = new HttpClientHandler();
+            clientHandler.ClientCertificates.Add(m_settings.ClientCertificate);
 
-            MemoryStream mstrm = new MemoryStream();
-            BinaryEncoder encoder = new BinaryEncoder(mstrm, this.MessageContext);
-            encoder.EncodeMessage(request);
-            
-            int bytesToRead = (int)mstrm.Position;
-            mstrm.Position = 0;
-
-            int bytesRead = 0;
-            int blockSize = 0;
-            byte[] buffer = new byte[4096];
-
-            do
+            HttpClient client = new HttpClient(clientHandler);
+     
+            try
             {
-                blockSize = mstrm.Read(buffer, 0, buffer.Length);
-                bytesRead += blockSize;
+                MemoryStream mstrm = new MemoryStream();
+                BinaryEncoder encoder = new BinaryEncoder(mstrm, m_quotas.MessageContext);
+                encoder.EncodeMessage(request);
 
-                if (bytesRead > bytesToRead)
-                {
-                    blockSize -= (bytesRead - bytesToRead);
-                }
+                StreamContent content = new StreamContent(mstrm);
+                Task<HttpResponseMessage> task = client.PostAsync(m_url.ToString(), content);
+                task.Wait();
+                HttpResponseMessage response = task.Result;
 
-                ostrm.Write(buffer, 0, blockSize);
+                response.EnsureSuccessStatusCode();
+
+                Task<Stream> task2 = response.Content.ReadAsStreamAsync();
+                task2.Wait();
+                Stream responseContent = task2.Result;
+
+                IEncodeable message = BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext);
+
+                return message as IServiceResponse;
             }
-            while (blockSize >= 0 && bytesRead < bytesToRead);
-
-            ostrm.Dispose();
-            mstrm.Dispose();
-
-            Task<WebResponse> t2 = Task.Run(() => webRequest.GetResponseAsync());
-            t2.Wait();
-            HttpWebResponse response = (HttpWebResponse) t2.Result;
-
-            mstrm = new MemoryStream();
-
-            using (Stream istrm = response.GetResponseStream())
+            catch (Exception ex)
             {
-                bytesRead = 0;
-                do
-                {
-                    bytesRead = istrm.Read(buffer, 0, buffer.Length);
-                    mstrm.Write(buffer, 0, bytesRead);
-                }
-                while (bytesRead != 0);
-                mstrm.Position = 0;
+                Utils.Trace("Exception sending HTTP request: " + ex.Message);
+                return null;
             }
-
-            IEncodeable message = BinaryDecoder.DecodeMessage(mstrm, null, this.MessageContext);
-
-            return message as IServiceResponse;
+            finally
+            {
+                client.Dispose();
+            }
         }
         
         private void SaveSettings(Uri url, TransportChannelSettings settings)
@@ -204,7 +182,6 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
         }
 
-        private object m_lock = new object();
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;

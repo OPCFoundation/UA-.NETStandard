@@ -31,7 +31,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using Windows.Foundation;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 
@@ -144,14 +143,14 @@ namespace Opc.Ua.Client.Controls
 		/// </summary>
 		public Array GetItems(System.Type type)
 		{
-			ArrayList items = new ArrayList();
+			List<object> items = new List<object>();
 
 			foreach (ListViewItem listItem in ItemsLV.Items)
 			{
 				items.Add(listItem.Tag);
 			}
 
-			return items.ToArray(type);
+			return items.ToArray();
 		}
 
 		/// <summary>
@@ -159,14 +158,14 @@ namespace Opc.Ua.Client.Controls
 		/// </summary>
 		public Array GetSelectedItems(System.Type type)
 		{
-			ArrayList items = new ArrayList();
+            List<object> items = new List<object>();
 
             foreach (ListViewItem listItem in ItemsLV.SelectedItems)
             {
                 items.Add(listItem.Tag);
             }
             
-			return items.ToArray(type);
+			return items.ToArray();
 		}
 		#endregion
 
@@ -236,7 +235,7 @@ namespace Opc.Ua.Client.Controls
         {
             if (ItemsLV.SelectedItems.Count > 0)
             {
-                ArrayList data = new ArrayList();
+                List<object> data = new List<object>();
 
                 foreach (ListViewItem listItem in ItemsLV.SelectedItems)
                 {

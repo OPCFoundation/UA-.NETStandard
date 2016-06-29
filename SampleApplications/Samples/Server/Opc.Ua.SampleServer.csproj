@@ -17,7 +17,7 @@
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <PackageCertificateKeyFile>Opc.Ua.SampleServer_TemporaryKey.pfx</PackageCertificateKeyFile>
-    <PackageCertificateThumbprint>EF6290A77BCB5475D57FC889A66FD61F744E1BA2</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>4D2D038A175EA5C42DA7B84B6265FD3087BA8709</PackageCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -93,6 +93,7 @@
     <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
     <None Include="Opc.Ua.SampleServer_TemporaryKey.pfx" />
     <None Include="project.json" />
+    <None Include="project.lock.json" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.xaml.cs">
@@ -141,12 +142,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\SDK\Controls\Opc.Ua.Client.Controls.csproj">
-      <Project>{0bacfd1f-8bd1-45e2-81ad-f9dbb5fbe028}</Project>
+      <Project>{0BACFD1F-8BD1-45E2-81AD-F9DBB5FBE028}</Project>
       <Name>Opc.Ua.Client.Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\Opc.Ua.Sample.csproj">
-      <Project>{f9e0dbb6-fd8d-4871-b179-bbf3a2a3cda1}</Project>
-      <Name>Opc.Ua.Sample</Name>
     </ProjectReference>
     <ProjectReference Include="..\Controls\Opc.Ua.Sample.Controls.csproj">
       <Project>{5192cb9a-d4fc-41ef-839f-d9e08c17f221}</Project>
@@ -154,11 +151,17 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Opc.Ua.Client">
-      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\uap10.0\Opc.Ua.Client.dll</HintPath>
+    <Reference Include="Opc.Ua.Configuration">
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\uap10.0\Opc.Ua.Configuration.dll</HintPath>
     </Reference>
     <Reference Include="Opc.Ua.Core">
       <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\uap10.0\Opc.Ua.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Sample">
+      <HintPath>..\Opc.Ua.Sample\bin\Debug\uap10.0\Opc.Ua.Sample.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Server">
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\uap10.0\Opc.Ua.Server.dll</HintPath>
     </Reference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">

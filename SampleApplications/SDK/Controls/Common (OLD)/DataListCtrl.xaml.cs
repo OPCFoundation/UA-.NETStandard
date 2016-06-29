@@ -39,6 +39,7 @@ using Windows.UI.Popups;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Windows.Data.Xml.Dom;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -255,7 +256,7 @@ namespace Opc.Ua.Client.Controls
                     return false;
                 }
 
-                return xml.HasChildNodes;
+                return xml.HasChildNodes();
             }           
             
             // check for array.
@@ -349,11 +350,11 @@ namespace Opc.Ua.Client.Controls
                 // return the entire element if not expandable.
                 if (!IsExpandableType(xml))
                 {
-                    return xml.OuterXml;
+                    return xml.GetXml();
                 }
                 
                 // show only the start tag.
-                string text = xml.OuterXml;
+                string text = xml.GetXml();
 
                 int index = text.IndexOf('>');
 
@@ -612,7 +613,7 @@ namespace Opc.Ua.Client.Controls
             }
             
             // get the name of the element.
-            string name = Utils.Format("{0}", child.Name);
+            string name = Utils.Format("{0}", child.LocalName);
             
             // get the type name.
             string type = value.GetType().Name;
