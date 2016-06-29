@@ -28,8 +28,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -62,14 +60,7 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                lock (m_lock)
-                {
-                    Utils.SilentDispose(m_host);
-                    m_host = null;
-                }
-            }
+            // nothing to do
         }
         #endregion
 
@@ -539,7 +530,7 @@ namespace Opc.Ua.Bindings
         private EndpointConfiguration m_configuration;
         private TcpChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
-        private Task m_host;
+        //private Task m_host;
         //private X509Certificate2 m_serverCertificate;
         //private uint m_lastChannelId;
         private Socket m_listeningSocket;
