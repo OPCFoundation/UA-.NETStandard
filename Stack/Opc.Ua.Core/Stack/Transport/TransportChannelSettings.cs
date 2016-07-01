@@ -55,11 +55,11 @@ namespace Opc.Ua
         /// <value>
         /// The client certificate chain.
         /// </value>
-        //public X509Certificate2Collection ClientCertificateChain
-        //{
-        //    get { return m_clientCertificateChain; }
-        //    set { m_clientCertificateChain = value; }
-        //}
+        public X509Certificate2Collection ClientCertificateChain
+        {
+            get { return m_clientCertificateChain; }
+            set { m_clientCertificateChain = value; }
+        }
 
         /// <summary>
         /// Gets or Sets the server certificate.
@@ -127,7 +127,7 @@ namespace Opc.Ua
         private EndpointDescription m_description;
         private EndpointConfiguration m_configuration;
         private X509Certificate2 m_clientCertificate;
-        //private X509Certificate2Collection m_clientCertificateChain;
+        private X509Certificate2Collection m_clientCertificateChain;
         private X509Certificate2 m_serverCertificate;
         private X509CertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;

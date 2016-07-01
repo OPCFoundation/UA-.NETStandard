@@ -127,7 +127,6 @@ namespace Opc.Ua.Bindings
                     m_settings.ClientCertificate,
                     m_settings.ServerCertificate,
                     m_settings.Description);
-                //((TcpClientChannel)m_channel).ClientCertificateChain = m_settings.ClientCertificateChain;
 
                 // begin connect operation.
                 return m_channel.BeginConnect(this.m_url, m_operationTimeout, callback, callbackData);

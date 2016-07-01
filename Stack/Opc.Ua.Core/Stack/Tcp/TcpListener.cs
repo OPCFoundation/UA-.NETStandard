@@ -135,7 +135,7 @@ namespace Opc.Ua.Bindings
 
             // save the server certificate.
             m_serverCertificate = settings.ServerCertificate;
-            //m_serverCertificateChain = settings.ServerCertificateChain;
+            m_serverCertificateChain = settings.ServerCertificateChain;
 
             m_bufferManager = new BufferManager("Server", (int)Int32.MaxValue, m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpServerChannel>();
@@ -447,6 +447,7 @@ namespace Opc.Ua.Bindings
         private BufferManager m_bufferManager;
         private TcpChannelQuotas m_quotas;
         private X509Certificate2 m_serverCertificate;
+        private X509Certificate2Collection m_serverCertificateChain;
 
         private uint m_lastChannelId;
 

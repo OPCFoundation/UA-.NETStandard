@@ -480,7 +480,6 @@ namespace Opc.Ua.Bindings
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 m_handshakeOperation.RequestId,
-                //ClientCertificateChain,
                 ClientCertificate,
                 ServerCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length));

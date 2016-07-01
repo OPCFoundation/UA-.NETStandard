@@ -64,6 +64,11 @@ namespace Opc.Ua.Bindings
             // nothing to do
         }
 
+        public void Close()
+        {
+            // nothing to do
+        }
+
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
@@ -99,10 +104,7 @@ namespace Opc.Ua.Bindings
             throw new NotImplementedException();
         }
 
-        public void Close()
-        {
-            throw new NotImplementedException();
-        }
+       
 
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
@@ -116,13 +118,17 @@ namespace Opc.Ua.Bindings
 
         public IServiceResponse SendRequest(IServiceRequest request)
         {
-            HttpClientHandler clientHandler = new HttpClientHandler();
-            clientHandler.ClientCertificates.Add(m_settings.ClientCertificate);
+            HttpClient client = null;
 
-            HttpClient client = new HttpClient(clientHandler);
-     
             try
             {
+                HttpClientHandler clientHandler = new HttpClientHandler();
+                if (m_settings.ClientCertificate != null)
+                {
+                    clientHandler.ClientCertificates.Add(m_settings.ClientCertificate);
+                }
+                client = new HttpClient(clientHandler);
+     
                 MemoryStream mstrm = new MemoryStream();
                 BinaryEncoder encoder = new BinaryEncoder(mstrm, m_quotas.MessageContext);
                 encoder.EncodeMessage(request);
@@ -149,7 +155,10 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                client.Dispose();
+                if (client != null)
+                {
+                    client.Dispose();
+                }
             }
         }
         

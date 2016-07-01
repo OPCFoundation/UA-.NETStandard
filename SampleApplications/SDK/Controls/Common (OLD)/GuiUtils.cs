@@ -38,6 +38,7 @@ using Windows.Storage;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Data.Xml.Dom;
+using System.IO;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -457,7 +458,7 @@ namespace Opc.Ua.Client.Controls
             {
                 id = new CertificateIdentifier();
                 id.StoreType = Utils.DefaultStoreType;
-                id.StorePath = ApplicationData.Current.LocalFolder.Path + "\\OPC Foundation\\CertificateStores\\MachineDefault";
+                id.StorePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault";
                 id.SubjectName = configuration.ApplicationName;
             }
 

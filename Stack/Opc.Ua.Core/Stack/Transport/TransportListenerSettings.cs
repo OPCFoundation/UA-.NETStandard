@@ -53,11 +53,11 @@ namespace Opc.Ua
         /// <value>
         /// The server certificate chain.
         /// </value>
-        //public X509Certificate2Collection ServerCertificateChain
-        //{
-        //    get { return m_serverCertificateChain; }
-        //    set { m_serverCertificateChain = value; }
-        //}
+        public X509Certificate2Collection ServerCertificateChain
+        {
+            get { return m_serverCertificateChain; }
+            set { m_serverCertificateChain = value; }
+        }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -114,7 +114,7 @@ namespace Opc.Ua
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
         private X509Certificate2 m_serverCertificate;
-        //private X509Certificate2Collection m_serverCertificateChain;
+        private X509Certificate2Collection m_serverCertificateChain;
         private X509CertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
         private EncodeableFactory m_channelFactory;

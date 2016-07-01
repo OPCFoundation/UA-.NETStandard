@@ -366,21 +366,11 @@ namespace Opc.Ua.Server
         /// <value>
         /// The server certificate chain.
         /// </value>
-        //public byte[] ServerCertificateChain
-        //{
-        //    get { return m_serverCertificateChain; }
-        //    set { m_serverCertificateChain = value; }
-        //}
-#if LEGACY_CORENODEMANAGER
-        /// <summary>
-        /// The diagnostics associated with the session.
-        /// </summary>
-        [Obsolete("No longer thread safe. Replaced by SessionDiagnostics.")]
-        public SessionDiagnosticsObject Diagnostics
+        public byte[] ServerCertificateChain
         {
-            get { return null; }
+            get { return m_serverCertificateChain; }
+            set { m_serverCertificateChain = value; }
         }
-#endif
 
         /// <summary>
         /// The application instance certificate associated with the client.
@@ -1167,7 +1157,7 @@ namespace Opc.Ua.Server
         private string m_secureChannelId;
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
-        //private byte[] m_serverCertificateChain;
+        private byte[] m_serverCertificateChain;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]

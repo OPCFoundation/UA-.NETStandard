@@ -203,16 +203,16 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Opc.Ua.Client">
-      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\uap10.0\Opc.Ua.Client.dll</HintPath>
+      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\netstandard1.3\Opc.Ua.Client.dll</HintPath>
     </Reference>
     <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\uap10.0\Opc.Ua.Configuration.dll</HintPath>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\netstandard1.3\Opc.Ua.Configuration.dll</HintPath>
     </Reference>
     <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\uap10.0\Opc.Ua.Core.dll</HintPath>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\netstandard1.3\Opc.Ua.Core.dll</HintPath>
     </Reference>
     <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\uap10.0\Opc.Ua.Server.dll</HintPath>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\netstandard1.3\Opc.Ua.Server.dll</HintPath>
     </Reference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">

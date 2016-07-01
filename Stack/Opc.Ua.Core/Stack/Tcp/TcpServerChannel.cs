@@ -951,7 +951,6 @@ namespace Opc.Ua.Bindings
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 requestId,
-                //ServerCertificateChain,
                 ServerCertificate,
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length));

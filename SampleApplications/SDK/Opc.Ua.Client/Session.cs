@@ -185,14 +185,19 @@ namespace Opc.Ua.Client
                         m_instanceCertificate.Thumbprint);
                 }
 
-                //load certificate chain
-                /*m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
+                // load certificate chain
+                m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers);
+                Task t2 = Task.Run(async () =>
+                {
+                    await configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers);
+                });
+                t2.Wait();
+
                 for (int i = 0; i < issuers.Count; i++)
                 {
                     m_instanceCertificateChain.Add(issuers[i].Certificate);
-                }*/
+                }
             }
 
             // initialize the message context.
@@ -809,7 +814,6 @@ namespace Opc.Ua.Client
                  configuration,
                  endpointDescription,
                  endpointConfiguration,
-                 //clientCertificateChain,
                  clientCertificate,
                  messageContext);
 
@@ -3838,7 +3842,7 @@ namespace Opc.Ua.Client
         private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
         private X509Certificate2 m_instanceCertificate;
-        //private X509Certificate2Collection m_instanceCertificateChain;
+        private X509Certificate2Collection m_instanceCertificateChain;
         private List<IUserIdentity> m_identityHistory;
 
         private string m_sessionName;
