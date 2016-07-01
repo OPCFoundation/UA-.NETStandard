@@ -16,6 +16,13 @@ EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NetCoreConsoleClient", "SampleApplications\Samples\NetCoreConsoleClient\NetCoreConsoleClient.xproj", "{A9E3812C-982C-426F-987F-7882C712F64C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Publisher", "SampleApplications\Samples\Publisher\Opc.Ua.Publisher.csproj", "{0EADE7FF-73AA-4A37-B096-0076729D90C0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C444E219-EED3-4775-B399-B81FF2B900AF} = {C444E219-EED3-4775-B399-B81FF2B900AF}
+		{6C449A1E-244E-4515-9949-A7E22012537C} = {6C449A1E-244E-4515-9949-A7E22012537C}
+		{99A94D4A-810D-49EF-B043-7F560E654A41} = {99A94D4A-810D-49EF-B043-7F560E654A41}
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4} = {ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}
+		{01A754B8-5A8D-4856-836F-9ED1DC64527A} = {01A754B8-5A8D-4856-836F-9ED1DC64527A}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Sample.Controls", "SampleApplications\Samples\Controls\Opc.Ua.Sample.Controls.csproj", "{5192CB9A-D4FC-41EF-839F-D9E08C17F221}"
 	ProjectSection(ProjectDependencies) = postProject
