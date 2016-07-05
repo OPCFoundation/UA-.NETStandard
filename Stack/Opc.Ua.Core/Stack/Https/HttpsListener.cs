@@ -24,13 +24,51 @@
 using System;
 using System.Net;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Net.Http;
-using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace Opc.Ua.Bindings
 {
+    public class Startup
+    {
+        public static UaHttpsChannelListener Listener { get; set; }
+
+        public void Configure(IApplicationBuilder appBuilder, ILoggerFactory loggerFactory)
+        {
+            appBuilder.Run(async context =>
+            {
+                Utils.Trace("{0} {1}{2}{3}",
+                    context.Request.Method,
+                    context.Request.PathBase,
+                    context.Request.Path,
+                    context.Request.QueryString);
+                Utils.Trace($"Method: {context.Request.Method}");
+                Utils.Trace($"PathBase: {context.Request.PathBase}");
+                Utils.Trace($"Path: {context.Request.Path}");
+                Utils.Trace($"QueryString: {context.Request.QueryString}");
+
+                ConnectionInfo connectionInfo = context.Connection;
+                Utils.Trace($"Peer: {connectionInfo.RemoteIpAddress?.ToString()} {connectionInfo.RemotePort}");
+                Utils.Trace($"Sock: {connectionInfo.LocalIpAddress?.ToString()} {connectionInfo.LocalPort}");
+
+                if (context.Request.Method != "POST")
+                {
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                    await context.Response.WriteAsync(string.Empty);
+                }
+                else
+                {
+                    Listener.SendAsync(context);
+                }
+            });
+        }
+    }
+
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
@@ -60,7 +98,14 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
-            // nothing to do
+            if (disposing)
+            {
+                lock (m_lock)
+                {
+                    Utils.SilentDispose(m_host);
+                    m_host = null;
+                }
+            }
         }
         #endregion
 
@@ -105,6 +150,8 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
+            m_serverCert = settings.ServerCertificate;
+
             // start the listener.
             Start();
         }
@@ -128,84 +175,25 @@ namespace Opc.Ua.Bindings
         {
             get { return m_uri; }
         }
-
-        public class DefaultHttpHandler : DelegatingHandler
-        {
-            public UaHttpsChannelListener Listener { get; set; }
-
-            protected async override Task<HttpResponseMessage> SendAsync(
-                HttpRequestMessage request,
-                CancellationToken cancellationToken)
-            {
-                if (request.Method != HttpMethod.Post)
-                {
-                    return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed);
-                }
-
-                return await Listener.SendAsync(request, cancellationToken);
-            }
-        }
-
+        
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
         public void Start()
         {
-            lock (m_lock)
+            Startup.Listener = this;
+           
+            m_host = new WebHostBuilder();
+            m_host.UseKestrel(options =>
             {
-                // ensure a valid port.
-                int port = m_uri.Port;
-
-                if (port <= 0 || port > UInt16.MaxValue)
-                {
-                    port = Utils.UaTcpDefaultPort;
-                }
-
-                // create IPv4 socket.
-                try
-                {
-                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, port);
-                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocket;
-                    m_listeningSocket.Bind(endpoint);
-                    m_listeningSocket.Listen(Int32.MaxValue);
-                    m_listeningSocket.AcceptAsync(args);
-                }
-                catch
-                {
-                    // no IPv4 support.
-                    m_listeningSocket = null;
-                    Utils.Trace("failed to create IPv4 listening socket");
-                }
-
-                // create IPv6 socket
-                try
-                {
-                    IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                    m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocketIPv6;
-                    m_listeningSocketIPv6.Bind(endpointIPv6);
-                    m_listeningSocketIPv6.Listen(Int32.MaxValue);
-                    m_listeningSocketIPv6.AcceptAsync(args);
-                }
-                catch
-                {
-                    // no IPv6 support
-                    m_listeningSocketIPv6 = null;
-                    Utils.Trace("failed to create IPv6 listening socket");
-                }
-
-                if (m_listeningSocketIPv6 == null && m_listeningSocket == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNoCommunication,
-                        "Failed to establish tcp listener sockets for Ipv4 and IPv6.\r\n");
-                }
-            }
+                options.NoDelay = true;
+                options.UseHttps(m_serverCert);
+                options.UseConnectionLogging();
+            });
+            m_host.UseUrls(m_uri.ToString());
+            m_host.UseContentRoot(Directory.GetCurrentDirectory());
+            m_host.UseStartup<Startup>();
+            m_host.Build();
         }
 
         /// <summary>
@@ -213,88 +201,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Stop()
         {
-            lock (m_lock)
-            {
-                if (m_listeningSocket != null)
-                {
-                    m_listeningSocket.Dispose();
-                    m_listeningSocket = null;
-                }
-
-                if (m_listeningSocketIPv6 != null)
-                {
-                    m_listeningSocketIPv6.Dispose();
-                    m_listeningSocketIPv6 = null;
-                }
-            }
-        }
-        #endregion
-
-        #region Socket Event Handler
-        /// <summary>
-        /// Handles a new connection.
-        /// </summary>
-        private void OnAccept(object sender, SocketAsyncEventArgs e)
-        {
-            HttpsTransportChannel channel = null;
-
-            lock (m_lock)
-            {
-                Socket listeningSocket = e.UserToken as Socket;
-
-                if (listeningSocket == null)
-                {
-                    Utils.Trace("OnAccept: Listensocket was null.");
-                    e.Dispose();
-                    return;
-                }
-
-                // check if the accept socket has been created.
-                if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
-                {
-                    try
-                    {
-                        // create the channel to manage incoming messages.
-                        channel = new HttpsTransportChannel();
-                        //    m_listenerId,
-                        //    this,
-                        //    m_bufferManager,
-                        //    m_quotas,
-                        //    m_serverCertificate,
-                        //    m_descriptions);
-
-                        //// start accepting messages on the channel.
-                        //channel.Attach(++m_lastChannelId, e.AcceptSocket);
-
-                        //// save the channel for shutdown and reconnects.
-                        //m_channels.Add(m_lastChannelId, channel);
-
-                        //if (m_callback != null)
-                        //{
-                        //    channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                        //}
-                    }
-                    catch (Exception ex)
-                    {
-                        Utils.Trace(ex, "Unexpected error accepting a new connection.");
-                    }
-                }
-
-                e.Dispose();
-
-                // go back and wait for the next connection.
-                try
-                {
-                    e = new SocketAsyncEventArgs();
-                    e.Completed += OnAccept;
-                    e.UserToken = listeningSocket;
-                    listeningSocket.AcceptAsync(e);
-                }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Unexpected error listening for a new connection.");
-                }
-            }
+            Dispose();
         }
         #endregion
 
@@ -302,7 +209,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public async void SendAsync(HttpContext context)
         {
             IAsyncResult result = null;
 
@@ -310,21 +217,34 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback == null)
                 {
-                    return new HttpResponseMessage(HttpStatusCode.NotImplemented);
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
+                    await context.Response.WriteAsync(string.Empty);
                 }
 
-                var istrm = await request.Content.ReadAsByteArrayAsync();
+                byte[] buffer = new byte[(int)context.Request.ContentLength];
+                await context.Request.Body.ReadAsync(buffer, 0, (int)context.Request.ContentLength);
                 
-                IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(istrm, null, m_quotas.MessageContext);
-               
+                IServiceRequest input = (IServiceRequest) BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+
                 // extract the JWT token from the HTTP headers.
-                if (input.RequestHeader == null) input.RequestHeader = new RequestHeader();
+                if (input.RequestHeader == null)
+                {
+                    input.RequestHeader = new RequestHeader();
+                }
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) && input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (request.Headers.Authorization != null && request.Headers.Authorization.Scheme == "Bearer")
+                    if (context.Request.Headers.Keys.Contains("Authorization"))
                     {
-                        input.RequestHeader.AuthenticationToken = new NodeId(request.Headers.Authorization.Parameter);
+                        foreach (string value in context.Request.Headers["Authorization"])
+                        {
+                            if (value.StartsWith("Bearer"))
+                            {
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim());
+                            }
+                        }
                     }
                 }
 
@@ -346,64 +266,21 @@ namespace Opc.Ua.Bindings
                     null,
                     null);
 
-                var output = m_callback.EndProcessRequest(result);
-
-                MemoryStream ostrm = new MemoryStream();
-
-                BinaryEncoder.EncodeMessage(output, ostrm, m_quotas.MessageContext);
-                
-                ostrm.Position = 0;
-
-                HttpResponseMessage response = new HttpResponseMessage();
-
-                response.Content = new StreamContent(ostrm);
-                response.Content.Headers.ContentType = request.Content.Headers.ContentType;
-
-                return response;
+                IServiceResponse output = m_callback.EndProcessRequest(result);
+                                
+                byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
+                context.Response.ContentLength = response.Length;
+                context.Response.ContentType = context.Request.ContentType;
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.Response.Body.WriteAsync(response, 0, response.Length);
             }
             catch (Exception e)
             {
                 Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
-                return new HttpResponseMessage(HttpStatusCode.InternalServerError) { ReasonPhrase = e.Message };
-            }
-        }
-
-        private void OnRequestReceived(TcpServerChannel channel, uint requestId, IServiceRequest request)
-        {
-            try
-            {
-                if (m_callback != null)
-                {
-                    IAsyncResult result = m_callback.BeginProcessRequest(
-                        channel.GlobalChannelId,
-                        channel.EndpointDescription,
-                        request,
-                        OnProcessRequestComplete,
-                        new object[] { channel, requestId, request });
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "TCPLISTENER - Unexpected error processing request.");
-            }
-        }
-
-        private void OnProcessRequestComplete(IAsyncResult result)
-        {
-            try
-            {
-                object[] args = (object[])result.AsyncState;
-
-                if (m_callback != null)
-                {
-                    TcpServerChannel channel = (TcpServerChannel)args[0];
-                    IServiceResponse response = m_callback.EndProcessRequest(result);
-                    channel.SendResponse((uint)args[1], response);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "TCPLISTENER - Unexpected error sending result.");
+                context.Response.ContentLength = e.Message.Length;
+                context.Response.ContentType = "text/plain";
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.Response.WriteAsync(e.Message);
             }
         }
 
@@ -418,10 +295,9 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    //string contentType = WebOperationContext.Current.IncomingRequest.ContentType;
-                    //Uri uri = WebOperationContext.Current.IncomingRequest.UriTemplateMatch.RequestUri;
+                    Uri uri = m_uri; // context.Request.UriTemplateMatch.RequestUri;
 
-                    string scheme = /*uri.Scheme +*/ ":";
+                    string scheme = uri.Scheme + ":";
 
                     EndpointDescription endpoint = null;
 
@@ -443,7 +319,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     IEncodeable request = BinaryDecoder.DecodeMessage(istrm, null, this.m_quotas.MessageContext);
-                                       
+
                     result = m_callback.BeginProcessRequest(
                         m_listenerId,
                         endpoint,
@@ -469,13 +345,10 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     IServiceResponse response = m_callback.EndProcessRequest(result);
-
-                    //if (WebOperationContext.Current.IncomingRequest.ContentType == "application/octet-stream")
-                    {
-                        BinaryEncoder encoder = new BinaryEncoder(ostrm, this.m_quotas.MessageContext);
-                        encoder.EncodeMessage(response);
-                    }
-
+                    
+                    BinaryEncoder encoder = new BinaryEncoder(ostrm, this.m_quotas.MessageContext);
+                    encoder.EncodeMessage(response);
+                    
                     ostrm.Position = 0;
                 }
             }
@@ -524,18 +397,15 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private object m_lock = new object();
+
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
         private TcpChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
-        //private Task m_host;
-        //private X509Certificate2 m_serverCertificate;
-        //private uint m_lastChannelId;
-        private Socket m_listeningSocket;
-        private Socket m_listeningSocketIPv6;
-        //private Dictionary<uint, TcpServerChannel> m_channels;
+        private WebHostBuilder m_host;
+        private X509Certificate2 m_serverCert;
         #endregion
     }
 }
