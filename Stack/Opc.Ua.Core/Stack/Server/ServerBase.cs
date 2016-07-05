@@ -802,7 +802,7 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        if (bestPolicy.SecurityLevel > policy.SecurityLevel)
+                        if (bestPolicy.SecurityLevel < policy.SecurityLevel)
                         {
                             bestPolicy = policy;
                             continue;

@@ -201,46 +201,6 @@ namespace Opc.Ua.Client.Controls
         }
 
         /// <summary>
-        /// Uses the command line to override the UA TCP implementation specified in the configuration.
-        /// </summary>
-        /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.
-        /// </param>
-        public static void OverrideUaTcpImplementation(ApplicationConfiguration configuration)
-        {
-            // check if UA TCP configuration included.
-            TransportConfiguration transport = null;
-
-            for (int ii = 0; ii < configuration.TransportConfigurations.Count; ii++)
-            {
-                if (configuration.TransportConfigurations[ii].UriScheme == Utils.UriSchemeOpcTcp)
-                {
-                    transport = configuration.TransportConfigurations[ii];
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Displays the UA-TCP configuration in the form.
-        /// </summary>
-        /// <param name="form">The form to display the UA-TCP configuration.</param>
-        /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
-        public static void DisplayUaTcpImplementation(Page form, ApplicationConfiguration configuration)
-        {
-            // check if UA TCP configuration included.
-            TransportConfiguration transport = null;
-
-            for (int ii = 0; ii < configuration.TransportConfigurations.Count; ii++)
-            {
-                if (configuration.TransportConfigurations[ii].UriScheme == Utils.UriSchemeOpcTcp)
-                {
-                    transport = configuration.TransportConfigurations[ii];
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
         /// Handles a certificate validation error.
         /// </summary>
         /// <param name="caller">The caller's text is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>

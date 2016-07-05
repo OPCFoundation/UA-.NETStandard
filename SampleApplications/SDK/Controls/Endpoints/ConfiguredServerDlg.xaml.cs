@@ -545,7 +545,6 @@ namespace Opc.Ua.Client.Controls
             // set all available protocols.
             if (m_showAllOptions)
             {
-                ProtocolCB.Items.Add(new Protocol("http://localhost"));
                 ProtocolCB.Items.Add(new Protocol("https://localhost"));
                 ProtocolCB.Items.Add(new Protocol("opc.tcp://localhost"));
             }
@@ -1044,7 +1043,7 @@ namespace Opc.Ua.Client.Controls
                     }
                 }
 
-                OnUpdateEndpoints(m_availableEndpoints);
+            OnUpdateEndpoints(m_availableEndpoints);
                 OnUpdateStatus("Configuration options may not be correct because the server is not available.");
             });
         }
