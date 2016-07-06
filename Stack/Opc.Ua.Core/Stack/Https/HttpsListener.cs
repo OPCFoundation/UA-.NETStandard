@@ -29,6 +29,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
+using System.Security.Authentication;
+using System.Net.Security;
 
 namespace Opc.Ua.Bindings
 {
@@ -40,20 +44,6 @@ namespace Opc.Ua.Bindings
         {
             appBuilder.Run(async context =>
             {
-                Utils.Trace("{0} {1}{2}{3}",
-                    context.Request.Method,
-                    context.Request.PathBase,
-                    context.Request.Path,
-                    context.Request.QueryString);
-                Utils.Trace($"Method: {context.Request.Method}");
-                Utils.Trace($"PathBase: {context.Request.PathBase}");
-                Utils.Trace($"Path: {context.Request.Path}");
-                Utils.Trace($"QueryString: {context.Request.QueryString}");
-
-                ConnectionInfo connectionInfo = context.Connection;
-                Utils.Trace($"Peer: {connectionInfo.RemoteIpAddress?.ToString()} {connectionInfo.RemotePort}");
-                Utils.Trace($"Sock: {connectionInfo.LocalIpAddress?.ToString()} {connectionInfo.LocalPort}");
-
                 if (context.Request.Method != "POST")
                 {
                     context.Response.ContentLength = 0;
@@ -175,7 +165,14 @@ namespace Opc.Ua.Bindings
         {
             get { return m_uri; }
         }
-        
+
+        private bool ClientCertificateValidationCallback(X509Certificate2 certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            //TODO
+            return true;
+        }
+
+
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
@@ -184,16 +181,25 @@ namespace Opc.Ua.Bindings
             Startup.Listener = this;
            
             m_host = new WebHostBuilder();
+
+            HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
+            httpsOptions.CheckCertificateRevocation = false;
+            httpsOptions.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+            httpsOptions.ClientCertificateValidation = ClientCertificateValidationCallback;
+            httpsOptions.ServerCertificate = m_serverCert;
+            httpsOptions.SslProtocols = SslProtocols.Tls;
+
             m_host.UseKestrel(options =>
             {
                 options.NoDelay = true;
-                options.UseHttps(m_serverCert);
-                options.UseConnectionLogging();
+                options.UseHttps(httpsOptions);
             });
-            m_host.UseUrls(m_uri.ToString());
+
             m_host.UseContentRoot(Directory.GetCurrentDirectory());
             m_host.UseStartup<Startup>();
             m_host.Build();
+
+            m_host.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
         }
 
         /// <summary>
@@ -221,11 +227,16 @@ namespace Opc.Ua.Bindings
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
                     await context.Response.WriteAsync(string.Empty);
+                    return;
                 }
 
                 byte[] buffer = new byte[(int)context.Request.ContentLength];
-                await context.Request.Body.ReadAsync(buffer, 0, (int)context.Request.ContentLength);
-                
+                lock (m_lock)
+                {
+                    Task<int> task = context.Request.Body.ReadAsync(buffer, 0, (int)context.Request.ContentLength);
+                    task.Wait();
+                }
+
                 IServiceRequest input = (IServiceRequest) BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
                 // extract the JWT token from the HTTP headers.
@@ -271,7 +282,6 @@ namespace Opc.Ua.Bindings
                 byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 await context.Response.Body.WriteAsync(response, 0, response.Length);
             }
             catch (Exception e)
@@ -281,116 +291,6 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 await context.Response.WriteAsync(e.Message);
-            }
-        }
-
-        /// <summary>
-        /// Handles requests arriving from a channel.
-        /// </summary>
-        private IAsyncResult BeginProcessRequest(Stream istrm, string action, string securityPolicyUri, object callbackData)
-        {
-            IAsyncResult result = null;
-
-            try
-            {
-                if (m_callback != null)
-                {
-                    Uri uri = m_uri; // context.Request.UriTemplateMatch.RequestUri;
-
-                    string scheme = uri.Scheme + ":";
-
-                    EndpointDescription endpoint = null;
-
-                    for (int ii = 0; ii < m_descriptions.Count; ii++)
-                    {
-                        if (m_descriptions[ii].EndpointUrl.StartsWith(scheme))
-                        {
-                            if (endpoint == null)
-                            {
-                                endpoint = m_descriptions[ii];
-                            }
-
-                            if (m_descriptions[ii].SecurityPolicyUri == securityPolicyUri)
-                            {
-                                endpoint = m_descriptions[ii];
-                                break;
-                            }
-                        }
-                    }
-
-                    IEncodeable request = BinaryDecoder.DecodeMessage(istrm, null, this.m_quotas.MessageContext);
-
-                    result = m_callback.BeginProcessRequest(
-                        m_listenerId,
-                        endpoint,
-                        request as IServiceRequest,
-                        null,
-                        callbackData);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
-            }
-
-            return result;
-        }
-
-        private Stream EndProcessRequest(IAsyncResult result)
-        {
-            MemoryStream ostrm = new MemoryStream();
-
-            try
-            {
-                if (m_callback != null)
-                {
-                    IServiceResponse response = m_callback.EndProcessRequest(result);
-                    
-                    BinaryEncoder encoder = new BinaryEncoder(ostrm, this.m_quotas.MessageContext);
-                    encoder.EncodeMessage(response);
-                    
-                    ostrm.Position = 0;
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "TCPLISTENER - Unexpected error sending result.");
-            }
-
-            return ostrm;
-        }
-
-        /// <summary>
-        /// Sets the URI for the listener.
-        /// </summary>
-        private void SetUri(Uri baseAddress, string relativeAddress)
-        {
-            if (baseAddress == null) throw new ArgumentNullException("baseAddress");
-
-            // validate uri.
-            if (!baseAddress.IsAbsoluteUri)
-            {
-                throw new ArgumentException(Utils.Format("Base address must be an absolute URI."), "baseAddress");
-            }
-
-            if (String.Compare(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase) != 0)
-            {
-                throw new ArgumentException(Utils.Format("Invalid URI scheme: {0}.", baseAddress.Scheme), "baseAddress");
-            }
-
-            m_uri = baseAddress;
-
-            // append the relative path to the base address.
-            if (!String.IsNullOrEmpty(relativeAddress))
-            {
-                if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
-                {
-                    UriBuilder uriBuilder = new UriBuilder(baseAddress);
-                    uriBuilder.Path = uriBuilder.Path + "/";
-                    baseAddress = uriBuilder.Uri;
-                }
-
-                m_uri = new Uri(baseAddress, relativeAddress);
             }
         }
         #endregion

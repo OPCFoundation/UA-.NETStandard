@@ -400,40 +400,6 @@ namespace Opc.Ua.Bindings
                 Utils.Trace(e, "TCPLISTENER - Unexpected error sending result.");
             }
         }
-
-        /// <summary>
-        /// Sets the URI for the listener.
-        /// </summary>
-        private void SetUri(Uri baseAddress, string relativeAddress)
-        {
-            if (baseAddress == null) throw new ArgumentNullException("baseAddress");
-
-            // validate uri.
-            if (!baseAddress.IsAbsoluteUri)
-            {
-                throw new ArgumentException(Utils.Format("Base address must be an absolute URI."), "baseAddress");
-            }
-
-            if (String.Compare(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase) != 0)
-            {
-                throw new ArgumentException(Utils.Format("Invalid URI scheme: {0}.", baseAddress.Scheme), "baseAddress");
-            }
-
-            m_uri = baseAddress;
-
-            // append the relative path to the base address.
-            if (!String.IsNullOrEmpty(relativeAddress))
-            {
-                if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
-                {
-                    UriBuilder uriBuilder = new UriBuilder(baseAddress);
-                    uriBuilder.Path = uriBuilder.Path + "/";
-                    baseAddress = uriBuilder.Uri;
-                }
-
-                m_uri = new Uri(baseAddress, relativeAddress);
-            }
-        }
 #endregion
 
 #region Private Fields
