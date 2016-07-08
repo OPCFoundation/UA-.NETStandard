@@ -195,7 +195,7 @@ namespace Opc.Ua.Bindings
             m_host.UseKestrel(options =>
             {
                 options.NoDelay = true;
-                //options.UseHttps(httpsOptions);
+                options.UseHttps(httpsOptions);
             });
 
             m_host.UseContentRoot(Directory.GetCurrentDirectory());

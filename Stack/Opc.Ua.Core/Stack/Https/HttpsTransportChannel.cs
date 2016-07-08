@@ -204,7 +204,7 @@ namespace Opc.Ua.Bindings
         
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
-            m_url = new Uri(Utils.ReplaceLocalhost(url.ToString().Replace("https", "http")));
+            m_url = new Uri(Utils.ReplaceLocalhost(url.ToString()));
 
             m_settings = settings;
             m_operationTimeout = settings.Configuration.OperationTimeout;
