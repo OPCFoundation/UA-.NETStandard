@@ -142,8 +142,11 @@ namespace Opc.Ua.Bindings
 
             m_serverCert = settings.ServerCertificate;
 
-            // start the listener.
-            Start();
+            // start the listener (but not for UWP apps, as UWP doesn't support Kestrel).
+            if (!Directory.GetCurrentDirectory().Contains("\\AppX"))
+            {
+                Start();
+            }
         }
 
         /// <summary>
@@ -192,7 +195,7 @@ namespace Opc.Ua.Bindings
             m_host.UseKestrel(options =>
             {
                 options.NoDelay = true;
-                options.UseHttps(httpsOptions);
+                //options.UseHttps(httpsOptions);
             });
 
             m_host.UseContentRoot(Directory.GetCurrentDirectory());
@@ -229,7 +232,7 @@ namespace Opc.Ua.Bindings
                     await context.Response.WriteAsync(string.Empty);
                     return;
                 }
-
+                
                 byte[] buffer = new byte[(int)context.Request.ContentLength];
                 lock (m_lock)
                 {
@@ -282,6 +285,7 @@ namespace Opc.Ua.Bindings
                 byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
+                context.Response.StatusCode = (int)HttpStatusCode.OK;
                 await context.Response.Body.WriteAsync(response, 0, response.Length);
             }
             catch (Exception e)
