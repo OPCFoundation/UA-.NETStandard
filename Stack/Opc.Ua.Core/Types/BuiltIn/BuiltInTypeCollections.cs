@@ -14,7 +14,6 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 using System.Runtime.Serialization;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {
@@ -1107,7 +1106,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of XmlElement values.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfXmlElement", Namespace = Namespaces.OpcUaXsd, ItemName = "XmlElement")]
-    public partial class XmlElementCollection : List<XElement>
+    public partial class XmlElementCollection : List<XmlElement>
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -1133,7 +1132,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of XmlElement's to add to this collection</param>
-        public XmlElementCollection(IEnumerable<XElement> collection) : base(collection) {}
+        public XmlElementCollection(IEnumerable<XmlElement> collection) : base(collection) {}
                           
         /// <summary>
         /// Converts an array to a collection.
@@ -1142,7 +1141,7 @@ namespace Opc.Ua
         /// Converts an array to a collection.
         /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
-        public static XmlElementCollection ToXmlElementCollection(XElement[] values)
+        public static XmlElementCollection ToXmlElementCollection(XmlElement[] values)
         {
             if (values != null)
             {
@@ -1159,7 +1158,7 @@ namespace Opc.Ua
         /// Converts an array to a collection.
         /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
-        public static implicit operator XmlElementCollection(XElement[] values)
+        public static implicit operator XmlElementCollection(XmlElement[] values)
         {
             return ToXmlElementCollection(values);
         }
@@ -1174,9 +1173,9 @@ namespace Opc.Ua
         {
             XmlElementCollection clone = new XmlElementCollection(this.Count);
 
-            foreach (XElement element in this)
+            foreach (XmlElement element in this)
             {
-                clone.Add((XElement)Utils.Clone(element));
+                clone.Add((XmlElement)Utils.Clone(element));
             }
 
             return clone;
@@ -1185,9 +1184,9 @@ namespace Opc.Ua
     }//class
 
     [CollectionDataContract(Name = "ListOfExtensions", ItemName = "Extension", Namespace = Namespaces.OpcUaConfig)]
-    public class ExtensionCollection : List<XElement>
+    public class ExtensionCollection : List<XmlElement>
     {
-        public XElement ExtensionList { get; private set; }
+        public XmlElement ExtensionList { get; private set; }
     }
   
 }//namespace

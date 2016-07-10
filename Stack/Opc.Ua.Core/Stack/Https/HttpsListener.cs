@@ -169,13 +169,6 @@ namespace Opc.Ua.Bindings
             get { return m_uri; }
         }
 
-        private bool ClientCertificateValidationCallback(X509Certificate2 certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-        {
-            //TODO
-            return true;
-        }
-
-
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
@@ -187,8 +180,7 @@ namespace Opc.Ua.Bindings
 
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
-            httpsOptions.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
-            httpsOptions.ClientCertificateValidation = ClientCertificateValidationCallback;
+            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls;
 

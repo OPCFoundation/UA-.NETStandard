@@ -28,7 +28,6 @@ using System.Xml;
 using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {
@@ -745,7 +744,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        public XElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string fieldName)
         {
             object token = null;
 
@@ -765,7 +764,10 @@ namespace Opc.Ua
 
             if (bytes != null && bytes.Length > 0)
             {
-                return XElement.Parse(Encoding.UTF8.GetString(bytes));
+                XmlDocument document = new XmlDocument();
+                document.InnerXml = new UTF8Encoding().GetString(bytes);
+
+                return document.DocumentElement;
             }
 
             return null;

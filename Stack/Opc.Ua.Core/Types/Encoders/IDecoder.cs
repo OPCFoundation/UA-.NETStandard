@@ -11,7 +11,7 @@
 */
 
 using System;
-using System.Xml.Linq;
+using System.Xml;
 
 namespace Opc.Ua
 {    
@@ -118,7 +118,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        XElement ReadXmlElement(string fieldName);
+        XmlElement ReadXmlElement(string fieldName);
 
         /// <summary>
         /// Reads an NodeId from the stream.

@@ -12,7 +12,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml.Linq;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an XmlElement to the stream.
         /// </summary>
-        void WriteXmlElement(string fieldName, XElement value);
+        void WriteXmlElement(string fieldName, XmlElement value);
         
         /// <summary>
         /// Writes an NodeId to the stream.
@@ -264,7 +264,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a XmlElement array to the stream.
         /// </summary>
-        void WriteXmlElementArray(string fieldName, IList<XElement> values);
+        void WriteXmlElementArray(string fieldName, IList<XmlElement> values);
                 
         /// <summary>
         /// Writes an NodeId array to the stream.

@@ -11,7 +11,14 @@
         "System.ServiceModel.Primitives": "4.1.0"
     },
 
-  "frameworks": {
-    "netstandard1.3": {}
-  }
+    "frameworks": {
+        "net46": {},
+        "netcoreapp1.0": {},
+        "netstandard1.3": {},
+        "uap10.0": {
+            "dependencies": {
+                "System.Net.NameResolution": "4.0.0"
+            }
+        }   
+    }
 }

@@ -16,7 +16,6 @@ using System.Text;
 using System.IO;
 using System.Xml;
 using System.Globalization;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {   
@@ -483,7 +482,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an XmlElement to the stream.
         /// </summary>
-        public void WriteXmlElement(string fieldName, XElement value)
+        public void WriteXmlElement(string fieldName, XmlElement value)
         {            
             if (value == null)
             {
@@ -787,7 +786,7 @@ namespace Opc.Ua
                     case BuiltInType.DateTime: { WriteDateTime(null, (DateTime)valueToEncode); return; }               
                     case BuiltInType.Guid: { WriteGuid(null, (Uuid)valueToEncode); return; }  
                     case BuiltInType.ByteString: { WriteByteString(null, (byte[])valueToEncode); return; }
-                    case BuiltInType.XmlElement: { WriteXmlElement(null, (XElement)valueToEncode); return; }
+                    case BuiltInType.XmlElement: { WriteXmlElement(null, (XmlElement)valueToEncode); return; }
                     case BuiltInType.NodeId: { WriteNodeId(null, (NodeId)valueToEncode); return; }
                     case BuiltInType.ExpandedNodeId: { WriteExpandedNodeId(null, (ExpandedNodeId)valueToEncode); return; }
                     case BuiltInType.StatusCode: { WriteStatusCode(null, (StatusCode)valueToEncode); return; }
@@ -836,7 +835,7 @@ namespace Opc.Ua
                     case BuiltInType.DateTime: { WriteDateTimeArray(null, (DateTime[])valueToEncode); break; }               
                     case BuiltInType.Guid: { WriteGuidArray(null, (Uuid[])valueToEncode); break; }  
                     case BuiltInType.ByteString: { WriteByteStringArray(null, (byte[][])valueToEncode); break; }
-                    case BuiltInType.XmlElement: { WriteXmlElementArray(null, (XElement[])valueToEncode); break; }
+                    case BuiltInType.XmlElement: { WriteXmlElementArray(null, (XmlElement[])valueToEncode); break; }
                     case BuiltInType.NodeId: { WriteNodeIdArray(null, (NodeId[])valueToEncode); break; }
                     case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(null, (ExpandedNodeId[])valueToEncode); break; }
                     case BuiltInType.StatusCode: { WriteStatusCodeArray(null, (StatusCode[])valueToEncode); break; }
@@ -1062,7 +1061,7 @@ namespace Opc.Ua
             }
             
             // write XML bodies.
-            XElement xml = body as XElement;
+            XmlElement xml = body as XmlElement;
 
             if (xml != null)
             {                
@@ -1425,7 +1424,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an XmlElement array to the stream.
         /// </summary>
-        public void WriteXmlElementArray(string fieldName, IList<XElement> values)
+        public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
             // write length.
             if (WriteArrayLength(values))

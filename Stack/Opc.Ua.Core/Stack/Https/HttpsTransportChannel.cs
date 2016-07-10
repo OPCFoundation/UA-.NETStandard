@@ -59,18 +59,12 @@ namespace Opc.Ua.Bindings
         {
             SaveSettings(url, settings);
         }
-
+        
         public void Open()
         {
             try
             {
-                HttpClientHandler clientHandler = new HttpClientHandler();
-                clientHandler.ClientCertificateOptions = ClientCertificateOption.Manual;
-                if (m_settings.ClientCertificate != null)
-                {
-                    clientHandler.ClientCertificates.Add(m_settings.ClientCertificate);
-                }
-                m_client = new HttpClient(clientHandler);
+                  m_client = new HttpClient();
             }
             catch (Exception ex)
             {

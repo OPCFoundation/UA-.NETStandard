@@ -10,12 +10,11 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System.Runtime.Serialization;
+using System.Xml;
+
 namespace Opc.Ua.Schema.Binary
 {
-    using System.Runtime.Serialization;
-    using System.Xml.Linq;
-
-    /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -23,7 +22,7 @@ namespace Opc.Ua.Schema.Binary
     [System.Xml.Serialization.XmlRootAttribute(Namespace="http://opcfoundation.org/BinarySchema/", IsNullable=false)]
     public partial class Documentation {
         
-        private XElement[] itemsField;
+        private XmlElement[] itemsField;
         
         private string[] textField;
         
@@ -31,7 +30,7 @@ namespace Opc.Ua.Schema.Binary
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
-        public XElement[] Items {
+        public XmlElement[] Items {
             get {
                 return this.itemsField;
             }

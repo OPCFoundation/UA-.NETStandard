@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua;
-using System.Xml.Linq;
+using System.Xml;
 
 namespace TestData
 {
@@ -253,7 +253,7 @@ namespace TestData
         /// A description for the XmlElementValue field.
         /// </summary>
         [DataMember(Name = "XmlElementValue", IsRequired = false, Order = 16)]
-        public XElement XmlElementValue
+        public XmlElement XmlElementValue
         {
             get { return m_xmlElementValue;  }
             set { m_xmlElementValue = value; }
@@ -532,7 +532,7 @@ namespace TestData
             clone.m_dateTimeValue = (DateTime)Utils.Clone(this.m_dateTimeValue);
             clone.m_guidValue = (Uuid)Utils.Clone(this.m_guidValue);
             clone.m_byteStringValue = (byte[])Utils.Clone(this.m_byteStringValue);
-            clone.m_xmlElementValue = (XElement)Utils.Clone(this.m_xmlElementValue);
+            clone.m_xmlElementValue = (XmlElement)Utils.Clone(this.m_xmlElementValue);
             clone.m_nodeIdValue = (NodeId)Utils.Clone(this.m_nodeIdValue);
             clone.m_expandedNodeIdValue = (ExpandedNodeId)Utils.Clone(this.m_expandedNodeIdValue);
             clone.m_qualifiedNameValue = (QualifiedName)Utils.Clone(this.m_qualifiedNameValue);
@@ -565,7 +565,7 @@ namespace TestData
         private DateTime m_dateTimeValue;
         private Uuid m_guidValue;
         private byte[] m_byteStringValue;
-        private XElement m_xmlElementValue;
+        private XmlElement m_xmlElementValue;
         private NodeId m_nodeIdValue;
         private ExpandedNodeId m_expandedNodeIdValue;
         private QualifiedName m_qualifiedNameValue;
@@ -1808,7 +1808,7 @@ namespace TestData
         /// A description for the XmlElementDataType field.
         /// </summary>
         [DataMember(Name = "XmlElementDataType", IsRequired = false, Order = 16)]
-        public XElement XmlElementDataType
+        public XmlElement XmlElementDataType
         {
             get { return m_xmlElementDataType;  }
             set { m_xmlElementDataType = value; }
@@ -2021,7 +2021,7 @@ namespace TestData
             clone.m_dateTimeDataType = (DateTime)Utils.Clone(this.m_dateTimeDataType);
             clone.m_guidDataType = (Uuid)Utils.Clone(this.m_guidDataType);
             clone.m_byteStringDataType = (byte[])Utils.Clone(this.m_byteStringDataType);
-            clone.m_xmlElementDataType = (XElement)Utils.Clone(this.m_xmlElementDataType);
+            clone.m_xmlElementDataType = (XmlElement)Utils.Clone(this.m_xmlElementDataType);
             clone.m_nodeIdDataType = (NodeId)Utils.Clone(this.m_nodeIdDataType);
             clone.m_expandedNodeIdDataType = (ExpandedNodeId)Utils.Clone(this.m_expandedNodeIdDataType);
             clone.m_qualifiedNameDataType = (QualifiedName)Utils.Clone(this.m_qualifiedNameDataType);
@@ -2049,7 +2049,7 @@ namespace TestData
         private DateTime m_dateTimeDataType;
         private Uuid m_guidDataType;
         private byte[] m_byteStringDataType;
-        private XElement m_xmlElementDataType;
+        private XmlElement m_xmlElementDataType;
         private NodeId m_nodeIdDataType;
         private ExpandedNodeId m_expandedNodeIdDataType;
         private QualifiedName m_qualifiedNameDataType;

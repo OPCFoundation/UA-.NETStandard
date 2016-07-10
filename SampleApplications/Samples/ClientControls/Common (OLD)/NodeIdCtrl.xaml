@@ -1,0 +1,15 @@
+﻿<UserControl
+    x:Class="Opc.Ua.Client.Controls.NodeIdCtrl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Button x:Name="BrowseBTN" Content="Button" HorizontalAlignment="Left" Margin="122,220,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="NodeIdTB" HorizontalAlignment="Left" Margin="122,288,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top"/>
+
+    </Grid>
+</UserControl>

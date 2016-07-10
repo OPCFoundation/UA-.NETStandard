@@ -347,7 +347,7 @@
   </ClientConfiguration>
 
   <Extensions>
-    <Extension>
+    <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
         <Buffers>
           <MemoryBufferInstance>
@@ -362,9 +362,9 @@
           </MemoryBufferInstance>
         </Buffers>
       </MemoryBufferConfiguration>
-    </Extension>
+    </ua:XmlElement>
 
-    <Extension>
+    <ua:XmlElement>
       <ListOfAmqpConnectionConfigurations xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
 
         <!-- The publisher sample allows a user to create subscriptions on a session to observe
@@ -451,7 +451,7 @@
         <!-- Configure more connections to multiplex published messages ... -->
         
       </ListOfAmqpConnectionConfigurations>
-    </Extension>
+    </ua:XmlElement>
   </Extensions>
 
   <!--

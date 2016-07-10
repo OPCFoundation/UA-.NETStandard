@@ -156,10 +156,9 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SDK\Controls\Opc.Ua.Client.Controls.csproj">
+    <ProjectReference Include="..\ClientControls\Opc.Ua.Client.Controls.csproj">
       <Project>{0bacfd1f-8bd1-45e2-81ad-f9dbb5fbe028}</Project>
       <Name>Opc.Ua.Client.Controls</Name>
-      <Private>False</Private>
     </ProjectReference>
     <ProjectReference Include="..\Controls\Opc.Ua.Sample.Controls.csproj">
       <Project>{5192cb9a-d4fc-41ef-839f-d9e08c17f221}</Project>

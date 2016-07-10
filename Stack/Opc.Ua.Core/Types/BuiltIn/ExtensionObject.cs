@@ -17,7 +17,6 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Linq;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {    
@@ -529,9 +528,9 @@ namespace Opc.Ua
                     return String.Format(formatProvider, "Byte[{0}]", ((byte[])m_body).Length);
                 }
                 
-                if (m_body is XElement)
+                if (m_body is XmlElement)
                 {
-                    return String.Format(formatProvider, "<{0}>", ((XElement)m_body).Name);
+                    return String.Format(formatProvider, "<{0}>", ((XmlElement)m_body).Name);
                 }
                 
                 if (m_body is IEncodeable)
@@ -694,7 +693,7 @@ namespace Opc.Ua
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        private XElement XmlEncodedBody
+        private XmlElement XmlEncodedBody
         {
             get
             {
@@ -711,7 +710,11 @@ namespace Opc.Ua
                 encoder.WriteExtensionObjectBody(m_body);
 
                 // create document from encoder.
-                return XElement.Parse(encoder.Close());
+                XmlDocument document = new XmlDocument();
+                document.InnerXml = encoder.Close();
+
+                // return root element.
+                return document.DocumentElement;
             }
 
             set
@@ -724,9 +727,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                XmlDocument doc = new XmlDocument();
-                doc.Load(value.CreateReader());
-                XmlDecoder decoder = new XmlDecoder(doc.DocumentElement, m_context);
+                XmlDecoder decoder = new XmlDecoder(value, m_context);
               
                 // read body.
                 Body = decoder.ReadExtensionObjectBody(m_typeId);

@@ -18,7 +18,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Reflection;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {   
@@ -753,7 +752,7 @@ namespace Opc.Ua
         /// The value stored within the Variant object.
         /// </remarks>
         [DataMember(Name="Value", Order = 1)]
-        private XElement XmlEncodedValue
+        private XmlElement XmlEncodedValue
         {
             get
             {  
@@ -764,7 +763,11 @@ namespace Opc.Ua
                 encoder.WriteVariantContents(m_value, m_typeInfo);
 
                 // create document from encoder.
-                return XElement.Parse(encoder.Close());
+                XmlDocument document = new XmlDocument();
+                document.InnerXml = encoder.Close();
+
+                // return element.
+                return document.DocumentElement;
             }
 
             set
@@ -779,9 +782,7 @@ namespace Opc.Ua
                 TypeInfo typeInfo = null;
 
                 // create decoder.
-                XmlDocument doc = new XmlDocument();
-                doc.Load(value.CreateReader());
-                XmlDecoder decoder = new XmlDecoder(doc.DocumentElement, MessageContextExtension.CurrentContext);
+                XmlDecoder decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
 
                 try
                 {
@@ -1755,7 +1756,7 @@ namespace Opc.Ua
         /// Initializes the object with a <see cref="XmlElement"/> value.
         /// </remarks>
         /// <param name="value">The <see cref="XmlElement"/> value to set this Variant to</param>
-        public void Set(XElement value)
+        public void Set(XmlElement value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Scalars.XmlElement;

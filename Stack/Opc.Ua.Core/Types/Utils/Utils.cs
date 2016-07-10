@@ -21,11 +21,10 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
-using System.Xml.Linq;
+using System.Net;
 
 namespace Opc.Ua
 {
@@ -1937,7 +1936,7 @@ namespace Opc.Ua
         /// <returns>
         /// The deserialized extension. Null if an error occurs.
         /// </returns>
-        public static T ParseExtension<T>(IList<XElement> extensions, XmlQualifiedName elementName)
+        public static T ParseExtension<T>(IList<XmlElement> extensions, XmlQualifiedName elementName)
         {
             // check if nothing to search for.
             if (extensions == null || extensions.Count == 0)
@@ -1962,7 +1961,7 @@ namespace Opc.Ua
             // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                if (extensions[ii].Name.LocalName != elementName.Name || extensions[ii].Name.NamespaceName != elementName.Namespace)
+                if (extensions[ii].LocalName != elementName.Name || extensions[ii].NamespaceURI != elementName.Namespace)
                 {
                     continue;
                 }
@@ -2037,7 +2036,7 @@ namespace Opc.Ua
             {
                 for (int ii =  0; ii < extensions.Count; ii++)
                 {
-                    if (extensions[ii] != null && extensions[ii].Name.LocalName == elementName.Name && extensions[ii].Name.NamespaceName == elementName.Namespace)
+                    if (extensions[ii] != null && extensions[ii].LocalName == elementName.Name && extensions[ii].NamespaceURI == elementName.Namespace)
                     {
                         // remove the existing value if the value is null.
                         if (value == null)
@@ -2046,7 +2045,7 @@ namespace Opc.Ua
                             return;
                         }
 
-                        extensions[ii] = new XElement(document.ToString());
+                        extensions[ii] = document.DocumentElement;
                         return;
                     }
                 }
@@ -2060,7 +2059,7 @@ namespace Opc.Ua
                     extensions = new ExtensionCollection();
                 }
 
-                extensions.Add(new XElement(document.ToString()));
+                extensions.Add(document.DocumentElement);
             }
         }
 #endregion

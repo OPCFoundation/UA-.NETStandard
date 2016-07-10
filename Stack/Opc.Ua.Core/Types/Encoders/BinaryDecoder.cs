@@ -14,7 +14,6 @@ using System;
 using System.Text;
 using System.Xml;
 using System.IO;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {        
@@ -448,7 +447,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        public XElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string fieldName)
         {
             byte[] bytes = ReadByteString(fieldName);
 
@@ -456,8 +455,11 @@ namespace Opc.Ua
             {
                 return null;
             }
-            
-            return XElement.Parse(new UTF8Encoding().GetString(bytes, 0, bytes.Length));
+
+            XmlDocument document = new XmlDocument();
+            document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+
+            return document.DocumentElement;
         }
 
         /// <summary>
@@ -848,7 +850,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            XElement[] values = new XElement[length];
+                            XmlElement[] values = new XmlElement[length];
 
                             for (int ii = 0; ii < values.Length; ii++)
                             {

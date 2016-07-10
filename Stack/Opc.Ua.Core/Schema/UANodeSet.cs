@@ -15,7 +15,7 @@
 namespace Opc.Ua.Export
 {
     using System.Runtime.Serialization;
-    using System.Xml.Linq;
+    using System.Xml;
 
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.3038")]
@@ -31,7 +31,7 @@ namespace Opc.Ua.Export
         
         private NodeIdAlias[] aliasesField;
         
-        private XElement[] extensionsField;
+        private XmlElement[] extensionsField;
         
         private UANode[] itemsField;
         
@@ -76,7 +76,7 @@ namespace Opc.Ua.Export
         
         /// <remarks/>
         [System.Xml.Serialization.XmlArrayItemAttribute("Extension", IsNullable=false)]
-        public XElement[] Extensions {
+        public XmlElement[] Extensions {
             get {
                 return this.extensionsField;
             }
@@ -515,7 +515,7 @@ namespace Opc.Ua.Export
         
         private Reference[] referencesField;
         
-        private XElement[] extensionsField;
+        private XmlElement[] extensionsField;
         
         private string nodeIdField;
         
@@ -567,7 +567,7 @@ namespace Opc.Ua.Export
         
         /// <remarks/>
         [System.Xml.Serialization.XmlArrayItemAttribute("Extension", IsNullable=false)]
-        public XElement[] Extensions {
+        public XmlElement[] Extensions {
             get {
                 return this.extensionsField;
             }
@@ -730,7 +730,7 @@ namespace Opc.Ua.Export
     [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
     public partial class UAVariableType : UAType {
         
-        private XElement valueField;
+        private XmlElement valueField;
         
         private string dataTypeField;
         
@@ -745,7 +745,7 @@ namespace Opc.Ua.Export
         }
         
         /// <remarks/>
-        public XElement Value {
+        public XmlElement Value {
             get {
                 return this.valueField;
             }
@@ -913,7 +913,7 @@ namespace Opc.Ua.Export
     [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")]
     public partial class UAVariable : UAInstance {
         
-        private XElement valueField;
+        private XmlElement valueField;
         
         private TranslationType[] translationField;
         
@@ -942,7 +942,7 @@ namespace Opc.Ua.Export
         }
         
         /// <remarks/>
-        public XElement Value {
+        public XmlElement Value {
             get {
                 return this.valueField;
             }

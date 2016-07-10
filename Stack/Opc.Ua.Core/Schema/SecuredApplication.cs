@@ -9,7 +9,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-using System.Xml.Linq;
+using System.Xml;
 
 namespace Opc.Ua.Security
 {
@@ -524,7 +524,7 @@ namespace Opc.Ua.Security
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Runtime.Serialization", "3.0.0.0")]
     [System.Runtime.Serialization.CollectionDataContractAttribute(Name="ListOfExtensions", Namespace="http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd", ItemName="Extension")]
-    public class ListOfExtensions : System.Collections.Generic.List<XElement>
+    public class ListOfExtensions : System.Collections.Generic.List<XmlElement>
     {
     }
     

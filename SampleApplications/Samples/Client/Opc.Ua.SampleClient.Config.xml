@@ -347,7 +347,7 @@
   </ClientConfiguration>
 
   <Extensions>
-    <Extension>
+    <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
         <Buffers>
           <MemoryBufferInstance>
@@ -362,7 +362,7 @@
           </MemoryBufferInstance>
         </Buffers>
       </MemoryBufferConfiguration>
-    </Extension>
+    </ua:XmlElement>
   </Extensions>
   
   <!--

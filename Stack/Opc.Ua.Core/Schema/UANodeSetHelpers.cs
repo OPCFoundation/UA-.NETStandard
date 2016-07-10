@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
 
 
@@ -176,7 +175,9 @@ namespace Opc.Ua.Export
                         Variant variant = new Variant(o.Value);
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        value.Value = XElement.Parse(encoder.Close());
+                        XmlDocument document = new XmlDocument();
+                        document.InnerXml = encoder.Close();
+                        value.Value = document.DocumentElement;
                     }
 
                     exportedNode = value;                 
@@ -233,7 +234,9 @@ namespace Opc.Ua.Export
                         Variant variant = new Variant(o.Value);
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        value.Value = XElement.Parse(encoder.Close());
+                        XmlDocument document = new XmlDocument();
+                        document.InnerXml = encoder.Close();
+                        value.Value = document.DocumentElement;
                     }
 
                     exportedNode = value;
@@ -475,9 +478,7 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDocument doc = new XmlDocument();
-                        doc.Load(o.Value.CreateReader());
-                        XmlDecoder decoder = CreateDecoder(context, doc.DocumentElement);
+                        XmlDecoder decoder = CreateDecoder(context, o.Value);
                         TypeInfo typeInfo = null;
                         value.Value = decoder.ReadVariantContents(out typeInfo);
                         decoder.Close();
@@ -526,9 +527,7 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDocument doc = new XmlDocument();
-                        doc.Load(o.Value.CreateReader());
-                        XmlDecoder decoder = CreateDecoder(context, doc.DocumentElement);
+                        XmlDecoder decoder = CreateDecoder(context, o.Value);
                         TypeInfo typeInfo = null;
                         value.Value = decoder.ReadVariantContents(out typeInfo);
                         decoder.Close();

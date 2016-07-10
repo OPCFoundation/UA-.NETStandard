@@ -16,7 +16,6 @@ using System.Text;
 using System.Xml;
 using System.Globalization;
 using System.IO;
-using System.Xml.Linq;
 
 namespace Opc.Ua
 {    
@@ -1061,7 +1060,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        public XElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string fieldName)
         {
             if (BeginField(fieldName, true))
             {
@@ -1087,7 +1086,7 @@ namespace Opc.Ua
                     value.InnerXml = m_reader.ReadInnerXml();
                     
                     EndField(fieldName);
-                    return XElement.Parse(value.InnerXml);
+                    return value;
                 }
             }
 
