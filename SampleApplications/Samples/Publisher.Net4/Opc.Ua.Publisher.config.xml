@@ -93,45 +93,7 @@
 
   </SecurityConfiguration>
 
-  <!-- Maps different transports onto a .NET implementation of a WCF Binding
-  
-       WCF bindings are very complex and have many parameters that can be tweeked. To ensure
-       interoperability the SDK has defined 3 standard bindings which can be selected with this
-       element. Developers may define their own Bindings as well provided the inhierit from the 
-       Opc.Ua.Binding.BaseBinding type and implement the same constructor as the built-in binding
-       provide.
-       
-       Note protocols other than HTTP or UA-TCP are not considered to be interoperable -->
-  <TransportConfigurations>
-    <!-- This binding wraps the ANSI C implementation of UA-TCP instead of using the C# implementation. -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStackWrapper</TypeName>
-    </TransportConfiguration>
-    -->
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaTcpBinding</TypeName>
-    </TransportConfiguration>
-
-    <!-- This binding uses the WCF binary encoded XML over TCP -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>net.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverTcpBinding</TypeName>
-    </TransportConfiguration>
-    -->
-
-    <!-- This binding uses the WCF binary encoded XML over PIPE -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>net.pipe</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverPipeBinding</TypeName>
-    </TransportConfiguration>
-    -->
-
-  </TransportConfigurations>
+  <TransportConfigurations></TransportConfigurations>
 
   <!-- Specifies quotas used to by the transport layer -->
   <TransportQuotas>
@@ -182,7 +144,6 @@
          http://localhost:61211/UA/Publisher/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/Publisher</ua:String>
-      <ua:String>http://localhost:61211/UA/Publisher</ua:String>
       <ua:String>https://localhost:61212/UA/Publisher/</ua:String>
     </BaseAddresses>
 
@@ -429,7 +390,7 @@
           <!-- The broker's host name - In case of e.g. an Azure broker, the host is part of the 
             connection string provided by the Azure portal and prefixed with 'Host='. Otherwise
             it is the server the broker runs on, such as localhost, etc. -->
-          <Host>erichb-hub.azure-devices.net</Host>
+          <Host>{Host}</Host>
           
           <!-- Broker port - Omit to use default AMQP ports, such as 5671 for AMQPS and 443
             for websocket based AMQP connections. Only TLS secured connections are supported. -->
@@ -445,7 +406,7 @@
             connection string (prefix 'Entity=') and prefix with '/'. For example 
                 /{Entity}
           -->
-          <Endpoint>/devices/OPC-Publisher/messages/events</Endpoint>
+          <Endpoint>/devices/{DeviceId}/messages/events</Endpoint>
           
           <!-- If the amqp connection is supposed to be over websocket transport, set the
             websocket url endpoint here.  Otherwise this can be omitted.
@@ -460,7 +421,7 @@
             For unauthenticated connections leave both blank 
           -->
           <KeyName></KeyName>
-          <KeyValue>YtYij/1IYSK+Pk2DNKnl0y5OMMYUh/XcjB30Y2GU8Gk=</KeyValue>
+          <KeyValue>{KeyValue}</KeyValue>
           <!-- Specifies the encoding of the key. The default encoding is utf-8, however, 
             Azure IoTHub Connection strings are base 64 encoded, this setting is thus for 
             convinience -->
@@ -481,7 +442,7 @@
                 {Host}/{Endpoint}
             Host, DeviceId, and Entity name are part of the Azure portal supplied 
             connection string (see publishing endpoint section) -->
-          <TokenScope>erichb-hub.azure-devices.net/devices/OPC-Publisher</TokenScope>
+          <TokenScope>{Host}/devices/{deviceid}</TokenScope>
           <!-- Specifies the token lifetime in milliseconds, defaults to 60 seconds -->
           <!-- <TokenLifetime>60000</TokenLifetime> -->
 

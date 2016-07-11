@@ -52,17 +52,21 @@
       <HintPath>..\..\..\packages\Microsoft.Owin.Host.HttpListener.3.0.1\lib\net45\Microsoft.Owin.Host.HttpListener.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\netstandard1.3\Opc.Ua.Configuration.dll</HintPath>
+    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\netstandard1.3\Opc.Ua.Core.dll</HintPath>
+    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Sample">
-      <HintPath>..\Opc.Ua.Sample\bin\Debug\netstandard1.3\Opc.Ua.Sample.dll</HintPath>
+    <Reference Include="Opc.Ua.Sample, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Opc.Ua.Sample\bin\Debug\net46\Opc.Ua.Sample.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\netstandard1.3\Opc.Ua.Server.dll</HintPath>
+    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration.Install" />
@@ -134,9 +138,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="InstallConfig.xml" />
-    <Resource Include="App.ico">
+    <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
+    </EmbeddedResource>
     <Content Include="Opc.Ua.SampleServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

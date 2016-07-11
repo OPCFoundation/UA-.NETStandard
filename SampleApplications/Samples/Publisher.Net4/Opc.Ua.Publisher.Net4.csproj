@@ -63,28 +63,29 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Amqp.Net, Version=1.1.8.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\AMQPNetLite.1.1.8\lib\net45\Amqp.Net.dll</HintPath>
+    <Reference Include="Amqp.Net, Version=1.1.9.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\AMQPNetLite.1.1.9-rc\lib\net45\Amqp.Net.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Opc.Ua.Client, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Client">
-      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\netstandard1.3\Opc.Ua.Client.dll</HintPath>
+    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\netstandard1.3\Opc.Ua.Configuration.dll</HintPath>
+    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\netstandard1.3\Opc.Ua.Core.dll</HintPath>
+    <Reference Include="Opc.Ua.Sample, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Opc.Ua.Sample\bin\Debug\net46\Opc.Ua.Sample.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Sample">
-      <HintPath>..\Opc.Ua.Sample\bin\Debug\netstandard1.3\Opc.Ua.Sample.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\netstandard1.3\Opc.Ua.Server.dll</HintPath>
+    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -99,13 +100,32 @@
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Security.Cryptography.Algorithms.4.2.0\lib\net46\System.Security.Cryptography.Algorithms.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Security.Cryptography.Encoding.4.0.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Security.Cryptography.Primitives.4.0.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Security.Cryptography.X509Certificates.4.1.0\lib\net46\System.Security.Cryptography.X509Certificates.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.XmlDocument, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Xml.XmlDocument.4.0.1\lib\net46\System.Xml.XmlDocument.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmqpConnection.cs" />
-    <Compile Include="JsonEncoder.cs" />
     <Compile Include="PublisherForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -131,11 +151,13 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Content Include="App.config" />
+    <Content Include="App.config">
+      <SubType>Designer</SubType>
+    </Content>
     <EmbeddedResource Include="InstallConfig.xml" />
-    <Resource Include="App.ico">
+    <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
+    </EmbeddedResource>
     <Content Include="Opc.Ua.Publisher.config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
@@ -200,7 +222,9 @@
     <Content Include="app.manifest" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

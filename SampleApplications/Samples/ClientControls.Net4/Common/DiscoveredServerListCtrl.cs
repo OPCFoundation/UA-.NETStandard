@@ -251,7 +251,6 @@ namespace Opc.Ua.Client.Controls
             {
                 client = DiscoveryClient.Create(
                     discoveryUrl,
-                    BindingFactory.Create(m_configuration, m_configuration.CreateMessageContext()),
                     EndpointConfiguration.Create(m_configuration));
 
                 ApplicationDescriptionCollection servers = client.FindServers(null);

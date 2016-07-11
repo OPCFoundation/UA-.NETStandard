@@ -308,7 +308,7 @@ namespace Opc.Ua.Client.Controls
                 {
                     DataRowView source = row.DataBoundItem as DataRowView;
                     WriteValue value = (WriteValue)source.Row[0];
-                    nodeToWrite = (WriteValue)value.Clone();
+                    nodeToWrite = (WriteValue)value.MemberwiseClone();
                     break;
                 }
 

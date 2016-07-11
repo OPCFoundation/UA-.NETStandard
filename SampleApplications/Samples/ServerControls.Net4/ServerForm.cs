@@ -67,10 +67,12 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-            this.Icon = TrayIcon.Icon = new Icon("Resources/App.ico");
+
+            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
+            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
         }
 
-        
+
         /// <summary>
         /// Creates a form which displays the status for a UA server.
         /// </summary>
@@ -84,7 +86,9 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-            this.Icon = TrayIcon.Icon = new Icon("Resources/App.ico");
+
+            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
+            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
         }
         #endregion
 

@@ -160,11 +160,6 @@ namespace Opc.Ua.Client.Controls
                 store.StorePath = CertificateStoreCTRL.StorePath;
                 CertificatesCTRL.Initialize(store, null);
 
-                if (!CertificatesCTRL.IsEmptyStore)
-                {
-                    Utils.UpdateRecentFileList("CertificateStores:" + store.StoreType, store.StorePath, 16);
-                }
-
                 FilterBTN_Click(sender, e);
             }
             catch (Exception exception)

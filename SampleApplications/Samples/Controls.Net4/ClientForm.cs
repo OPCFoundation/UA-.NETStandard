@@ -213,14 +213,14 @@ namespace Opc.Ua.Sample.Controls
         /// <summary>
         /// Connects to a server.
         /// </summary>
-        public void Connect(ConfiguredEndpoint endpoint)
+        public async void Connect(ConfiguredEndpoint endpoint)
         {
             if (endpoint == null)
             {
                 return;
             }
 
-            Session session = SessionsCTRL.Connect(endpoint); 
+            Session session = await SessionsCTRL.Connect(endpoint);
 
             if (session != null)
             {
@@ -358,18 +358,18 @@ namespace Opc.Ua.Sample.Controls
             this.Close();
         }
 
-        private void PerformanceTestMI_Click(object sender, EventArgs e)
-        {  
+        private async void PerformanceTestMI_Click(object sender, EventArgs e)
+        {
             try
             {
                 new PerformanceTestDlg().ShowDialog(
                     m_configuration,
                     m_endpoints,
-                    m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true));
+                    await m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true));
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 

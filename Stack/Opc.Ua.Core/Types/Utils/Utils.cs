@@ -2524,6 +2524,53 @@ namespace Opc.Ua
                 dnsNames.Add(builder.ToString().ToUpperInvariant());
             }
 
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = null;
+
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            if (alternateName != null)
+            {
+                for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
+                {
+                    string hostname = alternateName.DomainNames[ii];
+
+                    // do not add duplicates to the list.
+                    bool found = false;
+
+                    for (int jj = 0; jj < dnsNames.Count; jj++)
+                    {
+                        if (String.Compare(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        dnsNames.Add(hostname.ToUpperInvariant());
+                    }
+                }
+
+                for (int ii = 0; ii < alternateName.IPAddresses.Count; ii++)
+                {
+                    string ipAddress = alternateName.IPAddresses[ii];
+
+                    if (!dnsNames.Contains(ipAddress))
+                    {
+                        dnsNames.Add(ipAddress);
+                    }
+                }
+            }
+
             // return the list.
             return dnsNames;
         }
@@ -2535,6 +2582,24 @@ namespace Opc.Ua
         /// <returns>The application URI.</returns>
         public static string GetApplicationUriFromCertficate(X509Certificate2 certificate)
         {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = null;
+
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            // get the application uri.
+            if (alternateName != null && alternateName.Uris.Count > 0)
+            {
+                return alternateName.Uris[0];
+            }
+
             return string.Empty;
         }
 

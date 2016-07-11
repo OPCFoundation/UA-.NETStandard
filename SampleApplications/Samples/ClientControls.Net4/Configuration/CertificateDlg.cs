@@ -28,13 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -59,7 +56,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the dialog.
         /// </summary>
-        public bool ShowDialog(CertificateIdentifier certificateIdentifier)
+        public async Task<bool> ShowDialog(CertificateIdentifier certificateIdentifier)
         {
             CertificateStoreCTRL.StoreType = null;
             CertificateStoreCTRL.StorePath = null;
@@ -68,7 +65,7 @@ namespace Opc.Ua.Client.Controls
 
             if (certificateIdentifier != null)
             {
-                X509Certificate2 certificate = certificateIdentifier.Find();
+                X509Certificate2 certificate = await certificateIdentifier.Find();
 
                 CertificateStoreCTRL.StoreType = certificateIdentifier.StoreType;
                 CertificateStoreCTRL.StorePath = certificateIdentifier.StorePath;
@@ -92,7 +89,7 @@ namespace Opc.Ua.Client.Controls
 
             return true;
         }
-        
+
         /// <summary>
         /// Displays the dialog.
         /// </summary>

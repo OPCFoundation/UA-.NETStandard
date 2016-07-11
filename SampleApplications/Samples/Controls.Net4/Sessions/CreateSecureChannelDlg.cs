@@ -105,28 +105,28 @@ namespace Opc.Ua.Sample.Controls
             return m_channel;
         }
 
-        private void OkBTN_Click(object sender, EventArgs e)
+        private async void OkBTN_Click(object sender, EventArgs e)
         {
             try
             {
                 EndpointConfiguration configuration = EndpointConfiguration.Create(m_configuration);
-        
-                configuration.OperationTimeout    = (int)OperationTimeoutNC.Value;
-                configuration.UseBinaryEncoding   = UseBinaryEncodingCK.Checked;
-                configuration.MaxMessageSize      = (int)MaxMessageSizeNC.Value;
-                configuration.MaxArrayLength      = (int)MaxArrayLengthNC.Value;
-                configuration.MaxStringLength     = (int)MaxStringLengthNC.Value;
+
+                configuration.OperationTimeout = (int)OperationTimeoutNC.Value;
+                configuration.UseBinaryEncoding = UseBinaryEncodingCK.Checked;
+                configuration.MaxMessageSize = (int)MaxMessageSizeNC.Value;
+                configuration.MaxArrayLength = (int)MaxArrayLengthNC.Value;
+                configuration.MaxStringLength = (int)MaxStringLengthNC.Value;
                 configuration.MaxByteStringLength = (int)MaxByteStringLengthNC.Value;
-                                
+
                 ITransportChannel channel = SessionChannel.Create(
                     m_configuration,
-                    m_endpoints[EndpointCB.SelectedIndex], 
-                    configuration, 
-                    m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true),
+                    m_endpoints[EndpointCB.SelectedIndex],
+                    configuration,
+                    await m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true),
                     m_messageContext);
 
                 // create the channel.                   
-                                                                   
+
                 // open the channel.
                 Cursor = Cursors.WaitCursor;
 

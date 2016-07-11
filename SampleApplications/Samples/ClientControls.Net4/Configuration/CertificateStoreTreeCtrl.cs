@@ -79,9 +79,6 @@ namespace Opc.Ua.Client.Controls
             public string DisplayName;
             public CertificateStoreIdentifier Store;
 
-            public ServiceController Service;
-            public AccountInfo Account;
-
             public ContainerInfo(ContainerInfoType type, string displayName)
             {
                 Type = type;
@@ -111,16 +108,6 @@ namespace Opc.Ua.Client.Controls
                 if (this.Store != null)
                 {
                     return this.Store;
-                }
-
-                if (this.CertificateStore != null)
-                {
-                    CertificateStoreIdentifier store = new CertificateStoreIdentifier();
-
-                    store.StoreType = CertificateStoreType.Windows;
-                    store.StorePath = this.CertificateStore.Format();
-                    
-                    return store;
                 }
 
                 return null;
@@ -366,110 +353,6 @@ namespace Opc.Ua.Client.Controls
                 return;
             }
 
-            // the node type is used to determine what children exist.
-            switch (info.Type)
-            {
-                case ContainerInfoType.Root:
-                {  
-                    ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.TopLevelStore, "Local Machine");
-                    childInfo.StoreType = WindowsStoreType.LocalMachine;                    
-                    AddNode(parent, childInfo);
-                    
-                    childInfo = new ContainerInfo(ContainerInfoType.TopLevelStore, "Current User");
-                    childInfo.StoreType = WindowsStoreType.CurrentUser;                    
-                    AddNode(parent, childInfo);
-                    
-                    childInfo = new ContainerInfo(ContainerInfoType.TopLevelStore, "Services");
-                    childInfo.StoreType = WindowsStoreType.Service;                    
-                    AddNode(parent, childInfo);
-                    
-                    childInfo = new ContainerInfo(ContainerInfoType.TopLevelStore, "Users");
-                    childInfo.StoreType = WindowsStoreType.User;                    
-                    AddNode(parent, childInfo);
-                    break;
-                }
-
-                case ContainerInfoType.TopLevelStore:
-                {  
-                    if (info.StoreType == WindowsStoreType.Service)
-                    {
-                        foreach (ServiceController service in ServiceController.GetServices())
-                        {        
-                            ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.Service, service.DisplayName);
-                            childInfo.StoreType = WindowsStoreType.Service;
-                            childInfo.Service = service;
-                            AddNode(parent, childInfo);
-                        }                     
-
-                        break;
-                    }
-                    
-                    if (info.StoreType == WindowsStoreType.User)
-                    {
-                        IList<AccountInfo> users = AccountInfo.Query(null);
-
-                        foreach (AccountInfo user in users)
-                        {        
-                            if (user.SidType == AccountSidType.User)
-                            {
-                                ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.User, user.Name);
-                                childInfo.StoreType = WindowsStoreType.User;
-                                childInfo.Account = user;
-                                AddNode(parent, childInfo);
-                            }
-                        }                     
-
-                        break;
-                    }
-                    
-                    foreach (WindowsCertificateStore store in WindowsCertificateStore.EnumerateStores(info.StoreType, null, null))
-                    {
-                        ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.Store, store.DisplayName);
-                        childInfo.StoreType = info.StoreType;
-                        childInfo.CertificateStore = store;
-                        AddNode(parent, childInfo);
-                    }
-
-                    break;
-                }
-                    
-                case ContainerInfoType.Service:
-                {  
-                    if (info.Service == null)
-                    {
-                        break;
-                    }
-
-                    foreach (WindowsCertificateStore store in WindowsCertificateStore.EnumerateStores(info.StoreType, null, info.Service.ServiceName))
-                    {
-                        ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.Store, store.DisplayName);
-                        childInfo.StoreType = info.StoreType;
-                        childInfo.CertificateStore = store;
-                        AddNode(parent, childInfo);
-                    }
-
-                    break;
-                }
-                    
-                case ContainerInfoType.User:
-                {  
-                    if (info.Account == null)
-                    {
-                        break;
-                    }
-
-                    foreach (WindowsCertificateStore store in WindowsCertificateStore.EnumerateStores(info.StoreType, null, info.Account.Sid))
-                    {
-                        ContainerInfo childInfo = new ContainerInfo(ContainerInfoType.Store, store.DisplayName);
-                        childInfo.StoreType = info.StoreType;
-                        childInfo.CertificateStore = store;
-                        AddNode(parent, childInfo);
-                    }
-
-                    break;
-                }
-            }
-
             // add a dummy child to show the + sign.
             foreach (TreeNode child in parent.Nodes)
             {
@@ -516,24 +399,6 @@ namespace Opc.Ua.Client.Controls
                 {
                     treeNode.ImageKey = GuiUtils.Icons.CertificateStore;
                     treeNode.SelectedImageKey = GuiUtils.Icons.CertificateStore;
-
-                    switch (info.StoreType)
-                    {
-                        case WindowsStoreType.User:
-                        {
-                            treeNode.ImageKey = GuiUtils.Icons.Users;
-                            treeNode.SelectedImageKey = GuiUtils.Icons.Users;
-                            break;
-                        }
-
-                        case WindowsStoreType.Service:
-                        {
-                            treeNode.ImageKey = GuiUtils.Icons.ServiceGroup;
-                            treeNode.SelectedImageKey = GuiUtils.Icons.ServiceGroup;
-                            break;
-                        }
-                    }
-
                     break;
                 }
 

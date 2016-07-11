@@ -61,25 +61,8 @@ namespace Opc.Ua.Sample
 
             try
             {
-                // process and command line arguments.
-                if (application.ProcessCommandLine())
-                {
-                    return;
-                }
-
-                // check if running as a service.
-                if (!Environment.UserInteractive)
-                {
-                    application.StartAsService(new SampleServer());
-                    return;
-                }
-
                 // load the application configuration.
                 application.LoadApplicationConfiguration(false);
-
-                // This call registers the certificate with HTTP.SYS 
-                // It must be called once after installation if the HTTPS endpoint is enabled.
-                // HttpAccessRule.SetHttpsCertificate(c.SecurityConfiguration.ApplicationCertificate.Find(true), 51212, false);
 
                 // check the application certificate.
                 application.CheckApplicationInstanceCertificate(false, 0);
@@ -92,7 +75,7 @@ namespace Opc.Ua.Sample
             }
             catch (Exception e)
             {
-                ExceptionDlg.Show(application.ApplicationName, e);
+                MessageBox.Show("Exception: " + e.Message, application.ApplicationName);
                 return;
             }
         }

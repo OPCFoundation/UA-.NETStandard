@@ -76,44 +76,14 @@ namespace Opc.Ua.Sample
             }
 
             TrayIcon.Text = this.Text = application.ApplicationName;
-            TrayIcon.Icon = GetAppIcon();
+
+            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
+            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
         }
         #endregion
 
         #region Private Fields
         private ApplicationInstance m_application;
-        #endregion
-
-        #region Private Methods
-        private static class NativeMethods 
-        { 
-            [DllImport("user32.dll", CharSet = CharSet.Unicode)] 
-            static extern internal IntPtr LoadIcon(IntPtr hInstance, string lpIconName); 
-
-            [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] 
-            static extern internal IntPtr LoadLibrary(string lpFileName); 
-        }
-
-        /// <summary>
-        /// Gets the application icon.
-        /// </summary>
-        static Icon GetAppIcon() 
-        { 
-            string fileName = Assembly.GetEntryAssembly().Location;
-            IntPtr hLibrary = NativeMethods.LoadLibrary(fileName);
-
-            if (hLibrary != IntPtr.Zero) 
-            { 
-                IntPtr hIcon = NativeMethods.LoadIcon(hLibrary, "#32512");
-
-                if (hIcon != IntPtr.Zero) 
-                { 
-                    return Icon.FromHandle(hIcon); 
-                }
-            }
-
-            return null;
-        } 
         #endregion
 
         #region Event Handlers

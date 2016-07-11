@@ -39,6 +39,8 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
+using System.IO;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -70,7 +72,7 @@ namespace Opc.Ua.Client.Controls
                 caption = method.Name;
             }
 
-			new ExceptionDlg().ShowDialog(caption, e);
+			MessageBox.Show("Exception: " + e.Message, caption);
 		}
         
         /// <summary>
@@ -212,24 +214,6 @@ namespace Opc.Ua.Client.Controls
                     break;
                 }
             }
-
-            // check if UA TCP implementation explicitly specified.
-            if (transport != null)
-            {
-                string[] args = Environment.GetCommandLineArgs();
-
-                if (args != null && args.Length > 1)
-                {
-                    if (String.Compare(args[1], "-uaTcpAnsiC", StringComparison.InvariantCultureIgnoreCase) == 0)
-                    {
-                        transport.TypeName = Utils.UaTcpBindingNativeStack;
-                    }
-                    else if (String.Compare(args[1], "-uaTcpDotNet", StringComparison.InvariantCultureIgnoreCase) == 0)
-                    {
-                        transport.TypeName = Utils.UaTcpBindingDefault;
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -263,14 +247,7 @@ namespace Opc.Ua.Client.Controls
                     text = text.Substring(0, index);
                 }
 
-                if (transport.TypeName == Utils.UaTcpBindingNativeStack)
-                {
-                    form.Text = Utils.Format("{0} (UA TCP - ANSI C)", text);
-                }
-                else
-                {
-                    form.Text = Utils.Format("{0} (UA TCP - C#)", text);
-                }
+                form.Text = Utils.Format("{0} (UA TCP - C#)", text);
             } 
         }
 
@@ -298,11 +275,11 @@ namespace Opc.Ua.Client.Controls
                 e.Accept = true;
             }
         }
-        
+
         /// <summary>
         /// Does any configuration checks before starting up.
         /// </summary>
-        public static ApplicationConfiguration LoadConfiguration(
+        public static async Task<ApplicationConfiguration> LoadConfiguration(
             string configSectionName,
             ApplicationType applicationType,
             string defaultConfigFile,
@@ -319,7 +296,7 @@ namespace Opc.Ua.Client.Controls
             try
             {
                 // load the configuration file.
-                ApplicationConfiguration configuration = ApplicationConfiguration.Load(new System.IO.FileInfo(filePath), applicationType, null);
+                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(new FileInfo(filePath), applicationType, null);
 
                 if (configuration == null)
                 {
@@ -334,7 +311,7 @@ namespace Opc.Ua.Client.Controls
                 if (interactive)
                 {
                     StringBuilder message = new StringBuilder();
-                   
+
                     message.Append("Could not load configuration file.\r\n");
                     message.Append(filePath);
                     message.Append("\r\n");
@@ -352,14 +329,14 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Does any configuration checks before starting up.
         /// </summary>
-        public static ApplicationConfiguration DoStartupChecks(
-            string configSectionName, 
+        public static async Task<ApplicationConfiguration> DoStartupChecks(
+            string configSectionName,
             ApplicationType applicationType,
-            string defaultConfigFile, 
+            string defaultConfigFile,
             bool interactive)
-        { 
+        {
             // load the configuration file.
-            ApplicationConfiguration configuration = LoadConfiguration(configSectionName, applicationType, defaultConfigFile, interactive);
+            ApplicationConfiguration configuration = await LoadConfiguration(configSectionName, applicationType, defaultConfigFile, interactive);
 
             if (configuration == null)
             {
@@ -367,7 +344,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             // check the certificate.
-            X509Certificate2 certificate = CheckApplicationInstanceCertificate(configuration, 1024, interactive, true);
+            X509Certificate2 certificate = await CheckApplicationInstanceCertificate(configuration, 1024, interactive, true);
 
             if (certificate == null)
             {
@@ -421,41 +398,13 @@ namespace Opc.Ua.Client.Controls
             {
                 return;
             }
-
-            // check if firewall needs configuration.
-            try
-            {
-                if (!ConfigUtils.CheckFirewallAccess(Application.ExecutablePath, baseAddresses))
-                {
-                    bool configure = true;
-
-                    if (interactive)
-                    {
-                        string message = "The firewall has not been configured to allow external access to the server. Configure firewall?";
-
-                        if (MessageBox.Show(message, configuration.ApplicationName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                        {
-                            configure = false;
-                        }
-                    }
-
-                    if (configure)
-                    {
-                        ConfigUtils.SetFirewallAccess(configuration.ApplicationName, Application.ExecutablePath, baseAddresses);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Unexpected error while checking or changing the firewall configuration.");
-            }
         }
 
         /// <summary>
         /// Deletes an existing application instance certificate.
         /// </summary>
         /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
-        public static void DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
+        public static async void DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
         {
             // create a default certificate id none specified.
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
@@ -466,7 +415,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             // delete private key.
-            X509Certificate2 certificate = id.Find();
+            X509Certificate2 certificate = await id.Find();
 
             // delete trusted peer certificate.
             if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
@@ -482,7 +431,7 @@ namespace Opc.Ua.Client.Controls
                 {
                     using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                     {
-                        store.Delete(thumbprint);
+                        await store.Delete(thumbprint);
                     }
                 }
             }
@@ -492,7 +441,7 @@ namespace Opc.Ua.Client.Controls
             {
                 using (ICertificateStore store = id.OpenStore())
                 {
-                    store.Delete(certificate.Thumbprint);
+                    await store.Delete(certificate.Thumbprint);
                 }
             }
         }
@@ -500,17 +449,17 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
-        public static X509Certificate2 CheckApplicationInstanceCertificate(ApplicationConfiguration configuration)
+        public static async Task<X509Certificate2> CheckApplicationInstanceCertificate(ApplicationConfiguration configuration)
         {
-            return CheckApplicationInstanceCertificate(configuration, 1024, Environment.UserInteractive, true);
+            return await CheckApplicationInstanceCertificate(configuration, 1024, Environment.UserInteractive, true);
         }
 
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
-        public static X509Certificate2 CheckApplicationInstanceCertificate(
-            ApplicationConfiguration configuration, 
-            ushort keySize, 
+        public static async Task<X509Certificate2> CheckApplicationInstanceCertificate(
+            ApplicationConfiguration configuration,
+            ushort keySize,
             bool interactive,
             bool updateFile)
         {
@@ -521,7 +470,6 @@ namespace Opc.Ua.Client.Controls
             {
                 id = new CertificateIdentifier();
                 id.StoreType = Utils.DefaultStoreType;
-                id.StorePath = Utils.DefaultStorePath;
                 id.SubjectName = configuration.ApplicationName;
             }
 
@@ -529,7 +477,7 @@ namespace Opc.Ua.Client.Controls
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
 
             // check for private key.
-            X509Certificate2 certificate = id.Find(true);
+            X509Certificate2 certificate = await id.Find(true);
 
             if (certificate == null)
             {
@@ -542,7 +490,7 @@ namespace Opc.Ua.Client.Controls
                     id2.SubjectName = id.SubjectName;
                     id = id2;
 
-                    certificate = id2.Find(true);
+                    certificate = await id2.Find(true);
 
                     if (certificate != null)
                     {
@@ -564,7 +512,7 @@ namespace Opc.Ua.Client.Controls
             // check if private key is missing.
             if (certificate == null)
             {
-                certificate = id.Find(false);
+                certificate = await id.Find(false);
 
                 if (certificate != null)
                 {
@@ -606,7 +554,7 @@ namespace Opc.Ua.Client.Controls
 
                         // check for aliases.
                         System.Net.IPHostEntry entry = System.Net.Dns.GetHostEntry(computerName);
-                        
+
                         bool found = false;
 
                         for (int jj = 0; jj < entry.Aliases.Length; jj++)
@@ -693,7 +641,7 @@ namespace Opc.Ua.Client.Controls
                 serverDomainNames.Add(System.Net.Dns.GetHostName());
             }
 
-            certificate = Opc.Ua.CertificateFactory.CreateCertificate(
+            certificate = await CertificateFactory.CreateCertificate(
                 id.StoreType,
                 id.StorePath,
                 configuration.ApplicationUri,
@@ -711,9 +659,9 @@ namespace Opc.Ua.Client.Controls
                 configuration.SaveToFile(configuration.SourceFilePath);
             }
 
-            configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
+            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
 
-            return configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            return await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
         }
 
         /// <summary>
@@ -721,24 +669,24 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         /// <param name="configuration">The application's configuration which specifies the location of the TrustedStore.</param>
         /// <param name="certificate">The certificate to register.</param>
-        public static void AddToTrustedStore(ApplicationConfiguration configuration, X509Certificate2 certificate)
+        public static async void AddToTrustedStore(ApplicationConfiguration configuration, X509Certificate2 certificate)
         {
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
 
             try
             {
                 // check if it already exists.
-                X509Certificate2 certificate2 = store.FindByThumbprint(certificate.Thumbprint);
+                X509Certificate2Collection certificates = await store.FindByThumbprint(certificate.Thumbprint);
 
-                if (certificate2 != null)
+                if (certificates.Count > 0)
                 {
                     return;
                 }
 
                 List<string> subjectName = Utils.ParseDistinguishedName(certificate.Subject);
-            
+
                 // check for old certificate.
-                X509Certificate2Collection certificates = store.Enumerate();
+                certificates = await store.Enumerate();
 
                 for (int ii = 0; ii < certificates.Count; ii++)
                 {
@@ -749,14 +697,14 @@ namespace Opc.Ua.Client.Controls
                             return;
                         }
 
-                        store.Delete(certificates[ii].Thumbprint);
+                        await store.Delete(certificates[ii].Thumbprint);
                         break;
                     }
                 }
 
                 // add new certificate.
                 X509Certificate2 publicKey = new X509Certificate2(certificate.GetRawCertData());
-                store.Add(publicKey);
+                await store.Add(publicKey);
             }
             finally
             {

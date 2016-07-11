@@ -105,15 +105,8 @@ namespace Opc.Ua.Client.Controls
             // set a suitable default hostname.
             if (String.IsNullOrEmpty(defaultHost))
             {
-                if (!m_selectDomains)
-                {
-                    defaultHost = System.Net.Dns.GetHostName();
-                }
-                else
-                {
-                    defaultHost = ConfigUtils.GetComputerWorkgroupOrDomain();
-                }
-        
+                defaultHost = System.Net.Dns.GetHostName();
+                
                 if (hostnames != null && hostnames.Count > 0)
                 {
                     defaultHost = hostnames[0];

@@ -31,12 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Text;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
-using Opc.Ua.Client;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -265,12 +261,12 @@ namespace Opc.Ua.Client.Controls
                 }
             }
         }
-                
+
         /// <summary>
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        public Session Connect()
+        public async Task<Session> Connect()
         {
             // disconnect from existing session.
             Disconnect();
@@ -294,12 +290,12 @@ namespace Opc.Ua.Client.Controls
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            m_session = Session.Create(
+            m_session = await Session.Create(
                 m_configuration,
                 endpoint,
                 false,
                 !DisableDomainCheck,
-                (String.IsNullOrEmpty(SessionName))?m_configuration.ApplicationName:SessionName,
+                (String.IsNullOrEmpty(SessionName)) ? m_configuration.ApplicationName : SessionName,
                 60000,
                 UserIdentity,
                 PreferredLocales);
@@ -320,11 +316,11 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public Session Connect(string serverUrl, bool useSecurity)
+        public async Task<Session> Connect(string serverUrl, bool useSecurity)
         {
             UrlCB.Text = serverUrl;
             UseSecurityCK.Checked = useSecurity;
-            return Connect();
+            return await Connect();
         }
 
         /// <summary>
@@ -496,11 +492,11 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a click on the connect button.
         /// </summary>
-        private void Server_ConnectMI_Click(object sender, EventArgs e)
+        private async void Server_ConnectMI_Click(object sender, EventArgs e)
         {
             try
             {
-                Connect();
+                await Connect();
             }
             catch (Exception exception)
             {

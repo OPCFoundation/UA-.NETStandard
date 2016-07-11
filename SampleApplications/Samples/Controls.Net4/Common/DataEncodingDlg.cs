@@ -228,12 +228,12 @@ namespace Opc.Ua.Sample.Controls
             DialogResult = DialogResult.OK;
         }
 
-        private void EncodingCB_SelectedIndexChanged(object sender, EventArgs e)
-        {            
+        private async void EncodingCB_SelectedIndexChanged(object sender, EventArgs e)
+        {
             try
             {
-                DescriptionTB.Text    = null;
-                TypeNameTB.Text       = null;
+                DescriptionTB.Text = null;
+                TypeNameTB.Text = null;
                 DictionaryNameTB.Text = null;
                 TypeSystemNameTB.Text = null;
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Sample.Controls
 
                 // get the current encoding.
                 ReferenceDescription encoding = m_encodings[EncodingCB.SelectedIndex];
-                
+
                 // find the desctiption.
                 ReferenceDescription description = m_session.FindDataDescription((NodeId)encoding.NodeId);
 
@@ -252,11 +252,11 @@ namespace Opc.Ua.Sample.Controls
                 {
                     return;
                 }
-                
+
                 TypeNameTB.Text = description.ToString();
 
                 // find the dictionary.
-                DataDictionary dictionary = m_session.FindDataDictionary((NodeId)description.NodeId);
+                DataDictionary dictionary = await m_session.FindDataDictionary((NodeId)description.NodeId);
 
                 if (dictionary == null)
                 {
@@ -269,13 +269,13 @@ namespace Opc.Ua.Sample.Controls
                 {
                     descriptionId = (NodeId)description.NodeId;
                 }
-                
+
                 DictionaryNameTB.Text = dictionary.Name;
-                TypeSystemNameTB.Text = dictionary.TypeSystemName;          
-                DescriptionTB.Text    = dictionary.GetSchema(descriptionId);
+                TypeSystemNameTB.Text = dictionary.TypeSystemName;
+                DescriptionTB.Text = dictionary.GetSchema(descriptionId);
 
                 Cursor = Cursors.WaitCursor;
-                
+
                 try
                 {
                     FormatDescription();
@@ -287,7 +287,7 @@ namespace Opc.Ua.Sample.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
         #endregion

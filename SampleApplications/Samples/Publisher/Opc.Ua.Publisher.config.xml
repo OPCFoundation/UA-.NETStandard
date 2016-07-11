@@ -12,7 +12,7 @@
   <ApplicationUri>urn:localhost:OPCFoundation:AMQPPublisher</ApplicationUri>
 
   <!-- A globally unique URI for the product (usually assigned by the product vendor) -->
-  <ProductUri>http://opcfoundation.org/UA/SampleClient/</ProductUri>
+  <ProductUri>http://opcfoundation.org/UA/Publisher/</ProductUri>
 
   <!-- Indicates the type of application (Client, Server or ClientServer). -->
   <ApplicationType>ClientAndServer_2</ApplicationType>
@@ -39,7 +39,7 @@
            A complete distinguished would be something like: 'CN=UA AMQP Publisher, DC=MACHINENAME'
            The first certificate found is used if multiple certificates with the same CommonName exist. 
            The Thumbprint should be specified if the CommonName does not uniquely identify a certificate. -->
-      <SubjectName>UA Sample Client</SubjectName>
+      <SubjectName>UA Publisher</SubjectName>
 
       <!-- The SHA1 thumbprint for the certificate.
            The thumbprint uniquely identifies a certificate.
@@ -141,10 +141,10 @@
     
          Additional URLs are created by appending strings to the base address.
          For example, a URL used for an endpoint which uses the Basic256 security policy would look like this:
-         http://localhost:61211/UA/SampleClient/Basic256 -->
+         http://localhost:61211/UA/Publisher/Basic256 -->
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
+      <ua:String>opc.tcp://localhost:61210/UA/Publisher</ua:String>
+      <ua:String>https://localhost:61212/UA/Publisher/</ua:String>
     </BaseAddresses>
 
     <!-- 
@@ -161,7 +161,7 @@
 
     <!--
     <AlternateBaseAddresses>
-      <ua:String>http://mycompany.com:40000/UA/SampleClient</ua:String>
+      <ua:String>http://mycompany.com:40000/UA/Publisher</ua:String>
     </AlternateBaseAddresses>
     -->
 

@@ -32,6 +32,8 @@ using System.Text;
 using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Client;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -45,7 +47,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static void HandleException(string caption, Exception e)
         {
-            Opc.Ua.Configuration.ExceptionDlg.Show(caption, e);
+            MessageBox.Show("Exception: " + e.Message, caption);
         }
 
         /// <summary>
@@ -53,7 +55,14 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static System.Drawing.Icon GetAppIcon()
         {
-            return Opc.Ua.Configuration.ConfigUtils.GetAppIcon();
+            try
+            {
+                return new Icon("App.ico");
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         #region DisplayText Lookup

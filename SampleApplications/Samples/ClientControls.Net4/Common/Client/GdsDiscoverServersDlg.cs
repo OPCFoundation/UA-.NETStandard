@@ -37,6 +37,7 @@ using System.Text;
 using System.Windows.Forms;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -114,7 +115,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Shows the dialog.
         /// </summary>
-        public ApplicationDescription ShowDialog(ApplicationConfiguration configuration, bool showSearchPanel)
+        public async Task<ApplicationDescription> ShowDialog(ApplicationConfiguration configuration, bool showSearchPanel)
         {
             List<string> urls = new List<string>();
 
@@ -133,7 +134,7 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                ServerCTRL.Connect();
+                await ServerCTRL.Connect();
             }
             catch (Exception exception)
             {
@@ -144,7 +145,7 @@ namespace Opc.Ua.Client.Controls
             CancelBTN.Visible = true;
 
             BrowseCK.Checked = showSearchPanel;
-            BrowseCK.Checked = !showSearchPanel; 
+            BrowseCK.Checked = !showSearchPanel;
 
             if (base.ShowDialog() != DialogResult.OK)
             {

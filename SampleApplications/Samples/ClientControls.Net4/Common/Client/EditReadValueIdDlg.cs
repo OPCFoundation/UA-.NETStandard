@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Controls
                 // preserve the existing settings if they are not being changed.
                 if (nodesToRead != null && nodesToRead.Length > 0)
                 {
-                    results[ii] = (ReadValueId)nodesToRead[ii].Clone();
+                    results[ii] = (ReadValueId)nodesToRead[ii].MemberwiseClone();
                 }
                 else
                 {

@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Controls
         #region Private Methods
         private List<string> GetListOfStores(string storeType)
         {
-            List<string> stores = Utils.GetRecentFileList("CertificateStores:" + storeType);
+            List<string> stores = new List<string>();
 
             if (CertificateStoreType.Directory == storeType)
             {
@@ -277,8 +277,6 @@ namespace Opc.Ua.Client.Controls
                 {
                     StorePathCB.SelectedIndex = StorePathCB.Items.Add(storePath);
                 }
-
-                Utils.UpdateRecentFileList("CertificateStores:" + storeType, storePath, 16);
             }
             catch (Exception exception)
             {

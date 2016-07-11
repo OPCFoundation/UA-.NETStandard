@@ -59,14 +59,17 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\netstandard1.3\Opc.Ua.Configuration.dll</HintPath>
+    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\netstandard1.3\Opc.Ua.Core.dll</HintPath>
+    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
     </Reference>
-    <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\netstandard1.3\Opc.Ua.Server.dll</HintPath>
+    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">

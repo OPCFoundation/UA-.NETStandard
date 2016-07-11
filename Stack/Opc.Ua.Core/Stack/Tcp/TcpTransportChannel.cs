@@ -372,8 +372,6 @@ namespace Opc.Ua.Bindings
                 m_settings.ServerCertificate,
                 m_settings.Description);
 
-            //((TcpClientChannel)m_channel).ClientCertificateChain = m_settings.ClientCertificateChain;
-
             // begin connect operation.
             // IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
             // m_channel.EndConnect(result);

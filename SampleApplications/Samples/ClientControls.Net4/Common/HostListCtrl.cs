@@ -54,8 +54,6 @@ namespace Opc.Ua.Client.Controls
         {
             InitializeComponent();
             SetColumns(m_ColumnNames);            
-            m_enumerator = new HostEnumerator();
-            m_enumerator.HostsDiscovered += new EventHandler<HostEnumeratorEventArgs>(HostEnumerator_HostsDiscovered);
         }
         #endregion
         
@@ -66,9 +64,6 @@ namespace Opc.Ua.Client.Controls
 			new object[] { "Name",        HorizontalAlignment.Left, null },  
 			new object[] { "Addresses",   HorizontalAlignment.Left, null }
 		};
-        
-        private HostEnumerator m_enumerator;
-        private bool m_waitingForHosts;
         #endregion
 
         #region Public Interface
@@ -81,9 +76,6 @@ namespace Opc.Ua.Client.Controls
 
             this.Instructions = Utils.Format("Discovering hosts on domain '{0}'.", domain);
             AdjustColumns();
-
-            m_waitingForHosts = true;
-            m_enumerator.Start(domain);
         }
         #endregion
         
@@ -183,35 +175,6 @@ namespace Opc.Ua.Client.Controls
             listItem.ImageKey = GuiUtils.Icons.Computer;
 
             ThreadPool.QueueUserWorkItem(new WaitCallback(OnFetchAddresses), listItem);
-        }
-        #endregion
-        
-        #region Event Handlers
-        private void HostEnumerator_HostsDiscovered(object sender, HostEnumeratorEventArgs e)
-        {
-            if (this.InvokeRequired)
-            {
-                this.BeginInvoke(new EventHandler<HostEnumeratorEventArgs>(HostEnumerator_HostsDiscovered), sender, e);
-                return;
-            }
-
-            // check if this is the first callback.
-            if (m_waitingForHosts)
-            {
-                ItemsLV.Items.Clear();
-                m_waitingForHosts = false;
-            }
-
-            // populate list with hostnames.
-            if (e != null && e.Hostnames != null)
-            {
-                foreach (string hostname in e.Hostnames)
-                {
-                    AddItem(hostname);
-                }
-            }
-                
-            AdjustColumns();
         }
         #endregion
     }

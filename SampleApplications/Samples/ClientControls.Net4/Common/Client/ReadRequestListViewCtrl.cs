@@ -235,7 +235,7 @@ namespace Opc.Ua.Client.Controls
                     {
                         DataRowView source = row.DataBoundItem as DataRowView;
                         ReadValueId value = (ReadValueId)source.Row[0];
-                        nodeToRead = (ReadValueId)value.Clone();
+                        nodeToRead = (ReadValueId)value.MemberwiseClone();
                         break;
                     }
 

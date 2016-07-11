@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<s1:SampleConfiguration
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<ApplicationConfiguration
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns:s1="http://opcfoundation.org/UA/Sample/Configuration.xsd"
   xmlns:s2="http://opcfoundation.org/UA/SDK/COM/Configuration.xsd"
@@ -93,42 +92,8 @@
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
-  
-  <!-- Maps different transports onto a .NET implementation of a WCF Binding
-  
-       WCF bindings are very complex and have many parameters that can be tweeked. To ensure
-       interoperability the SDK has defined 3 standard bindings which can be selected with this
-       element. Developers may define their own Bindings as well provided the inhierit from the 
-       Opc.Ua.Binding.BaseBinding type and implement the same constructor as the built-in binding
-       provide.
-       
-       Note protocols other than HTTP or UA-TCP are not considered to be interoperable -->
-  <TransportConfigurations>
-    <!-- This binding wraps the ANSI C implementation of UA-TCP instead of using the C# implementation. -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStackWrapper</TypeName>
-    </TransportConfiguration>
-    -->
 
-    <!-- This binding uses the WCF binary encoded XML over TCP -->
-    <TransportConfiguration>
-      <UriScheme>net.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverTcpBinding</TypeName>
-    </TransportConfiguration>
-    <!--
-    -->
-
-    <!-- This binding uses the WCF binary encoded XML over PIPE -->
-    <TransportConfiguration>
-      <UriScheme>net.pipe</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverPipeBinding</TypeName>
-    </TransportConfiguration>
-    <!--
-    -->
-    
-  </TransportConfigurations>
+  <TransportConfigurations></TransportConfigurations>
   
   <!-- Specifies quotas used to by the transport layer -->
   <TransportQuotas>
@@ -179,10 +144,7 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>http://localhost:61211/UA/SampleClient</ua:String>
       <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
-      <!--<ua:String>net.tcp://localhost:61214/UA/SampleClient</ua:String>
-      <ua:String>net.pipe://localhost/UA/SampleClient</ua:String>-->
     </BaseAddresses>
 
     <!-- 
@@ -387,9 +349,8 @@
 	<MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
 	  
   </ClientConfiguration>
-  
+
   <Extensions>
-    
     <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
         <Buffers>
@@ -406,56 +367,6 @@
         </Buffers>
       </MemoryBufferConfiguration>
     </ua:XmlElement>
-
-    <!--
-    <ua:XmlElement>
-      <ListOfWrapperConfiguration xmlns="http://opcfoundation.org/UA/SDK/COM/Configuration.xsd">
-        <WrapperConfiguration xsi:type="AeWrapperConfiguration">
-          <NamespaceUri>opc.com://localhost/OPCSample.OPCEventServer</NamespaceUri>
-          <BrowseName>COM AE Server 1</BrowseName>
-          <Url>opc.com://localhost/OPCSample.OPCEventServer/{65168852-5783-11d1-84a0-00608cb8a7e9}</Url>
-          <MinMetadataLifetime>1000</MinMetadataLifetime>
-          <SeperatorChars></SeperatorChars>
-          <MaxQueueSize>100</MaxQueueSize>
-          <MinReconnectWait>0</MinReconnectWait>
-          <MaxReconnectWait>0</MaxReconnectWait>
-          <MaxReconnectAttempts>0</MaxReconnectAttempts>
-        </WrapperConfiguration>
-        <WrapperConfiguration xsi:type="DaWrapperConfiguration">
-          <NamespaceUri>opc.com://localhost/OPCSample.OpcDaServer</NamespaceUri>
-          <BrowseName>COM DA Server 1</BrowseName>
-          <Url>opc.com://localhost/OPCSample.OpcDaServer/{625c49a1-be1c-45d7-9a8a-14bedcf5ce6c}</Url>
-          <MinMetadataLifetime>1000</MinMetadataLifetime>
-          <SeperatorChars></SeperatorChars>
-          <MaxQueueSize>100</MaxQueueSize>
-          <MinReconnectWait>0</MinReconnectWait>
-          <MaxReconnectWait>0</MaxReconnectWait>
-          <MaxReconnectAttempts>0</MaxReconnectAttempts>
-        </WrapperConfiguration>
-        <WrapperConfiguration xsi:type="HdaWrapperConfiguration">
-          <NamespaceUri>opc.com://localhost/OPCSample.OpcHdaServer.1</NamespaceUri>
-          <BrowseName>OPCSample.OpcHdaServer.1</BrowseName>
-          <Url>opc.com://localhost/OPCSample.OpcHdaServer.1</Url>
-          <MinMetadataLifetime>1000</MinMetadataLifetime>
-          <SeperatorChars />
-          <MaxQueueSize>100</MaxQueueSize>
-          <MinReconnectWait>1000</MinReconnectWait>
-          <MaxReconnectWait>30000</MaxReconnectWait>
-          <MaxReconnectAttempts>10</MaxReconnectAttempts>
-          <TreatUncertainAsBad>true</TreatUncertainAsBad>
-          <PercentDataBad>10</PercentDataBad>
-          <PercentDataGood>99</PercentDataGood>
-          <SteppedSlopedExtrapolation>true</SteppedSlopedExtrapolation>
-          <Stepped>true</Stepped>
-          <Definition>Definition comes here</Definition>
-          <MaxTimeInterval>555555</MaxTimeInterval>
-          <MinTimeInterval>111</MinTimeInterval>
-          <ExceptionDeviation>50</ExceptionDeviation>
-          <ExceptionDeviationFormat>PercentOfRange_1</ExceptionDeviationFormat>
-        </WrapperConfiguration>
-      </ListOfWrapperConfiguration>
-    </ua:XmlElement>
-      -->
   </Extensions>
   
   <!--
@@ -517,4 +428,4 @@
   <!-- QueryPerformanceCounter does not work on all multi-core machines so enabling the hi-res clock by default is not recommended. -->
   <DisableHiResClock>true</DisableHiResClock>
   
-</s1:SampleConfiguration>
+</ApplicationConfiguration>

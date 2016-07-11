@@ -651,22 +651,13 @@ namespace Opc.Ua.Client.Controls
                 {
                     Url = Utils.ParseUri(url.EndpointUrl);
 
-                    if ((Url != null) && (Url.Scheme == Utils.UriSchemeHttp))
+                    if ((Url != null) && (Url.Scheme == Utils.UriSchemeHttps))
                     {
                         switch (url.TransportProfileUri)
                         {
-                            case Profiles.HttpsXmlTransport:
                             case Profiles.HttpsBinaryTransport:
-                            case Profiles.HttpsXmlOrBinaryTransport:
                                 {
                                     Profile = "REST";
-                                    break;
-                                }
-
-                            case Profiles.WsHttpXmlTransport:
-                            case Profiles.WsHttpXmlOrBinaryTransport:
-                                {
-                                    Profile = "WS-*";
                                     break;
                                 }
                         }
@@ -1165,7 +1156,6 @@ namespace Opc.Ua.Client.Controls
 
             DiscoveryClient client = DiscoveryClient.Create(
                 discoveryUrl,
-                BindingFactory.Create(m_configuration, m_configuration.CreateMessageContext()),
                 EndpointConfiguration.Create(m_configuration));
 
             try

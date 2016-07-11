@@ -29,20 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using System.Reflection;
-using System.Xml;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 using System.IO;
 
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Sample.Controls
 {
@@ -175,7 +169,7 @@ namespace Opc.Ua.Sample.Controls
         /// <summary>
         /// Creates a session with the endpoint.
         /// </summary>
-        public Session Connect(ConfiguredEndpoint endpoint)
+        public async Task<Session> Connect(ConfiguredEndpoint endpoint)
         {
             if (endpoint == null) throw new ArgumentNullException("endpoint");
 
@@ -201,7 +195,7 @@ namespace Opc.Ua.Sample.Controls
 
 
             X509Certificate2 clientCertificate = null;
-            //X509Certificate2Collection clientCertificateChain = null;
+            X509Certificate2Collection clientCertificateChain = null;
 
             if (endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
             {
@@ -210,21 +204,21 @@ namespace Opc.Ua.Sample.Controls
                     throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
                 }
 
-                clientCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+                clientCertificate = await m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
 
                 if (clientCertificate == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
                 }
 
-                //load certificate chain
-                //clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                //List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                //m_configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
-                //for (int i = 0; i < issuers.Count; i++)
-                //{
-                //    clientCertificateChain.Add(issuers[i].Certificate);
-                //}
+                // load certificate chain
+                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+                await m_configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    clientCertificateChain.Add(issuers[i].Certificate);
+                }
             }
 
             // create the channel.
@@ -232,7 +226,6 @@ namespace Opc.Ua.Sample.Controls
                 m_configuration,
                 endpoint.Description,
                 endpoint.Configuration,
-                //clientCertificateChain,
                 clientCertificate,
                 m_messageContext);
 
@@ -250,7 +243,7 @@ namespace Opc.Ua.Sample.Controls
             try
             {
                 // create the session.
-                Session session = new Session(channel, m_configuration, endpoint, null, availableEndpoints);
+                Session session = new Session(channel, m_configuration, endpoint, null);
                 session.ReturnDiagnostics = DiagnosticsMasks.All;
 
                 if (!new SessionOpenDlg().ShowDialog(session, PreferredLocales))
@@ -970,15 +963,15 @@ namespace Opc.Ua.Sample.Controls
             }
         }
 
-        private void NewSessionMI_Click(object sender, EventArgs e)
-        {           
+        private async void NewSessionMI_Click(object sender, EventArgs e)
+        {
             try
             {
-                Connect(m_endpoint);
+                await Connect(m_endpoint);
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 

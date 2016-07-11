@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Controls
         {
             if (String.IsNullOrEmpty(domain))
             {
-                domain = ConfigUtils.GetComputerWorkgroupOrDomain();
+                return null;
             }
 
             m_domain = domain;

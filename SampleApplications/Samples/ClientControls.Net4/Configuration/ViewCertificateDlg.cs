@@ -32,6 +32,7 @@ using System.Text;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -55,12 +56,12 @@ namespace Opc.Ua.Client.Controls
         private string m_currentDirectory;
         private CertificateIdentifier m_certificate;
         #endregion
-        
+
         #region Public Interface
         /// <summary>
         /// Displays the dialog.
         /// </summary>
-        public bool ShowDialog(CertificateIdentifier certificate)
+        public async Task<bool> ShowDialog(CertificateIdentifier certificate)
         {
             m_certificate = certificate;
 
@@ -84,7 +85,7 @@ namespace Opc.Ua.Client.Controls
                 SubjectNameTB.Text = certificate.SubjectName;
                 ThumbprintTB.Text = certificate.Thumbprint;
 
-                X509Certificate2 data = certificate.Find();
+                X509Certificate2 data = await certificate.Find();
 
                 if (data != null)
                 {
@@ -111,7 +112,7 @@ namespace Opc.Ua.Client.Controls
 
                         buffer.Append(element);
                     }
-                    
+
                     if (buffer.Length > 0)
                     {
                         SubjectNameTB.Text = buffer.ToString();
@@ -189,11 +190,11 @@ namespace Opc.Ua.Client.Controls
             }
         }
 
-        private void DetailsBTN_Click(object sender, EventArgs e)
+        private async void DetailsBTN_Click(object sender, EventArgs e)
         {
             try
             {
-                new CertificateDlg().ShowDialog(m_certificate);
+                await new CertificateDlg().ShowDialog(m_certificate);
             }
             catch (Exception exception)
             {
@@ -201,7 +202,7 @@ namespace Opc.Ua.Client.Controls
             }
         }
 
-        private void ExportBTN_Click(object sender, EventArgs e)
+        private async void ExportBTN_Click(object sender, EventArgs e)
         {
             try
             {
@@ -217,7 +218,7 @@ namespace Opc.Ua.Client.Controls
                     m_currentDirectory = Environment.CurrentDirectory;
                 }
 
-                X509Certificate2 certificate = m_certificate.Find();
+                X509Certificate2 certificate = await m_certificate.Find();
 
                 if (certificate == null)
                 {

@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the applications in the control.
         /// </summary>
-        internal void Initialize(CertificateStoreIdentifier id, IList<string> thumbprints)
+        internal async void Initialize(CertificateStoreIdentifier id, IList<string> thumbprints)
         {
             ItemsLV.Items.Clear();
 
@@ -229,11 +229,11 @@ namespace Opc.Ua.Client.Controls
 
                         foreach (string thumbprint in thumbprints)
                         {
-                            X509Certificate2 certificate = store.FindByThumbprint(thumbprint);
+                            X509Certificate2Collection certificates = await store.FindByThumbprint(thumbprint);
 
-                            if (certificate != null)
+                            if (certificates.Count > 0)
                             {
-                                AddItem(certificate);
+                                AddItem(certificates[0]);
                             }
                         }
                     }
@@ -243,7 +243,8 @@ namespace Opc.Ua.Client.Controls
                     {
                         Instructions = "No certificates are in the store.";
 
-                        foreach (X509Certificate2 certificate in store.Enumerate())
+                        X509Certificate2Collection certificates = await store.Enumerate();
+                        foreach (X509Certificate2 certificate in certificates)
                         {
                             AddItem(certificate);
                         }
@@ -254,7 +255,7 @@ namespace Opc.Ua.Client.Controls
             {
                 Instructions = "An error occurred opening the store: " + e.Message;
             }
-            
+
             // save the unfiltered list.
             m_items = new List<ListViewItem>(ItemsLV.Items.Count);
 
@@ -267,7 +268,7 @@ namespace Opc.Ua.Client.Controls
 
         }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary>
         /// Handles a double click event.
@@ -421,10 +422,10 @@ namespace Opc.Ua.Client.Controls
         }
         #endregion
 
-        private void ViewMI_Click(object sender, EventArgs e)
+        private async void ViewMI_Click(object sender, EventArgs e)
         {
             try
-			{                
+            {
                 X509Certificate2 certificate = SelectedTag as X509Certificate2;
 
                 if (certificate != null)
@@ -438,26 +439,26 @@ namespace Opc.Ua.Client.Controls
                         id.StorePath = m_storeId.StorePath;
                     }
 
-                    new ViewCertificateDlg().ShowDialog(id);
+                    await new ViewCertificateDlg().ShowDialog(id);
                 }
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 
-        private void DeleteMI_Click(object sender, EventArgs e)
+        private async void DeleteMI_Click(object sender, EventArgs e)
         {
             try
-			{            
+            {
                 if (ItemsLV.SelectedItems.Count < 1)
                 {
                     return;
-                }    
+                }
 
                 DialogResult result = MessageBox.Show(
-                    "Are you sure you wish to delete the certificates from the store?", 
+                    "Are you sure you wish to delete the certificates from the store?",
                     "Delete Certificate",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Exclamation);
@@ -478,13 +479,13 @@ namespace Opc.Ua.Client.Controls
                         X509Certificate2 certificate = ItemsLV.SelectedItems[ii].Tag as X509Certificate2;
 
                         // check for private key.
-                        X509Certificate2 certificate2 = store.FindByThumbprint(certificate.Thumbprint);
+                        X509Certificate2Collection certificate2 = await store.FindByThumbprint(certificate.Thumbprint);
 
-                        if (!yesToAll && certificate2.HasPrivateKey)
+                        if (!yesToAll && (certificate2.Count > 0) && certificate2[0].HasPrivateKey)
                         {
                             StringBuilder buffer = new StringBuilder();
                             buffer.Append("Certificate '");
-                            buffer.Append(certificate2.Subject);
+                            buffer.Append(certificate2[0].Subject);
                             buffer.Append("'");
                             buffer.Append("Deleting it may cause applications to stop working.");
                             buffer.Append("\r\n");
@@ -503,7 +504,7 @@ namespace Opc.Ua.Client.Controls
 
                         if (certificate != null)
                         {
-                            store.Delete(certificate.Thumbprint);
+                            await store.Delete(certificate.Thumbprint);
                             itemsToDelete.Add(ItemsLV.SelectedItems[ii]);
                         }
                     }
@@ -517,7 +518,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
                 Initialize(m_storeId, m_thumbprints);
             }
         }

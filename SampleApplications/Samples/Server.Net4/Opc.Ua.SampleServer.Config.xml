@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<s1:SampleConfiguration
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<ApplicationConfiguration
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns:s1="http://opcfoundation.org/UA/Sample/Configuration.xsd"
   xmlns:s2="http://opcfoundation.org/UA/SDK/COM/Configuration.xsd"
@@ -57,7 +56,6 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
-      <ua:String>http://localhost:51211/UA/SampleServer</ua:String>
       <ua:String>https://localhost:51212/UA/SampleServer/</ua:String>
     </BaseAddresses>
 
@@ -168,35 +166,6 @@
         </Buffers>
       </MemoryBufferConfiguration>
     </ua:XmlElement>
-    
-    <!--
-    <ua:XmlElement>
-      <ListOfWrapperConfiguration xmlns="http://opcfoundation.org/UA/SDK/COM/Configuration.xsd">
-        <WrapperConfiguration xsi:type="AeWrapperConfiguration">
-          <NamespaceUri>opc.com://localhost/OPCSample.OPCEventServer</NamespaceUri>
-          <BrowseName>COM AE Server 1</BrowseName>
-          <Url>opc.com://localhost/OPCSample.OPCEventServer/{65168852-5783-11d1-84a0-00608cb8a7e9}</Url>
-          <MinMetadataLifetime>1000</MinMetadataLifetime>
-          <SeperatorChars></SeperatorChars>
-          <MaxQueueSize>100</MaxQueueSize>
-          <MinReconnectWait>0</MinReconnectWait>
-          <MaxReconnectWait>0</MaxReconnectWait>
-          <MaxReconnectAttempts>0</MaxReconnectAttempts>
-        </WrapperConfiguration>
-        <WrapperConfiguration xsi:type="DaWrapperConfiguration">
-          <NamespaceUri>opc.com://localhost/OPCSample.OpcDaServer</NamespaceUri>
-          <BrowseName>COM DA Server 1</BrowseName>
-          <Url>opc.com://localhost/OPCSample.OpcDaServer/{625c49a1-be1c-45d7-9a8a-14bedcf5ce6c}</Url>
-          <MinMetadataLifetime>1000</MinMetadataLifetime>
-          <SeperatorChars></SeperatorChars>
-          <MaxQueueSize>100</MaxQueueSize>
-          <MinReconnectWait>0</MinReconnectWait>
-          <MaxReconnectWait>0</MaxReconnectWait>
-          <MaxReconnectAttempts>0</MaxReconnectAttempts>
-        </WrapperConfiguration>
-      </ListOfWrapperConfiguration>
-    </ua:XmlElement>
-    -->
   </Extensions>
 
   <TraceConfiguration>
@@ -219,4 +188,4 @@
   <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->
   <DisableHiResClock>true</DisableHiResClock>
 
-</s1:SampleConfiguration>
+</ApplicationConfiguration>
