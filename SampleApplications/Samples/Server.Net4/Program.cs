@@ -28,17 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using System.ServiceModel;
-using System.Runtime.InteropServices;
-using System.ServiceProcess;
-using System.Security.Cryptography.X509Certificates;
-using System.IO;
-
-using Opc.Ua.Server;
-using Opc.Ua.Client.Controls;
-using Opc.Ua.Sample.Controls;
 using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Sample
