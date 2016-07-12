@@ -1180,13 +1180,5 @@ namespace Opc.Ua
 
             return clone;
         }
-
     }//class
-
-    [CollectionDataContract(Name = "ListOfExtensions", ItemName = "Extension", Namespace = Namespaces.OpcUaConfig)]
-    public class ExtensionCollection : List<XmlElement>
-    {
-        public XmlElement ExtensionList { get; private set; }
-    }
-  
 }//namespace

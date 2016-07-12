@@ -1961,13 +1961,15 @@ namespace Opc.Ua
             // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                if (extensions[ii].LocalName != elementName.Name || extensions[ii].NamespaceURI != elementName.Namespace)
+                XmlElement element = extensions[ii];
+
+                if (element.LocalName != elementName.Name || element.NamespaceURI != elementName.Namespace)
                 {
                     continue;
                 }
 
                 // type found.
-                XmlReader reader = XmlReader.Create(new StringReader(extensions[ii].ToString()));
+                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
 
                 try
                 {
@@ -2000,7 +2002,7 @@ namespace Opc.Ua
         /// Deletes the extension if the value is null.
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
-        public static void UpdateExtension<T>(ref ExtensionCollection extensions, XmlQualifiedName elementName, object value)
+        public static void UpdateExtension<T>(ref XmlElementCollection extensions, XmlQualifiedName elementName, object value)
         {
             XmlDocument document = new XmlDocument();
 
@@ -2010,8 +2012,15 @@ namespace Opc.Ua
             {
                 if (value != null)
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(T));
-                    serializer.WriteObject(writer, value);
+                    try
+                    {
+                        DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                        serializer.WriteObject(writer, value);
+                    }
+                    finally
+                    {
+                        writer.Dispose();
+                    }
 
                     document.InnerXml = buffer.ToString();
                 }
@@ -2056,7 +2065,7 @@ namespace Opc.Ua
             {
                 if (extensions == null)
                 {
-                    extensions = new ExtensionCollection();
+                    extensions = new XmlElementCollection();
                 }
 
                 extensions.Add(document.DocumentElement);

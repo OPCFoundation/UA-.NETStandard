@@ -357,7 +357,7 @@ namespace Opc.Ua.Sample.Controls
             this.Controls.Add(this.MainMenu);
             this.MainMenuStrip = this.MainMenu;
             this.Name = "PublisherForm";
-            this.Text = "UA Publisher";
+            this.Text = "Opc.Ua.Publisher";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.MainMenu.ResumeLayout(false);
             this.MainMenu.PerformLayout();

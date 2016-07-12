@@ -33,7 +33,7 @@ namespace Opc.Ua.Publisher
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
-            application.ApplicationName = "UA AMQP Publisher";
+            application.ApplicationName = "Opc.Ua.Publisher";
             application.ApplicationType = ApplicationType.ClientAndServer;
             application.ConfigSectionName = "Opc.Ua.Publisher";
 

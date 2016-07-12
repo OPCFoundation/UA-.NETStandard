@@ -8,18 +8,6 @@
 >
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" schemaLocation="./Opc.Ua.Types.xsd"/>
   
-  <xs:complexType name="ListOfExtensions">
-    <xs:sequence>
-      <xs:element name="Extension" minOccurs="0" maxOccurs="unbounded" nillable="true">
-        <xs:complexType>
-          <xs:sequence>
-            <xs:any minOccurs="0" processContents="lax"/>
-          </xs:sequence>
-        </xs:complexType>
-      </xs:element>
-    </xs:sequence>
-  </xs:complexType>
-  
   <xs:complexType name="ApplicationConfiguration">
     <xs:sequence>
       <xs:element name="ApplicationName" type="xs:string" />
@@ -32,7 +20,7 @@
       <xs:element name="ServerConfiguration" type="ServerConfiguration" minOccurs="0" />
       <xs:element name="ClientConfiguration" type="ClientConfiguration" minOccurs="0" />
       <xs:element name="DiscoveryServerConfiguration" type="DiscoveryServerConfiguration" minOccurs="0" />
-      <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0"  />
+      <xs:element name="Extensions" type="ua:ListOfXmlElement" minOccurs="0"  />
       <xs:element name="TraceConfiguration" type="TraceConfiguration" minOccurs="0" />
       <xs:element name="DisableHiResClock" type="xs:boolean" minOccurs="0">
         <xs:annotation>

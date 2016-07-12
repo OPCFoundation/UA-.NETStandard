@@ -218,7 +218,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The extensions.</value>
         [DataMember(IsRequired=false, EmitDefaultValue=false, Order=10)]
-        public ExtensionCollection Extensions
+        public XmlElementCollection Extensions
         {
             get { return m_extensions;  }
             set { m_extensions = value; }
@@ -262,7 +262,7 @@ namespace Opc.Ua
         private DiscoveryServerConfiguration m_discoveryServerConfiguration;
         private TraceConfiguration m_traceConfiguration;
         private bool m_disableHiResClock;
-        private ExtensionCollection m_extensions;
+        private XmlElementCollection m_extensions;
         private string m_sourceFilePath;
 
         private ServiceMessageContext m_messageContext;
@@ -2726,7 +2726,7 @@ namespace Opc.Ua
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public ExtensionCollection Extensions
+        public XmlElementCollection Extensions
         {
             get { return m_extensions; }
             set { m_extensions = value; }
@@ -2742,7 +2742,7 @@ namespace Opc.Ua
         private int m_selectedUserTokenPolicyIndex;
         private UserIdentityToken m_userIdentity;
         private EndpointComIdentity m_comIdentity;
-        private ExtensionCollection m_extensions;
+        private XmlElementCollection m_extensions;
         #endregion
     }
     #endregion
