@@ -15,8 +15,10 @@ using System.Runtime.Serialization;
 namespace Opc.Ua.Publisher
 {
     [CollectionDataContract(Name = "ListOfAmqpConnectionConfigurations", Namespace = Namespaces.OpcUaConfig, ItemName = "AmqpConnectionConfiguration")]
-    public partial class AmqpConnectionCollection : List<AmqpConnection> {
-        public static AmqpConnectionCollection Load(ApplicationConfiguration configuration) {
+    public partial class AmqpConnectionCollection : List<AmqpConnection>
+    {
+        public static AmqpConnectionCollection Load(ApplicationConfiguration configuration)
+        {
             return configuration.ParseExtension<AmqpConnectionCollection>();
         }
     }
@@ -31,27 +33,34 @@ namespace Opc.Ua.Publisher
 
         [DataMember(Order = 2, IsRequired = true)]
         public string Host { get; set; }
+
         [DataMember(Order = 3, IsRequired = false)]
         public int Port { get; set; }
 
         [DataMember(Order = 4, IsRequired = true)]
         public string Endpoint { get; set; }
+
         [DataMember(Order = 5, IsRequired = false)]
         public string WebSocketEndpoint { get; set; }
 
         [DataMember(Order = 6, IsRequired = false)]
         public string KeyName { get; set; }
+
         [DataMember(Order = 7, IsRequired = false)]
         public string KeyValue { get; set; }
+
         [DataMember(Order = 8, IsRequired = false)]
         public string KeyEncoding { get; set; }
-        [DataMember(Order = 9, IsRequired = false)]
 
+        [DataMember(Order = 9, IsRequired = false)]
         public bool UseCbs { get; set; }
+
         [DataMember(Order = 10, IsRequired = false)]
         public string TokenType { get; set; }
+
         [DataMember(Order = 11, IsRequired = false)]
         public string TokenScope { get; set; }
+
         [DataMember(Order = 12, IsRequired = false)]
         public int TokenLifetime { get; set; }
 
@@ -116,7 +125,7 @@ namespace Opc.Ua.Publisher
             }
 
             m_connection = await factory.CreateAsync(GetAddress());
-            m_connection.Closed = new ClosedCallback(OnConnectionClosed);
+            m_connection.Closed += new ClosedCallback(OnConnectionClosed);
 
             if (UseCbs && KeyName != null && KeyValue != null)
             {
@@ -455,10 +464,10 @@ namespace Opc.Ua.Publisher
             Session session;
 
             session = new Session(m_connection);
-            session.Closed = new ClosedCallback(OnSessionClosed);
+            session.Closed += new ClosedCallback(OnSessionClosed);
 
             link = new SenderLink(session, Guid.NewGuid().ToString(), Endpoint);
-            link.Closed = new ClosedCallback(OnLinkClosed);
+            link.Closed += new ClosedCallback(OnLinkClosed);
 
             if (m_link != null)
             {

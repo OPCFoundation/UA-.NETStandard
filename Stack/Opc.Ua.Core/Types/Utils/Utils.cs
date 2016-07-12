@@ -619,7 +619,7 @@ namespace Opc.Ua
 
                 if (throwOnError)
                 {
-                    throw;
+                    throw e;
                 }
 
                 return filePath;

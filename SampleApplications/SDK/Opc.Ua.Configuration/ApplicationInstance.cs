@@ -1317,29 +1317,30 @@ namespace Opc.Ua.Configuration
             try
             {
                 string configurationPath = Utils.GetAbsoluteFilePath(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Config" + Path.DirectorySeparatorChar + "Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
-
                 if (configurationPath == null)
                 {
-                    throw new ServiceResultException("Could not find the discovery server configuration file. Please confirm that it is installed.");
+                    Utils.Trace("Could not find the discovery server configuration file. Please confirm that it is installed.");
                 }
-
-                Opc.Ua.Security.SecuredApplication ldsConfiguration = new Opc.Ua.Security.SecurityConfigurationManager().ReadConfiguration(configurationPath);
-                CertificateStoreIdentifier csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.TrustedCertificateStore);
-                await AddApplicationCertificateToStore(csid, certificate, oldThumbprint);
-
-                if (issuers != null && ldsConfiguration.IssuerCertificateStore != null)
+                else
                 {
-                    csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.IssuerCertificateStore);
-                    AddIssuerCertificatesToStore(csid, issuers);
-                }
+                    Opc.Ua.Security.SecuredApplication ldsConfiguration = new Opc.Ua.Security.SecurityConfigurationManager().ReadConfiguration(configurationPath);
+                    CertificateStoreIdentifier csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.TrustedCertificateStore);
+                    await AddApplicationCertificateToStore(csid, certificate, oldThumbprint);
 
-                CertificateIdentifier cid = Opc.Ua.Security.SecuredApplication.FromCertificateIdentifier(ldsConfiguration.ApplicationCertificate);
-                X509Certificate2 ldsCertificate = await cid.Find(false);
+                    if (issuers != null && ldsConfiguration.IssuerCertificateStore != null)
+                    {
+                        csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.IssuerCertificateStore);
+                        AddIssuerCertificatesToStore(csid, issuers);
+                    }
 
-                // add LDS certificate to application trust list.
-                if (ldsCertificate != null && trustedCertificateStore != null)
-                {
-                    await AddApplicationCertificateToStore(csid, ldsCertificate, null);
+                    CertificateIdentifier cid = Opc.Ua.Security.SecuredApplication.FromCertificateIdentifier(ldsConfiguration.ApplicationCertificate);
+                    X509Certificate2 ldsCertificate = await cid.Find(false);
+
+                    // add LDS certificate to application trust list.
+                    if (ldsCertificate != null && trustedCertificateStore != null)
+                    {
+                        await AddApplicationCertificateToStore(csid, ldsCertificate, null);
+                    }
                 }
             }
             catch (Exception e)

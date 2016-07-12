@@ -129,7 +129,7 @@ namespace Opc.Ua.Publisher
             }
 
             m_connection = await factory.CreateAsync(GetAddress());
-            m_connection.Closed = new ClosedCallback(OnConnectionClosed);
+            m_connection.Closed += new ClosedCallback(OnConnectionClosed);
 
             if (UseCbs && KeyName != null && KeyValue != null)
             {
@@ -468,10 +468,10 @@ namespace Opc.Ua.Publisher
             Session session;
 
             session = new Session(m_connection);
-            session.Closed = new ClosedCallback(OnSessionClosed);
+            session.Closed += new ClosedCallback(OnSessionClosed);
 
             link = new SenderLink(session, Guid.NewGuid().ToString(), Endpoint);
-            link.Closed = new ClosedCallback(OnLinkClosed);
+            link.Closed += new ClosedCallback(OnLinkClosed);
 
             if (m_link != null)
             {

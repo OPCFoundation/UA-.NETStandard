@@ -1,9 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ApplicationConfiguration
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
-  xmlns:s1="http://opcfoundation.org/UA/Sample/Configuration.xsd"
-  xmlns:s2="http://opcfoundation.org/UA/SDK/COM/Configuration.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
   <!-- A human readable but not necessarily unique name for the application instance -->
   <ApplicationName>UA Sample Client</ApplicationName>
@@ -32,8 +31,9 @@
            The name of the store is appended.
            Note that the names used in code are difference from what appears in the control panel.
            e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      
+      <StorePath>OPC Foundation\CertificateStores\MachineDefault</StorePath>
+
+
       <!-- The subject for the certificate 
            Note that subject names are complex structures. The text that appears here is the CommonName component.
            A complete distinguished would be something like: 'CN=UA Sample Client, DC=MACHINENAME'
@@ -60,7 +60,7 @@
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StorePath>OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- The list of trusted certificates. 
@@ -79,7 +79,7 @@
          -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StorePath>OPC Foundation\CertificateStores\UA Applications</StorePath>
     </TrustedPeerCertificates>
     
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -88,7 +88,7 @@
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StorePath>OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
@@ -183,8 +183,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
-
-      <!--
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -200,8 +198,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>3</SecurityLevel>
       </ServerSecurityPolicy>
-      -->
-
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>

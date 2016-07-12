@@ -730,7 +730,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
-					throw;
+					throw e;
                 }
             }
 
@@ -851,8 +851,13 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Could not load HTTPS Stack Listener.");
-					throw;
+                    string message = "Could not load HTTPS Stack Listener.";
+                    if (e.InnerException != null)
+                    {
+                        message += (" " + e.InnerException.Message);
+                    }
+                    Utils.Trace(e, message);
+					throw e;
                 }
             }
 

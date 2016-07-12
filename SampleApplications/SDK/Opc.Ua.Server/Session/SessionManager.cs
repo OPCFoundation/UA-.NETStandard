@@ -328,7 +328,7 @@ namespace Opc.Ua.Server
             {
                 if (e is ServiceResultException)
                 {
-                    throw;
+                    throw e;
                 }
 
                 throw ServiceResultException.Create(
