@@ -60,20 +60,6 @@ namespace Opc.Ua.Sample.Controls
         private Subscription m_subscription;
         private NotificationEventHandler m_SessionNotification;
         private int m_maxMessageCount;
-#if TODO
-        /// <summary>
-		/// The columns to display in the control.
-		/// </summary>
-		private readonly object[][] m_ColumnNames = new object[][]
-		{
-			new object[] { "Subscription",  HorizontalAlignment.Left,   null   },
-			new object[] { "Message ID",    HorizontalAlignment.Center, null   },
-			new object[] { "Publish Time",  HorizontalAlignment.Center, null   },
-			new object[] { "Notifications", HorizontalAlignment.Center, null   },
-			new object[] { "Data Changes",  HorizontalAlignment.Center, null   },
-			new object[] { "EventTypes",    HorizontalAlignment.Center, null   }
-		};
-#endif
 #endregion
 
 #region Public Interface
@@ -182,25 +168,6 @@ namespace Opc.Ua.Sample.Controls
         /// <see cref="BaseListCtrl.EnableMenuItems" />
 		protected override void EnableMenuItems(ListViewItem clickedItem)
 		{
-#if TODO
-            if (m_session != null)
-            {
-                OptionsMI.Enabled   = true;
-                ClearMI.Enabled     = true;
-                RepublishMI.Enabled = m_subscription != null;
-
-                if (clickedItem != null)
-                {
-                    ItemData itemData = clickedItem.Tag as ItemData;
-
-                    if (itemData != null)
-                    {
-                        ViewMI.Enabled   = true;
-                        DeleteMI.Enabled = true;
-                    }
-                }
-            }
-#endif
 		}
 
         /// <see cref="BaseListCtrl.UpdateItem" />
@@ -213,11 +180,7 @@ namespace Opc.Ua.Sample.Controls
 				base.UpdateItem(listItem, item);
 				return;
 			}
-#if TODO
-            listItem.SubItems[0].Text  = String.Format("{0}", itemData.Subscription.DisplayName);
-			listItem.SubItems[1].Text  = String.Format("{0}", itemData.NotificationMessage.SequenceNumber);
-			listItem.SubItems[2].Text  = String.Format("{0:HH:mm:ss.fff}", itemData.NotificationMessage.PublishTime.ToLocalTime());
-#endif
+
             int events = 0;
             int datachanges = 0;
             int notifications = 0;
@@ -245,11 +208,7 @@ namespace Opc.Ua.Sample.Controls
                     events += EventNotification.Events.Count;
                 }
             }
-#if TODO
-            listItem.SubItems[3].Text  = String.Format("{0}", notifications);
-            listItem.SubItems[4].Text  = String.Format("{0}", datachanges);
-            listItem.SubItems[5].Text  = String.Format("{0}", events);
-#endif
+
 			listItem.Tag = item;
         }
 #endregion
@@ -353,15 +312,6 @@ namespace Opc.Ua.Sample.Controls
                 {
                     return;
                 }
-#if TODO
-                NotificationMessage message = new RepublishNotificationMessageDlg().ShowDialog(m_subscription);
-
-                if (message != null)
-                {
-                    ListViewItem listItem = AddItem(new ItemData(m_subscription, message));
-                    listItem.ForeColor = Color.Red;
-                }
-#endif
             }
             catch (Exception exception)
             {

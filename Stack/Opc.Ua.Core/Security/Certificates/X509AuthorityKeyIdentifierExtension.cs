@@ -187,6 +187,7 @@ namespace Opc.Ua
 
             if (base.Oid.Value == AuthorityKeyIdentifierOid)
             {
+                // Use System.Security.Cryptography.AsnEncodedData
                 //TODO: Implement ParseAuthorityKeyIdentifierExtension(data, out keyId, out m_authorityNames, out serialNumber);
             }
             else
