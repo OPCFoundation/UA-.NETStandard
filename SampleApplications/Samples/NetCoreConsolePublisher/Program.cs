@@ -61,6 +61,7 @@ namespace NetCoreConsolePublisher
             if (ask)
             {
                 ConsoleKeyInfo result = Console.ReadKey();
+                Console.WriteLine();
                 return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
             }
             else
