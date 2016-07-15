@@ -30,6 +30,7 @@
 using System;
 using System.Windows.Forms;
 using Opc.Ua.Configuration;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.Sample
 {
@@ -44,6 +45,7 @@ namespace Opc.Ua.Sample
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationName = "UA Sample Server";
             application.ApplicationType   = ApplicationType.Server;
