@@ -87,7 +87,7 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
         public static string StorageConnectionString = "DefaultEndpointsProtocol=https;AccountName={StorageAccountName};AccountKey={AccessKey}";
 
         // {ConsumerGroupName} is the name of a aonsumer group of your IoTHub. The IoTHub you use is the
-        // one you have created for use with the OPC UA UWP Publisher sample.
+        // one you have created for use with the OPC UA Publisher sample.
         // You need to create this consumer group via the messaging settings of your IoTHub in the Azure portal. 
         // We recommend that you do not share this Consumer group with other consumers, nor that you use the $Default consumer group. 
         public static string EventHubConsumerGroup = "{ConsumerGroupName}";
@@ -104,11 +104,11 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 ```
 * Save the file, rebuild the solution and start it. This will start a local instance of the application.
 
-* The solution could also be deployed into a Azure App service. Please use VisualStudio 2015's Azure publishing functionality for this purpose.
+* The solution can also be deployed into a Azure App service. Please use VisualStudio 2015's Azure publishing functionality for this purpose.
 
-* Now run the OPC UA Publisher sample, which could be found [here](https://github.com/OPCFoundation/UA-.UWP-Universal-Windows-Platform.git). Connect to a OPC UA server and publish a node.
+* Now run the OPC UA Publisher sample, connect to a OPC UA server and publish a node.
 
-* You should see this node value on the web page after some time.
+* You should see the node value on the web page after a few seconds.
 
 
 # License
@@ -117,7 +117,7 @@ This repository includes the UA .NetStandard Stack, sample libraries, and sample
 
  * **OPC Foundation Corporate Members**: [RCL](https://opcfoundation.org/license/rcl.html)
  * **Everybody else**: [GPL 2.0](https://opcfoundation.org/license/gpl.html)
- * RCL enables OPC Foundation members to deploy their applications using the UA .NetStandard stack without being required to disclose the application code. Non-members must disclose their application code when using the UA UWP Stack.
+ * RCL enables OPC Foundation members to deploy their applications using the UA .NetStandard stack without being required to disclose the application code. Non-members must disclose their application code when using the UA .NetStandard Stack.
  * **Note**: Dual license applies to this repository only; GPL 2.0 applies to all derived repositories (for example 'forks'). For details check the License section below.
  * All samples are provided under the [MIT license](https://opcfoundation.org/license/mit.html).
 
