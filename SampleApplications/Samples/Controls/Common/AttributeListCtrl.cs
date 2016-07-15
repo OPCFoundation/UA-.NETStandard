@@ -29,7 +29,6 @@
 
 using System;
 using System.Text;
-using System.Reflection;
 
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;

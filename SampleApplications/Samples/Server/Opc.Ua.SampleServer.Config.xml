@@ -55,7 +55,6 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
-      <ua:String>http://localhost:51211/UA/SampleServer</ua:String>
       <ua:String>https://localhost:51212/UA/SampleServer/</ua:String>
     </BaseAddresses>
 
@@ -150,7 +149,7 @@
   </ServerConfiguration>
 
   <Extensions>
-    <Extension>
+    <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
         <Buffers>
           <MemoryBufferInstance>
@@ -165,7 +164,7 @@
           </MemoryBufferInstance>
         </Buffers>
       </MemoryBufferConfiguration>
-    </Extension>
+    </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>

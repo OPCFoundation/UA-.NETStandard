@@ -11,7 +11,6 @@
 */
 
 using Opc.Ua.Client;
-using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
@@ -24,6 +23,7 @@ using Windows.UI.Text;
 using Windows.UI;
 using System.Threading;
 using System.Text;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.Publisher
 {
@@ -232,8 +232,7 @@ namespace Opc.Ua.Publisher
                 ReferenceDescription reference = CommandBTN.Tag as ReferenceDescription;
                 if (m_session != null && m_publishers != null && reference != null)
                 {
-                    CreateMonitoredItem(
-                        m_session, null, (NodeId)reference.NodeId, MonitoringMode.Reporting);
+                    CreateMonitoredItem((NodeId)reference.NodeId);
                 }
             }
             catch (Exception exception)
@@ -356,7 +355,6 @@ namespace Opc.Ua.Publisher
                 session.KeepAlive += new KeepAliveEventHandler(StandardClient_KeepAlive);
                 StandardClient_KeepAlive(session, null);
 
-               // BrowseCTRL.SetView(session, BrowseViewType.Objects, null);
                 result = true;
             }
 
@@ -509,34 +507,31 @@ namespace Opc.Ua.Publisher
             }
         }
 
-        public void CreateMonitoredItem(
-            Session session, Subscription subscription, NodeId nodeId, MonitoringMode mode)
+        public void CreateMonitoredItem(NodeId nodeId)
         {
-            if (subscription == null)
+            if (m_session != null)
             {
-                subscription = session.DefaultSubscription;
-                if (session.AddSubscription(subscription))
+                Subscription subscription = m_session.DefaultSubscription;
+                if (m_session.AddSubscription(subscription))
+                {
                     subscription.Create();
+                }
+                
+                // add the new monitored item.
+                MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem);
+
+                monitoredItem.StartNodeId = nodeId;
+                monitoredItem.AttributeId = Attributes.Value;
+                monitoredItem.DisplayName = nodeId.Identifier.ToString();
+                monitoredItem.MonitoringMode = MonitoringMode.Reporting;
+                monitoredItem.SamplingInterval = 0;
+                monitoredItem.QueueSize = 0;
+                monitoredItem.DiscardOldest = true;
+
+                monitoredItem.Notification += MonitoredItem_Notification;
+                subscription.AddItem(monitoredItem);
+                subscription.ApplyChanges();
             }
-            else
-            {
-                session.AddSubscription(subscription);
-            }
-
-            // add the new monitored item.
-            MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem);
-
-            monitoredItem.StartNodeId = nodeId;
-            monitoredItem.AttributeId = Attributes.Value;
-            monitoredItem.DisplayName = nodeId.Identifier.ToString();
-            monitoredItem.MonitoringMode = mode;
-            monitoredItem.SamplingInterval = mode == MonitoringMode.Sampling ? 1000 : 0;
-            monitoredItem.QueueSize = 0;
-            monitoredItem.DiscardOldest = true;
-
-            monitoredItem.Notification += MonitoredItem_Notification;
-            subscription.AddItem(monitoredItem);
-            subscription.ApplyChanges();
         }
 
         private void MonitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)

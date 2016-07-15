@@ -48,9 +48,6 @@ namespace Opc.Ua.SampleClient
                 // load the application configuration.
                 await application.LoadApplicationConfiguration(false);
 
-                // allow UA servers to use the same certificate for HTTPS validation.
-                ApplicationInstance.SetUaValidationForHttps(application.ApplicationConfiguration.CertificateValidator);
-
                 // run the application interactively.
                 Window.Current.Content = new ClientPage(application.ApplicationConfiguration.CreateMessageContext(), application, null, application.ApplicationConfiguration);
 

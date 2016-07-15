@@ -18,7 +18,7 @@
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <PackageCertificateKeyFile>Opc.Ua.Publisher_TemporaryKey.pfx</PackageCertificateKeyFile>
-    <PackageCertificateThumbprint>73B27F3DE68D5DC8CB209BE730B3080305CEE892</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>DDE79B99E1BB851918533ED850EFFF08C23C9150</PackageCertificateThumbprint>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x86</AppxBundlePlatforms>
@@ -96,11 +96,27 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
+    <Content Include="Opc.Ua.Core.Types.Utils.LocalizedData.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Opc.Ua.Publisher.config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="Opc.Ua.Publisher_TemporaryKey.pfx" />
+    <Content Include="Opc.Ua.Sample.Boiler.Boiler.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Opc.Ua.Sample.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Opc.Ua.Sample.TestData.TestData.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="project.json" />
+    <None Include="project.lock.json" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmqpConnection.cs" />
@@ -139,29 +155,15 @@
     </ApplicationDefinition>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Core\Opc.Ua.Core.csproj">
-      <Project>{aa9d8d17-5dbd-4e77-8496-e32177573bf3}</Project>
-      <Name>Opc.Ua.Core</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Client\Opc.Ua.Client.csproj">
-      <Project>{b89bfa9d-419f-49b4-8210-286e7167e646}</Project>
-      <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{26a56753-9326-48c3-95bb-11594293b7a8}</Project>
-      <Name>Opc.Ua.Configuration</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Controls\Opc.Ua.Client.Controls.csproj">
+    <Page Include="ClientPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ClientControls\Opc.Ua.Client.Controls.csproj">
       <Project>{0bacfd1f-8bd1-45e2-81ad-f9dbb5fbe028}</Project>
       <Name>Opc.Ua.Client.Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Server\Opc.Ua.Server.csproj">
-      <Project>{abcad618-b747-4794-9563-33e018fdbb93}</Project>
-      <Name>Opc.Ua.Server</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\Opc.Ua.Sample.csproj">
-      <Project>{f9e0dbb6-fd8d-4871-b179-bbf3a2a3cda1}</Project>
-      <Name>Opc.Ua.Sample</Name>
     </ProjectReference>
     <ProjectReference Include="..\Controls\Opc.Ua.Sample.Controls.csproj">
       <Project>{5192cb9a-d4fc-41ef-839f-d9e08c17f221}</Project>
@@ -169,12 +171,27 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="ClientPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
+    <Reference Include="Opc.Ua.Client, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\uap10.0\Opc.Ua.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\uap10.0\Opc.Ua.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\uap10.0\Opc.Ua.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Sample, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Opc.Ua.Sample\bin\Debug\uap10.0\Opc.Ua.Sample.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\uap10.0\Opc.Ua.Server.dll</HintPath>
+    </Reference>
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>

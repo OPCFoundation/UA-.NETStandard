@@ -1,0 +1,18 @@
+﻿<UserControl
+    x:Class="Opc.Ua.Client.Controls.DataListCtrl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Opc.Ua.Client.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <CheckBox x:Name="UpdatesMI" Content="UpdatesMI" HorizontalAlignment="Left" Margin="35,27,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="RefreshMI" Content="RefreshMI" HorizontalAlignment="Left" Margin="35,59,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="ClearMI" Content="ClearMI" HorizontalAlignment="Left" Margin="35,91,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="EditMI" Content="EditMI" HorizontalAlignment="Left" Margin="35,123,0,0" VerticalAlignment="Top"/>
+        <ListView x:Name="ItemsLV" HorizontalAlignment="Left" Height="153" Margin="71,181,0,0" VerticalAlignment="Top" Width="228"/>
+
+    </Grid>
+</UserControl>

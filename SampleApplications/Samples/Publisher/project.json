@@ -1,7 +1,8 @@
 ﻿{
   "dependencies": {
-    "AMQPNetLite": "1.1.8",
-    "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0"
+    "AMQPNetLite": "1.2.0",
+    "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.1",
+    "System.Xml.XmlDocument": "4.0.1"
   },
   "frameworks": {
     "uap10.0": {}

@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
-  <Identity Name="05e356d3-0a96-455d-9048-c8d0adb860e3" Publisher="CN=erichb" Version="1.0.0.0" />
+  <Identity Name="05e356d3-0a96-455d-9048-c8d0adb860e3" Publisher="CN=OPC Foundation" Version="1.0.0.0" />
   <mp:PhoneIdentity PhoneProductId="05e356d3-0a96-455d-9048-c8d0adb860e3" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Opc.Ua.SampleServer</DisplayName>
-    <PublisherDisplayName>erichb</PublisherDisplayName>
+    <PublisherDisplayName>OPC Foundation</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
@@ -22,16 +22,16 @@
       </uap:VisualElements>
       <Extensions>
         <uap:Extension Category="windows.fileTypeAssociation">
-          <uap:FileTypeAssociation Name=".der">
+          <uap:FileTypeAssociation Name=".pfx">
             <uap:SupportedFileTypes>
-              <uap:FileType>.der</uap:FileType>
+              <uap:FileType>.pfx</uap:FileType>
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>
         <uap:Extension Category="windows.fileTypeAssociation">
-          <uap:FileTypeAssociation Name=".pfx">
+          <uap:FileTypeAssociation Name=".der">
             <uap:SupportedFileTypes>
-              <uap:FileType>.pfx</uap:FileType>
+              <uap:FileType>.der</uap:FileType>
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>

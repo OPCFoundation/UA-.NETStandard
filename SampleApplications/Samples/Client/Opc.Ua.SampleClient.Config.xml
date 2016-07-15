@@ -92,46 +92,8 @@
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
-  
-  <!-- Maps different transports onto a .NET implementation of a WCF Binding
-  
-       WCF bindings are very complex and have many parameters that can be tweeked. To ensure
-       interoperability the SDK has defined 3 standard bindings which can be selected with this
-       element. Developers may define their own Bindings as well provided the inhierit from the 
-       Opc.Ua.Binding.BaseBinding type and implement the same constructor as the built-in binding
-       provide.
-       
-       Note protocols other than HTTP or UA-TCP are not considered to be interoperable -->
-  <TransportConfigurations>
-    <!-- This binding wraps the ANSI C implementation of UA-TCP instead of using the C# implementation. -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStackWrapper</TypeName>
-    </TransportConfiguration>
-    -->
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaTcpBinding</TypeName>
-    </TransportConfiguration>
-    
-    <!-- This binding uses the WCF binary encoded XML over TCP -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>net.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverTcpBinding</TypeName>
-    </TransportConfiguration>
-    -->
 
-    <!-- This binding uses the WCF binary encoded XML over PIPE -->
-    <!--
-    <TransportConfiguration>
-      <UriScheme>net.pipe</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverPipeBinding</TypeName>
-    </TransportConfiguration>
-    -->
-    
-  </TransportConfigurations>
+  <TransportConfigurations></TransportConfigurations>
   
   <!-- Specifies quotas used to by the transport layer -->
   <TransportQuotas>
@@ -182,10 +144,7 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>http://localhost:61211/UA/SampleClient</ua:String>
       <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
-      <!--<ua:String>net.tcp://localhost:61214/UA/SampleClient</ua:String>
-      <ua:String>net.pipe://localhost/UA/SampleClient</ua:String>-->
     </BaseAddresses>
 
     <!-- 
@@ -388,7 +347,7 @@
   </ClientConfiguration>
 
   <Extensions>
-    <Extension>
+    <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
         <Buffers>
           <MemoryBufferInstance>
@@ -403,7 +362,7 @@
           </MemoryBufferInstance>
         </Buffers>
       </MemoryBufferConfiguration>
-    </Extension>
+    </ua:XmlElement>
   </Extensions>
   
   <!--

@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<opc:TypeDictionary 
+  xmlns="http://opcfoundation.org/BinarySchema/" 
+  xmlns:opc="http://opcfoundation.org/BinarySchema/" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  TargetNamespace="http://opcfoundation.org/BinarySchema/"
+>
+  <opc:Documentation>This dictionary defines the standard types used by the OPC Binary type description system.</opc:Documentation>
+
+  <opc:OpaqueType Name="Bit" LengthInBits="1">
+    <opc:Documentation>A single bit.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Boolean" LengthInBits="8">
+    <opc:Documentation>A two state logical value represented as a 8-bit value.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="SByte" LengthInBits="8">
+    <opc:Documentation>An 8-bit signed integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Byte" LengthInBits="8">
+    <opc:Documentation>A 8-bit unsigned integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Int16" LengthInBits="16" ByteOrderSignificant="true">
+    <opc:Documentation>A 16-bit signed integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="UInt16" LengthInBits="16" ByteOrderSignificant="true">
+    <opc:Documentation>A 16-bit unsigned integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Int32" LengthInBits="32" ByteOrderSignificant="true">
+    <opc:Documentation>A 32-bit signed integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="UInt32" LengthInBits="32" ByteOrderSignificant="true">
+    <opc:Documentation>A 32-bit unsigned integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Int64" LengthInBits="32" ByteOrderSignificant="true">
+    <opc:Documentation>A 64-bit signed integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="UInt64" LengthInBits="64" ByteOrderSignificant="true">
+    <opc:Documentation>A 64-bit unsigned integer.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Float" LengthInBits="32" ByteOrderSignificant="true">
+    <opc:Documentation>An IEEE-754 single precision floating point value.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Double" LengthInBits="64" ByteOrderSignificant="true">
+    <opc:Documentation>An IEEE-754 double precision floating point value.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Char" LengthInBits="8">
+    <opc:Documentation>A 8-bit character value.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:StructuredType Name="String">
+    <opc:Documentation>A UTF-8 null terminated string value.</opc:Documentation>
+    <opc:Field Name="Value" TypeName="Char" Terminator="00" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="CharArray">
+    <opc:Documentation>A UTF-8 string prefixed by its length in characters.</opc:Documentation>
+    <opc:Field Name="Length" TypeName="Int32" />
+    <opc:Field Name="Value" TypeName="Char" LengthField="Length" />
+  </opc:StructuredType>
+
+  <opc:OpaqueType Name="WideChar" LengthInBits="16" ByteOrderSignificant="true">
+    <opc:Documentation>A 16-bit character value.</opc:Documentation>
+  </opc:OpaqueType>
+
+  <opc:StructuredType Name="WideString">
+    <opc:Documentation>A UTF-16 null terminated string value.</opc:Documentation>
+    <opc:Field Name="Value" TypeName="WideChar" Terminator="0000" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="WideCharArray">
+    <opc:Documentation>A UTF-16 string prefixed by its length in characters.</opc:Documentation>
+    <opc:Field Name="Length" TypeName="Int32" />
+    <opc:Field Name="Value" TypeName="WideChar" LengthField="Length" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ByteString">
+    <opc:Documentation>An array of bytes prefixed by its length.</opc:Documentation>
+    <opc:Field Name="Length" TypeName="Int32" />
+    <opc:Field Name="Value" TypeName="Byte" LengthField="Length" />
+  </opc:StructuredType>
+
+  <opc:OpaqueType Name="DateTime" LengthInBits="64" ByteOrderSignificant="true">
+    <opc:Documentation>The number of 100 nanosecond intervals since January 01, 1601.</opc:Documentation>
+  </opc:OpaqueType>
+  
+  <opc:StructuredType Name="Guid">
+    <opc:Documentation>A 128-bit globally unique identifier.</opc:Documentation>
+    <opc:Field Name="Data1" TypeName="UInt32" />
+    <opc:Field Name="Data2" TypeName="UInt16" />
+    <opc:Field Name="Data3" TypeName="UInt16" />
+    <opc:Field Name="Data4" TypeName="Byte" Length="8" />
+  </opc:StructuredType>
+
+</opc:TypeDictionary>
