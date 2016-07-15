@@ -1,44 +1,34 @@
-# OPC UA Universal Windows Platform Stack and Samples
+# OPC UA .Net Standard Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting the [Universal Windows Platform (UWP)](https://developer.microsoft.com/en-us/windows/getstarted). UWP allows developing apps that run on all Windows 10 editions (including the IoT editions) without requiring edition-specific modifications.
-The OPC Foundation provides an [OPC UA reference implementation for .NET](https://github.com/OPCFoundation/UA-.NET) that supports all versions of Windows Desktop editions since Windows XP. The OPC UA reference implementation for UWP is based on this and has been ported to use UWP API's by Microsoft.
-The OPC Foundation will eventually merge the .NET stack and the UWP stack.
+This OPC UA reference implementation is targeting [.NET Standard)](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
-Features included:
-1. Fully ported Core UA stack and SDK
-2. Sample Client and Sample Server, including all required controls
+##Features included:
+1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
+2. Sample Publishers (for sending OPC UA Pub/Sub telemetry data to the cloud), Clients and Servers, including all required controls
 3. X.509 certificate support for client and server authentication
 4. Anonymous user authentication
-5. UA-TCP transport
-6. Folder- and Windows-certificate-store support
+5. UA-TCP & HTTPS transports
+6. Folder certificate-store support
 7. Sessions (including UI support in the samples)
 8. Subscriptions (including UI support in the samples)
 
-This Publishing_Prototype branch furthermore contains the **Publisher sample application** and **OPC UA Telemetry WebApp** as demonstrated at Hannover Fair 2016.  
-The Publisher sample application (Opc.Ua.Publisher) is based on the Opc.Ua.SampleClient. It acts as a gateway and allows users to create traditional monitored item subscriptions on existing OPC UA server systems.
-Those monitored items are enocoded in JSON and published to one or more configured AMQP endpoint(s).
-These AMQP endpoint(s) can be configured via the Opc.UA.Publisher.Config.xml file. The `<AMQPConnectionConfiguration`> element in this file is extensively documented.
+##Getting Started
+All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
+## How to run Publisher samples
 So far the Publisher sample application and the OPC UA Telemetry WebApp has been tested end to end against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue.
-They should work against any AMQP Broker that provides a standard AMQP 1.0 interface.
+They should work against any AMQP Broker that provides a standard AMQP 1.0 interface. These AMQP endpoint(s) can be configured via the Opc.UA.Publisher.Config.xml file. The `<AMQPConnectionConfiguration`> element in this file is extensively documented.
 
-RCL enables OPC Foundation members to deploy their applications using the UA UWP stack without being required to disclose the application code. Non-members must disclose their application code when using the UA UWP Stack.
-
-**Note**: Dual license applies to this repository only; GPL 2.0 applies to all derived repositories (for example 'forks'). For details check the License section below.
-
-All samples are provided under the [MIT license](https://opcfoundation.org/license/mit.html).
-
-## How to build and run OPC UA UWP Publisher sample
 * Go to the [Azure portal](https://portal.azure.com/) and create a new [IoTHub](https://azure.microsoft.com/en-us/documentation/articles/iot-hub-csharp-csharp-getstarted/).
 
 * Get [DeviceExplorer](https://github.com/Azure/azure-iot-sdks/blob/master/tools/DeviceExplorer/doc/how_to_use_device_explorer.md) and configure it and connect to the IoTHub you have just created.
 
 * Create a new device in your IoTHub using DeviceExplorer.
  
-* Open the solution UA-UWP.sln with VisualStudio 2015.
+* Open the solution UA-NetStandard.sln with VisualStudio.
 
-* Open the Samples\Opc.Ua.Publisher\Opc.Ua.Publisher.Config.xml file to setup your IoTHub connection. In the `<AmqpConnectionConfiguration>` element configure the following elements:
+* Open the Samples\XXXPublisher\Opc.Ua.Publisher.Config.xml file to setup your IoTHub connection. In the `<AmqpConnectionConfiguration>` element configure the following elements:
    * `<Host>`{Host}`</Host>`, where {Host} is the Hostname shown on the details page of your IoTHub on the Azure portal (same as the HostName part of the IoT Hub Connection String DeviceExplorer Configuration tab).
    * `<Endpoint>`/devices/{DeviceId}/messages/events`</Endpoint>`, where {DeviceID} is the name of the device you have created with DeviceExplorer (same as the Id of the device in DeviceExplorer Management tab).
    * `<KeyValue>`{KeyValue}`</KeyValue>`, where {KeyValue} is the Primary Key of the device and could be found under Devices->{DeviceId}->Device Details->Primary Key of your IoTHub in the Azure portal (same as the PrimaryKey of your device shown in DeviceExplorer Management tab).
@@ -46,9 +36,9 @@ All samples are provided under the [MIT license](https://opcfoundation.org/licen
 
 * Save the file, rebuild the solution and start it. This will start a local instance of the application.	
 
-* You will get a message, that a certificate is missing. Keep this message on the screen while you generate your certificates.
+* You will get a message that a certificate is missing. Keep this message on the screen while you generate your certificates.
 
-* Get from [OPC Misc Tool](https://github.com/OPCFoundation/Misc-Tools.git) the Certificate generator tool. (build the solution and get the Opc.Ua.CerticateGenerator.exe)
+* Get the certificate generator tool from [OPC Misc Tool](https://github.com/OPCFoundation/Misc-Tools.git) . (build the solution and get the Opc.Ua.CerticateGenerator.exe)
     
 * Open a command prompt
 
@@ -60,29 +50,21 @@ All samples are provided under the [MIT license](https://opcfoundation.org/licen
 
    Opc.Ua.CertificateGenerator.exe -cmd issue -sp "%TEMP%\OPC Foundation\CertificateStores\MachineDefault" -an "UA Sample Server" -dn {hostname} -sn "CN=UA Sample Server/DC={hostname}" -au "urn:localhost:OPCFoundation:SampleServer"
    ```
-* Copy the "%TEMP%\OPC Foundation" folder into the "LocalState" folder of the path shown in the error message (ex: \Users\UserName\AppData\Local\Packages\xxxxx-xxxx-xxx-xxx\LocalState).
+* Copy the "%TEMP%\OPC Foundation" folder into the Publisher's binary folder of the path shown in the message.
 
 * Now acknowledge the certificate message in the Opc.Ua.Publisher app and close the application. 
 
-* Restart the Opc.Ua.Publisher application. Now you should not get a certificate missing message. If you get a message for a missconfigured domain, acknowledge with "Yes" to use the certificate.
+* Restart the Opc.Ua.Publisher application. If you get a message for a missconfigured domain, acknowledge with "Yes" to use the certificate.
         
-* If you don't have any OPC UA server device to connect to you may clone the OPC Foundations [.NET repository](https://github.com/OPCFoundation/UA-.NET.git), open the solution "UA Sample Applications.sln" with VisualStudio 2015, build the solution and run the "UA Sample Server" (Note: you need to start this application with Administrator rights).
+* Press "Connect" button to connect to the default endpoint currently displayed. 
 
-+ Now you enter a connection URL into the connection URL list box of "Opc.Ua.Publisher" (Note: do a right click into the list box to put the focus on it).   
-    
-* In our case we are entering the connection URL, which is shown in the "UA Sample Server" application as "Server Endpoint URLs" connection URL list box into the "Opc.Ua.Publisher".
+* You should see two dialogs, one after the other, which allows you to select "Security Mode", "Security Policy" and other settings. Just click "OK" for now to accept defaults.
 
-* Press "Connect" button to connect to the "UA Sample Server". 
+* On the left window in the application you see all existing sessions (you are able to connect to multiple OPC UA servers here) and on the right side you can browse the OPC UA node addresss space of the server.
 
-* You should see a dialog, which allows you to select "Security Mode", "Security Policy" and other settings. Choose your settings and acknowledge with "Ok".
-
-* Then you should see a dialog, to allow entering your username and password. For an anonymous session, you are good to enter nothing and just acknowledge the dialog with "Ok".
-
-* On the left window in the application you see all existing sessions (you are able to connect to multiple OPC UA servers here) and on the right side you could browse the addresss space of the server.
-
-* Choose a node in the right window by browsing to it and selecting it with the mouse (Note: choose a value, which changes frequently like Objects->Server->ServerStatus->CurrentTime).
+* Choose a node in the right window by browsing to it and selecting it with the mouse (for constantly updating results, choose a value, which changes frequently like Objects->Server->ServerStatus->CurrentTime).
          
-* Press the "Publish" button and the application will start publishing the nodes JSON encoded data (Note: the JSON format is not compliant to the upcoming OPC Foundation PubSub specification) to your IoTHub.
+* Press the "Publish" button and the application will start publishing the node's Pub/Sub encoded data to your IoTHub.
 
 * In DeviceExplorer go to the Data tab, press the Monitor button and you should see data being received by your IoTHub.
 
@@ -130,11 +112,14 @@ All samples are provided under the [MIT license](https://opcfoundation.org/licen
 
 
 # License
-This repository includes the UA .NET Stack, sample libraries, and sample applications. The UA .NET Stack follows a dual-license:
+
+This repository includes the UA .NetStandard Stack, sample libraries, and sample applications. The UA .NetStandard Stack follows a dual-license:
 
  * **OPC Foundation Corporate Members**: [RCL](https://opcfoundation.org/license/rcl.html)
  * **Everybody else**: [GPL 2.0](https://opcfoundation.org/license/gpl.html)
-
+ * RCL enables OPC Foundation members to deploy their applications using the UA .NetStandard stack without being required to disclose the application code. Non-members must disclose their application code when using the UA UWP Stack.
+ * **Note**: Dual license applies to this repository only; GPL 2.0 applies to all derived repositories (for example 'forks'). For details check the License section below.
+ * All samples are provided under the [MIT license](https://opcfoundation.org/license/mit.html).
 
 # Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
