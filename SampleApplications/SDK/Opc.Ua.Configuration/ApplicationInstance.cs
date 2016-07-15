@@ -142,6 +142,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <value>If true the application will not be visible to the GDS local agent after installation.</value>
         public bool NoGdsAgentAdmin { get; set; }
+
         public static IApplicationMessageDlg MessageDlg { get; set; }
         #endregion
 

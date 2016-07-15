@@ -504,6 +504,7 @@
     <Compile Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.Designer.cs">
       <DependentUpon>DateTimeValueEditDlg.cs</DependentUpon>
     </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\MessageDlg.cs" />
     <Compile Include="Configuration\Common %28OLD%29\NodeIdCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml;
 using System.Threading.Tasks;
@@ -39,6 +38,7 @@ namespace Opc.Ua.Client.Controls
     public class ApplicationMessageDlg:IApplicationMessageDlg
     {
         private MessageDlg dialog = new MessageDlg("");
+
         public override void Message(string text, bool ask)
         {
             if (ask)
@@ -50,6 +50,7 @@ namespace Opc.Ua.Client.Controls
                 dialog.MessageText(text);
             }
         }
+
         public override async Task<bool> ShowAsync()
         {
             return await dialog.ShowAsync() == MessageDlgButton.Yes;
@@ -98,8 +99,7 @@ namespace Opc.Ua.Client.Controls
             Left = left;
             Right = right;
         }
-
-
+        
         public async Task<MessageDlgButton> ShowAsync()
         {
             // configure dialog
@@ -137,6 +137,5 @@ namespace Opc.Ua.Client.Controls
             dialogPopup.IsOpen = false;
         }
     }
-
 }
 
