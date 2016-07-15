@@ -16,7 +16,7 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 ##Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
-## How to run Publisher samples
+##How to configure the Publisher samples
 So far the Publisher sample application and the OPC UA Telemetry WebApp has been tested end to end against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue.
 They should work against any AMQP Broker that provides a standard AMQP 1.0 interface. These AMQP endpoint(s) can be configured via the Opc.UA.Publisher.Config.xml file. The `<AMQPConnectionConfiguration`> element in this file is extensively documented.
 
@@ -68,11 +68,7 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 
 * In DeviceExplorer go to the Data tab, press the Monitor button and you should see data being received by your IoTHub.
 
-
-
-# OPC UA Web Telemetry Sample
-
-## How to build and run the OPC UA Web Telemetry sample
+##How to build and run the OPC UA Web Telemetry sample
 
 * Go to the [Azure portal](https://portal.azure.com/) and create a new Storage account.
 
@@ -110,8 +106,7 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 
 * You should see the node value on the web page after a few seconds.
 
-
-# License
+##License
 
 This repository includes the UA .NetStandard Stack, sample libraries, and sample applications. The UA .NetStandard Stack follows a dual-license:
 
@@ -121,7 +116,7 @@ This repository includes the UA .NetStandard Stack, sample libraries, and sample
  * **Note**: Dual license applies to this repository only; GPL 2.0 applies to all derived repositories (for example 'forks'). For details check the License section below.
  * All samples are provided under the [MIT license](https://opcfoundation.org/license/mit.html).
 
-# Contributing
+##Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
 
 You must agree to the contributor license agreement before we can accept your changes. The CLA and "I AGREE" button is automatically displayed when you perform the pull request. You can preview CLA [here](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf).
