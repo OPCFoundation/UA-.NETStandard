@@ -15,7 +15,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -86,7 +85,8 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append("KeyID=");
+                buffer.Append(keyIdentifier);
+                buffer.Append("=");
                 buffer.Append(m_keyId);
             }
 
@@ -124,7 +124,8 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append("SerialNumber=");
+                buffer.Append(authorityCertSerialNumber);
+                buffer.Append("=");
                 buffer.Append(m_serialNumber);
             }
 
@@ -153,6 +154,10 @@ namespace Opc.Ua
         /// </summary>
         public const string AuthorityKeyIdentifier2Oid = "2.5.29.35";
 
+        // definitions see RFC 3281 4.3.3
+        const string keyIdentifier = "KeyID";
+        const string authorityCertSerialNumber = "SerialNumber";
+
         /// <summary>
         /// The identifier for the key.
         /// </summary>
@@ -179,45 +184,78 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Convert string to upper case and remove white space.
+        /// </summary>
+        private string TrimHexString(string hex)
+        {
+            int i = 0;
+            string result = "";
+            while (i < hex.Length)
+            {
+                if (!Char.IsWhiteSpace(hex[i]))
+                {
+                    result += Char.ToUpper(hex[i]);
+                }
+                i++;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Extract KeyID and SerialNumber from formatted Authority Key Identifier.
+        /// This is not a ASN.1 parser. Not parsing authority names.
+        /// </summary>
+        private void ParseAuthorityKeyIdentifierExtension(string formattedData)
+        {
+            m_keyId = null;
+            m_serialNumber = null;
+
+            string[] pairedData = formattedData.Split(',');
+
+            // find desired keys in formatted data
+            int position = 1;
+            foreach (string pair in pairedData)
+            {
+                string[] splitPair = pair.Trim().Split('=');
+                if (splitPair.Length == 2)
+                {
+                    if (splitPair[0] == keyIdentifier && position == 1)
+                    {
+                        m_keyId = TrimHexString(splitPair[1]);
+                    }
+                    else if (splitPair[0].EndsWith(authorityCertSerialNumber) && position == pairedData.Length)
+                    {
+                        m_serialNumber = TrimHexString(splitPair[1]);
+                    }
+                }
+                position++;
+            }
+        }
+
         private void Parse(byte[] data)
         {
-            byte[] keyId = null;
-            byte[] serialNumber = null;
-            m_authorityNames = null;
-
-            if (base.Oid.Value == AuthorityKeyIdentifierOid)
+            AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
+            string formattedData = asnData.Format(false);
+            if (base.Oid.Value == AuthorityKeyIdentifierOid ||
+                base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                // Use System.Security.Cryptography.AsnEncodedData
-                //TODO: Implement ParseAuthorityKeyIdentifierExtension(data, out keyId, out m_authorityNames, out serialNumber);
+                ParseAuthorityKeyIdentifierExtension(formattedData);
             }
             else
             {
-                //TODO: Implement ParseAuthorityKeyIdentifierExtension2(data, out keyId, out m_authorityNames, out serialNumber);
-            }
-            
-            m_keyId = Utils.ToHexString(keyId);
-            m_serialNumber = null;
-
-            // the serial number is a little endian integer so must convert to string in reverse order. 
-            if (serialNumber != null)
-            {
-                StringBuilder builder = new StringBuilder(serialNumber.Length*2);
-
-                for (int ii = serialNumber.Length-1; ii >=  0; ii--)
-                {
-                    builder.AppendFormat("{0:X2}", serialNumber[ii]);
-                }
-
-                m_serialNumber = builder.ToString();
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate uses unknown AuthorityKeyIdentifierOid.");
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private const string s_FriendlyName = "Authority Key Identifier";
         private string m_keyId;
         private string[] m_authorityNames;
         private string m_serialNumber;
-        #endregion
+#endregion
     }
 }
