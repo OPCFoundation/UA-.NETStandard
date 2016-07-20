@@ -13,7 +13,6 @@
 
     "frameworks": {
         "net46": {},
-        "netcoreapp1.0": {},
         "netstandard1.3": {},
         "uap10.0": {
             "dependencies": {
