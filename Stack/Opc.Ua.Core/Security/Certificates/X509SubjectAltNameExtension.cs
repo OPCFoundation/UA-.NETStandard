@@ -86,7 +86,8 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append("URL=");
+                buffer.Append(s_UniformResourceIdentifier);
+                buffer.Append("=");
                 buffer.Append(m_uris[ii]);
             }
 
@@ -104,7 +105,8 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append("DNS Name=");
+                buffer.Append(s_DnsName);
+                buffer.Append("=");
                 buffer.Append(m_domainNames[ii]);
             }
 
@@ -122,7 +124,8 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append("IP Address=");
+                buffer.Append(s_IpAddress);
+                buffer.Append("=");
                 buffer.Append(m_ipAddresses[ii]);
             }
 
@@ -186,21 +189,69 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        private void Parse(byte[] data)
+        /// <summary>
+        /// Extract URI, DNS and IP from formatted Subject Alternative Name.
+        /// </summary>
+        private void ParseSubjectAltNameUsageExtension(string formattedData)
         {
             List<string> uris = new List<string>();
             List<string> domainNames = new List<string>();
             List<string> ipAddresses = new List<string>();
 
-           //TODO: Implement ParseSubjectAltNameUsageExtension(data, uris, domainNames, ipAddresses);
+            string[] pairedData = formattedData.Split(',');
 
+            // find desired keys in formatted data
+            foreach (string pair in pairedData)
+            {
+                string[] splitPair = pair.Trim().Split('=');
+                if (splitPair.Length == 2)
+                {
+                    if (splitPair[0] == s_UniformResourceIdentifier)
+                    {
+                        uris.Add(splitPair[1]);
+                    }
+                    else if (splitPair[0] == s_DnsName)
+                    {
+                        domainNames.Add(splitPair[1]);
+                    }
+                    else if (splitPair[0] == s_IpAddress)
+                    {
+                        ipAddresses.Add(splitPair[1]);
+                    }
+                    // ignore unknown keys
+                }
+            }
             m_uris = new ReadOnlyList<string>(uris);
             m_domainNames = new ReadOnlyList<string>(domainNames);
             m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
         }
+
+        private void Parse(byte[] data)
+        {
+            if (base.Oid.Value == SubjectAltNameOid ||
+                base.Oid.Value == SubjectAltName2Oid)
+            {
+                AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
+                string formattedData = asnData.Format(false);
+                ParseSubjectAltNameUsageExtension(formattedData);
+            }
+            else
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate uses unknown SubjectAltNameOid.");
+            }
+        }
         #endregion
 
         #region Private Fields
+        /// <summary>
+        /// Subject Alternate Name extension string
+        /// definitions see RFC 3280 4.2.1.7
+        /// </summary>
+        private const string s_UniformResourceIdentifier = "URL";
+        private const string s_DnsName = "DNS Name";
+        private const string s_IpAddress = "IP Address";
         private const string s_SubjectAltNameOid = "2.5.29.7";
         private const string s_SubjectAltName2Oid = "2.5.29.17";
         private const string s_FriendlyName = "Subject Alternative Name";
