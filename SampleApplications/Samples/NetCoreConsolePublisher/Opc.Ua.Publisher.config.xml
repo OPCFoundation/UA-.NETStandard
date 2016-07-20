@@ -31,7 +31,7 @@
            The name of the store is appended.
            Note that the names used in code are difference from what appears in the control panel.
            e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
 
 
       <!-- The subject for the certificate 
@@ -60,7 +60,7 @@
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StorePath>OPC Foundation/CertificateStores/UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
 
     <!-- The list of trusted certificates. 
@@ -79,7 +79,7 @@
          -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StorePath>OPC Foundation/CertificateStores/UA Applications</StorePath>
     </TrustedPeerCertificates>
 
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -88,7 +88,7 @@
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StorePath>OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
     </RejectedCertificateStore>
 
   </SecurityConfiguration>

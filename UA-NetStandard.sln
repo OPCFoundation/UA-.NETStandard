@@ -34,6 +34,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Sample.Controls", "S
 	EndProjectSection
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NetCoreConsolePublisher", "SampleApplications\Samples\NetCoreConsolePublisher\NetCoreConsolePublisher.xproj", "{3C2AF620-4F39-43E6-A659-B05A13D85F1A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4} = {ABD9427F-FB32-4689-AB4F-22BCFB8DE2F4}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.SampleServer", "SampleApplications\Samples\Server\Opc.Ua.SampleServer.csproj", "{76149EC4-0430-47C6-B89E-E26661FBFC2B}"
 	ProjectSection(ProjectDependencies) = postProject
