@@ -823,6 +823,38 @@ namespace Opc.Ua
         {
             return StatusCodes.BadNotSupported;
         }
+
+        /// <summary>
+        /// Returns the CRLs in the store.
+        /// </summary>
+        public List<X509CRL> EnumerateCRLs()
+        {
+            return new List<X509CRL>();
+        }
+
+        /// <summary>
+        /// Returns the CRLs for the issuer.
+        /// </summary>
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        {
+            return new List<X509CRL>();
+        }        
+        
+        /// <summary>
+        /// Adds a CRL to the store.
+        /// </summary>
+        public void AddCRL(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
+
+        /// <summary>
+        /// Removes a CRL from the store.
+        /// </summary>
+        public bool DeleteCRL(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
         #endregion
     }
     #endregion
