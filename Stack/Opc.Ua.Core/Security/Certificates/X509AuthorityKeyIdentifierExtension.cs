@@ -85,7 +85,7 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append(keyIdentifier);
+                buffer.Append(s_KeyIdentifier);
                 buffer.Append("=");
                 buffer.Append(m_keyId);
             }
@@ -124,7 +124,7 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append(authorityCertSerialNumber);
+                buffer.Append(s_SerialNumber);
                 buffer.Append("=");
                 buffer.Append(m_serialNumber);
             }
@@ -153,10 +153,6 @@ namespace Opc.Ua
         /// The alternate OID for a Authority Key Identifier extension.
         /// </summary>
         public const string AuthorityKeyIdentifier2Oid = "2.5.29.35";
-
-        // definitions see RFC 3281 4.3.3
-        const string keyIdentifier = "KeyID";
-        const string authorityCertSerialNumber = "SerialNumber";
 
         /// <summary>
         /// The identifier for the key.
@@ -220,11 +216,11 @@ namespace Opc.Ua
                 string[] splitPair = pair.Trim().Split('=');
                 if (splitPair.Length == 2)
                 {
-                    if (splitPair[0] == keyIdentifier && position == 1)
+                    if (splitPair[0] == s_KeyIdentifier && position == 1)
                     {
                         m_keyId = TrimHexString(splitPair[1]);
                     }
-                    else if (splitPair[0].EndsWith(authorityCertSerialNumber) && position == pairedData.Length)
+                    else if (splitPair[0].EndsWith(s_SerialNumber) && position == pairedData.Length)
                     {
                         m_serialNumber = TrimHexString(splitPair[1]);
                     }
@@ -235,11 +231,11 @@ namespace Opc.Ua
 
         private void Parse(byte[] data)
         {
-            AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
-            string formattedData = asnData.Format(false);
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
+                AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
+                string formattedData = asnData.Format(false);
                 ParseAuthorityKeyIdentifierExtension(formattedData);
             }
             else
@@ -249,9 +245,15 @@ namespace Opc.Ua
                     "Certificate uses unknown AuthorityKeyIdentifierOid.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
+        /// <summary>
+        /// Authority Key Identifier extension string
+        /// definitions see RFC 3281 4.3.3
+        /// </summary>
+        private const string s_KeyIdentifier = "KeyID";
+        private const string s_SerialNumber = "SerialNumber";
         private const string s_FriendlyName = "Authority Key Identifier";
         private string m_keyId;
         private string[] m_authorityNames;
