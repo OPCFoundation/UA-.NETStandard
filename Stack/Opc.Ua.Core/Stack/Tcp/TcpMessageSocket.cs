@@ -131,16 +131,33 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("The socket is already connected.");
             }
 
-            bool ipV6Required = false;
-            bool ipV4Required = false;
+            // Get DNS host information.
+            IPAddress[] hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost);
 
-            // need to check if an IP address was provided.
-            IPAddress address = null;
+            // try IPv4 and IPv6 address
+            IPAddress addressV4 = null;
+            IPAddress addressV6 = null;
 
-            if (IPAddress.TryParse(endpointUrl.DnsSafeHost, out address))
+            foreach (IPAddress address in hostAdresses)
             {
-                ipV6Required = address.AddressFamily == AddressFamily.InterNetworkV6;
-                ipV4Required = address.AddressFamily == AddressFamily.InterNetwork;
+                if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    if (addressV6 == null)
+                    {
+                        addressV6 = address;
+                    }
+                }
+                if (address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    if (addressV4 == null)
+                    {
+                        addressV4 = address;
+                    }
+                }
+                if ((addressV4 != null) && (addressV6 != null))
+                {
+                    break;
+                }
             }
 
             TaskCompletionSource<SocketError> tcs = new TaskCompletionSource<SocketError>();
@@ -151,18 +168,6 @@ namespace Opc.Ua.Bindings
 
             lock (m_socketLock)
             {
-                // force sockets if IP address was provided
-                if (!ipV4Required)
-                {
-                    m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-                    m_socketResponses++;
-                }
-                if (!ipV6Required)
-                {
-                    m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    m_socketResponses++;
-                }
-
                 // ensure a valid port.
                 int port = endpointUrl.Port;
 
@@ -171,15 +176,18 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                if (address != null)
+                // create sockets if IP address was provided
+                if (addressV6 != null)
                 {
-                    argsV4.RemoteEndPoint = new IPEndPoint(address, port);
-                    argsV6.RemoteEndPoint = new IPEndPoint(address, port);
+                    m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+                    argsV6.RemoteEndPoint = new IPEndPoint(addressV6, port);
+                    m_socketResponses++;
                 }
-                else
+                if (addressV4 != null)
                 {
-                    argsV4.RemoteEndPoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
-                    argsV6.RemoteEndPoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
+                    m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    argsV4.RemoteEndPoint = new IPEndPoint(addressV4, port);
+                    m_socketResponses++;
                 }
 
                 argsV4.Completed += (o, e) =>
