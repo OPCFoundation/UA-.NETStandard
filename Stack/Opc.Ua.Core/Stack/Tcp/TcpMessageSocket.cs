@@ -160,10 +160,10 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            TaskCompletionSource<SocketError> tcs = new TaskCompletionSource<SocketError>();
-            SocketAsyncEventArgs argsV4 = new SocketAsyncEventArgs();
-            SocketAsyncEventArgs argsV6 = new SocketAsyncEventArgs();
-            argsV4.UserToken = argsV6.UserToken = state;
+            SocketError error = SocketError.NotInitialized;
+            TaskCompletionSource <SocketError> tcs = new TaskCompletionSource<SocketError>();
+            SocketAsyncEventArgs argsV4 = null;
+            SocketAsyncEventArgs argsV6 = null;
             m_socketResponses = 0;
 
             lock (m_socketLock)
@@ -179,93 +179,105 @@ namespace Opc.Ua.Bindings
                 // create sockets if IP address was provided
                 if (addressV6 != null)
                 {
+                    argsV6 = new SocketAsyncEventArgs();
+                    argsV6.UserToken = state;
                     m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
                     argsV6.RemoteEndPoint = new IPEndPoint(addressV6, port);
                     m_socketResponses++;
+                    argsV6.Completed += (o, e) =>
+                    {
+                        lock (m_socketLock)
+                        {
+                            m_socketResponses--;
+                            if (m_socketV6 != null)
+                            {
+                                if (m_socket == null &&
+                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                                {
+                                    m_socket = m_socketV6;
+                                    tcs.SetResult(e.SocketError);
+                                }
+                                else
+                                {
+                                    m_socketV6.Dispose();
+                                    e.UserToken = null;
+                                }
+                                m_socketV6 = null;
+                            }
+                            else
+                            {
+                                e.UserToken = null;
+                            }
+                        }
+                    };
+                    argsV6.Completed += callback;
                 }
                 if (addressV4 != null)
                 {
+                    argsV4 = new SocketAsyncEventArgs();
+                    argsV4.UserToken = state;
                     m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     argsV4.RemoteEndPoint = new IPEndPoint(addressV4, port);
                     m_socketResponses++;
+                    argsV4.Completed += (o, e) =>
+                    {
+                        lock (m_socketLock)
+                        {
+                            m_socketResponses--;
+                            if (m_socketV4 != null)
+                            {
+                                if (m_socket == null &&
+                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                                {
+                                    m_socket = m_socketV4;
+                                    tcs.SetResult(e.SocketError);
+                                }
+                                else
+                                {
+                                    m_socketV4.Dispose();
+                                    e.UserToken = null;
+                                }
+                                m_socketV4 = null;
+                            }
+                            else
+                            {
+                                e.UserToken = null;
+                            }
+                        }
+                    };
+                    argsV4.Completed += callback;
                 }
-
-                argsV4.Completed += (o, e) =>
-                {
-                    lock (m_socketLock)
-                    {
-                        m_socketResponses--;
-                        if (m_socketV4 != null)
-                        {
-                            if (m_socket == null &&
-                            (m_socketResponses == 0 || e.SocketError == SocketError.Success))
-                            {
-                                m_socket = m_socketV4;
-                                tcs.SetResult(e.SocketError);
-                            }
-                            else
-                            {
-                                m_socketV4.Dispose();
-                                e.UserToken = null;
-                            }
-                            m_socketV4 = null;
-                        }
-                        else
-                        {
-                            e.UserToken = null;
-                        }
-                    }
-                };
-                argsV4.Completed += callback;
-
-                argsV6.Completed += (o, e) =>
-                {
-                    lock (m_socketLock)
-                    {
-                        m_socketResponses--;
-                        if (m_socketV6 != null)
-                        {
-                            if (m_socket == null &&
-                                (m_socketResponses == 0 || e.SocketError == SocketError.Success))
-                            {
-                                m_socket = m_socketV6;
-                                tcs.SetResult(e.SocketError);
-                            }
-                            else
-                            {
-                                m_socketV6.Dispose();
-                                e.UserToken = null;
-                            }
-                            m_socketV6 = null;
-                        }
-                        else
-                        {
-                            e.UserToken = null;
-                        }
-                    }
-                };
-                argsV6.Completed += callback;
 
                 bool connectV6Sync = true;
                 bool connectV4Sync = true;
                 if (m_socketV6 != null)
                 {
                     connectV6Sync = !m_socketV6.ConnectAsync(argsV6);
+                    if (connectV6Sync)
+                    {
+                        // I/O completed synchronously
+                        callback(this, argsV6);
+                        error = argsV6.SocketError;
+                    }
                 }
-                if (m_socketV4 != null)
+                if (m_socketV4 != null && error != SocketError.Success)
                 {
                     connectV4Sync = !m_socketV4.ConnectAsync(argsV4);
+                    if (connectV4Sync)
+                    {
+                        // I/O completed synchronously
+                        callback(this, argsV4);
+                        error = argsV4.SocketError;
+                    }
                 }
 
                 if (connectV4Sync && connectV6Sync)
                 {
-                    // I/O completed synchronously
-                    callback(this, argsV4);
-                    return (argsV4.SocketError == SocketError.Success) ? true : false;
+                    return (error == SocketError.Success) ? true : false;
                 }
             }
 
-            SocketError error = await tcs.Task;
+            error = await tcs.Task;
 
             return (error == SocketError.Success) ? true : false;
         }
