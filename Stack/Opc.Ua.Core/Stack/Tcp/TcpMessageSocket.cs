@@ -131,38 +131,43 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("The socket is already connected.");
             }
 
-            bool ipV6Required = false;
-            bool ipV4Required = false;
+            // Get DNS host information.
+            IPAddress[] hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost);
 
-            // need to check if an IP address was provided.
-            IPAddress address = null;
+            // try IPv4 and IPv6 address
+            IPAddress addressV4 = null;
+            IPAddress addressV6 = null;
 
-            if (IPAddress.TryParse(endpointUrl.DnsSafeHost, out address))
+            foreach (IPAddress address in hostAdresses)
             {
-                ipV6Required = address.AddressFamily == AddressFamily.InterNetworkV6;
-                ipV4Required = address.AddressFamily == AddressFamily.InterNetwork;
+                if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    if (addressV6 == null)
+                    {
+                        addressV6 = address;
+                    }
+                }
+                if (address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    if (addressV4 == null)
+                    {
+                        addressV4 = address;
+                    }
+                }
+                if ((addressV4 != null) && (addressV6 != null))
+                {
+                    break;
+                }
             }
 
-            TaskCompletionSource<SocketError> tcs = new TaskCompletionSource<SocketError>();
-            SocketAsyncEventArgs argsV4 = new SocketAsyncEventArgs();
-            SocketAsyncEventArgs argsV6 = new SocketAsyncEventArgs();
-            argsV4.UserToken = argsV6.UserToken = state;
+            SocketError error = SocketError.NotInitialized;
+            TaskCompletionSource <SocketError> tcs = new TaskCompletionSource<SocketError>();
+            SocketAsyncEventArgs argsV4 = null;
+            SocketAsyncEventArgs argsV6 = null;
             m_socketResponses = 0;
 
             lock (m_socketLock)
             {
-                // force sockets if IP address was provided
-                if (!ipV4Required)
-                {
-                    m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-                    m_socketResponses++;
-                }
-                if (!ipV6Required)
-                {
-                    m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    m_socketResponses++;
-                }
-
                 // ensure a valid port.
                 int port = endpointUrl.Port;
 
@@ -171,93 +176,108 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                if (address != null)
+                // create sockets if IP address was provided
+                if (addressV6 != null)
                 {
-                    argsV4.RemoteEndPoint = new IPEndPoint(address, port);
-                    argsV6.RemoteEndPoint = new IPEndPoint(address, port);
-                }
-                else
-                {
-                    argsV4.RemoteEndPoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
-                    argsV6.RemoteEndPoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
-                }
-
-                argsV4.Completed += (o, e) =>
-                {
-                    lock (m_socketLock)
+                    argsV6 = new SocketAsyncEventArgs();
+                    argsV6.UserToken = state;
+                    m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+                    argsV6.RemoteEndPoint = new IPEndPoint(addressV6, port);
+                    m_socketResponses++;
+                    argsV6.Completed += (o, e) =>
                     {
-                        m_socketResponses--;
-                        if (m_socketV4 != null)
+                        lock (m_socketLock)
                         {
-                            if (m_socket == null &&
-                            (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                            m_socketResponses--;
+                            if (m_socketV6 != null)
                             {
-                                m_socket = m_socketV4;
-                                tcs.SetResult(e.SocketError);
+                                if (m_socket == null &&
+                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                                {
+                                    m_socket = m_socketV6;
+                                    tcs.SetResult(e.SocketError);
+                                }
+                                else
+                                {
+                                    m_socketV6.Dispose();
+                                    e.UserToken = null;
+                                }
+                                m_socketV6 = null;
                             }
                             else
                             {
-                                m_socketV4.Dispose();
                                 e.UserToken = null;
                             }
-                            m_socketV4 = null;
                         }
-                        else
-                        {
-                            e.UserToken = null;
-                        }
-                    }
-                };
-                argsV4.Completed += callback;
-
-                argsV6.Completed += (o, e) =>
+                    };
+                    argsV6.Completed += callback;
+                }
+                if (addressV4 != null)
                 {
-                    lock (m_socketLock)
+                    argsV4 = new SocketAsyncEventArgs();
+                    argsV4.UserToken = state;
+                    m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    argsV4.RemoteEndPoint = new IPEndPoint(addressV4, port);
+                    m_socketResponses++;
+                    argsV4.Completed += (o, e) =>
                     {
-                        m_socketResponses--;
-                        if (m_socketV6 != null)
+                        lock (m_socketLock)
                         {
-                            if (m_socket == null &&
-                                (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                            m_socketResponses--;
+                            if (m_socketV4 != null)
                             {
-                                m_socket = m_socketV6;
-                                tcs.SetResult(e.SocketError);
+                                if (m_socket == null &&
+                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
+                                {
+                                    m_socket = m_socketV4;
+                                    tcs.SetResult(e.SocketError);
+                                }
+                                else
+                                {
+                                    m_socketV4.Dispose();
+                                    e.UserToken = null;
+                                }
+                                m_socketV4 = null;
                             }
                             else
                             {
-                                m_socketV6.Dispose();
                                 e.UserToken = null;
                             }
-                            m_socketV6 = null;
                         }
-                        else
-                        {
-                            e.UserToken = null;
-                        }
-                    }
-                };
-                argsV6.Completed += callback;
+                    };
+                    argsV4.Completed += callback;
+                }
 
                 bool connectV6Sync = true;
                 bool connectV4Sync = true;
                 if (m_socketV6 != null)
                 {
                     connectV6Sync = !m_socketV6.ConnectAsync(argsV6);
+                    if (connectV6Sync)
+                    {
+                        // I/O completed synchronously
+                        callback(this, argsV6);
+                        error = argsV6.SocketError;
+                    }
                 }
-                if (m_socketV4 != null)
+                if (m_socketV4 != null && error != SocketError.Success)
                 {
                     connectV4Sync = !m_socketV4.ConnectAsync(argsV4);
+                    if (connectV4Sync)
+                    {
+                        // I/O completed synchronously
+                        callback(this, argsV4);
+                        error = argsV4.SocketError;
+                    }
                 }
 
                 if (connectV4Sync && connectV6Sync)
                 {
-                    // I/O completed synchronously
-                    callback(this, argsV4);
-                    return (argsV4.SocketError == SocketError.Success) ? true : false;
+                    return (error == SocketError.Success) ? true : false;
                 }
             }
 
-            SocketError error = await tcs.Task;
+            error = await tcs.Task;
 
             return (error == SocketError.Success) ? true : false;
         }
