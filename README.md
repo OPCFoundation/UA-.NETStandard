@@ -92,7 +92,7 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
         // under Settings->Messaging->Event Hub-compatible endpoint of your IoTHub in the Azure portal.
         // {PrimaryKey} is the IoT Hub primary key for access with iothubowner policy and could be found
         // under Settings->Shared access policies->iothubowner->Primary key of your IoTHub in the Azure portal.  
-        public static string EventHubConnectionString = "{EventHubEndpoint};SharedAccessKeyName=iothubowner;{PrimaryKey}";
+        public static string EventHubConnectionString = "Endpoint={EventHubEndpoint};SharedAccessKeyName=iothubowner;{PrimaryKey}";
 
         // {HubName} is the Event Hub compatible name of your IoTHub and could be found 
         // under Settings->Messaging->Event Hub-compatible name of your IoTHub in the Azure portal.
