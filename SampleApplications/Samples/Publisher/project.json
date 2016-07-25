@@ -1,7 +1,7 @@
 ﻿{
   "dependencies": {
     "AMQPNetLite": "1.2.0",
-    "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.1",
+    "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.2",
     "System.Xml.XmlDocument": "4.0.1"
   },
   "frameworks": {
