@@ -1,0 +1,402 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Opc.Ua.Gds</RootNamespace>
+    <AssemblyName>Opc.Ua.Gds</AssemblyName>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <SignAssembly>false</SignAssembly>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <TargetFrameworkProfile />
+    <PublishUrl>http://localhost/Opc.Ua.SampleLibrary/</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.SqlServer.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Opc.Ua.Client, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.ServiceModel.Web">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
+    <Compile Include="Application.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+    <Compile Include="ApplicationName.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+    <Compile Include="CertificateRequest.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+    <Compile Include="CertificateStore.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\CertificateWrapper.cs" />
+    <Compile Include="Controls\DiscoveryControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DiscoveryControl.Designer.cs">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\DiscoveryUrlsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\DiscoveryUrlsDialog.Designer.cs">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EditValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\EditValueCtrl.Designer.cs">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EditValueDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\EditValueDlg.Designer.cs">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EndpointUrlDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\EndpointUrlDialog.Designer.cs">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ImageListControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ImageListControl.Designer.cs">
+      <DependentUpon>ImageListControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SelectGdsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectGdsDialog.Designer.cs">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SelectServerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectServerDialog.Designer.cs">
+      <DependentUpon>SelectServerDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ServerCapabilitiesDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ServerCapabilitiesDialog.Designer.cs">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ServerStatusControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ServerStatusControl.Designer.cs">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SetTypeDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SetTypeDlg.Designer.cs">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TrustListControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\TrustListControl.Designer.cs">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TrustListDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\TrustListDialog.Designer.cs">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\UntrustedCertificateDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\UntrustedCertificateDialog.Designer.cs">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\UserIdentityDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\UserIdentityDialog.Designer.cs">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ViewApplicationRecordsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ViewApplicationRecordsDialog.Designer.cs">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ViewServersOnNetworkDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ViewServersOnNetworkDialog.Designer.cs">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="LocalDiscoveryServer.cs" />
+    <Compile Include="gdsdb.Context.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>gdsdb.Context.tt</DependentUpon>
+    </Compile>
+    <Compile Include="gdsdb.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+    <Compile Include="gdsdb.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+    </Compile>
+    <Compile Include="GlobalDiscoveryServer.cs" />
+    <Compile Include="RegisteredApplication.cs">
+      <DependentUpon>RegisteredApplication.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PushConfigurationServer.cs" />
+    <Compile Include="RegisteredApplicationExtensions.cs" />
+    <Compile Include="ServerCapabilities.cs" />
+    <Compile Include="ServerEndpoint.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.SQL.Server.Compact.3.5">
+      <Visible>False</Visible>
+      <ProductName>SQL Server Compact 3.5 SP2</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.SQL.Server.Compact.4.0">
+      <Visible>False</Visible>
+      <ProductName>SQL Server Compact 4.0 SP1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\external\Opc.Ua.CertificateGenerator.exe">
+      <Link>Opc.Ua.CertificateGenerator.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DB\Tables.sql" />
+    <EmbeddedResource Include="Controls\DiscoveryControl.resx">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DiscoveryUrlsDialog.resx">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueCtrl.resx">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueDlg.resx">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EndpointUrlDialog.resx">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ImageListControl.resx">
+      <DependentUpon>ImageListControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectGdsDialog.resx">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectServerDialog.resx">
+      <DependentUpon>SelectServerDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ServerCapabilitiesDialog.resx">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ServerStatusControl.resx">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SetTypeDlg.resx">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TrustListControl.resx">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TrustListDialog.resx">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UntrustedCertificateDialog.resx">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UserIdentityDialog.resx">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewApplicationRecordsDialog.resx">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewServersOnNetworkDialog.resx">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
+      <Name>UA Client Controls</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EntityDeploy Include="gdsdb.edmx">
+      <Generator>EntityModelCodeGenerator</Generator>
+      <LastGenOutput>gdsdb.Designer.cs</LastGenOutput>
+    </EntityDeploy>
+    <None Include="BuildSchema.bat" />
+    <None Include="gdsdb.Context.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+      <LastGenOutput>gdsdb.Context.cs</LastGenOutput>
+    </None>
+    <None Include="gdsdb.edmx.diagram">
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+    </None>
+    <None Include="gdsdb.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+      <LastGenOutput>gdsdb.cs</LastGenOutput>
+    </None>
+    <None Include="packages.config" />
+    <None Include="RegisteredApplication.xsd">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>
