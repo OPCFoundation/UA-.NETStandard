@@ -9,8 +9,8 @@ openssl pkcs12 -export -in cert.pem -inkey cert.key -out $MYHOSTNAME.pfx -nodes
 openssl x509 -in cert.pem -out $MYHOSTNAME.der -outform DER 
 openssl x509 -in $MYHOSTNAME.der -inform DER -text
 rm cert.*
-mkdir -p "./OPC Foundation/CertificateStores/MachineDefault/certs/*"
-mkdir -p "./OPC Foundation/CertificateStores/MachineDefault/private/*"
+mkdir -p "./OPC Foundation/CertificateStores/MachineDefault/certs"
+mkdir -p "./OPC Foundation/CertificateStores/MachineDefault/private"
 mv $MYHOSTNAME.der "./OPC Foundation/CertificateStores/MachineDefault/certs"
 mv $MYHOSTNAME.pfx "./OPC Foundation/CertificateStores/MachineDefault/private"
 
