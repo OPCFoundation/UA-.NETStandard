@@ -39,7 +39,7 @@
            A complete distinguished would be something like: 'CN=UA AMQP Publisher, DC=MACHINENAME'
            The first certificate found is used if multiple certificates with the same CommonName exist. 
            The Thumbprint should be specified if the CommonName does not uniquely identify a certificate. -->
-      <SubjectName>UA Sample Client</SubjectName>
+      <SubjectName>Opc.Ua.Publisher</SubjectName>
 
       <!-- The SHA1 thumbprint for the certificate.
            The thumbprint uniquely identifies a certificate.
