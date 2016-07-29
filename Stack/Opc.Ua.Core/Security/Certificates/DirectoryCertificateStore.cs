@@ -536,7 +536,7 @@ namespace Opc.Ua
             List<X509CRL> crls = new List<X509CRL>();
 
             // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + "\\crl");
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
 
             if (info.Exists)
             {
@@ -563,7 +563,7 @@ namespace Opc.Ua
             List<X509CRL> crls = new List<X509CRL>();
 
             // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + "\\crl");
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
 
             if (info.Exists)
             {
@@ -622,7 +622,8 @@ namespace Opc.Ua
 
             StringBuilder builder = new StringBuilder();
             builder.Append(m_directory.FullName);
-            builder.Append("\\crl\\");
+            
+            builder.Append(Path.DirectorySeparatorChar + "crl" + Path.DirectorySeparatorChar);
             builder.Append(GetFileName(issuer));
             builder.Append(".crl");
 
@@ -647,7 +648,7 @@ namespace Opc.Ua
             }
 
             string filePath = m_directory.FullName;
-            filePath += "\\crl";
+            filePath += Path.DirectorySeparatorChar + "crl";
 
             DirectoryInfo dirInfo = new DirectoryInfo(filePath);
 

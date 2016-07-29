@@ -57,18 +57,18 @@ namespace NetCoreConsoleClient
                     ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = "Directory",
-                        StorePath = "",
+                        StorePath = "./OPC Foundation/CertificateStores/MachineDefault",
                         SubjectName = Utils.Format("CN={0}, DC={1}", "UA Sample Client", Utils.GetHostName())
                     },
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "",
+                        StorePath = "./OPC Foundation/CertificateStores/UA Applications",
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "",
+                        StorePath = "./OPC Foundation/CertificateStores/UA Certificate Authorities",
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true

@@ -1,0 +1,8 @@
+# Extensions to add to a certificate request
+
+subjectKeyIdentifier=hash
+subjectAltName=URI:urn:localhost:OPCFoundation:SampleClient
+authorityKeyIdentifier=critical,keyid,issuer:always
+basicConstraints = critical, CA:FALSE
+keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, dataEncipherment, keyCertSign
+extendedKeyUsage = critical, serverAuth, clientAuth
