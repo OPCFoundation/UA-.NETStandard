@@ -12,7 +12,7 @@
   <ApplicationUri>urn:localhost:OPCFoundation:AMQPPublisher</ApplicationUri>
 
   <!-- A globally unique URI for the product (usually assigned by the product vendor) -->
-  <ProductUri>http://opcfoundation.org/UA/SampleClient/</ProductUri>
+  <ProductUri>http://opcfoundation.org/UA/Publisher/</ProductUri>
 
   <!-- Indicates the type of application (Client, Server or ClientServer). -->
   <ApplicationType>ClientAndServer_2</ApplicationType>
