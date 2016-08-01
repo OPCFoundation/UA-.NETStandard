@@ -50,8 +50,6 @@ namespace Opc.Ua.Sample
         {
             InitializeComponent();
             
-            base.BrowseCTRL.MethodCalled += new Opc.Ua.Sample.Controls.MethodCalledEventHandler(BrowseCTRL_MethodCalled);
-
             if (!configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
@@ -69,18 +67,6 @@ namespace Opc.Ua.Sample
             try
             {
                 GuiUtils.HandleCertificateValidationError(this, validator, e);
-            }
-            catch (Exception exception)
-            {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
-            }
-        }
-
-        void BrowseCTRL_MethodCalled(object sender, Opc.Ua.Sample.Controls.MethodCalledEventArgs e)
-        {            
-            try
-            {
-                // TBD
             }
             catch (Exception exception)
             {
