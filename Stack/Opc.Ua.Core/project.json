@@ -2,8 +2,6 @@
   "version": "1.0.0-*",
 
     "dependencies": {
-        "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
-        "Microsoft.AspNetCore.Server.Kestrel.Https": "1.0.0",
         "NETStandard.Library": "1.6.0",
         "Newtonsoft.Json": "9.0.1",
         "System.Data.Common": "4.1.0",
@@ -12,11 +10,24 @@
     },
 
     "frameworks": {
-        "net46": {},
-        "netstandard1.3": {},
+        "net46": {
+            "dependencies": {
+                "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
+                "Microsoft.AspNetCore.Server.Kestrel.Https": "1.0.0"
+            }
+        },
+        "netstandard1.3": {
+            "dependencies": {
+                "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
+                "Microsoft.AspNetCore.Server.Kestrel.Https": "1.0.0"
+            }
+        },
         "uap10.0": {
             "dependencies": {
                 "System.Net.NameResolution": "4.0.0"
+            },
+            "buildOptions": {
+                "define": [ "NO_HTTPS" ]
             }
         }   
     }

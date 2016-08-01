@@ -21,6 +21,8 @@
  * http://opcfoundation.org/License/RCL/1.00/
  * ======================================================================*/
 
+#if !NO_HTTPS
+
 using System;
 using System.Net;
 using System.IO;
@@ -32,7 +34,6 @@ using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using System.Security.Authentication;
-using System.Net.Security;
 
 namespace Opc.Ua.Bindings
 {
@@ -142,11 +143,8 @@ namespace Opc.Ua.Bindings
 
             m_serverCert = settings.ServerCertificate;
 
-            // start the listener (but not for UWP apps, as UWP doesn't support Kestrel).
-            if (!Directory.GetCurrentDirectory().Contains("\\AppX"))
-            {
-                Start();
-            }
+            // start the listener
+            Start();
         }
 
         /// <summary>
@@ -306,3 +304,4 @@ namespace Opc.Ua.Bindings
     }
 }
 
+#endif

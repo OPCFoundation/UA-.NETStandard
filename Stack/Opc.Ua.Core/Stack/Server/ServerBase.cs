@@ -737,6 +737,7 @@ namespace Opc.Ua
             return endpoints;
         }
 
+#if !NO_HTTPS
         /// <summary>
         /// Create a new service host for UA HTTPS.
         /// </summary>
@@ -863,6 +864,7 @@ namespace Opc.Ua
 
             return endpoints;
         }
+#endif
 
         /// <summary>
         /// Returns the UserTokenPolicies supported by the server.

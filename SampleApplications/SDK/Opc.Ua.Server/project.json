@@ -9,6 +9,10 @@
     "frameworks": {
         "net46": {},
         "netstandard1.3": {},
-        "uap10.0": {}
+        "uap10.0": {
+            "buildOptions": {
+                "define": [ "NO_HTTPS" ]
+            }
+        }
     }
 }

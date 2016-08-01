@@ -2642,15 +2642,16 @@ namespace Opc.Ua.Server
             endpoints.InsertRange(0, endpointsForHost);
 
             // create HTTPS host.
+#if !NO_HTTPS
             endpointsForHost = CreateHttpsServiceHost(
-                hosts,
-                configuration,
-                configuration.ServerConfiguration.BaseAddresses, 
-                serverDescription,
-                configuration.ServerConfiguration.SecurityPolicies);
+            hosts,
+            configuration,
+            configuration.ServerConfiguration.BaseAddresses,
+            serverDescription,
+            configuration.ServerConfiguration.SecurityPolicies);
 
             endpoints.AddRange(endpointsForHost);
-
+#endif
             return new List<Task>(hosts.Values);
         }
 
@@ -3019,9 +3020,9 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private object m_lock = new object();    
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
@@ -3034,6 +3035,6 @@ namespace Opc.Ua.Server
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
-        #endregion
+#endregion
     }
 }
