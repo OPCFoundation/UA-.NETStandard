@@ -67,8 +67,13 @@ namespace Opc.Ua.Sample
             }
             catch (Exception e)
             {
-                MessageBox.Show("Exception: " + e.Message, application.ApplicationName);
-                return;
+                string text = "Exception: " + e.Message;
+                if (e.InnerException != null)
+                {
+                    text += "\r\nInner exception: ";
+                    text += e.InnerException.Message;
+                }
+                MessageBox.Show(text, application.ApplicationName);
             }
         }
     }

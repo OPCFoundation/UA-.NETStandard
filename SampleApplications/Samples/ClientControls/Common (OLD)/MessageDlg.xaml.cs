@@ -82,6 +82,7 @@ namespace Opc.Ua.Client.Controls
             MessageDlgButton right = MessageDlgButton.None)
         {
             InitializeComponent();
+
             Text = text;
             Left = left;
             Right = right;
@@ -106,6 +107,7 @@ namespace Opc.Ua.Client.Controls
             SetButtonText(LeftButton, Left);
             SetButtonText(RightButton, Right);
             Message.Text = Text;
+            Message.TextWrapping = TextWrapping.Wrap;
 
             tcs = new TaskCompletionSource<MessageDlgButton>();
 

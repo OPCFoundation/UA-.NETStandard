@@ -696,12 +696,6 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // create a new certificate.
-            if (certificate == null)
-            {
-                certificate = await CreateApplicationInstanceCertificate(configuration, InstallConfig.MinimumKeySize, InstallConfig.LifeTimeInMonths);
-            }
-
             // ensure the certificate is trusted.
             await AddToTrustedStore(configuration, certificate);
 
@@ -794,15 +788,6 @@ namespace Opc.Ua.Configuration
 
             ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, Opc.Ua.Security.SecuredApplication.FromApplicationType(InstallConfig.ApplicationType), ConfigurationType, false);
             ApplicationConfiguration = configuration;
-
-            if (configuration != null)
-            {
-                // delete certificate.
-                if (InstallConfig.DeleteCertificatesOnUninstall)
-                {
-                    await DeleteApplicationInstanceCertificate(configuration);
-                }
-            }
 
             if (!NoGdsAgentAdmin)
             {
@@ -924,7 +909,7 @@ namespace Opc.Ua.Configuration
             }
 
             configuration = m_applicationConfiguration;
-            bool dontCreateNewCertificate = true;
+            bool certificateValid = false;
 
             // find the existing certificate.
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
@@ -939,7 +924,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                dontCreateNewCertificate = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize);
+                certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize);
             }
             else
             {
@@ -984,28 +969,25 @@ namespace Opc.Ua.Configuration
                     }
                 }
             }
-
-            // create a new certificate.
-            if (!dontCreateNewCertificate)
+                       
+            if ((certificate == null) || !certificateValid)
             {
-                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize, 600);
+                string message = Utils.Format(
+                    "There is no cert with subject {0} in the configuration." +
+                    "\r\n Please generate a cert for your application," +
+                    "\r\n for example using the provided scripts in the sample" +
+                    "\r\n application's project directory, or OpenSSL, or the" +
+                    "\r\n OPC Foundation's certificate generator." +
+                    "\r\n Then copy the new cert to this location:" +
+                    "\r\n{1}",
+                    id.SubjectName,
+                    id.StorePath);
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
             }
-            else
-            {
-                if (certificate == null)
-                {
-                    string message = Utils.Format(
-                        "There is no cert with subject {0} in the configuration." +
-                        "\r\n Copy cert to this location:" +
-                        "\r\n{1}",
-                        id.SubjectName,
-                        id.StorePath);
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
-                }
 
-                // ensure it is trusted.
-                await AddToTrustedStore(configuration, certificate);
-            }
+            // ensure it is trusted.
+            await AddToTrustedStore(configuration, certificate);
+            
 
             // add to discovery server.
             if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
@@ -1204,106 +1186,7 @@ namespace Opc.Ua.Configuration
 
             return valid;
         }
-
-        /// <summary>
-        /// Creates the application instance certificate.
-        /// </summary>
-        /// <param name="configuration">The configuration.</param>
-        /// <param name="keySize">Size of the key.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
-        /// <returns>The new certificate</returns>
-        private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
-            ApplicationConfiguration configuration,
-            ushort keySize,
-            ushort lifetimeInMonths)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Creating application instance certificate. KeySize={0}, Lifetime={1}", keySize, lifetimeInMonths);
-
-            // delete existing any existing certificate.
-            await DeleteApplicationInstanceCertificate(configuration);
-
-            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
-
-            // get the domains from the configuration file.
-            IList<string> serverDomainNames = configuration.GetServerDomainNames();
-
-            if (serverDomainNames.Count == 0)
-            {
-                serverDomainNames.Add(Utils.GetHostName());
-            }
-
-            // ensure the certificate store directory exists.
-            if (id.StoreType == CertificateStoreType.Directory)
-            {
-                Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
-            }
-
-            X509Certificate2 certificate = await Opc.Ua.CertificateFactory.CreateCertificate(
-                id.StoreType,
-                id.StorePath,
-                configuration.ApplicationUri,
-                configuration.ApplicationName,
-                null,
-                serverDomainNames,
-                keySize,
-                lifetimeInMonths);
-
-            id.Certificate = certificate;
-            await AddToTrustedStore(configuration, certificate);
-
-            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
-
-            Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
-
-            // reload the certificate from disk.
-            return await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
-        }
-
-        /// <summary>
-        /// Deletes an existing application instance certificate.
-        /// </summary>
-        /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
-        private static async Task DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
-
-            // create a default certificate id none specified.
-            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
-
-            if (id == null)
-            {
-                return;
-            }
-
-            // delete private key.
-            X509Certificate2 certificate = await id.Find();
-
-            // delete trusted peer certificate.
-            if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
-            {
-                string thumbprint = id.Thumbprint;
-
-                if (certificate != null)
-                {
-                    thumbprint = certificate.Thumbprint;
-                }
-
-                using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
-                {
-                    await store.Delete(thumbprint);
-                }
-            }
-
-            // delete private key.
-            if (certificate != null)
-            {
-                using (ICertificateStore store = id.OpenStore())
-                {
-                    await store.Delete(certificate.Thumbprint);
-                }
-            }
-        }
-
+        
         /// <summary>
         /// Adds the application certificate to the discovery server trust list.
         /// </summary>

@@ -6,33 +6,25 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
-
-    <Grid x:Name="GridRoot" Background="{ThemeResource AppBarBackgroundThemeBrush}" >
-        <Grid BorderBrush="Black" BorderThickness="1" Background="{ThemeResource AppBarBackgroundThemeBrush}">
+    <Grid BorderThickness="3" BorderBrush="Black" Background="White" Width="Auto" Height="Auto">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+         </Grid.ColumnDefinitions>
+        <TextBlock Margin="10,10,10,10" Grid.Row="0" TextWrapping="Wrap" x:Name="Message" Width="Auto" Height="Auto" Text="Message"/>
+        <Grid BorderThickness="3" Grid.Row="1" Width="Auto" Height="Auto">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" BorderBrush="Black" BorderThickness="1" Background="{ThemeResource AppBarBackgroundThemeBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="Message" Width="Auto" Height="Auto" Margin="20,20,20,20" Text="Message" HorizontalAlignment="Center" VerticalAlignment="Top" />
-            <Grid Grid.Row="2" Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button Grid.Row="1" Grid.Column="0" x:Name="LeftButton" Content="Left" HorizontalAlignment="Center" Height="30" Width="100" Margin="10,10,10,10" VerticalAlignment="Top" Click="LeftButton_Click"/>
-                <Button Grid.Row="1" Grid.Column="1" x:Name="RightButton" Content="Right" HorizontalAlignment="Center"  Height="30" Width="100" Margin="10,10,10,10" VerticalAlignment="Top" Click="RightButton_Click"/>
-            </Grid>
+            <Button Grid.Column="0" x:Name="LeftButton" Content="Left" HorizontalAlignment="Center" Height="30" Width="100" Margin="10,10,10,10" VerticalAlignment="Center" Click="LeftButton_Click"/>
+            <Button Grid.Column="1" x:Name="RightButton" Content="Right" HorizontalAlignment="Center"  Height="30" Width="100" Margin="10,10,10,10" VerticalAlignment="Center" Click="RightButton_Click"/>
         </Grid>
     </Grid>
 </Page>

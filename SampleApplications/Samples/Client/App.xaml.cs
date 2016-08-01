@@ -48,36 +48,19 @@ namespace Opc.Ua.SampleClient
                 // load the application configuration.
                 await application.LoadApplicationConfiguration(false);
 
-                // run the application interactively.
-                Window.Current.Content = new ClientPage(application.ApplicationConfiguration.CreateMessageContext(), application, null, application.ApplicationConfiguration);
-
-                // Ensure the current window is active
-                Window.Current.Activate();
-
-            }
-            catch (ServiceResultException ex)
-            {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                MessageDlg dialog = new MessageDlg("Client not started. Exit.\r\n" + ex.Message);
-                await dialog.ShowAsync();
-                Application.Current.Exit();
-                return;
-            }
-
-            try
-            { 
-
                 // check the application certificate.
                 await application.CheckApplicationInstanceCertificate(false, 0);
 
+                // run the application interactively.
+                Window.Current.Content = new ClientPage(application.ApplicationConfiguration.CreateMessageContext(), application, null, application.ApplicationConfiguration);
+
                 // start the server.
                 await application.Start(new SampleServer());
-
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                MessageDlg dialog = new MessageDlg("Client ok but Server has not started.\r\n" + ex.Message);
+                Utils.Trace("Exception:" + ex.Message);
+                MessageDlg dialog = new MessageDlg(ex.Message);
                 await dialog.ShowAsync();
             }
         }

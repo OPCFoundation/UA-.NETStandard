@@ -2108,60 +2108,63 @@ namespace Opc.Ua.Server
             try
             {
                 // try each endpoint.
-                foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+                if (m_registrationEndpoints != null)
                 {
-                    RegistrationClient client = null;
-
-                    try
+                    foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                     {
-                        // update from the server.
-                        bool updateRequired = true;
+                        RegistrationClient client = null;
 
-                        lock (m_registrationLock)
+                        try
                         {
-                            updateRequired = endpoint.UpdateBeforeConnect;
-                        }
+                            // update from the server.
+                            bool updateRequired = true;
 
-                        if (updateRequired)
-                        {
-                            endpoint.UpdateFromServer();
-                        }
-
-                        lock (m_registrationLock)
-                        {
-                            endpoint.UpdateBeforeConnect = false;
-                        }
-
-                        // create the client.
-                        client = RegistrationClient.Create(
-                            configuration,
-                            endpoint.Description,
-                            endpoint.Configuration,
-                            base.InstanceCertificate);
-
-                        // register the server.
-                        RequestHeader requestHeader = new RequestHeader();
-                        requestHeader.Timestamp = DateTime.UtcNow;
-
-                        client.OperationTimeout = 10000;
-                        client.RegisterServer(requestHeader, m_registrationInfo);
-                        return true;
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.Trace("Register server failed for at: {0}. Exception={1}", endpoint.EndpointUrl, e.Message);
-                    }
-                    finally
-                    {
-                        if (client != null)
-                        {
-                            try
+                            lock (m_registrationLock)
                             {
-                                client.Close();
+                                updateRequired = endpoint.UpdateBeforeConnect;
                             }
-                            catch (Exception e)
+
+                            if (updateRequired)
                             {
-                                Utils.Trace("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                endpoint.UpdateFromServer();
+                            }
+
+                            lock (m_registrationLock)
+                            {
+                                endpoint.UpdateBeforeConnect = false;
+                            }
+
+                            // create the client.
+                            client = RegistrationClient.Create(
+                                configuration,
+                                endpoint.Description,
+                                endpoint.Configuration,
+                                base.InstanceCertificate);
+
+                            // register the server.
+                            RequestHeader requestHeader = new RequestHeader();
+                            requestHeader.Timestamp = DateTime.UtcNow;
+
+                            client.OperationTimeout = 10000;
+                            client.RegisterServer(requestHeader, m_registrationInfo);
+                            return true;
+                        }
+                        catch (Exception e)
+                        {
+                            Utils.Trace("Register server failed for at: {0}. Exception={1}", endpoint.EndpointUrl, e.Message);
+                        }
+                        finally
+                        {
+                            if (client != null)
+                            {
+                                try
+                                {
+                                    client.Close();
+                                }
+                                catch (Exception e)
+                                {
+                                    Utils.Trace("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                }
                             }
                         }
                     }
@@ -2838,7 +2841,11 @@ namespace Opc.Ua.Server
             try
             {
                 // unregister from Discovery Server
-                m_registrationInfo.IsOnline = false;
+                if (m_registrationInfo != null)
+                {
+                    m_registrationInfo.IsOnline = false;
+                }
+
                 await RegisterWithDiscoveryServer();
 
                 lock (m_lock)

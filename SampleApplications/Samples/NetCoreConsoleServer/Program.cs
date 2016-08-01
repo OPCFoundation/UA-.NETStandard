@@ -88,7 +88,9 @@ namespace NetCoreConsoleServer
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
-                Console.WriteLine("Exit due to Exception: {0}", ex.Message);
+                Console.WriteLine("Exception: {0}", ex.Message);
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey(true);
             }
         }
     }
