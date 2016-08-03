@@ -334,8 +334,8 @@ namespace Opc.Ua.Gds
             try
             {
                 var outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Open, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
                     (byte)1);
 
                 uint fileHandle = (uint)outputArguments[0];
@@ -348,8 +348,8 @@ namespace Opc.Ua.Gds
                         int length = 256;
 
                         outputArguments = m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Read, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read, m_session.NamespaceUris),
                             fileHandle,
                             length);
 
@@ -363,8 +363,8 @@ namespace Opc.Ua.Gds
                     }
 
                     m_session.Call(
-                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Close, m_session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
                         fileHandle);
                 }
                 catch (Exception)
@@ -372,8 +372,8 @@ namespace Opc.Ua.Gds
                     if (IsConnected)
                     {
                         m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Close, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
                             fileHandle);
                     }
 
@@ -416,8 +416,8 @@ namespace Opc.Ua.Gds
                 strm.Position = 0;
 
                 var outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Open, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
                     (byte)6);
 
                 uint fileHandle = (uint)outputArguments[0];
@@ -440,15 +440,15 @@ namespace Opc.Ua.Gds
                         }
 
                         m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Write, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write, m_session.NamespaceUris),
                             fileHandle,
                             buffer);
                     }
 
                     outputArguments = m_session.Call(
-                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_CloseAndUpdate, m_session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate, m_session.NamespaceUris),
                         fileHandle);
 
                     return (bool)outputArguments[0];
@@ -458,8 +458,8 @@ namespace Opc.Ua.Gds
                     if (IsConnected)
                     {
                         m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_TrustList_Close, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
                             fileHandle);
                     }
 
@@ -475,12 +475,13 @@ namespace Opc.Ua.Gds
         /// <summary>
         /// Creates the CSR.
         /// </summary>
-        /// <param name="certificateType">Type of the certificate.</param>
+        /// <param name="certificateGroupId">The certificate group identifier.</param>
+        /// <param name="certificateTypeId">The certificate type identifier.</param>
         /// <param name="subjectName">Name of the subject.</param>
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <returns></returns>
-        public byte[] CreateCSR(NodeId certificateType, string subjectName, bool regeneratePrivateKey, byte[] nonce)
+        public byte[] CreateCertificateRequest(NodeId certificateGroupId, NodeId certificateTypeId, string subjectName, bool regeneratePrivateKey, byte[] nonce)
         {
             if (!IsConnected)
             {
@@ -493,8 +494,9 @@ namespace Opc.Ua.Gds
             {
                 var outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CreateCSR, m_session.NamespaceUris),
-                    certificateType,
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CreateSigningRequest, m_session.NamespaceUris),
+                    certificateGroupId,
+                    certificateTypeId,
                     subjectName,
                     regeneratePrivateKey,
                     nonce);
@@ -516,7 +518,7 @@ namespace Opc.Ua.Gds
         /// Updates the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public bool UpdateCertificate(NodeId certificateType, byte[] certificate, string privateKeyFormat, byte[] privateKey, byte[][] issuerCertificates)
+        public bool UpdateCertificate(NodeId certificateGroupId, NodeId certificateTypeId, byte[] certificate, string privateKeyFormat, byte[] privateKey, byte[][] issuerCertificates)
         {
             if (!IsConnected)
             {
@@ -530,7 +532,8 @@ namespace Opc.Ua.Gds
                 var outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_UpdateCertificate, m_session.NamespaceUris),
-                    certificateType,
+                    certificateGroupId,
+                    certificateTypeId,
                     certificate,
                     issuerCertificates,
                     privateKeyFormat,

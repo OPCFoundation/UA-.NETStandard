@@ -73,5 +73,10 @@ namespace Opc.Ua
         /// The URI for the OPC Binary Schema.
         /// </summary>
         public const string OpcBinarySchema = "http://opcfoundation.org/BinarySchema/";
-	}
+
+        /// <summary>
+        /// The URI representing all resources in at a site managed by an OAuthe Authorization Service.
+        /// </summary>
+        public const string OAuth2SiteResourceUri = "urn:opcfoundation.org:ua:oauth2:resource:site";
+    }
 }

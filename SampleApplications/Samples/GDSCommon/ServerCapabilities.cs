@@ -57,11 +57,11 @@ namespace Opc.Ua.Gds
 
             if (istrm == null)
             {
-                foreach (var resourceName in typeof(Opc.Ua.Gds.ObjectIds).Assembly.GetManifestResourceNames())
+                foreach (var resourceName in typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceNames())
                 {
-                    if (resourceName.EndsWith("ServerCapabilities.txt", StringComparison.OrdinalIgnoreCase))
+                    if (resourceName.EndsWith("ServerCapabilities.csv", StringComparison.OrdinalIgnoreCase))
                     {
-                        istrm = typeof(Opc.Ua.Gds.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
+                        istrm = typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
                         break;
                     }
                 }
@@ -171,12 +171,12 @@ namespace Opc.Ua.Gds
         /// <summary>
         /// No information is available.
         /// </summary>
-        public const string NoInformation = "NO";
+        public const string NoInformation = "NA";
 
         /// <summary>
         /// The server supports live data.
         /// </summary>
-        public const string LiveData = "LD";
+        public const string LiveData = "DA";
 
         /// <summary>
         /// The server supports alarms and conditions
