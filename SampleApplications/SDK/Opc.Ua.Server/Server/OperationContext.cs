@@ -44,13 +44,13 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
-        public OperationContext(RequestHeader requestHeader, RequestType requestType)
+        public OperationContext(RequestHeader requestHeader, RequestType requestType, IUserIdentity identity = null)
         {
             if (requestHeader == null) throw new ArgumentNullException("requestHeader");
             
             m_channelContext    = SecureChannelContext.Current;
             m_session           = null;
-            m_identity          = null;
+            m_identity          = identity;
             m_preferredLocales  = new string[0];
             m_diagnosticsMask   = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             m_stringTable       = new StringTable();

@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = Utils.GetApplicationUriFromCertficate(certificate);
+            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Configuration
                 // delete certificates with the same application uri.
                 if (store.FindByThumbprint(certificate.Thumbprint) == null)
                 {
-                    string applicationUri = Utils.GetApplicationUriFromCertficate(certificate);
+                    string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
 
                     // delete any existing certificates.
                     X509Certificate2Collection collection = await store.Enumerate();
@@ -1262,7 +1262,7 @@ namespace Opc.Ua.Configuration
                     {
                         if (Utils.CompareDistinguishedName(target.Subject, certificate.Subject))
                         {
-                            if (Utils.GetApplicationUriFromCertficate(target) == applicationUri)
+                            if (Utils.GetApplicationUriFromCertificate(target) == applicationUri)
                             {
                                 await store.Delete(target.Thumbprint);
                             }

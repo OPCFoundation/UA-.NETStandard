@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Reflection;
@@ -178,14 +195,19 @@ namespace Opc.Ua
         public const uint BadCertificateIssuerRevocationUnknown = 0x801C0000;
 
         /// <summary>
-        /// The Certificate has been revoked.
+        /// The certificate has been revoked.
         /// </summary>
         public const uint BadCertificateRevoked = 0x801D0000;
 
         /// <summary>
-        /// The Issuer Certificate has been revoked.
+        /// The issuer certificate has been revoked.
         /// </summary>
         public const uint BadCertificateIssuerRevoked = 0x801E0000;
+
+        /// <summary>
+        /// The certificate chain is incomplete.
+        /// </summary>
+        public const uint BadCertificateChainIncomplete = 0x810D0000;
 
         /// <summary>
         /// User does not have permission to perform the requested operation.
@@ -251,6 +273,26 @@ namespace Opc.Ua
         /// The request was cancelled by the client.
         /// </summary>
         public const uint BadRequestCancelledByClient = 0x802C0000;
+
+        /// <summary>
+        /// Too many arguments were provided.
+        /// </summary>
+        public const uint BadTooManyArguments = 0x80E50000;
+
+        /// <summary>
+        /// The UA Server requires a license to operate in general or to perform a service or operation, but existing license is expired.
+        /// </summary>
+        public const uint BadLicenseExpired = 0x810E0000;
+
+        /// <summary>
+        /// The UA Server has limits on number of allowed operations / objects, based on installed licenses, and these limits where exceeded.
+        /// </summary>
+        public const uint BadLicenseLimitsExceeded = 0x810F0000;
+
+        /// <summary>
+        /// The UA Server does not have a license which is required to operate in general or to perform a service or operation.
+        /// </summary>
+        public const uint BadLicenseNotAvailable = 0x81100000;
 
         /// <summary>
         /// The subscription was transferred to another session.
@@ -658,6 +700,11 @@ namespace Opc.Ua
         public const uint BadMaxAgeInvalid = 0x80700000;
 
         /// <summary>
+        /// The operation is not permitted over the current secure channel.
+        /// </summary>
+        public const uint BadSecurityModeInsufficient = 0x80E60000;
+
+        /// <summary>
         /// The history details parameter is not valid.
         /// </summary>
         public const uint BadHistoryOperationInvalid = 0x80710000;
@@ -1016,6 +1063,46 @@ namespace Opc.Ua
         /// The request pecifies fields which are not valid for the EventType or cannot be saved by the historian.
         /// </summary>
         public const uint GoodDataIgnored = 0x00D90000;
+
+        /// <summary>
+        /// The request was rejected by the server because it did not meet the criteria set by the server.
+        /// </summary>
+        public const uint BadRequestNotAllowed = 0x80E40000;
+
+        /// <summary>
+        /// The value does not come from the real source and has been edited by the server.
+        /// </summary>
+        public const uint GoodEdited = 0x00DC0000;
+
+        /// <summary>
+        /// There was an error in execution of these post-actions.
+        /// </summary>
+        public const uint GoodPostActionFailed = 0x00DD0000;
+
+        /// <summary>
+        /// The related EngineeringUnit has been changed but the Variable Value is still provided based on the previous unit.
+        /// </summary>
+        public const uint UncertainDominantValueChanged = 0x40DE0000;
+
+        /// <summary>
+        /// A dependent value has been changed but the change has not been applied to the device.
+        /// </summary>
+        public const uint GoodDependentValueChanged = 0x00E00000;
+
+        /// <summary>
+        /// The related EngineeringUnit has been changed but this change has not been applied to the device. The Variable Value is still dependent on the previous unit but its status is currently Bad.
+        /// </summary>
+        public const uint BadDominantValueChanged = 0x80E10000;
+
+        /// <summary>
+        /// A dependent value has been changed but the change has not been applied to the device. The quality of the dominant variable is uncertain.
+        /// </summary>
+        public const uint UncertainDependentValueChanged = 0x40E20000;
+
+        /// <summary>
+        /// A dependent value has been changed but the change has not been applied to the device. The quality of the dominant variable is Bad.
+        /// </summary>
+        public const uint BadDependentValueChanged = 0x80E30000;
 
         /// <summary>
         /// The communication layer has raised an event.

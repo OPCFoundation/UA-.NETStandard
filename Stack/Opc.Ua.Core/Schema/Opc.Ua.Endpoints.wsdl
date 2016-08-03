@@ -10,8 +10,6 @@
   xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
   xmlns:wsa10="http://www.w3.org/2005/08/addressing"
 >
-  <!-- This File was generated on 2013-04-02 and supports the specifications supported by the UA SDK v1.1.334.6. -->
-
   <wsdl:import namespace="http://opcfoundation.org/UA/2008/02/Services.wsdl" location="http://opcfoundation.org/UA/2008/02/Services.wsdl" />
   <wsdl:types />
 
@@ -478,6 +476,19 @@
       </wsdl:fault>
     </wsdl:operation>
 
+    <wsdl:operation name="FindServersOnNetwork">
+      <soap12:operation soapAction="http://opcfoundation.org/UA/2008/02/Services.wsdl/FindServersOnNetwork" style="document"/>
+      <wsdl:input name="FindServersOnNetworkMessage">
+        <soap12:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="FindServersOnNetworkResponseMessage">
+        <soap12:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="FindServersOnNetworkFaultMessage">
+        <soap12:fault name="FindServersOnNetworkFaultMessage" use="literal" />
+      </wsdl:fault>
+    </wsdl:operation>
+
     <wsdl:operation name="GetEndpoints">
       <soap12:operation soapAction="http://opcfoundation.org/UA/2008/02/Services.wsdl/GetEndpoints" style="document"/>
       <wsdl:input name="GetEndpointsMessage">
@@ -509,19 +520,6 @@
       </wsdl:fault>
     </wsdl:operation>
 
-    <wsdl:operation name="FindDnsServices">
-      <soap12:operation soapAction="http://opcfoundation.org/UA/2008/02/Services.wsdl/FindDnsServices" style="document"/>
-      <wsdl:input name="FindDnsServicesMessage">
-        <soap12:body use="literal"/>
-      </wsdl:input>
-      <wsdl:output name="FindDnsServicesResponseMessage">
-        <soap12:body use="literal"/>
-      </wsdl:output>
-      <wsdl:fault name="FindDnsServicesFaultMessage">
-        <soap12:fault name="FindDnsServicesFaultMessage" use="literal" />
-      </wsdl:fault>
-    </wsdl:operation>
-
     <wsdl:operation name="RegisterServer">
       <soap12:operation soapAction="http://opcfoundation.org/UA/2008/02/Services.wsdl/RegisterServer" style="document"/>
       <wsdl:input name="RegisterServerMessage">
@@ -532,6 +530,19 @@
       </wsdl:output>
       <wsdl:fault name="RegisterServerFaultMessage">
         <soap12:fault name="RegisterServerFaultMessage" use="literal" />
+      </wsdl:fault>
+    </wsdl:operation>
+
+    <wsdl:operation name="RegisterServer2">
+      <soap12:operation soapAction="http://opcfoundation.org/UA/2008/02/Services.wsdl/RegisterServer2" style="document"/>
+      <wsdl:input name="RegisterServer2Message">
+        <soap12:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="RegisterServer2ResponseMessage">
+        <soap12:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="RegisterServer2FaultMessage">
+        <soap12:fault name="RegisterServer2FaultMessage" use="literal" />
       </wsdl:fault>
     </wsdl:operation>
 

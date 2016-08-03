@@ -432,7 +432,22 @@ namespace Opc.Ua.Server
                     // find session.
                     if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                     {
-                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                        var Handler = m_ValidateSessionLessRequest;
+
+                        if (Handler != null)
+                        {
+                            var args = new ValidateSessionLessRequestEventArgs(requestHeader.AuthenticationToken, requestType);
+                            Handler(this, args);
+
+                            if (ServiceResult.IsBad(args.Error))
+                            {
+                                throw new ServiceResultException(args.Error);
+                            }
+
+                            return new OperationContext(requestHeader, requestType, args.Identity);
+                        }
+
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                     }
 
                     // validate request header.
@@ -599,9 +614,10 @@ namespace Opc.Ua.Server
         private event SessionEventHandler m_SessionActivated;
         private event SessionEventHandler m_SessionClosing;
         private event ImpersonateEventHandler m_ImpersonateUser;
+        private event EventHandler<ValidateSessionLessRequestEventArgs> m_ValidateSessionLessRequest;
 #endregion
 
-#region ISessionManager Members
+        #region ISessionManager Members
         /// <summary cref="ISessionManager.SessionCreated" />
         public event SessionEventHandler SessionCreated
         {
@@ -682,6 +698,25 @@ namespace Opc.Ua.Server
             }
         }
 
+        public event EventHandler<ValidateSessionLessRequestEventArgs> ValidateSessionLessRequest
+        {
+            add
+            {
+                lock (m_eventLock)
+                {
+                    m_ValidateSessionLessRequest += value;
+                }
+            }
+
+            remove
+            {
+                lock (m_eventLock)
+                {
+                    m_ValidateSessionLessRequest -= value;
+                }
+            }
+        }
+
         /// <summary>
         /// Returns all of the sessions known to the session manager.
         /// </summary>
@@ -723,6 +758,11 @@ namespace Opc.Ua.Server
         /// Raised before the user identity for a session is changed.
         /// </summary>
         event ImpersonateEventHandler ImpersonateUser;
+
+        /// <summary>
+        /// Raised before the user identity for a session is changed.
+        /// </summary>
+        event EventHandler<ValidateSessionLessRequestEventArgs> ValidateSessionLessRequest;
 
         /// <summary>
         /// Returns all of the sessions known to the session manager.
@@ -837,5 +877,46 @@ namespace Opc.Ua.Server
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
     public delegate void ImpersonateEventHandler(Session session, ImpersonateEventArgs args);
-#endregion
+    #endregion
+
+    #region ImpersonateEventArgs Class
+    /// <summary>
+    /// A class which provides the event arguments for session related event.
+    /// </summary>
+    public class ValidateSessionLessRequestEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        public ValidateSessionLessRequestEventArgs(NodeId authenticationToken, RequestType requestType)
+        {
+            AuthenticationToken = authenticationToken;
+            RequestType = requestType;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The request type for the request.
+        /// </summary>
+        public RequestType RequestType { get; private set; }
+
+        /// <summary>
+        /// The new user identity for the session.
+        /// </summary>
+        public NodeId AuthenticationToken { get; private set; }
+
+        /// <summary>
+        /// The identity to associate with the session-less request.
+        /// </summary>
+        public IUserIdentity Identity { get; set; }
+
+        /// <summary>
+        /// Set to indicate that an error occurred validating the session-less request and that it should be rejected.
+        /// </summary>
+        public ServiceResult Error { get; set; }
+        #endregion
+    }
+    #endregion
 }
