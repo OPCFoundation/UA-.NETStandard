@@ -68,7 +68,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.GdsClient
             PullFromGds(true);
         }
 
-        private void DeleteExistingFromStore(string storePath)
+        private async void DeleteExistingFromStore(string storePath)
         {
             if (String.IsNullOrEmpty(storePath))
             {
@@ -91,7 +91,8 @@ namespace Opc.Ua.GdsClient
 
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
             {
-                foreach (var certificate in store.Enumerate())
+                X509Certificate2Collection certificates = await store.Enumerate();
+                foreach (var certificate in certificates)
                 {
                     if (store.GetPrivateKeyFilePath(certificate.Thumbprint) != null)
                     {
@@ -130,7 +131,7 @@ namespace Opc.Ua.GdsClient
                         }
                     }
 
-                    store.Delete(certificate.Thumbprint);
+                    await store.Delete(certificate.Thumbprint);
                 }
             }
         }
@@ -139,7 +140,7 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                NodeId trustListId = m_gds.GetTrustList(m_application.ApplicationId, 0);
+                NodeId trustListId = m_gds.GetTrustList(m_application.ApplicationId, null);
 
                 if (trustListId == null)
                 {
@@ -237,7 +238,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -269,7 +270,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -295,7 +296,7 @@ namespace Opc.Ua.GdsClient
 
                 if (se == null || se.StatusCode != StatusCodes.BadServerHalted)
                 {
-                    Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                    MessageBox.Show(Parent.Text + ": " + exception.Message);
                 }
             }
 

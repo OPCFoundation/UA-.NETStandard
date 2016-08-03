@@ -191,7 +191,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
         #endregion

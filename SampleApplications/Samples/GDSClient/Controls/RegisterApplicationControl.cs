@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Data;
 using System.Linq;
 using System.Text;
 using System.IO;
 using System.Windows.Forms;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using System.Xml;
 using System.Xml.Serialization;
-using Opc.Ua.Client;
 using Opc.Ua.Gds;
 
 namespace Opc.Ua.GdsClient
@@ -550,7 +545,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -567,7 +562,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -597,7 +592,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -642,7 +637,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -668,7 +663,7 @@ namespace Opc.Ua.GdsClient
 
                 if (String.IsNullOrWhiteSpace(ApplicationUriTextBox.Text))
                 {
-                    ApplicationUriTextBox.Text = Utils.GetApplicationUriFromCertficate(certificate);
+                    ApplicationUriTextBox.Text = Utils.GetApplicationUriFromCertificate(certificate);
                 }
 
                 if (String.IsNullOrWhiteSpace(DiscoveryUrlsTextBox.Text) && RegistrationTypeComboBox.SelectedIndex != ClientPullManagement)
@@ -763,7 +758,7 @@ namespace Opc.Ua.GdsClient
 
                     if (String.IsNullOrWhiteSpace(ApplicationUriTextBox.Text))
                     {
-                        ApplicationUriTextBox.Text = Utils.GetApplicationUriFromCertficate(certificate);
+                        ApplicationUriTextBox.Text = Utils.GetApplicationUriFromCertificate(certificate);
                     }
                 }
                 catch (Exception)
@@ -778,7 +773,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -825,7 +820,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -894,7 +889,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -941,7 +936,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -992,7 +987,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1037,7 +1032,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1082,7 +1077,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1127,7 +1122,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1277,7 +1272,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1386,7 +1381,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1413,7 +1408,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1477,7 +1472,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1574,7 +1569,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1648,7 +1643,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1661,7 +1656,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
@@ -1714,7 +1709,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                Opc.Ua.Configuration.ExceptionDlg.Show(Parent.Text, exception);
+                MessageBox.Show(Parent.Text + ": " + exception.Message);
             }
         }
 
