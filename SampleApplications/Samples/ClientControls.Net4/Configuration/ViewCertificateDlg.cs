@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // fill in application uri.
-                    string applicationUri = Utils.GetApplicationUriFromCertficate(data);
+                    string applicationUri = Utils.GetApplicationUriFromCertificate(data);
 
                     if (!String.IsNullOrEmpty(applicationUri))
                     {

@@ -388,7 +388,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 listItem.SubItems[3].Text = buffer.ToString();
-                listItem.SubItems[4].Text = Utils.GetApplicationUriFromCertficate(certificate);
+                listItem.SubItems[4].Text = Utils.GetApplicationUriFromCertificate(certificate);
                 listItem.SubItems[5].Text = String.Format("{0:yyyy-MM-dd}", certificate.NotAfter);
             }
 

@@ -2589,7 +2589,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
-        public static string GetApplicationUriFromCertficate(X509Certificate2 certificate)
+        public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
             X509SubjectAltNameExtension alternateName = null;
