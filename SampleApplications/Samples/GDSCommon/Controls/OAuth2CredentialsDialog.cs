@@ -1,15 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Net.Http;
-using Newtonsoft.Json;
-using Opc.Ua.Gds;
 
 namespace Opc.Ua.Gds
 {
@@ -56,7 +46,7 @@ namespace Opc.Ua.Gds
                 return;
             }
 
-            Opc.Ua.Configuration.ExceptionDlg.Show(e.GetType().Name, e);
+            MessageBox.Show(Text + ": " + e.Message);
         }
 
         private async void Browser_Navigated(object sender, WebBrowserNavigatedEventArgs e)

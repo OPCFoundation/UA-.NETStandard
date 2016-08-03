@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds
                 {
                     try
                     {
-                        return Utils.GetApplicationUriFromCertficate(Certificate);
+                        return Utils.GetApplicationUriFromCertificate(Certificate);
                     }
                     catch (Exception e)
                     {

@@ -511,8 +511,8 @@ namespace Opc.Ua.Gds
         /// Requests a new certificate.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="authority">The authority.</param>
-        /// <param name="certificateType">Type of the certificate.</param>
+        /// <param name="certificateGroupId">The authority.</param>
+        /// <param name="certificateTypeId">Type of the certificate.</param>
         /// <param name="subjectName">Name of the subject.</param>
         /// <param name="domainNames">The domain names.</param>
         /// <param name="privateKeyFormat">The private key format (PEM or PFX).</param>
@@ -522,8 +522,8 @@ namespace Opc.Ua.Gds
         /// </returns>
         public NodeId StartNewKeyPairRequest(
             NodeId applicationId,
-            NodeId authority,
-            NodeId certificateType,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
             string subjectName,
             IList<string> domainNames,
             string privateKeyFormat,
@@ -538,8 +538,8 @@ namespace Opc.Ua.Gds
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartNewKeyPairRequest, m_session.NamespaceUris),
                 applicationId,
-                authority,
-                certificateType,
+                certificateGroupId,
+                certificateTypeId,
                 subjectName,
                 domainNames,
                 privateKeyFormat,
@@ -561,8 +561,8 @@ namespace Opc.Ua.Gds
         /// <returns>The id for the request which is used to check when it is approved.</returns>
         public NodeId StartSigningRequest(
             NodeId applicationId,
-            NodeId authority,
-            NodeId certificateType,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
             byte[] certificateRequest)
         {
             if (!IsConnected)
@@ -574,8 +574,8 @@ namespace Opc.Ua.Gds
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartSigningRequest, m_session.NamespaceUris),
                 applicationId,
-                authority,
-                certificateType,
+                certificateGroupId,
+                certificateTypeId,
                 certificateRequest);
 
             if (outputArguments.Count > 0)
@@ -634,14 +634,40 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Gets the certificate groups.
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <returns></returns>
+        public NodeId[] GetCertificateGroups(
+            NodeId applicationId)
+        {
+            if (!IsConnected)
+            {
+                Connect(null);
+            }
+
+            var outputArguments = m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, m_session.NamespaceUris),
+                applicationId);
+
+            if (outputArguments.Count > 0)
+            {
+                return outputArguments[0] as NodeId[];
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Gets the trust lists method.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="trustListType">Type of the trust list.</param>
+        /// <param name="certificateGroupId">Type of the trust list.</param>
         /// <returns></returns>
         public NodeId GetTrustList(
-            NodeId applicationId, 
-            uint trustListType)
+            NodeId applicationId,
+            NodeId certificateGroupId)
         {
             if (!IsConnected)
             {
@@ -652,7 +678,7 @@ namespace Opc.Ua.Gds
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, m_session.NamespaceUris),
                 applicationId,
-                trustListType);
+                certificateGroupId);
 
             if (outputArguments.Count > 0)
             {

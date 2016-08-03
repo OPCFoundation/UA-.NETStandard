@@ -1,14 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.IO;
-using System.Reflection;
 using System.Windows.Forms;
-using Opc.Ua.Gds;
 
 namespace Opc.Ua.Gds
 {
@@ -55,7 +47,7 @@ namespace Opc.Ua.Gds
             OkButton.Enabled = Uri.IsWellFormedUriString(ServerUrlTextBox.Text.Trim(), UriKind.Absolute);
         }
 
-        private void OkButton_Click(object sender, EventArgs e)
+        private async void OkButton_Click(object sender, EventArgs e)
         {
             try
             {
@@ -70,14 +62,7 @@ namespace Opc.Ua.Gds
                 {
                     Cursor = Cursors.WaitCursor;
 
-                    var credentials = new UserIdentityDialog().ShowDialog(this, "GDS Credentials", m_gds.AdminCredentials);
-
-                    if (credentials == null)
-                    {
-                        return;
-                    }
-
-                    m_gds.AdminCredentials = credentials;
+                    m_gds.AdminCredentials = await OAuth2Client.GetIdentityToken(m_gds.Application.ApplicationConfiguration, url);
                     m_gds.Connect(url);
                 }
                 finally
