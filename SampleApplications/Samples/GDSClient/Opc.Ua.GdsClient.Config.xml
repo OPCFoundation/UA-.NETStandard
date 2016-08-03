@@ -58,6 +58,24 @@
         <TemporaryStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\temporary</TemporaryStorePath>
       </GlobalDiscoveryClientConfiguration>
     </ua:XmlElement>
+    <ua:XmlElement>
+      <ListOfOAuth2Credential xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <OAuth2Credential>
+          <AuthorityUrl>https://login.microsoftonline.com/opcfoundationprototyping.onmicrosoft.com</AuthorityUrl>
+          <GrantType>authorization_code</GrantType>
+          <ClientId>f8b31779-d9a3-43ff-b854-28f27a52e2f2</ClientId>
+          <RedirectUrl>https://localhost:62540/prototypeclient</RedirectUrl>
+          <TokenEndpoint>/oauth2/token</TokenEndpoint>
+          <AuthorizationEndpoint>/oauth2/authorize</AuthorizationEndpoint>          
+          <Servers>
+            <OAuth2ServerSettings>
+              <ApplicationUri>urn:localhost:somecompany.com:GlobalDiscoveryServer</ApplicationUri>
+              <ResourceId>https://localhost:62540/prototypeserver</ResourceId>
+            </OAuth2ServerSettings>
+          </Servers>
+        </OAuth2Credential>
+      </ListOfOAuth2Credential>
+    </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>

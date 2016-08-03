@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
-using Opc.Ua;
 using Opc.Ua.Configuration;
-using Cannoli.Services;
 
 namespace Opc.Ua.GdsClient
 {
@@ -16,10 +12,13 @@ namespace Opc.Ua.GdsClient
         [STAThread]
         static void Main()
         {
+            // Initialize the user interface.
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            ApplicationInstance application = new ApplicationInstance(ApplicationType.Client);
+            ApplicationInstance application = new ApplicationInstance();
+            application.ApplicationType = ApplicationType.Client;
+            application.ConfigSectionName = "Opc.Ua.GdsClient";
 
             try
             {
@@ -34,8 +33,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception e)
             {
-                ExceptionDlg.Show(application.ApplicationName, e);
-                return;
+                MessageBox.Show(application.ApplicationName + ": " + e.Message);
             }
         }
     }

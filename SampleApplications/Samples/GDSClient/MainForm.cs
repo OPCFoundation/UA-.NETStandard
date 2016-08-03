@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
-using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.GdsClient
 {
@@ -18,7 +13,7 @@ namespace Opc.Ua.GdsClient
         public MainForm(ApplicationInstance application)
         {
             InitializeComponent();
-            Icon = ConfigUtils.GetAppIcon();
+            Icon = ClientUtils.GetAppIcon();
 
             m_application = application;
 
@@ -110,21 +105,16 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void Server_AdminCredentialsRequired(object sender, AdminCredentialsRequiredEventArgs e)
+        private async void Server_AdminCredentialsRequired(object sender, AdminCredentialsRequiredEventArgs e)
         {
             try
             {
-                var identity = new UserIdentityDialog().ShowDialog(this, "Please specify the administrator credentials for the Server.", m_identity);
-
-                if (identity != null)
-                {
-                    e.Credentials = m_identity = identity;
-                    e.CacheCredentials = true;
-                }
+                e.Credentials = await OAuth2Client.GetIdentityToken(m_gds.Application.ApplicationConfiguration, m_gds.EndpointUrl);
+                e.CacheCredentials = true;
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -227,7 +217,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -256,7 +246,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -275,7 +265,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -299,7 +289,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -331,7 +321,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -365,7 +355,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -386,7 +376,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -398,7 +388,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -411,7 +401,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -424,7 +414,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -437,7 +427,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -450,7 +440,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -463,7 +453,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -475,7 +465,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
@@ -515,7 +505,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                ExceptionDlg.Show(this.Text, exception);
+                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 
