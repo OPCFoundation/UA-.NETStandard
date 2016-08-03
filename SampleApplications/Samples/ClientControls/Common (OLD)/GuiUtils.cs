@@ -299,7 +299,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             // ensure the application uri matches the certificate.
-            string applicationUri = Utils.GetApplicationUriFromCertficate(certificate);
+            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
 
             if (applicationUri != null)
             {

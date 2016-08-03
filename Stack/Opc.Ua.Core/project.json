@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0-*",
+    "version": "1.0.0-*",
 
     "dependencies": {
         "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
@@ -13,12 +13,15 @@
 
     "frameworks": {
         "net46": {},
-        "netcoreapp1.0": {},
         "netstandard1.3": {},
         "uap10.0": {
             "dependencies": {
                 "System.Net.NameResolution": "4.0.0"
             }
-        }   
+        }
+    },
+
+    "buildOptions": {
+        "define": [ "NET_STANDARD" ]
     }
 }

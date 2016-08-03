@@ -20,3 +20,7 @@ MinimumSamplingInterval,19
 Historizing,20
 Executable,21
 UserExecutable,22
+DataTypeDefinition,23
+Permissions,24
+UserPermissions,25
+RolePermissions,26

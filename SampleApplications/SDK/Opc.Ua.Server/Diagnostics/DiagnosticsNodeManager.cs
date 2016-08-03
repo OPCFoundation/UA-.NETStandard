@@ -143,26 +143,6 @@ namespace Opc.Ua.Server
                 // via the AttachNode() method when the DiagnosticsNodeManager starts.
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
                 
-                // hook up the server lock method.
-                MethodState serverLock = (MethodState)FindPredefinedNode(
-                    MethodIds.ServerLock_Lock,
-                    typeof(MethodState));
-
-                if (serverLock != null)
-                {
-                    serverLock.OnCallMethod = OnLockServer;
-                }                
-                
-                // hook up the server unlock method.
-                MethodState serverUnlock = (MethodState)FindPredefinedNode(
-                    MethodIds.ServerLock_Unlock,
-                    typeof(MethodState));
-
-                if (serverUnlock != null)
-                {
-                    serverUnlock.OnCallMethod = OnUnlockServer;
-                }
-                
                 // hook up the server GetMonitoredItems method.
                 MethodState getMonitoredItems = (MethodState)FindPredefinedNode(
                     MethodIds.Server_GetMonitoredItems,

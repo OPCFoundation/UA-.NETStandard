@@ -11,11 +11,9 @@
 */
 
 using System;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Principal;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Opc.Ua
@@ -31,10 +29,10 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity()
         {
-            m_tokenType = UserTokenType.Anonymous;
-            m_displayName = "Anonymous";
+            AnonymousIdentityToken token = new AnonymousIdentityToken();
+            Initialize(token);
         }
-
+        
         /// <summary>
         /// Initializes the object with a username and password.
         /// </summary>
@@ -42,6 +40,51 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
+            UserNameIdentityToken token = new UserNameIdentityToken();
+            token.UserName = username;
+            token.DecryptedPassword = password;
+            Initialize(token);
+        }
+
+        /// <summary>
+        /// Initializes the object with a UA identity token.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        public UserIdentity(IssuedIdentityToken issuedToken)
+        {
+            Initialize(issuedToken);
+        }
+        
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// </summary>
+        public UserIdentity(CertificateIdentifier certificateId)
+        {
+            if (certificateId == null) throw new ArgumentNullException("certificateId");
+
+            Task<X509Certificate2> task = certificateId.Find();
+            task.Wait();
+            X509Certificate2 certificate = task.Result;
+            if (certificate != null)
+            {
+                X509IdentityToken token = new X509IdentityToken();
+                token.CertificateData = certificate.RawData;
+                token.Certificate = certificate;
+                Initialize(token);
+            }
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate
+        /// </summary>
+        public UserIdentity(X509Certificate2 certificate)
+        {
+            if (certificate == null) throw new ArgumentNullException("certificate");
+
+            X509IdentityToken token = new X509IdentityToken();
+            token.CertificateData = certificate.RawData;
+            token.Certificate = certificate;
+            Initialize(token);
         }
 
         /// <summary>
@@ -63,8 +106,8 @@ namespace Opc.Ua
         /// </remarks>
         public string PolicyId
         {
-            get { return m_policyId; }
-            set { m_policyId = value; }
+            get { return m_token.PolicyId; }
+            set { m_token.PolicyId = value; }
         }
         #endregion
 
@@ -92,16 +135,22 @@ namespace Opc.Ua
         {
             get  
             {
-                return false; 
+               return false; 
             }
         }
 
         /// <summary cref="IUserIdentity.GetIdentityToken" />
         public UserIdentityToken GetIdentityToken()
         {
-            AnonymousIdentityToken token = new AnonymousIdentityToken();
-            token.PolicyId = m_policyId;
-            return token;
+            // check for null and return anonymous.
+            if (m_token == null)
+            {
+                return new AnonymousIdentityToken();
+            }
+            else
+            {
+                return m_token;
+            }
         }
         #endregion
         
@@ -113,8 +162,47 @@ namespace Opc.Ua
         {
             if (token == null) throw new ArgumentNullException("token");
 
-            m_policyId = token.PolicyId;
+            m_token = token;
   
+            UserNameIdentityToken usernameToken = token as UserNameIdentityToken;
+            if (usernameToken != null)
+            {
+                m_tokenType = UserTokenType.UserName;
+                m_issuedTokenType = null;
+                m_displayName = usernameToken.UserName;
+                return;
+            }
+
+            X509IdentityToken x509Token = token as X509IdentityToken;
+            if (x509Token != null)
+            {
+                m_tokenType = UserTokenType.Certificate;
+                m_issuedTokenType = null;
+                m_displayName = x509Token.Certificate.Subject;
+                return;
+            }
+
+            IssuedIdentityToken issuedToken = token as IssuedIdentityToken;
+            if (issuedToken != null)
+            {
+                if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
+                {
+                    if (issuedToken.DecryptedTokenData == null || issuedToken.DecryptedTokenData.Length == 0)
+                    {
+                        throw new ArgumentException("JSON Web Token has no data associated with it.", "token");
+                    }
+
+                    m_tokenType = UserTokenType.IssuedToken;
+                    m_issuedTokenType = new XmlQualifiedName("", "http://opcfoundation.org/UA/UserTokenPolicy#JWT");
+                    m_displayName = "JWT";
+                    return;
+                }
+                else
+                {
+                    throw new NotSupportedException("Only JWT Issued Tokens are supported!");
+                }
+            }
+
             AnonymousIdentityToken anonymousToken = token as AnonymousIdentityToken;
             if (anonymousToken != null)
             {
@@ -129,10 +217,10 @@ namespace Opc.Ua
         #endregion
         
         #region Private Fields
+        private UserIdentityToken m_token;
         private string m_displayName;
         private UserTokenType m_tokenType;
         private XmlQualifiedName m_issuedTokenType;
-        private string m_policyId;
         #endregion
     }
 
@@ -140,48 +228,8 @@ namespace Opc.Ua
     /// <summary>
     /// Stores information about the user that is currently being impersonated.
     /// </summary>
-    public class ImpersonationContext : IDisposable
+    public class ImpersonationContext
     {
-        #region Public Members
-        /// <summary>
-        /// The security principal being impersonated.
-        /// </summary>
-        public IPrincipal Principal { get; set; }
-        #endregion
-
-        #region Internal Members
-        internal IntPtr Handle { get; set; }
-        #endregion
-
-        #region IDisposable Members
-        /// <summary>
-        /// The finializer implementation.
-        /// </summary>
-        ~ImpersonationContext()
-        {
-            Dispose(false);
-        }
-
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (Handle != IntPtr.Zero)
-            {
-                Handle = IntPtr.Zero;
-            }
-        }
-        #endregion
     }
     #endregion
 }

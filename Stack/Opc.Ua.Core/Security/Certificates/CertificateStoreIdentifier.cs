@@ -152,7 +152,19 @@ namespace Opc.Ua
             t.Wait();
             return store;
         }
-#endregion
+
+        /// <summary>
+        /// Opens the store.
+        /// </summary>
+        /// <param name="path">The path.</param>
+        /// <returns>The store.</returns>
+        public static ICertificateStore OpenStore(string path)
+        {
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(CertificateStoreIdentifier.DetermineStoreType(path));
+            store.Open(path);
+            return store;
+        }
+        #endregion
     }
 
 #region CertificateStoreType Class

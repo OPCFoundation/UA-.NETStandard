@@ -344,7 +344,7 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = Utils.GetApplicationUriFromCertficate(parsedClientCertificate);
+                            string certificateApplicationUri = Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
 
                             // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
                             if (!String.IsNullOrEmpty(certificateApplicationUri) &&
