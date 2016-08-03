@@ -35,4 +35,5 @@
     "buildOptions": {
         "define": [ "NET_STANDARD" ]
     }
+
 }
