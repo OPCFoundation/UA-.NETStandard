@@ -38,10 +38,10 @@
 
     <!-- 
       Sample server, opc.tcp endpoint:
-        opc.tcp://localhost:61210/UA/SampleClient // -->
+        opc.tcp://localhost:51210/UA/SampleServer // -->
     <ua:ConfiguredEndpoint>
       <ua:Endpoint>
-        <EndpointUrl>opc.tcp://localhost:61210/UA/SampleServer</EndpointUrl>
+        <EndpointUrl>opc.tcp://localhost:51210/UA/SampleServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
         <UserIdentityTokens>
