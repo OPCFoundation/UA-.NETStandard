@@ -122,8 +122,8 @@ namespace Opc.Ua.GdsServer
                 applicationId = (Guid)application.ApplicationId.Identifier;
             }
 
+            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
             {
-                Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities();
                 Application record = null;
 
                 if (applicationId != Guid.Empty)
@@ -146,8 +146,8 @@ namespace Opc.Ua.GdsServer
                         }
 
                         var names = from ii in entities.ApplicationNames
-                                        where ii.ApplicationId == record.ID
-                                        select ii;
+                                    where ii.ApplicationId == record.ID
+                                    select ii;
 
                         foreach (var name in names)
                         {
