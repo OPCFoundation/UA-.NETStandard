@@ -12,17 +12,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    public class X509CertificateValidator
-    {
-        public virtual void Validate(X509Certificate2 cert) { }
-    }
-
     /// <summary>
     /// Validates certificates.
     /// </summary>

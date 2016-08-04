@@ -78,7 +78,7 @@ namespace Opc.Ua.GdsServer
         public string DefaultSubjectNameContext { get; set; }
 
         [DataMember(Order = 4)]
-        public AuthorityConfigurationCollection Authorities { get; set; }
+        public CertificateGroupConfigurationCollection CertificateGroups { get; set; }
 
         [DataMember(Order = 5)]
         public StringCollection KnownHostNames { get; set; }
@@ -92,13 +92,13 @@ namespace Opc.Ua.GdsServer
     /// Stores the configuration the data access node manager.
     /// </summary>
     [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
-    public class AuthorityConfiguration
+    public class CertificateGroupConfiguration
     {
         #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public AuthorityConfiguration()
+        public CertificateGroupConfiguration()
         {
             Initialize();
         }
@@ -141,13 +141,13 @@ namespace Opc.Ua.GdsServer
         #endregion
     }
 
-    [CollectionDataContract(Name = "ListOAuthorityConfiguration", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "AuthorityConfiguration")]
-    public partial class AuthorityConfigurationCollection : List<AuthorityConfiguration>
+    [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
+    public partial class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public AuthorityConfigurationCollection() { }
+        public CertificateGroupConfigurationCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -156,12 +156,12 @@ namespace Opc.Ua.GdsServer
         /// <exception cref="T:System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public AuthorityConfigurationCollection(IEnumerable<AuthorityConfiguration> collection) : base(collection) { }
+        public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public AuthorityConfigurationCollection(int capacity) : base(capacity) { }
+        public CertificateGroupConfigurationCollection(int capacity) : base(capacity) { }
     }
 }

@@ -59,11 +59,6 @@ namespace Opc.Ua.GdsServer
             get { return m_identity.SupportsSignatures; }
         }
 
-        public SecurityToken GetSecurityToken()
-        {
-            return m_identity.GetSecurityToken();
-        }
-
         public UserIdentityToken GetIdentityToken()
         {
             return m_identity.GetIdentityToken();

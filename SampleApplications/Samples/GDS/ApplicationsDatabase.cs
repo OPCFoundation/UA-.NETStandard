@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Data.Linq;
-using System.Data.Linq.SqlClient;
-using System.Text.RegularExpressions;
 using System.Text;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Gds;
 
 namespace Opc.Ua.GdsServer
@@ -150,8 +146,8 @@ namespace Opc.Ua.GdsServer
                         }
 
                         var names = from ii in entities.ApplicationNames
-                                        where ii.ApplicationId == record.ID
-                                        select ii;
+                                    where ii.ApplicationId == record.ID
+                                    select ii;
 
                         foreach (var name in names)
                         {
@@ -665,51 +661,7 @@ namespace Opc.Ua.GdsServer
             return true;
         }
 
-        public NodeId GetApplicationTrustList(
-            NodeId applicationId,
-            uint typeListType)
-        {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException("applicationId");
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                throw new ArgumentException("The application id is not recognized.", "applicationId");
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
-            {
-                var result = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
-
-                if (result == null)
-                {
-                    return null;
-                }
-
-                if (typeListType == 0)
-                {
-                    if (result.TrustListId != null)
-                    {
-                        return new NodeId(result.TrustList.Path, NamespaceIndex);
-                    }
-                }
-                else if (typeListType == 1)
-                {
-                    if (result.HttpsTrustListId != null)
-                    {
-                        return new NodeId(result.HttpsTrustList.Path, NamespaceIndex);
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        public bool SetApplicationTrustLists(NodeId applicationId, NodeId trustList, NodeId httpsTrustList)
+        public bool SetApplicationTrustLists(NodeId applicationId, NodeId trustListId, NodeId httpsTrustListId)
         {
             if (NodeId.IsNull(applicationId))
             {
@@ -735,9 +687,9 @@ namespace Opc.Ua.GdsServer
                 result.TrustListId = null;
                 result.HttpsTrustListId = null;
 
-                if (trustList != null)
+                if (trustListId != null)
                 {
-                    string storePath = trustList.Identifier as string;
+                    string storePath = trustListId.ToString();
 
                     var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
 
@@ -747,9 +699,9 @@ namespace Opc.Ua.GdsServer
                     }
                 }
 
-                if (httpsTrustList != null)
+                if (httpsTrustListId != null)
                 {
-                    string storePath = httpsTrustList.Identifier as string;
+                    string storePath = httpsTrustListId.ToString();
 
                     var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
 
@@ -763,47 +715,6 @@ namespace Opc.Ua.GdsServer
             }
 
             return true;
-        }
-
-        public void CreateCertificateStore(string path, string authorityId)
-        {
-            if (path == null)
-            {
-                throw new ArgumentNullException("path");
-            }
-
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
-            {
-                var result = (from x in entities.CertificateStores where x.Path == path select x).SingleOrDefault();
-
-                if (result != null)
-                {
-                    result.AuthorityId = authorityId;
-                    entities.SaveChanges();
-                    return;
-                }
-
-                CertificateStore record = new CertificateStore() { Path = path, AuthorityId = authorityId };
-                entities.CertificateStores.Add(record);
-                entities.SaveChanges();
-            }
-        }
-
-        public NodeId[] GetCertificateStores(string authorityId)
-        {
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
-            {
-                var results = from x in entities.CertificateStores where (authorityId == null && x.AuthorityId == null) || (authorityId != null && x.AuthorityId == authorityId) select x;
-
-                List<NodeId> ids = new List<NodeId>();
-
-                foreach (var result in results)
-                {
-                    ids.Add(new NodeId(result.Path, NamespaceIndex));
-                }
-
-                return ids.ToArray();
-            }
         }
 
         /// <summary>

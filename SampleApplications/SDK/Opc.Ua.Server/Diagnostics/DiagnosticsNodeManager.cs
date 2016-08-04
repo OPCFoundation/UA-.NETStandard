@@ -67,6 +67,7 @@ namespace Opc.Ua.Server
             m_diagnosticsEnabled = true;
             m_sampledItems = new List<MonitoredItem>();
             m_minimumSamplingInterval = 100;
+            m_securityKeyManager = new SecurityKeyManager();
         }
         #endregion
         
@@ -137,7 +138,7 @@ namespace Opc.Ua.Server
                         serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
                     }
                 }
-                                
+                
                 // The nodes are now loaded by the DiagnosticsNodeManager from the file
                 // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
                 // via the AttachNode() method when the DiagnosticsNodeManager starts.
@@ -318,9 +319,60 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+
+                case ObjectTypes.PublishSubscribeType:
+                {
+                    if (passiveNode is PublishSubscribeState)
+                    {
+                        break;
+                    }
+
+                    PublishSubscribeState activeNode = new PublishSubscribeState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    activeNode.AddAmqpConnection = null;
+                    activeNode.AddUadpConnection = null;
+                    activeNode.RemoveConnection = null;
+                    activeNode.GetSecurityKeys = new GetSecurityKeysMethodState(passiveNode);
+                    activeNode.GetSecurityKeys.Create(context, passiveNode);
+                    activeNode.GetSecurityKeys.OnCall += OnGetSecurityKeys;
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
+        }
+
+        private ServiceResult OnGetSecurityKeys(
+           ISystemContext context,
+           MethodState method,
+           NodeId objectId,
+           string securityGroupId,
+           uint futureKeyCount,
+           ref string securityPolicyUri,
+           ref uint currentTokenId,
+           ref byte[] currentKey,
+           ref byte[][] nextKeys,
+           ref uint timeToNextKey,
+           ref uint keyLifetime)
+        {
+            return m_securityKeyManager.GetSecurityKeys(
+                context,
+                securityGroupId, 
+                futureKeyCount, 
+                ref securityPolicyUri,
+                ref currentTokenId, 
+                ref currentKey, 
+                ref nextKeys, 
+                ref timeToNextKey,
+                ref keyLifetime);
         }
 
         /// <summary>
@@ -1626,6 +1678,28 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        /// <summary>
+        /// Adds a security group.
+        /// </summary>
+        public void AddSecurityGroup(
+            string securityGroupId, 
+            string securityPolicyUri, 
+            DateTime startTime, 
+            TimeSpan lifeTime, 
+            IList<string> allowedScopes)
+        {
+            m_securityKeyManager.New(securityGroupId, securityPolicyUri, startTime, lifeTime, allowedScopes);
+        }
+
+        /// <summary>
+        /// Removes a security group.
+        /// </summary>
+        /// <param name="securityGroupId"></param>
+        public void RemoveSecurityGroup(string securityGroupId)
+        {
+            m_securityKeyManager.Delete(securityGroupId);
+        }
+
         #region Private Methods
         /// <summary>
         /// Creates a new sampled item.
@@ -1736,6 +1810,7 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
+        private SecurityKeyManager m_securityKeyManager;
         #endregion
     }
 }
