@@ -9,18 +9,14 @@ using IdentityServer3.Core.Models;
 using IdentityServer3.Core.Services;
 using IdentityServer3.Core.Validation;
 using IdentityServer3.Core.Services.Default;
-using IdentityServer3.Core.Extensions;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Configuration;
-using IdentityModel.Client;
 using Serilog;
 using System.Security.Claims;
-using System.IdentityModel.Tokens;
-using System.IdentityModel.Selectors;
-using Microsoft.IdentityModel.Protocols;
 using Microsoft.Owin;
 using System.IO;
 using IdentityServer3.Core.Services.InMemory;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Opc.Ua.AuthorizationService
 {
@@ -29,9 +25,9 @@ namespace Opc.Ua.AuthorizationService
         private IDisposable m_host;
         private ApplicationInstance m_application;
 
-        public void Start(ApplicationInstance application)
+        public async void Start(ApplicationInstance application)
         {
-            Startup.ServiceCertificate = application.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find();
+            Startup.ServiceCertificate = await application.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find();
 
             string hostname = System.Net.Dns.GetHostName();
 
@@ -342,9 +338,10 @@ namespace Opc.Ua.AuthorizationService
         {
             var accessToken = request.Raw.Get("access_token");
             var identity = JwtUtils.ValidateToken(new Uri("https://login.microsoftonline.com/opcfoundationprototyping.onmicrosoft.com"), "https://localhost:62540/prototypeserver", accessToken);
-            JwtSecurityToken azureToken = identity.GetSecurityToken() as JwtSecurityToken;
+            IssuedIdentityToken token = identity.GetIdentityToken() as IssuedIdentityToken;
+            JwtSecurityToken azureToken = new JwtSecurityToken(new UTF8Encoding(false).GetChars(token.DecryptedTokenData).ToString());
 
-            var scope = request.Raw.Get("scope");
+                var scope = request.Raw.Get("scope");
             var nonce = request.Raw.Get("nonce");
 
             DateTime now = DateTime.UtcNow;

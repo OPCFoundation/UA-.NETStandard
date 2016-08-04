@@ -29,16 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
-using System.Xml;
-using System.Runtime.Serialization;
-using Opc.Ua;
 
 namespace Opc.Ua.Gds
 {
     #region FindApplicationsMethodState Class
-    #if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
+#if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
     /// <summary>
     /// Stores an instance of the FindApplicationsMethodType Method.
     /// </summary>

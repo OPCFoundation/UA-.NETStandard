@@ -573,6 +573,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or set the capabilities for the server.
+        /// </summary>
+        protected StringCollection ServerCapabilities { get; set; }
+
+        /// <summary>
         /// Gets the list of transport listeners used by the server instance.
         /// </summary>
         /// <value>The transport listeners.</value>

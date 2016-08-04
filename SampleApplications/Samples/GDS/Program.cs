@@ -51,28 +51,15 @@ namespace Opc.Ua.GdsServer
 
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.ServerConfiguration";
+            application.ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer";
 
             try
             {
-                // process and command line arguments.
-                if (application.ProcessCommandLine())
-                {
-                    return;
-                }
-
-                // check if running as a service.
-                if (!Environment.UserInteractive)
-                {
-                    application.StartAsService(new GlobalDiscoveryServerServer());
-                    return;
-                }
-
                 // load the application configuration.
                 application.LoadApplicationConfiguration(false);
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                application.CheckApplicationInstanceCertificate(false, 2048);
 
                 // add handler.
                 application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
@@ -82,14 +69,15 @@ namespace Opc.Ua.GdsServer
                 aus.Start(application);
 
                 // start the server.
-                application.Start(new GlobalDiscoveryServerServer());
+                var server = new GlobalDiscoveryServerServer();
+                application.Start(server);
 
                 // run the application interactively.
-                Application.Run(new Opc.Ua.Server.Controls.ServerForm(application));
+                Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));
             }
             catch (Exception e)
             {
-                ExceptionDlg.Show(application.ApplicationName, e);
+                MessageBox.Show("Exception: " + e.Message, application.ApplicationName);
                 return;
             }
         }

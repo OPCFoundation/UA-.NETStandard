@@ -10,9 +10,20 @@
 namespace Opc.Ua.Gds
 {
     using System.Data.Entity;
+    using System.Data.Entity.Infrastructure;
 
-    public partial class gdsdbEntities
+    public partial class gdsdbEntities : DbContext
     {
+        public gdsdbEntities()
+            : base("name=gdsdbEntities")
+        {
+        }
+
+        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        {
+            throw new UnintentionalCodeFirstException();
+        }
+
         public DbSet<ApplicationName> ApplicationNames { get; set; }
         public DbSet<ServerEndpoint> ServerEndpoints { get; set; }
         public DbSet<Application> Applications { get; set; }

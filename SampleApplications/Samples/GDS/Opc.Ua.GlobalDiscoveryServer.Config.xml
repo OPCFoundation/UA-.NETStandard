@@ -13,7 +13,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\own</StorePath>
-      <SubjectName>Global Discovery Server</SubjectName>
+      <SubjectName>CN=Global Discovery Server@localhost/O=OPC Foundation</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
@@ -47,7 +47,8 @@
   
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:58810/GlobalDiscoveryServer</ua:String>
+      <ua:String>opc.tcp://localhost:58810</ua:String>
+      <ua:String>https://localhost:58811</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
@@ -72,6 +73,13 @@
       </ua:UserTokenPolicy>
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
+      </ua:UserTokenPolicy>
+      <ua:UserTokenPolicy>
+        <ua:PolicyId>AuthenticationService</ua:PolicyId>
+        <ua:TokenType>IssuedToken_3</ua:TokenType>
+        <ua:IssuedTokenType>http://opcfoundation.org/UA/UserTokenPolicy#JWT</ua:IssuedTokenType>
+        <ua:IssuerEndpointUrl>{ "authority": "https://localhost:54333", "grantType" : "site_token", "tokenEndpoint" : "/connect/token", "scopes": [ "gdsadmin", "appadmin", "observer" ]}</ua:IssuerEndpointUrl>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
@@ -102,29 +110,30 @@
         <AuthoritiesStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\authorities</AuthoritiesStorePath>
         <ApplicationCertificatesStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\applications</ApplicationCertificatesStorePath>
         <DefaultSubjectNameContext>O=SomeCompany Inc.</DefaultSubjectNameContext>
-        <Authorities>
-          <AuthorityConfiguration>
+        <CertificateGroups>
+          <CertificateGroupConfiguration>
             <Id>Default</Id>
-            <SubjectName>DC=localhost/CN=IOP CA/O=OPC Foundation</SubjectName>
+            <SubjectName>DC=localhost/CN=IOP-2 CA/O=OPC Foundation</SubjectName>
             <BaseStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\CA\default</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
-            <DefaultCertificateKeySize>1024</DefaultCertificateKeySize>
-          </AuthorityConfiguration>
-          <AuthorityConfiguration>
+            <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
+          </CertificateGroupConfiguration>
+          <CertificateGroupConfiguration>
             <Id>Https</Id>
-            <SubjectName>DC=localhost/CN=IOP HTTPS CA/O=OPC Foundation</SubjectName>
+            <SubjectName>DC=localhost/CN=IOP-2 HTTPS CA/O=OPC Foundation</SubjectName>
             <BaseStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\CA\https</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
-            <DefaultCertificateKeySize>1024</DefaultCertificateKeySize>
-          </AuthorityConfiguration>
-        </Authorities>
+            <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
+          </CertificateGroupConfiguration>
+        </CertificateGroups>
         <KnownHostNames>
           <!--
           <ua:String>localhost</ua:String>
           <ua:String>cobalt-a</ua:String>
           -->
         </KnownHostNames>
-      </GlobalDiscoveryServerConfiguration>
+      
+    </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
