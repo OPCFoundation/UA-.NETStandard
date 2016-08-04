@@ -1521,7 +1521,15 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
-            
+            // copy UserNameIdentityToken.
+            {
+                UserNameIdentityToken castedObject = value as UserNameIdentityToken;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
