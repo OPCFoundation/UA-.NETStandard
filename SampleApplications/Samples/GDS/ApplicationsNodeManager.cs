@@ -234,7 +234,7 @@ namespace Opc.Ua.GdsServer
 
                     try
                     {
-                        CertificateFactory.RevokeCertificate(
+                        CertificateAuthority.RevokeCertificate(
                             certificateGroup.DefaultTrustList + "\\trusted",
                             x509,
                             certificateGroup.PrivateKeyFilePath,
@@ -300,7 +300,7 @@ namespace Opc.Ua.GdsServer
                 DateTime now = DateTime.Now;
                 now = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-1);
 
-                var newCertificate = await CertificateFactory.CreateCertificate(
+                var newCertificate = await CertificateAuthority.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.AuthoritiesStorePath,
                     null,
@@ -353,7 +353,7 @@ namespace Opc.Ua.GdsServer
 
                 try
                 {
-                    revokedCertificate = await CertificateFactory.CreateCertificate(
+                    revokedCertificate = await CertificateAuthority.CreateCertificate(
                      CertificateStoreType.Directory,
                      m_configuration.ApplicationCertificatesStorePath,
                      null,
@@ -370,7 +370,7 @@ namespace Opc.Ua.GdsServer
                      certificateGroup.PrivateKeyFilePath,
                      null);
 
-                    CertificateFactory.RevokeCertificate(m_configuration.AuthoritiesStorePath, revokedCertificate, certificateGroup.PrivateKeyFilePath, null);
+                    CertificateAuthority.RevokeCertificate(m_configuration.AuthoritiesStorePath, revokedCertificate, certificateGroup.PrivateKeyFilePath, null);
                 }
                 finally
                 {
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.GdsServer
                 DateTime now = DateTime.UtcNow;
                 now = new DateTime(now.Year, now.Month, now.Day).AddDays(-1);
 
-                Task<X509Certificate2> task = CertificateFactory.CreateCertificate(
+                Task<X509Certificate2> task = CertificateAuthority.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.ApplicationCertificatesStorePath,
                     privateKeyPassword,

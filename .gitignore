@@ -232,3 +232,5 @@ _Pvt_Extensions
 
 # FAKE - F# Make
 .fake/
+/SampleApplications/Samples/NetCoreConsoleServer/OPC Foundation/CertificateStores/MachineDefault/certs
+/SampleApplications/Samples/NetCoreConsoleServer/OPC Foundation/CertificateStores/UA Applications/certs
