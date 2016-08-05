@@ -164,10 +164,10 @@ namespace Opc.Ua.Client.Controls
 
             if (CertificateStoreType.Directory == storeType)
             {
-                stores.Add("%CommonApplicationData%\\OPC Foundation\\CertificateStores\\MachineDefault");
-                stores.Add("%CommonApplicationData%\\OPC Foundation\\CertificateStores\\UA Applications");
-                stores.Add("%CommonApplicationData%\\OPC Foundation\\CertificateStores\\UA Certificate Authorities");
-                stores.Add("%CommonApplicationData%\\OPC Foundation\\CertificateStores\\RejectedCertificates");
+                stores.Add(Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "MachineDefault");
+                stores.Add(Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "UA Applications");
+                stores.Add(Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "UA Certificate Authorities");
+                stores.Add(Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "RejectedCertificates");
             }
 
             if (CertificateStoreType.Windows == storeType)

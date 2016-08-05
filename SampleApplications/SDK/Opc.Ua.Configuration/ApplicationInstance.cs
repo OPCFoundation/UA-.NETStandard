@@ -1048,10 +1048,8 @@ namespace Opc.Ua.Configuration
             // check key size.
             if (minimumKeySize > certificate.GetRSAPublicKey().KeySize)
             {
-                bool valid = false;
-
                 string message = Utils.Format(
-                    "The key size ({0}) in the certificate is less than the minimum provided ({1}). Update certificate?",
+                    "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
                     certificate.GetRSAPublicKey().KeySize,
                     minimumKeySize);
 
@@ -1060,14 +1058,12 @@ namespace Opc.Ua.Configuration
                     MessageDlg.Message(message, true);
                     if (!await MessageDlg.ShowAsync())
                     {
-                        valid = true;
+                        return false;
                     }
                 }
-
-                Utils.Trace(message);
-
-                if (!valid)
+                else
                 {
+                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -1083,8 +1079,6 @@ namespace Opc.Ua.Configuration
 
             if (String.IsNullOrEmpty(applicationUri))
             {
-                bool valid = false;
-
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
 
                 if (!silent && MessageDlg != null)
@@ -1092,14 +1086,12 @@ namespace Opc.Ua.Configuration
                     MessageDlg.Message(message, true);
                     if (!await MessageDlg.ShowAsync())
                     {
-                        valid = true;
+                        return false;
                     }
                 }
-
-                Utils.Trace(message);
-
-                if (!valid)
+                else
                 {
+                    Utils.Trace(message);
                     return false;
                 }
             }

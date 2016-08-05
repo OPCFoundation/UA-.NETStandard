@@ -105,6 +105,7 @@
     <Content Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="CreateCert.cmd" />
     <None Include="Opc.Ua.Publisher_TemporaryKey.pfx" />
     <Content Include="Opc.Ua.Sample.Boiler.Boiler.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

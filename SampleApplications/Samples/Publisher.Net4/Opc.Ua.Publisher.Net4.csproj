@@ -240,6 +240,7 @@
     <Content Include="Opc.Ua.Sample.TestData.TestData.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="CreateCert.cmd" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>

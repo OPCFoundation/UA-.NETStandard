@@ -167,7 +167,7 @@ namespace Opc.Ua.Sample
         {
             try
             {
-                System.Diagnostics.Process.Start( Path.GetDirectoryName(Application.ExecutablePath) + "\\WebHelp\\ua_sample_server.htm");
+                System.Diagnostics.Process.Start( Path.GetDirectoryName(Application.ExecutablePath) + Path.DirectorySeparatorChar + "WebHelp" + Path.DirectorySeparatorChar + "ua_sample_server.htm");
             }
             catch (Exception ex)
             {

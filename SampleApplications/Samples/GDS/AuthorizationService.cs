@@ -139,11 +139,11 @@ namespace Opc.Ua.AuthorizationService
         /// <returns>
         /// The client
         /// </returns>
-        public Task<Client> FindClientByIdAsync(string clientId)
+        public Task<IdentityServer3.Core.Models.Client> FindClientByIdAsync(string clientId)
         {
             if (clientId == "urn:localhost:OAuth2TestClient")
             {
-                return Task.FromResult(new Client
+                return Task.FromResult(new IdentityServer3.Core.Models.Client
                 {
                     ClientName = "OAuth2TestClient",
                     ClientId = clientId,
@@ -158,7 +158,7 @@ namespace Opc.Ua.AuthorizationService
 
             // TBD - look up ApplicationUri in DB.
 
-            return Task.FromResult(new Client
+            return Task.FromResult(new IdentityServer3.Core.Models.Client
             {
                 ClientName = "Global Discovery Client",
                 ClientId = clientId,

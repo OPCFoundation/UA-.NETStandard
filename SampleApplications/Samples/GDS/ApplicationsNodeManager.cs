@@ -447,7 +447,7 @@ namespace Opc.Ua.GdsServer
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error initializing certificateGroup: " + certificateGroupConfiguration.Id + "\\r\\n" + e.StackTrace);
+                        Utils.Trace(e, "Unexpected error initializing certificateGroup: " + certificateGroupConfiguration.Id + "\r\n" + e.StackTrace);
                     }
                 }
             }

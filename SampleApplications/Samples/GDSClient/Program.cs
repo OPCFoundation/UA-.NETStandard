@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Windows.Forms;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.GdsClient
 {
@@ -16,6 +18,7 @@ namespace Opc.Ua.GdsClient
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType = ApplicationType.Client;
             application.ConfigSectionName = "Opc.Ua.GdsClient";
@@ -23,10 +26,12 @@ namespace Opc.Ua.GdsClient
             try
             {
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
+                task.Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
+                task2.Wait();
 
                 // run the application interactively.
                 Application.Run(new MainForm(application));

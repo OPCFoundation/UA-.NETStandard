@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,12 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.GdsServer
 {
@@ -49,6 +47,7 @@ namespace Opc.Ua.GdsServer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType = ApplicationType.Server;
             application.ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer";
@@ -56,10 +55,12 @@ namespace Opc.Ua.GdsServer
             try
             {
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
+                task.Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 2048);
+                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
+                task2.Wait();
 
                 // add handler.
                 application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
@@ -70,7 +71,8 @@ namespace Opc.Ua.GdsServer
 
                 // start the server.
                 var server = new GlobalDiscoveryServerServer();
-                application.Start(server);
+                Task task3 = application.Start(server);
+                task3.Wait();
 
                 // run the application interactively.
                 Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));

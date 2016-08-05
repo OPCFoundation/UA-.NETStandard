@@ -234,3 +234,4 @@ _Pvt_Extensions
 .fake/
 /SampleApplications/Samples/NetCoreConsoleServer/OPC Foundation/CertificateStores/MachineDefault/certs
 /SampleApplications/Samples/NetCoreConsoleServer/OPC Foundation/CertificateStores/UA Applications/certs
+/SampleApplications/Samples/GDS/OPC Foundation/CertificateStores/MachineDefault/certs

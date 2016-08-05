@@ -13,23 +13,23 @@
 
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\own</StorePath>
-      <SubjectName>CN=UA Global Discovery Client/O=OPC Foundation/DC=localhost</SubjectName>
+      <StorePath>OPC Foundation/GDS/PKI/own</StorePath>
+      <SubjectName>UA Global Discovery Client</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\issuers</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\trusted</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\rejected</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/rejected</StorePath>
     </RejectedCertificateStore>
 
   </SecurityConfiguration>
@@ -55,7 +55,7 @@
       <GlobalDiscoveryClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
         <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810</GlobalDiscoveryServerUrl>
         <ExternalEditor>devenv.exe</ExternalEditor>
-        <TemporaryStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\temporary</TemporaryStorePath>
+        <TemporaryStorePath>OPC Foundation/GDS/PKI/temporary</TemporaryStorePath>
       </GlobalDiscoveryClientConfiguration>
     </ua:XmlElement>
     <ua:XmlElement>

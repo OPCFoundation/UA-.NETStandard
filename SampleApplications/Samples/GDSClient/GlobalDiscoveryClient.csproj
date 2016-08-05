@@ -146,6 +146,7 @@
     <None Include="app.manifest">
       <SubType>Designer</SubType>
     </None>
+    <None Include="CreateCert.cmd" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -175,6 +176,9 @@
     <None Include="Images\error.png" />
     <None Include="Images\nav_plain_green.png" />
     <None Include="Images\environment_view.png" />
+    <Content Include="ManuallySpecifiedEndpoints.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Opc.Ua.GdsClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>

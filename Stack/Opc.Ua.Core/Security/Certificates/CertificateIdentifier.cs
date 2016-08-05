@@ -192,7 +192,6 @@ namespace Opc.Ua
             {
                 certificate = m_certificate;
             }
-
             else
             {
                 // open store.

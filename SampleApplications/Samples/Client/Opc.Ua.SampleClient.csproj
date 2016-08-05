@@ -110,6 +110,7 @@
     <Content Include="Opc.Ua.Sample.TestData.TestData.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="CreateCert.cmd" />
     <None Include="Opc.Ua.SampleClient_TemporaryKey.pfx" />
     <None Include="project.json" />
     <None Include="project.lock.json" />

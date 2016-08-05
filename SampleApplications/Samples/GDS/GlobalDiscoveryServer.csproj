@@ -189,7 +189,10 @@
     <None Include="app.manifest">
       <SubType>Designer</SubType>
     </None>
-    <None Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />
+    <None Include="CreateCert.cmd" />
+    <Content Include="Opc.Ua.Gds.Model.Opc.Ua.Gds.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
@@ -204,6 +207,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
+      <Name>UA Client Controls</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
       <Name>UA Server Controls</Name>

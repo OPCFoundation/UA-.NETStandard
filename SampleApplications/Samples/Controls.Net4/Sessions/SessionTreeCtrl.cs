@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Sample.Controls
                     FileInfo defaultInfo = new FileInfo(Application.ExecutablePath);
 
                     m_filePath = defaultInfo.DirectoryName;
-                    m_filePath += "\\";
+                    m_filePath += Path.DirectorySeparatorChar;
                     m_filePath += session.SessionName;                    
                     m_filePath += ".xml";
                 }
@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Sample.Controls
                     FileInfo defaultInfo = new FileInfo(Application.ExecutablePath);
 
                     m_filePath = defaultInfo.DirectoryName;
-                    m_filePath += "\\";
+                    m_filePath += Path.DirectorySeparatorChar;
                     m_filePath += session.SessionName;                    
                     m_filePath += ".xml";
                 }

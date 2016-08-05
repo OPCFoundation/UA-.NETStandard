@@ -4,31 +4,31 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Global Discovery Server@localhost</ApplicationName>
-  <ApplicationUri>urn:localhost:somecompany.com:GlobalDiscoveryServer</ApplicationUri>
+  <ApplicationName>UA Global Discovery Server</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:GlobalDiscoveryServer</ApplicationUri>
   <ProductUri>http://somecompany.com/GlobalDiscoveryServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\own</StorePath>
-      <SubjectName>CN=Global Discovery Server@localhost/O=OPC Foundation</SubjectName>
+      <StorePath>OPC Foundation/GDS/PKI/own</StorePath>
+      <SubjectName>UA Global Discovery Server</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\issuers</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\trusted</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\rejected</StorePath>
+      <StorePath>OPC Foundation/GDS/PKI/rejected</StorePath>
     </RejectedCertificateStore>
   </SecurityConfiguration>
   
@@ -107,21 +107,21 @@
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <AuthoritiesStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\authorities</AuthoritiesStorePath>
-        <ApplicationCertificatesStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\applications</ApplicationCertificatesStorePath>
+        <AuthoritiesStorePath>OPC Foundation/GDS/PKI/authorities</AuthoritiesStorePath>
+        <ApplicationCertificatesStorePath>OPC Foundation/GDS/PKI/applications</ApplicationCertificatesStorePath>
         <DefaultSubjectNameContext>O=SomeCompany Inc.</DefaultSubjectNameContext>
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
             <SubjectName>DC=localhost/CN=IOP-2 CA/O=OPC Foundation</SubjectName>
-            <BaseStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\CA\default</BaseStorePath>
+            <BaseStorePath>OPC Foundation/GDS/PKI/CA/default</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
           </CertificateGroupConfiguration>
           <CertificateGroupConfiguration>
             <Id>Https</Id>
             <SubjectName>DC=localhost/CN=IOP-2 HTTPS CA/O=OPC Foundation</SubjectName>
-            <BaseStorePath>%CommonApplicationData%\OPC Foundation\GDS\PKI\CA\https</BaseStorePath>
+            <BaseStorePath>OPC Foundation/GDS/PKI/CA/https</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
           </CertificateGroupConfiguration>
@@ -138,7 +138,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%CommonApplicationData%\OPC Foundation\GDS\Logs\GlobalDiscoveryServer.log.txt</OutputFilePath>
+    <OutputFilePath>OPC Foundation/GDS/Logs/GlobalDiscoveryServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

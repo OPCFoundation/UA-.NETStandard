@@ -16,7 +16,7 @@
   <s0:InstallAsService>false</s0:InstallAsService>
 
   <s0:TraceConfiguration>
-    <s1:OutputFilePath>%CommonApplicationData%\OPC Foundation\GDS\Logs\Opc.Ua.GlobalDiscoveryServer.InstallLog.xml</s1:OutputFilePath>
+    <s1:OutputFilePath>OPC Foundation/GDS/Logs/Opc.Ua.GlobalDiscoveryServer.InstallLog.xml</s1:OutputFilePath>
     <s1:DeleteOnLoad>true</s1:DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <s1:TraceMasks>1</s1:TraceMasks> -->

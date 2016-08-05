@@ -318,7 +318,7 @@ namespace Opc.Ua
 
             Entry entry = Find(thumbprint);
 
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + "\\crl");
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
 
             foreach (FileInfo file in info.GetFiles("*.crl"))
             {
