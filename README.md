@@ -5,7 +5,7 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 
 ##Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
-2. Sample Publishers (for sending OPC UA Pub/Sub telemetry data to the cloud), Clients and Servers, including all required controls
+2. Sample Servers, Clients and Publishers (for sending OPC UA Pub/Sub telemetry data to the cloud), including all required controls, for .Net 4.6, .NetCore and UWP.
 3. X.509 certificate support for client and server authentication
 4. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
 5. UA-TCP & HTTPS transports (client and server)
