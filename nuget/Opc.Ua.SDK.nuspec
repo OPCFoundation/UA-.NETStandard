@@ -9,7 +9,7 @@
     <language>en-US</language>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandardLibrary</projectUrl>
     <iconUrl>https://opcfoundation.org/wp-content/themes/opc/images/logo.jpg</iconUrl>
-    <licenseUrl>https://opcfoundation.org/license/gpl.html</licenseUrl>
+    <licenseUrl>https://opcfoundation.org/license</licenseUrl>
     <tags>OPCFoundation .Net OPC-UA OPC SDK</tags>
     <dependencies>
       <group targetFramework="net46" >
