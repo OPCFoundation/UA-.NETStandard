@@ -1,0 +1,140 @@
+﻿<?xml version='1.0' encoding='utf-8' ?>
+<tocdata>
+<item name="Welcome" url="welcome.htm" />
+<item name="About the OPC Foundation" url="the_information_screen.htm" />
+<item name="About Unified Architecture" url="about_technologyname.htm" />
+<item name="License Agreement" url="license_agreement.htm" />
+<item name="Overview of Applications" url="overview.htm" />
+<item name="Getting Started" url="getting_started.htm" />
+<book name="Configuration Tools" >
+  <book name="UA Configuration Tool" >
+    <item name="Overview" url="ua_configuration_tool.htm" />
+    <item name="Launching the Configuration Tool" url="launching_the_configuration_tool.htm" />
+    <item name="Manage Security" url="uaconfig_manage_security.htm" />
+    <item name="Manage Application" url="uaconfig_manage_application.htm" />
+    <item name="Manage Certificates" url="uaconfig_manage_certificates.htm" />
+    <item name="Manage COM Interop" url="uaconfig_manage_com_interop.htm" />
+    <item name="HTTP Access Rules" url="uaconfig_http_access_rules.htm" />
+  </book>
+</book>
+<book name="Sample Applications" >
+  <book name="Local Discovery Server (LDS)" >
+    <item name="Overview" url="local_discovery_server_(lds).htm" />
+  </book>
+  <book name="UA Generic Server" >
+    <item name="Overview" url="ua_sample_server.htm" />
+    <item name="Configuration" url="genericserverconfiguration.htm" />
+  </book>
+  <book name="UA Generic Client" >
+    <item name="Overview" url="ua_sample_client.htm" />
+    <item name="Address Space Navigation" url="address_space_navigation.htm" />
+    <item name="Reading Nodes" url="reading_nodes.htm" />
+    <item name="Writing to Nodes" url="writing_to_nodes.htm" />
+    <item name="Subscriptions" url="subscriptions.htm" />
+    <item name="Discovery" url="uagenericclientdiscovery.htm" />
+    <item name="Configuration" url="genericclientconfiguration.htm" />
+  </book>
+</book>
+<book name="Technology Samples" >
+  <book name="Data Access" >
+    <item name="Data Access Overview" url="data_access_overview.htm" />
+    <book name="Server" >
+      <item name="Overview" url="daserveroverview.htm" />
+      <item name="Configuration" url="daserverconfiguration.htm" />
+    </book>
+    <book name="Client" >
+      <item name="Overview" url="daclientoverview.htm" />
+      <item name="Configuration" url="daclientconfiguration.htm" />
+    </book>
+  </book>
+  <book name="Historical Access" >
+    <item name="Historical Access Overview" url="historical_access_overview.htm" />
+    <book name="Data" >
+      <book name="Server" >
+        <item name="Overview" url="haserveroverview.htm" />
+        <item name="Configuration" url="hadataserver_configuration.htm" />
+      </book>
+      <book name="Client" >
+        <item name="Overview" url="haclientoverview.htm" />
+        <item name="Aggregates" url="hadata_client_aggregates.htm" />
+        <item name="Configuration" url="hadataclient_configuration.htm" />
+      </book>
+    </book>
+    <book name="Events" >
+      <book name="Server" >
+        <item name="Overview" url="haeventsserveroverview.htm" />
+        <item name="Configuration" url="haeventsserver_configuration.htm" />
+      </book>
+      <book name="Client" >
+        <item name="Overview" url="haeventsclientoverview.htm" />
+        <item name="Configuration" url="haeventsclient_configuration.htm" />
+      </book>
+    </book>
+  </book>
+  <book name="Alarms &amp; Conditions" >
+    <item name="Alarms &amp; Conditions Overview" url="alarms_&amp;_conditions_overview.htm" />
+    <book name="Server" >
+      <item name="Overview" url="acserveroverview.htm" />
+      <item name="Configuration" url="acserver_configuration.htm" />
+    </book>
+    <book name="Client" >
+      <item name="Overview" url="acclientoverview.htm" />
+      <item name="Configuration" url="acclient_configuration.htm" />
+    </book>
+  </book>
+  <book name="Reference (Compliance)" >
+    <book name="Server" >
+      <item name="Overview" url="overview_referenceserver.htm" />
+    </book>
+    <book name="Client" >
+      <item name="Overview" url="overview_-_reference_client.htm" />
+    </book>
+  </book>
+</book>
+<book name="Securing Applications" >
+  <item name="Overview" url="overviewsecuringapplications.htm" />
+  <item name="Trusting Applications built with .NET API" url="trusting_applications_built_with_.net_api.htm" />
+  <item name="Trusting Applications built from other Frameworks" url="trusting_applications_built_from_other_frameworks.htm" />
+  <item name="Certificate Generator" url="certificate_generator.htm" />
+  <item name="HTTPS Connectivity" url="https_connectivity.htm" />
+</book>
+<book name="COM Interoperability" >
+  <item name="Overview" url="comiop_overview.htm" />
+  <item name="Starting / Stopping the Service" url="starting___stopping_the_service.htm" />
+</book>
+<book name="Development" >
+  <item name="Developing UA Applications" url="developing_ua_applications.htm" />
+  <book name="Server" >
+    <item name="Server Development" url="server_development.htm" />
+    <item name="Step 1 - New Project" url="step_1_-_new_project.htm" />
+    <item name="Step 2 - Address Space" url="step_2_-_address_space.htm" />
+    <item name="Step 3 - Reading Values" url="step_3_-_reading_values.htm" />
+    <item name="Step 4 - Handling Write Requests" url="step_4_-_handling_write_requests.htm" />
+    <item name="Step 5 - Testing Server" url="step_5_-_testing_server.htm" />
+    <item name="Step 6 - Deploying Server" url="step_6_-_deploying_server.htm" />
+  </book>
+  <book name="Client" >
+    <item name="Client Development" url="client_development.htm" />
+    <item name="Step 1 - New Project" url="step_1_-_new_projectclient.htm" />
+    <item name="Step 2 - Enhance User Interface" url="step_2_-_enhance_user_interface.htm" />
+    <item name="Step 3 - Setup Subscription" url="step_3_-_setup_subscription.htm" />
+    <item name="Step 4 - Consuming DataChanges" url="step_4_-_consuming_datachanges.htm" />
+    <item name="Step 5 - Testing your Client" url="step_5_-_testing_your_client.htm" />
+    <item name="Step 6 - Deploying your Client" url="step_6_-_deploying_your_client.htm" />
+    <item name="Useful Components" url="useful_components.htm" />
+  </book>
+</book>
+<book name="Redistributables" >
+  <item name="Overview" url="overview_redistributables.htm" />
+  <item name="Local Discovery Server MergeModule" url="local_discovery_server_mergemodule.htm" />
+  <item name="COM Interop Components MergeModule" url="com_interop_components_mergemodule.htm" />
+  <item name="DotNet Stack MergeModule" url="dotnet_stack_mergemodule.htm" />
+  <item name="Using Merge Modules" url="using_merge_modules.htm" />
+</book>
+<book name="Reference" >
+  <item name="Certification" url="certification.htm" />
+  <item name="Firewall Settings" url="firewall_settings.htm" />
+  <item name="Troubleshooting" url="troubleshooting.htm" />
+</book>
+
+</tocdata>

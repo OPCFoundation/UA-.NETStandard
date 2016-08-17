@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type">
+    <!-- Page developed based on original works by Etienne Rossignon (http://node-opcua.github.io/) // -->
+    <meta name="author" content="Nathan Pocock, nathan.pocock@opcfoundation.org">
+    <meta name="description" content="OPC UA .NET - the OPC UA stack C# implementation for the Microsoft .NET Framework 4.5">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css"
+      rel="stylesheet">
+    <title>OPC UA .NET! The official UA .NET Stack and Sample Applications from
+      the OPC Foundation</title>
+    <!-- css stylesheets -->
+    <link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap-theme.css"
+      media="screen">
+    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+  </head>
+  <body>
+    <!-- fixed navigation bar -->
+    <div class="navbar navbar-default navbar-fixed-top navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="navbar-header"> <img class="nav navbar-brand" src="images/OPCF_250px_72ppi_RGB.jpg">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#b-menu-1">
+            <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span>
+            <span class="icon-bar"></span> <span class="icon-bar"></span> </button>
+          <a class="navbar-brand" href="#">OPC UA .NET</a> </div>
+        <div class="collapse navbar-collapse" id="b-menu-1">
+          <ul class="nav navbar-nav navbar-right">
+            <li class="active"><a href="https://github.com/OPCFoundation/UA-.NET">GitHub</a></li>
+            <li><a href="https://opcfoundation.org/">OPCUA</a></li>
+            <li>&amp;bpsp;&amp;bpsp;&amp;bpsp;</li>
+          </ul>
+        </div>
+        <!-- /.nav-collapse --> </div>
+      <!-- /.container -->
+    </div>
+    <!-- /.navbar -->
+    <!-- Main Header Block // -->
+    <div class="container">
+      <div class="jumbotron hidden-print">
+        <h1>Build OPC UA .NET applications using .NET StandardLibrary<sup></sup></h1>
+        <div class="row">
+          <div class="col-md-6"> <img src="images/OPCF_250px_72ppi_RGB.jpg"> </div>
+          <div class="col-md-6">
+            <h3> UA .NET is an <a href="https://opcfoundation.org/about/what-is-opc/">OPC
+                UA</a> stack and a number of sample applications.<br>
+              Developed in C# using <a href="https://docs.microsoft.com/en-us/dotnet/articles/standard/library">.NET
+                StandardLubrary</a> </h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 3 Core Call-outs: From OPCF, High Quality, and License // -->
+    <div class="container">
+      <div class="hidden-print">
+        <div id="social-buttons" class="hidden-print">
+          <ul class="list-inline">
+            <li> <iframe class="github-btn" src="http://ghbtns.com/github-btn.html?user=OPCFoundation&amp;repo=ua-.net&amp;type=watch&amp;count=true"
+                allowtransparency="true" scrolling="0" frameborder="0" height="20px"
+                width="100px"></iframe> <br>
+            </li>
+            <li> <iframe class="github-btn" src="http://ghbtns.com/github-btn.html?user=OPCFoundation&amp;repo=ua-.net&amp;type=fork&amp;count=true"
+                allowtransparency="true" scrolling="0" frameborder="0" height="20px"
+                width="102px"></iframe> <br>
+            </li>
+            <li class="follow-btn"> <a href="https://twitter.com/opcfoundation"
+                class="twitter-follow-button" data-link-color="#0069D6" data-show-count="true">Follow
+                @opcfoundation</a> </li>
+            <li class="tweet-btn hidden-phone"> <a href="https://twitter.com/share"
+                class="twitter-share-button" data-text="OPC Foundation open-source #OPCUA Stack for .NET"
+                data-lang="en">Tweet</a> </li>
+          </ul>
+        </div>
+        <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+        <section id="why" class="feature-list">
+          <div class="row">
+            <div class="col-md-4 col-sm-6">
+              <h4><span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+                From the OPC Foundation</h4>
+              <p>The official OPC Foundation OPC UA .NET StandardLibrary Stack
+                and sample applications.</p>
+              <p>Donated to the community for development of OPC UA applications
+                and to assure that OPC UA becomes the defacto-standard
+                technology for the Industrial-Internet-of-Things and Industrie
+                4.0.</p>
+              <p>Numerous products, organizations, and other standards-bodies
+                rely on OPC UA as their communications back-bone, with more
+                joining daily.</p>
+              <p>Visit <a href="https://opcfoundation.org/" target="opcf">https://opcfoundation.org/</a>
+                for more information.</p>
+              <br>
+              <h4>OPC Foundation Membership</h4>
+              <p>OPC Foundation membership provides funding to continue the
+                research and development necessary to expand the capabilities
+                and benefits of OPC UA.</p>
+              <p><strong>Become a Member Now</strong> [<a href="https://opcfoundation.org/membership/benefits/">benefits</a>]</p>
+            </div>
+            <div class="col-md-4 col-sm-6">
+              <h4><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+                Quality</h4>
+              <p><strong>Stack:</strong> Is in the responsibility of the OPC
+                Foundation and working groups. It will be extended and modified
+                to match the OPC UA specification.</p>
+              <p>OPC Foundation appointed contractors are responsible for
+                assuring a reasonable quality, including bug-fixes and
+                enhancements at the direction of the OPC Foundation as well as
+                contributions from the community.</p>
+              <p>The stack is regularly tested with other applications, the OPC
+                Compliance Test Tool, and at various Interoperability Workshops.</p>
+              <p><strong>Sample Libraries/Applications:</strong> Are provided to
+                the community for further enhancement. </p>
+            </div>
+            <div class="col-md-4 col-sm-6">
+              <h4><span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span>
+                License</h4>
+              <p>This repository includes the UA .NET Stack, sample libraries
+                based on the .NET StandardLibrary, and sample applications. The
+                UA .NET Stack follows a dual-license:<br>
+              </p>
+              <ul>
+                <li><strong>OPC Foundation Corporate Members</strong>: <a href="https://opcfoundation.org/license/rcl.html"
+                    target="rcl">RCL</a></li>
+                <li><strong>Everybody else</strong>: <a href="https://opcfoundation.org/license/gpl.html"
+                    target="gpl">GPL 2.0</a></li>
+              </ul>
+              <p></p>
+              <p>RCL enables OPC Foundation members to deploy their applications
+                using the UA .NET stack without being required to disclose the
+                application code. Non-members must disclose their application
+                code when using the UA .NET Stack.</p>
+              <p><strong>Note:</strong> Dual license applies to this repository
+                only; GPL <a href="https://opcfoundation.org/license/gpl.html"
+                  target="gpl">2.0</a> applies to all derived repositories (for
+                example 'forks').</p>
+              <p>All samples are provided under the <a href="https://opcfoundation.org/license/mit.html"
+                  target="mit">MIT license</a>.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <!-- Next section: Overview. Contains Architecture, documentation, sample code -->
+    <div class="container">
+      <div class="page-header">
+        <h1>Overview</h1>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <h3>Introduction</h3>
+          <p>The UA .NET sample code consists of the following: Stack, Sample
+            Libraries, and Sample Applications.</p>
+          <p><img src="images/OverviewComponents.PNG" alt="OPC UA Sample Code Overview"
+              class="img-responsive"></p>
+          <p>Detailed information about OPC UA can be found in the
+            Specifications:<br>
+          </p>
+          <ul>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-1-overview-and-concepts/"
+                target="specs">Part 1: Overview</a></li>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-4-services/"
+                target="specs">Part 4: Services</a></li>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-6-mappings/"
+                target"specs"="">Part 6: Mappings</a></li>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-8-data-access/"
+                target="specs">Part 8: Data Access</a></li>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-9-alarms-and-conditions/"
+                target="specs">Part 9: Alarms and Conditions</a></li>
+            <li><a href="https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-11-historical-access/"
+                target="specs">Part 11: Historical Access</a></li>
+          </ul>
+          <cite>Note: An OPC Foundation website account is needed (registration
+            is free)</cite>
+          <p></p>
+        </div>
+        <div class="col-md-6">
+          <h4><span class="glyphicon glyphicon-book" aria-hidden="true"></span>
+            Extensive Documentation</h4>
+          <p>All code within this repository contains in-line annotation used
+            for generating developer documentation describing the interfaces,
+            objects, properties, methods, and events, etc.</p>
+          <p>Additional documentation to help newcomers is provided in the
+            'Getting Started' section, below.</p>
+        </div>
+        <div class="col-md-6">
+          <h4><span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+            UA Profile Documentation</h4>
+          <p>Learn how to build compliant self-describing applications using
+            Profiles: </p>
+          <ul>
+            <li><a href="https://opcfoundation.org/wiki/" target="wiki">https://opcfoundation.org/wiki/</a></li>
+          </ul>
+          <p></p>
+        </div>
+        <div class="col-md-6">
+          <h4><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+            Getting Started</h4>
+          <p>See the following help resources: </p>
+          <ul>
+            <li><a href="help/index.htm#overview.htm">Application overview</a><br>
+              A listing and brief description of each application within the
+              .NET Solution</li>
+            <li><a href="help/index.htm#getting_started.htm">Walkthrough:
+                Client/Server Connection</a><br>
+              New users can learn the basics of OPC such as connecting,
+              browsing, reading, writing, and subscribing to nodes etc.</li>
+            <li><a href="help/index.htm#overviewsecuringapplications.htm">Walkthrough:
+                Securing Applications</a><br>
+              Learn about OPC UA application security by following these step by
+              step instructions showing to establish and break application
+              trusts.</li>
+            <li><a href="help/index.htm#server_development.htm">Building your
+                first UA Server</a><br>
+              Complete walk-through from creating the project, selecting an
+              application template, building your address space, testing the
+              Server, and deployment.</li>
+            <li><a href="help/index.htm#client_development.htm">Building your
+                first UA Client</a><br>
+              Complete walk-through from creating the project, selecting an
+              application template, and consuming data.</li>
+            <li><a href="https://opcfoundation.org/developer-tools/certification-test-tools">Compliance
+                Testing</a><br>
+              Before you deploy any applications you must ensure they are
+              compliant. The Compliance Test Tool will test your Servers and
+              Clients and is an essential tool that is available at the OPC
+              Foundation website.</li>
+          </ul>
+          <p></p>
+        </div>
+        <div class="col-md-6">
+          <h4><span clas="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+            Dependencies</h4>
+          <p>The sample applications require the <cite>CertificateGenerator</cite>
+            application which is tracked in the <a href="https://github.com/OPCFoundation/Misc-Tools">Misc-Tools</a>
+            repository.</p>
+          <p>Instructions:</p>
+          <p> </p>
+          <ol>
+            <li>Clone and build the CertificateGenerator in Visual Studio</li>
+            <li>Clone and build this .NET solution; do not run any of the sample
+              applications yet</li>
+            <li>Copy the CertificateGenerator output to the .NET Sample
+              Applications output directory</li>
+          </ol>
+          <p></p>
+        </div>
+        <div class="col-md-5">
+          <h4><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+            Certified Reference Implementations</h4>
+          <p>The OPC Foundation recommends the use of <a href="https://opcfoundation.org/certified-products"
+              target="opc">Certified products</a> only.</p>
+          <img src="http://opcfoundation.org/wp-content/uploads/2013/04/OPC_Certified_Logo_Sample-264x300.png"
+            align="right" height="25%" width="25%">
+          <p>This code is provided with 2 Lab Certified applications:</p>
+          <ul>
+            <li><a href="help/index.htm#overview_referenceserver.htm">UA
+                Reference Server</a></li>
+            <li><a href="help/index.htm#ua_sample_client.htm">UA Sample Client</a></li>
+          </ul>
+          <p>Lab certification means that an OPC UA product was tested in a
+            sanctioned Lab and successfully demonstrated <cite>compliance,
+              interoperability, robustness/recovery, and resource efficiency</cite>.
+            Certified products are ready for production use. <a href="https://opcfoundation.org/certification/overview-benefits/"
+              target="certification">Learn more</a>.</p>
+          <p>Products built from this source code are <strong>not</strong>
+            inherently certified.<br>
+            <a href="https://opcfoundation.org/certification/how-to-certify/" target="certification">Learn
+              more</a> about certifying your product(s).</p>
+        </div>
+      </div>
+      <!-- row // -->
+    </div>
+    <!-- container // -->
+    <!-- Last section: Get Involved // -->
+    <div class="container"> <a href="https://github.com/OPCFoundation/UA-.NET">
+        <img style="position: absolute; top: 10px; right: 0; border: 0;z-index:1100"
+          src="https://camo.githubusercontent.com/365986a132ccd6a44c23a9169022c0b5c890c387/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f7265645f6161303030302e706e67"
+          alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"></a>
+      <div class="page-header">
+        <h1>Get involved</h1>
+        <p>The OPC Foundation encourages community participation in the
+          enhancement of the UA .NET Stack.</p>
+      </div>
+      <div class="col-md-6">
+        <h4>Submit an issue or a suggestion</h4>
+        Submit an issue <a href="https://github.com/OPCFoundation/UA-.NET/issues">
+          here</a>. </div>
+      <div class="col-md-6">
+        <h4>Working Group Participation</h4>
+        <p>The OPC Foundation contains multiple <a href="https://opcfoundation.org/about/working-groups/"
+            target="opcf">working groups</a> that work hard to deliver OPC
+          Specifications, Sample Applications, Compliance Test Tools, and more.
+          Your participation can help steer OPC UA technology. Get involved
+          today!</p>
+      </div>
+      <div class="col-md-6">
+        <h4>Fork and contribute</h4>
+        If you find an issue in the documentation or in the code, you can fork
+        and send a pull request to the master branch. </div>
+      <div class="col-md-6">
+        <h4>Follow us</h4>
+        <a class="twitter-timeline" href="https://twitter.com/OPCFoundation" data-widget-id="473946115788656640">Tweets
+          by @OPCFoundation</a>
+        <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+      </div>
+    </div>
+    <!-- Footer // -->
+    <div class="container">
+      <footer class="footer">
+        <div class="">
+          <p>&nbsp;</p>
+          <p>© Copyright 2015 - OPC Foundation</p>
+        </div>
+      </footer>
+    </div>
+    <!-- add javascripts -->
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+  </body>
+</html>

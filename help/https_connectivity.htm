@@ -1,0 +1,347 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Adobe RoboHelp 9" />
+<title>HTTPS Connectivity</title>
+<link rel="StyleSheet" href="default.css" type="text/css" />
+<style type="text/css">
+/*<![CDATA[*/
+<!--
+P { margin-left:0pt;
+margin-right:0pt;
+font-family:Verdana;
+margin-bottom:3pt;
+margin-top:18pt; }
+H1 { font-weight:bold;
+margin-top:14pt;
+margin-bottom:14pt;
+margin-left:0pt;
+margin-right:0pt;
+page-break-after:avoid;
+font-family:Verdana;
+x-next-type:P;
+font-size:18pt; }
+H2 { font-weight:bold;
+margin-top:14pt;
+margin-bottom:14pt;
+margin-left:0pt;
+margin-right:0pt;
+page-break-after:avoid;
+font-family:Verdana;
+x-next-type:P;
+font-size:14pt; }
+H3 { font-weight:bold;
+margin-top:14pt;
+margin-bottom:14pt;
+margin-left:0pt;
+margin-right:0pt;
+page-break-after:avoid;
+font-family:Verdana;
+x-next-type:P;
+font-size:12pt; }
+-->
+/*]]>*/
+</style>
+
+<style type="text/css">
+/*<![CDATA[*/
+<!--
+div.WebHelpPopupMenu { position:absolute;
+left:0px;
+top:0px;
+z-index:4;
+visibility:hidden; }
+p.WebHelpNavBar { text-align:right; }
+-->
+/*]]>*/
+</style>
+
+<script type="text/javascript" language="javascript1.2" src="whmsg.js">
+</script>
+<script type="text/javascript" language="javascript" src="whver.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whproxy.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whutils.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whlang.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whtopic.js">
+</script>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.gbWhTopic)
+{
+        var strUrl = document.location.href;
+        var bc = 0;
+        var n = strUrl.toLowerCase().indexOf("bc-");
+        if(n != -1)
+        {
+                document.location.href = strUrl.substring(0, n);
+                bc = strUrl.substring(n+3);
+        }
+
+        if (window.setRelStartPage)
+        {
+        addTocInfo("Securing Applications\nHTTPS Connectivity");
+addButton("show",BTN_TEXT,"Show","","","","",0,0,"whd_show0.gif","whd_show2.gif","whd_show1.gif");
+addButton("hide",BTN_TEXT,"Hide","","","","",0,0,"whd_hide0.gif","whd_hide2.gif","whd_hide1.gif");
+addButton("prev",BTN_TEXT,"<<","","","","",0,0,"whd_prev0.gif","whd_prev2.gif","whd_prev1.gif");
+addButton("next",BTN_TEXT,">>","","","","",0,0,"whd_next0.gif","whd_next2.gif","whd_next1.gif");
+
+        }
+
+        document.write("<p style=\"font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right\"> ");
+AddMasterBreadcrumbs("index.htm", "font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right", "&gt;", "Home", "welcome.htm");
+document.write("<a style=\"font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right\" href=\"overviewsecuringapplications.htm\">Securing Applications<\/a> &gt; HTTPS Connectivity<\/p>");
+
+
+        if (window.setRelStartPage)
+        {
+        setRelStartPage("index.htm");
+
+                autoSync(0);
+                sendSyncInfo();
+                sendAveInfoOut();
+        }
+
+}
+else
+        if (window.gbIE4)
+                document.location.reload();
+//-->
+//]]>
+</script>
+</head>
+<body>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.writeIntopicBar)
+        writeIntopicBar(4);
+//-->
+//]]>
+</script>
+<div style="width: 100%; position: relative;" id="header">
+<p><span style="font-weight: bold; font-size: 10pt;"><font size="2" style="font-size:10pt;"><b><a href="http://www.opcfoundation.org" style="color: #0000ff; font-size: 10pt; text-decoration: underline;" title="http://www.opcfoundation.org"><img src="opcfoundation.jpg" alt="opcfoundation.jpg" style="border: none;" width="189" height="61" align="left" border="0" /></a>The Interoperability Standard<br />
+for Industrial Automation</b></font></span></p>
+<table cellspacing="0" width="100%" align="center">
+<tr>
+<td style="vertical-align: top;"><span style="font-size: 8pt;"><font size="1" style="font-size:8pt;"><a href="welcome.htm" title="welcome.htm">Welcome</a> | <a href="http://www.opcfoundation.org" target="_blank" style="color: #0000ff; text-decoration: underline;" title="http://www.opcfoundation.org">OPC Foundation Online</a> | <a href="https://opcfoundation.org/certification/overview-benefits/" target="_blank" title="https://opcfoundation.org/certification/overview-benefits/">Certification</a> | <a href="https://opcfoundation.org/about/opc-technologies/opc-ua/" target="_blank" title="https://opcfoundation.org/about/opc-technologies/opc-ua/">Technology</a> | <a href="https://opcfoundation.org/news/opc-foundation-news/" target="_blank" title="https://opcfoundation.org/news/opc-foundation-news/">News</a></font></span></td>
+<td style="vertical-align: top; text-align: right; font-size: 8pt;"><a href="https://github.com/OPCFoundation" title="https://github.com/OPCFoundation">https://gitHub.com/OPCFoundation</a></td>
+</tr>
+</table>
+<p style=" border-bottom:Solid 1px #000000; font-weight:bold; text-align:center; border-width:4px;"><span style="font-weight: bold; text-align: center;"><b><span style="font-weight: bold;"><b>Unified Architecture Technology Sample Applications</b></span></b></span></p>
+</div>
+<h1>HTTPS Connection Procedure</h1>
+<h2>1. Scope</h2>
+<p>This document describes a step by step procedure for establishing a secure connection over the HTTPS protocol between an OPC UA Server and an OPC UA Client developed with the .NET stack provided by OPC Foundation.</p>
+<h2>2. Requirements</h2>
+<p>The OPC UA 1.02 .NET Sample Applications package needs to be installed on the local machine.</p>
+<p>This will deploy the <span style="font-style: italic;"><i><a href="ua_sample_server.htm" title="ua_sample_server.htm">UA Sample Server</a></i></span>, <span style="font-style: italic;"><i><a href="ua_sample_client.htm" title="ua_sample_client.htm">UA Sample Client</a>,</i></span> and <span style="font-style: italic;"><i><a href="ua_configuration_tool.htm" title="ua_configuration_tool.htm">UA Configuration Tool</a></i></span> applications that are needed for this procedure.</p>
+<p>The package can be downloaded from the <a href="http://www.opcfoundation.org" title="http://www.opcfoundation.org">OPC Foundation website</a>.</p>
+<h2>3. Procedure description</h2>
+<p>In order to be able to establish a secure connection the SSL binding needs on the machine where the server application is running. This can be performed using the <span style="font-style: italic;"><i>UA Configuration Tool</i></span> application.</p>
+<p>An HTTPS connection requires a certificate to be used for performing the message encryption. This certificate is different than the application instance certificate of the server.</p>
+<p>In a real scenario (e.g. a web site) the HTTPS certificate (or SSL certificate) is issued and signed by a worldwide trusted Certification Authority (e.g. VeriSign, DigiCert) because it should be validated and trusted by the operating system before establishing a connection. For Windows operating systems this means the certificate of the issuer should be in the “LocalMachine\Root” store in order to be considered trusted. This store already contains a list of known CAs (like VeriSign and DigiCert) and the certificates issued by them will be automatically trusted.</p>
+<p>In our example we will create our own CA and we use it to issue the HTTPS certificate. After that we will manually copy the CA certificate to the “LocalMachine\Root” store on the machines where the UA client application will run. In this way the HTTPS certificate will be considered trusted by the operating system (i.e. issued by a trusted authority) and we do not need to purchase an HTTPS certificate from an authority.</p>
+<p>On a machine where OPC UA 1.02 .NET Sample Applications is installed, perform the following steps:</p>
+<h3>3.1. Launch the Dashboard application.</h3>
+<p>The application can be used for launching/stopping the other applications (Sample Client, Sample Server, Configuration Tool…) and can be found at <span style="font-style: italic;"><i>Start -&gt; All Programs -&gt; OPC Foundation -&gt; Unified Architecture -&gt; 1.02 -&gt; Sample Applications -&gt; OPC UA Dashboard</i></span>.</p>
+<p class="Picture">&#160;<img src="image115.gif" alt="image115.gif" style="border: none;" border="0" /></p>
+<h3>3.2. Launch the Configuration Tool application</h3>
+<p class="Picture">&#160;<img src="image116.gif" alt="image116.gif" style="border: none;" border="0" /></p>
+<h3>3.3. Create a new Certificate Authority</h3>
+<p>From the Configuration Tool application select the “Manage Certificates” tab and create a new CA certificate the using the “Create Certificate Authority" button.</p>
+<p class="Picture">&#160;<img src="image117.gif" alt="image117.gif" style="border: none;" border="0" /></p>
+<p>Save the certificate somewhere on the disk (e.g. “D:\HTTPS”) and specify a password. In our example we use <span style="font-weight: bold;"><b>opcf</b></span> as password.</p>
+<p class="Picture">&#160;<img src="image118.gif" alt="image118.gif" style="border: none;" border="0" /></p>
+<h3>3.4. Import the CA certificate into the trusted root store of the local machine.</h3>
+<p>From Configuration Tool:</p>
+<ul type="disc">
+<li>
+<p>Select the “Manage Certificates” tab</p>
+</li>
+<li>
+<p>Set StoreType to <span style="font-style: italic;"><i>Windows</i></span></p>
+</li>
+<li>
+<p>Set StorePath to <span style="font-style: italic;"><i>LocalMachine\Root</i></span></p>
+</li>
+<li>
+<p>Click the “Import Certificate to Store” button</p>
+</li>
+<li>
+<p>Browse to the public key file of the previously create CA certificate. In our example this should be the “D:\HTTPS\certs\OPCF [0FF56F5……..].der” file (with the specific thumbprint at the end).</p>
+</li>
+<li>
+<p>Click <span style="font-style: italic;"><i>“Open”</i></span>.</p>
+</li>
+<li>
+<p>Click <span style="font-style: italic;"><i>“Yes”</i></span> when receiving a warning message like “You are adding this certificate to a trust list that may be shared…”</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image119.gif" alt="image119.gif" style="border: none;" border="0" /></p>
+<h3>3.5. Issue a new SSL certificate based on the previously created CA</h3>
+<p>From Configuration Tool:</p>
+<ul type="disc">
+<li>
+<p>Select the “Manage Certificates” tab.</p>
+</li>
+<li>
+<p>Set StoreType to <span style="font-style: italic;"><i>Directory</i></span></p>
+</li>
+<li>
+<p>Set StorePath to <span style="font-style: italic;"><i>D:\HTTPS</i></span></p>
+</li>
+<li>
+<p>Click the “Issue SSL/TLS certificate button…”.</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image120.gif" alt="image120.gif" style="border: none;" border="0" /></p>
+<ul type="disc">
+<li>
+<p>In the displayed dialog set StoreType to <span style="font-style: italic;"><i>Directory</i></span>.</p>
+</li>
+<li>
+<p>Set StorePath to “<span style="font-style: italic;"><i>D:\HTTPS</i></span>”.</p>
+</li>
+<li>
+<p>Specify the CA key file: browse to “D:\HTTPS\private” and specify the private key of the CA file (created in step nr. 3).</p>
+</li>
+<li>
+<p>Specify the password of the CA private key file (in our example is opcf).</p>
+</li>
+<li>
+<p>Leave the default value for Domain Name (the name of the local machine).</p>
+</li>
+<li>
+<p>Click OK</p>
+</li>
+</ul>
+<p class="Picture"><img src="image121.gif" alt="image121.gif" style="border: none;" border="0" /></p>
+<h3>3.6. Create the SSL binding for the HTTPS port using the certificate created in the previous step</h3>
+<p>From Configuration Tool:</p>
+<ul type="disc">
+<li>
+<p>Select the “Manage Certificates” tab.</p>
+</li>
+<li>
+<p>Click “Bind SSL/TLS Certificate”.</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image122.gif" alt="image122.gif" style="border: none;" border="0" /></p>
+<ul type="disc">
+<li>
+<p>On the displayed dialog click “New”.</p>
+</li>
+<li>
+<p>On the new dialog, leave the IP Address as “0.0.0.0”</p>
+</li>
+<li>
+<p>Set the Port value to 51212 (the default HTTPS port for Sample Server)</p>
+</li>
+<li>
+<p>Specify the Certificate by browsing the certificate created in the step nr. 5. It should be located “D:\HTTPS\” and it has the name of the local machine.</p>
+</li>
+<li>
+<p>Click OK.</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image123.gif" alt="image123.gif" style="border: none;" border="0" /></p>
+<ul type="disc">
+<li>
+<p>Click “Yes” when receiving the revocation status related warning.</p>
+</li>
+<li>
+<p>Click “No” when receiving the “Delete certificate from current location…” message.</p>
+</li>
+</ul>
+<h3>3.7. Check the HTTPS connection status on the local machine</h3>
+<p>In this moment UA Sample Client should be able to establish an HTTPS connection with UA Sample Server.</p>
+<ul type="disc">
+<li>
+<p>From the Dashboard application launch Generic Server and Generic Client. This should start UA Sample Server and UA Sample Client.</p>
+</li>
+<li>
+<p>From the menu bar of UA Sample Client click Discovery -&gt; Servers</p>
+</li>
+<li>
+<p>Double-click on the “UA Sample Server” record line of the displayed dialog</p>
+</li>
+</ul>
+<p class="Picture"><img src="image124.gif" alt="image124.gif" style="border: none;" border="0" /></p>
+<ul type="disc">
+<li>
+<p>Click “Connect” (in the main form of UA Client).</p>
+</li>
+<li>
+<p>In the Protocol field select the value “HTTPS”.</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image125.gif" alt="image125.gif" style="border: none;" border="0" /></p>
+<ul type="disc">
+<li>
+<p>Click OK.</p>
+</li>
+<li>
+<p>Click OK in the “Session Open” dialog.</p>
+</li>
+</ul>
+<p>An HTTPS connection should be established now between Sample Client and Sample Server.</p>
+<p class="Picture">&#160;<img src="image126.gif" alt="image126.gif" style="border: none;" border="0" /></p>
+<h3>3.8. Copy the CA certificate to LocalMachine\Root on the remote client machine.</h3>
+<p>If the client application runs on a different machine the CA certificate (the certificate generated at step nr. 3) needs to be copied to the LocalMachine\Root store of the client machine.</p>
+<p>The Configuration Tool application should be used on the client machine to add the CA in the list of Trusted Root Certification Authorities.</p>
+<p>Follow these steps:</p>
+<ul type="disc">
+<li>
+<p>Copy the public key of the CA certificate on a disk location from the client machine. The file should be located at “D:\HTTPS\certs\ OPCF [0FF56F5BB72…….].der” on the server machine. The thumbprint part of the file name may be different.</p>
+</li>
+<li>
+<p>Launch Configuration Tool application on the client machine.</p>
+</li>
+<li>
+<p>Select the “Manage Certificates” tab</p>
+</li>
+<li>
+<p>Set StoreType to Windows</p>
+</li>
+<li>
+<p>Set StorePath to LocalMachine\Root</p>
+</li>
+<li>
+<p>Click the “Import Certificate to Store” button</p>
+</li>
+<li>
+<p>Browse to location where the CA certificate was copied on the client machine.</p>
+</li>
+<li>
+<p>Click “Open”.</p>
+</li>
+<li>
+<p>Click “Yes” when receiving a warning message like “You are adding this certificate to a trust list that may be shared…”</p>
+</li>
+</ul>
+<p class="Picture">&#160;<img src="image127.gif" alt="image127.gif" style="border: none;" border="0" /></p>
+<p>In this moment a <span style="font-style: italic;"><i>UA Sample Client</i></span> instance running on a remote machine (a machine different than the server machine) should be able to establish an HTTPS connection with <span style="font-style: italic;"><i>UA Sample Server</i></span>.</p>
+<div style="width: 100%; position: relative;" id="footer">
+<p style=" border-top:Solid 1px #000000; text-align:right; font-size:8pt; border-width:4px;"><span style="text-align: right; font-size: 8pt;"><font size="1" style="font-size:8pt;">Copyright OPC Foundation 1995-2015<br />
+Author: <a href="mailto:nathan.pocock@opcfoundation.org" style="font-size: 8pt;" title="mailto:nathan.pocock@opcfoundation.org">Nathan Pocock</a>; Last Update: August 28, 2015</font></span></p>
+</div>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.writeIntopicBar)
+        writeIntopicBar(0);
+
+highlightSearch();
+//-->
+//]]>
+</script>
+</body>
+</html>

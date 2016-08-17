@@ -1,0 +1,533 @@
+﻿<HTML>
+<HEAD>
+<TITLE>WebHelp Tabs Frame in Navigation Pane</TITLE>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+<!-- WebHelp version 5.10 -->
+</HEAD>
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2">
+<!--
+var gsBgColor="#c0c0c0"
+var gsBgImage="";
+var gnCurPane=0;
+var gsFirstPane="";
+var goTocFont=null;
+var goIdxFont=null;
+var goFtsFont=null;
+var goGloFont=null;
+var gPane=new Array();
+var gShowFirst=0;
+var gnTabType=0;
+
+function window_unload()
+{
+	UnRegisterListener2(this,WH_MSG_SHOWTOC);
+	UnRegisterListener2(this,WH_MSG_SHOWIDX);
+	UnRegisterListener2(this,WH_MSG_SHOWFTS);
+	UnRegisterListener2(this,WH_MSG_SHOWGLO);
+}
+
+
+function setFont(sType,sFontName,sFontSize,sFontColor,sFontStyle,sFontWeight,sFontDecoration)
+{
+	var vFont=new whFont(sFontName,sFontSize,sFontColor,sFontStyle,sFontWeight,sFontDecoration);
+	if(sType=="Toc") goTocFont=vFont;
+	else if(sType=="Idx") goIdxFont=vFont;
+	else if(sType=="Fts") goFtsFont=vFont;
+	else if(sType=="Glo") goGloFont=vFont;
+}
+
+function TocWriteClassStyle()
+{
+	var sStyle="<STYLE TYPE='text/css'>";
+	sStyle+=".TextTabToc {"+getFontStyle(goTocFont)+"}";
+	sStyle+=".TextTabIdx {"+getFontStyle(goIdxFont)+"}";
+	sStyle+=".TextTabFts {"+getFontStyle(goFtsFont)+"}";
+	sStyle+=".TextTabGlo {"+getFontStyle(goGloFont)+"}";
+	sStyle+="A:hover {text-decoration:underline;}";
+	sStyle+="</STYLE>";
+	document.write(sStyle);
+}
+
+function setBackgroundcolor(sBgColor)
+{
+	if(sBgColor!=null&&sBgColor.length>0)
+		gsBgColor=sBgColor;
+}
+
+function setBackground(sBgImage)
+{
+	if(sBgImage!=null&&sBgImage.length>0)
+		gsBgImage=sBgImage;
+}
+
+function selectToc()
+{
+	var oMessage=new whMessage(WH_MSG_SHOWTOC,this,1,null);
+	SendMessage(oMessage);
+}
+
+function selectIdx()
+{
+	var oMessage=new whMessage(WH_MSG_SHOWIDX,this,1,null);
+	SendMessage(oMessage);
+}
+function selectFts()
+{
+	var oMessage=new whMessage(WH_MSG_SHOWFTS,this,1,null);
+	SendMessage(oMessage);
+}
+
+function selectGlo()
+{
+	var oMessage=new whMessage(WH_MSG_SHOWGLO,this,1,null);
+	SendMessage(oMessage);
+}
+
+
+function onSendMessage(oMsg)
+{
+	if(oMsg)
+	{
+		var nMsgId=oMsg.nMessageId;
+		if(nMsgId==WH_MSG_SHOWTOC)
+		{
+			setTimeout("showTabByName(\"toc\");",1);
+		}
+		else if(nMsgId==WH_MSG_SHOWIDX)
+		{
+			setTimeout("showTabByName(\"idx\");",1);
+		}
+		else if(nMsgId==WH_MSG_SHOWFTS)
+		{
+			setTimeout("showTabByName(\"fts\");",1);
+		}
+		else if(nMsgId==WH_MSG_SHOWGLO)
+		{
+			setTimeout("showTabByName(\"glo\");",1);
+		}
+	}
+	return true;
+}
+
+function showTabByName(sTabName)
+{
+	for(var i=0;i<gPane.length;i++)
+	{
+		if(gPane[i]==sTabName)
+		{
+			showTab(i);
+			break;
+		}
+	}
+}
+
+function showTab(n)
+{
+	gnCurPane=n;
+	if(gnTabType==0)
+	{
+		if(n<gPane.length)
+		{
+			if(document.images["TocTab"]&&document.images["TocTab"]!=null){
+				if(gPane[n]=="toc")
+					document.images["TocTab"].src=getBtnImage("toc",1);
+				else
+					document.images["TocTab"].src=getBtnImage("toc",0);
+			}
+			if(document.images["IndexTab"]&&document.images["IndexTab"]!=null){
+				if(gPane[n]=="idx")
+					document.images["IndexTab"].src=getBtnImage("idx",1);
+				else
+					document.images["IndexTab"].src=getBtnImage("idx",0);
+			}
+			if(document.images["FtsTab"]&&document.images["FtsTab"]!=null){
+				if(gPane[n]=="fts")
+					document.images["FtsTab"].src=getBtnImage("fts",1);
+				else
+					document.images["FtsTab"].src=getBtnImage("fts",0);
+			}
+			if(document.images["GloTab"]&&document.images["GloTab"]!=null){
+				if(gPane[n]=="glo")
+					document.images["GloTab"].src=getBtnImage("glo",1);
+				else
+					document.images["GloTab"].src=getBtnImage("glo",0);
+			}
+		}
+	}
+	else if(gnTabType==1)
+	{
+	}
+	else if(gnTabType==2)
+	{
+		if(n<gPane.length)
+		{
+			if(document.images["tabSelection"]!=null)
+				document.images["tabSelection"].src=getMapImage(gPane[n]);
+		}
+	}
+}
+
+function addPane(sName)
+{
+	gPane[gPane.length]=sName;
+}
+
+function setShowPane(sName)
+{
+	if(gsFirstPane!="")
+		sName=gsFirstPane;
+	for(var i=0;i<gPane.length;i++)
+	{
+		if(gPane[i]==sName)
+			gShowFirst=i;
+	}
+}
+
+function selectDefaultTab()
+{
+	showTab(gShowFirst);
+	if(document.body)
+	{
+		if(gsBgImage&&gsBgImage.length>0)
+		{
+			document.body.background=gsBgImage;
+		}
+		if(gsBgColor&&gsBgColor.length>0)
+		{
+			document.body.bgColor=gsBgColor;
+		}
+	}
+}
+
+function getTabsHTML()
+{
+	var sHTML="";
+	for(var i=0;i<gPane.length;i++)
+	{
+		if(gnTabType==0)
+			sHTML+=getTabHTML(gPane[i]);
+		else if(gnTabType==1)
+		{
+			if(sHTML.length>0)
+			{
+				sHTML+=getSeparator();
+			}
+			sHTML+=getTabHTMLText(gPane[i]);
+		}
+
+	}
+	return sHTML;
+}
+
+function getSeparator()
+{
+	var sSep="";
+	
+	return sSep;
+}
+
+function getTabHTML(sTabName)
+{
+	if (sTabName == "toc")
+		return "<a title=\"Contents\" href=\"javascript:void(0);\" onclick=\"selectToc();return false;\" onmouseover=\"mouseOverToc();\" onmouseout=\"mouseOutToc();\"><img name=\"TocTab\" src=\"" + getBtnImage(sTabName, 0) + "\" border=\"0\"></a>";
+	else if (sTabName =="idx")
+		return "<a title=\"Index\" href=\"javascript:void(0);\" onclick=\"selectIdx();return false;\" onmouseover=\"mouseOverIdx();\" onmouseout=\"mouseOutIdx();\"><img name=\"IndexTab\" src=\"" + getBtnImage(sTabName, 0) + "\" border=\"0\"></a>";
+	else if (sTabName == "fts")
+		return "<a title=\"Search\" href=\"javascript:void(0);\" onclick=\"selectFts();return false;\" onmouseover=\"mouseOverFts();\" onmouseout=\"mouseOutFts();\"><img name=\"FtsTab\" src=\"" + getBtnImage(sTabName, 0) + "\" border=\"0\"></a>";
+	else if (sTabName == "glo")
+		return "<a title=\"Glossary\" href=\"javascript:void(0);\" onclick=\"selectGlo();return false;\"onmouseover=\"mouseOverGlo();\" onmouseout=\"mouseOutGlo();\"><img name=\"GloTab\" src=\"" + getBtnImage(sTabName, 0) + "\" border=\"0\"></a>";
+	return "";
+}
+
+function mouseOverToc()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "toc")
+	{
+		sImg = getBtnImage("toc", 3);
+	}
+	else
+	{
+		sImg = getBtnImage("toc", 2);
+	}
+	if (sImg.length > 0)
+		document.images["TocTab"].src = sImg;
+}
+
+function mouseOverIdx()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "idx")
+	{
+		sImg = getBtnImage("idx", 3);
+	}
+	else
+	{
+		sImg = getBtnImage("idx", 2);
+	}
+	if (sImg.length > 0)
+		document.images["IndexTab"].src = sImg;
+}
+
+function mouseOverFts()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "fts")
+	{
+		sImg = getBtnImage("fts", 3);
+	}
+	else
+	{
+		sImg = getBtnImage("fts", 2);
+	}
+	if (sImg.length > 0)
+		document.images["FtsTab"].src = sImg;
+}
+
+function mouseOverGlo()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "glo")
+	{
+		sImg = getBtnImage("glo", 3);
+	}
+	else
+	{
+		sImg = getBtnImage("glo", 2);
+	}
+	if (sImg.length > 0)
+		document.images["GloTab"].src = sImg;
+}
+
+function mouseOutToc()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "toc")
+	{
+		sImg = getBtnImage("toc", 1);
+	}
+	else
+	{
+		sImg = getBtnImage("toc", 0);
+	}
+	if (sImg.length > 0)
+		document.images["TocTab"].src = sImg;
+}
+
+function mouseOutIdx()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "idx")
+	{
+		sImg = getBtnImage("idx", 1);
+	}
+	else
+	{
+		sImg = getBtnImage("idx", 0);
+	}
+	if (sImg.length > 0)
+		document.images["IndexTab"].src = sImg;
+}
+
+function mouseOutFts()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "fts")
+	{
+		sImg = getBtnImage("fts", 1);
+	}
+	else
+	{
+		sImg = getBtnImage("fts", 0);
+	}
+	if (sImg.length > 0)
+		document.images["FtsTab"].src = sImg;
+}
+
+function mouseOutGlo()
+{
+	var sImg = "";
+	if (gPane[gnCurPane] == "glo")
+	{
+		sImg = getBtnImage("glo", 1);
+	}
+	else
+	{
+		sImg = getBtnImage("glo", 0);
+	}
+	if (sImg.length > 0)
+		document.images["GloTab"].src = sImg;
+}
+
+function getTabHTMLText(sTabName)
+{
+	if (sTabName == "toc")
+		return "<a class=\"TextTabToc\" href=\"javascript:void(0);\" onclick=\"selectToc();return false;\">Contents</a>&nbsp;";
+	else if (sTabName =="idx")
+		return "<a class=\"TextTabIdx\" href=\"javascript:void(0);\" onclick=\"selectIdx();return false;\">Index</a>&nbsp;";
+	else if (sTabName == "fts")
+		return "<a class=\"TextTabFts\" href=\"javascript:void(0);\" onclick=\"selectFts();return false;\">Search</a>&nbsp;";
+	else if (sTabName == "glo")
+		return "<a class=\"TextTabGlo\" href=\"javascript:void(0);\" onclick=\"selectGlo();return false;\">Glossary</a>&nbsp;";
+	return "";
+}
+
+function getImageMap()
+{
+	var sHTML = "<map name=\"tabSelectionMap\">";
+	for (var i = 0; i < gPane.length; i ++)
+	{
+		sHTML += getMapArea(gPane[i]);
+	}
+	sHTML += "</map>";
+	return sHTML;
+}
+
+function getMapArea(sTabName)
+{
+	if (sTabName == "toc")
+		return "<area title=\"Contents\" shape=\"\" coords=\"\" href=\"javascript:void(0);\" onclick=\"selectToc();return false;\">";
+	else if (sTabName =="idx")
+		return "<area title=\"Index\" shape=\"\" coords=\"\" href=\"javascript:void(0);\" onclick=\"selectIdx();return false;\">";
+	else if (sTabName == "fts")
+		return "<area title=\"Search\" shape=\"\" coords=\"\" href=\"javascript:void(0);\" onclick=\"selectFts();return false;\">";
+	else if (sTabName == "glo")
+		return "<area title=\"Glossary\" shape=\"\" coords=\"\" href=\"javascript:void(0);\" onclick=\"selectGlo();return false;\">";
+	return "";
+}
+
+function getBtnImage(sTabName, nStatus)
+{
+	if (sTabName == "toc")
+	{
+		if (nStatus == 0)
+			return "whd_tab2.gif";
+		else if (nStatus == 1)
+			return "whd_tab1.gif";
+		else if (nStatus == 2)
+			return "";
+		else if (nStatus == 3)
+			return "";
+	}
+	else if (sTabName =="idx")
+	{
+		if (nStatus == 0)
+			return "whd_tab4.gif";
+		else if (nStatus == 1)
+			return "whd_tab3.gif";
+		else if (nStatus == 2)
+			return "";
+		else if (nStatus == 3)
+			return "";
+	}
+	else if (sTabName == "fts")
+	{
+		if (nStatus == 0)
+			return "whd_tab6.gif";
+		else if (nStatus == 1)
+			return "whd_tab5.gif";
+		else if (nStatus == 2)
+			return "";
+		else if (nStatus == 3)
+			return "";
+	}
+	else if (sTabName == "glo")
+	{
+		if (nStatus == 0)
+			return "whd_tab8.gif";
+		else if (nStatus == 1)
+			return "whd_tab7.gif";
+		else if (nStatus == 2)
+			return "";
+		else if (nStatus == 3)
+			return "";
+	}
+	return "";
+}
+
+function getMapImage(sTabName)
+{
+	if (sTabName == "toc")
+		return "";
+	else if (sTabName =="idx")
+		return "";
+	else if (sTabName == "fts")
+		return "";
+	else if (sTabName == "glo")
+		return "";
+	return "";
+}
+
+if(window.gbWhUtil&&window.gbWhMsg&&window.gbWhVer&&window.gbWhProxy)
+{
+	window.onload = selectDefaultTab;
+	RegisterListener2(this, WH_MSG_SHOWTOC);
+	RegisterListener2(this, WH_MSG_SHOWIDX);
+	RegisterListener2(this, WH_MSG_SHOWFTS);
+	RegisterListener2(this, WH_MSG_SHOWGLO);
+	window.onunload = window_unload;
+	goTocFont=new whFont("Arial","9pt","#000000","normal","normal","none");
+	goIdxFont=new whFont("Arial","9pt","#000000","normal","normal","none");
+	goFtsFont=new whFont("Arial","9pt","#000000","normal","normal","none");
+	goGloFont=new whFont("Arial","9pt","#000000","normal","normal","none");
+
+	if (navigator.currentNavPen)
+		gsFirstPane = navigator.currentNavPen;
+
+	setBackgroundcolor("");
+	setBackground("whd_tab0.gif");
+	
+	
+	
+	
+	  addPane("toc","whtdhtml.htm");
+  addPane("idx","whidhtml.htm");
+  addPane("fts","whfdhtml.htm");
+  setShowPane("toc");
+
+
+	gnTabType = 0; // 0 button. // 1 text. // 2 image mapping.
+	TocWriteClassStyle();
+	var sHTML = "<body scroll=\"no\" bgcolor=\"#c0c0c0\"    background=\"whd_tab0.gif\" style=\"margin-top:0;margin-bottom:0;margin-left:0;margin-right:0\">";
+	if (gPane.length > 0)
+	{
+		if (gnTabType == 0 || gnTabType == 1)
+		{
+			sHTML += "<table width=\"100%\">";
+			sHTML += "<tr>";
+			sHTML += "<td>";
+			sHTML += "<nobr>";
+			sHTML += getTabsHTML();
+			sHTML += "</nobr></td></tr>";
+			sHTML += " <tr><td height=\"2\"></td></tr>";
+			sHTML += "</table>";
+		}
+		else if (gnTabType == 2)
+		{
+			sHTML += getImageMap();
+			sHTML +="<img name=\"tabSelection\" src=\"" + getMapImage(gPane[0]) + "\" x-maintain-ratio=\"true\" usemap=\"#tabSelectionMap\"";
+			if (gbIE)
+				sHTML +=" style=\"border: none; width:px; height:px; float: none;\"";
+			sHTML +=" width=\"\" height=\"\" border=\"0\">";
+		}
+	}
+	sHTML += "</body>";
+	document.write(sHTML);
+}
+else
+	document.location.reload();
+
+if (window.gbNav6)
+{
+	var oMsg=new whMessage(WH_MSG_RELOADNS6,this, 1,null);
+	SendMessage(oMsg);
+}
+//-->
+</script>
+</HTML>

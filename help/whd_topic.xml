@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<topictemplate>
+ <topic type="normal">
+  <add tag="head" pos="endbefore" >
+   <![CDATA["<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_MESSAGE_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript\" src=\"";SF_VERSION_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_PROXY_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_UTILS_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_LANGUAGE_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_TOPIC_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\">
+<!--
+if (window.gbWhTopic)
+{
+	var strUrl = document.location.href;
+	var bc = 0;
+	var n = strUrl.toLowerCase().indexOf(\"bc-\");
+	if(n != -1)
+	{
+		document.location.href = strUrl.substring(0, n);
+		bc = strUrl.substring(n+3);
+	}
+
+	if (window.setRelStartPage)
+	{
+	";
+	  OutputInTopicNavBarDataToc("addTocInfo(\"%s\");\r\n");
+	  OutputInTopicNavBarDataBrowse("addAvenueInfo(\"%s\",\"%s\",\"%s\");\r\n");
+	  OutputInTopicNavBarDataButtons("addButton(\"%s\",%s, \"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%d,%d);\r\n");
+	"
+	}
+
+	";
+	OutputInTopicDataTopBreadcrumbs("%s\r\n");
+	"
+
+	if (window.setRelStartPage)
+	{
+	";
+	  OutputInTopicNavBarDataHomePage("setRelStartPage(\"%s\");\r\n");
+	  OutputInTopicNavBarDataWebSearch.href("addSearchFormHref(\"%s\");\r\n");
+	"
+		autoSync(";WH_USER_OPTIONS.autosync_toc;");
+		sendSyncInfo();
+		sendAveInfoOut();
+	}
+
+}
+else
+	if (window.gbIE4)
+		document.location.reload();
+//-->
+</script>
+"]]>
+  </add>
+  <add tag="body" pos="beginafter">
+    <![CDATA["<script type=\"text/javascript\" language=\"javascript1.2\">
+<!--
+if (window.writeIntopicBar)
+	writeIntopicBar(";WH_WEBSKIN.topic.bar.top.pos;");
+//-->
+</script>"]]>	
+  </add>
+  <add tag="body" pos="endbefore">
+   <![CDATA["<script type=\"text/javascript\" language=\"javascript1.2\">
+<!--
+if (window.writeIntopicBar)
+	writeIntopicBar(";WH_WEBSKIN.topic.bar.bottom.pos;");
+";
+ OutputInTopicDataBottomBreadcrumbs("%s\r\n");
+"
+highlightSearch();
+//-->
+</script>";
+OutputInTopicNavBarDataWebSearch.form();]]>	
+  </add>
+ </topic>
+ <topic type="frameset">
+  <add tag="head" pos="endbefore" >
+   <![CDATA["<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_MESSAGE_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript\" src=\"";SF_VERSION_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_UTILS_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_FRAMESET_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\" src=\"";SF_TOPIC_JS;"\"></script>
+<script type=\"text/javascript\" language=\"javascript1.2\">
+<!--
+if (window.setRelStartPage)
+{
+";
+  OutputInTopicNavBarDataHomePage("setRelStartPage(\"%s\");\r\n");
+  OutputInTopicNavBarDataToc("addTocInfo(\"%s\");\r\n");
+  OutputInTopicNavBarDataBrowse("addAvenueInfo(\"%s\",\"%s\",\"%s\");\r\n");
+"
+if (window.autoSync)
+	autoSync(1);
+}
+//-->
+</script>
+"]]>
+  </add>
+ </topic>
+</topictemplate>

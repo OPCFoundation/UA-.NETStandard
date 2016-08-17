@@ -1,0 +1,168 @@
+﻿<html>
+<head>
+<title>OPC Foundation Unified Architecture Technology Samples</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+</head>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whstub.js"></script><script language="javascript1.2" src="whstart.js"></script>
+<script language="javascript">
+<!--
+var strDefaultTopic = "about:blank";
+var nWebhelpNavPaneMode = 2;			//1: DHTML 2:PureHTML 3:Noframeset
+var strPaneDHTML  = "whd_nvp10.htm";		//whd_nvp10.htm  if tab enabled, whnframe.htm if tab disabled.
+var strPaneList   = "whgdata/whnvp30.htm";
+
+var strHTML = "";
+var strPane = "";
+var nViewFrameType = -1;
+
+function CMRServer()
+{
+  this.m_cAgents = new Array;
+}
+var cMRServer = new CMRServer;
+
+//figure out which mode is the best
+if (!window.gAgent)
+{
+	// low end browser, we don't even try to determine it.
+	document.location = "whnjs.htm";
+}
+else
+{
+	if (!gbNav4&&!gbIE4&&!gbOpera7&&!gbSafari)
+		document.location = "whnjs.htm";
+	else if (gbNav4 && !gbNav6 && ((gnVerMinor <= 4.06)))
+		document.location = "whnjs.htm";
+	else if (gbMac && gbIE4 && !gbIE5)
+		document.location = "whnjs.htm";
+	//figure out which mode is the best
+	else 
+	{
+		nViewFrameType=nWebhelpNavPaneMode;
+		if (nWebhelpNavPaneMode==1)
+		{
+			var gbDHTML=(nWebhelpNavPaneMode==1);
+			if (gbNav4&&(gnVerMinor < 4.1))                 nViewFrameType = 2;
+			if (gbNav4&&(gnVerMinor == 4.6))                nViewFrameType = 2;
+			if (gbIE4&&gbDHTML)                             nViewFrameType = 1;
+			if (gbIE4&&gbSunOS&&nWebhelpNavPaneMode==2)     nViewFrameType = 2;
+			if (gbNav4&&gbSunOS&&nViewFrameType==2)         nViewFrameType = 2;
+			if (gbNav6&&gbDHTML)                            nViewFrameType = 1;
+			if (gbMac)                                      nViewFrameType = 2;
+			if (gbMac && gbNav6)                            nViewFrameType = 1;
+			if (gbSafari3)                                  nViewFrameType = 1;
+		}
+	}
+}
+
+if (nViewFrameType!=-1)
+{
+	var gbWindows = ((gAgent.indexOf("win") != -1) || (gAgent.indexOf("16bit") != -1));
+	//The colordepth of the 16 color on Windows is 1. 
+	if ((gbWindows) && (gbNav4) && (window.screen) && (window.screen.colorDepth <= 4))
+	{
+	   alert("WebHelp has detected that your display is set to 16 colors. For full WebHelp support, please set your display to use 256 or more colors.");
+	   nViewFrameType = 2;
+	}
+
+	//figure out which one is navpane
+	if (nViewFrameType == 1)
+		strPane = strPaneDHTML;
+	else 
+		strPane = strPaneList;
+
+	var oParam = new Object();
+	oParam.sTopic = "";
+	var oMsg = new whMessage(WH_MSG_GETDEFAULTTOPIC, window, 1, oParam);
+	if (SendMessage(oMsg) && oParam.sTopic != "")
+		strDefaultTopic =  oParam.sTopic;
+
+
+	if (nViewFrameType == 1)
+	{
+		//DHTML (iframe or xml based)
+		strHTML += "<frameset  id=\"whPfset\" cols=\"260,*\" frameborder=\"1\">";
+		strHTML += "<frame name=\"bsscleft\" title=\"navigation frame\" src=\"" + strPane + "\" scrolling=\"no\"></frame>";
+		strHTML += "<frame name=\"bsscright\" title=\"topic frame\" src=\"" + strDefaultTopic + "\" scrolling=\"auto\"></frame></frameset>";
+	}
+	else if (nViewFrameType == 2)
+	{
+		//generic html (pure html based)
+		strHTML += "<frameset  id=\"whPfset\" cols=\"260,*\">";
+		strHTML += "<frame title=\"navigation frame\" src=\"" + strPane + "\" name=\"bsscleft\"  scrolling=\"no\"></frame>";
+		strHTML += "<frame title=\"topic frame\" src=\"" + strDefaultTopic + "\" name=\"bsscright\" scrolling=\"auto\"></frame>";
+		strHTML += "</frameset>";
+	} 
+	else if (nViewFrameType == 3)
+	{
+		//no navipane at all
+		strHTML += "<frameset  id=\"whPfset\" border=\"0\" cols=\"100%,*\">";
+		strHTML += "<frame title=\"topic frame\" src=\"" + strDefaultTopic + "\" name=\"bsscright\" framespacing=\"0\" frameborder=\"0\" border=\"0\" scrolling=\"auto\">";
+		strHTML += "</frameset>";
+	}
+
+	document.write(strHTML);
+
+	RegisterListener2(window, WH_MSG_SHOWPANE);
+	RegisterListener2(window, WH_MSG_HIDEPANE);
+	RegisterListener2(window, WH_MSG_ISPANEVISIBLE);
+	window.onunload = window_unload;
+}
+
+function window_unload()
+{
+	UnRegisterListener2(window, WH_MSG_SHOWPANE);
+	UnRegisterListener2(window, WH_MSG_HIDEPANE);
+	UnRegisterListener2(window, WH_MSG_ISPANEVISIBLE);
+}
+
+
+function onSendMessage(oMsg)
+{
+	var nMsgId = oMsg.nMessageId;
+	if (nMsgId == WH_MSG_SHOWPANE)
+	{
+		getElement("whPfset").cols = "260,*";
+		var onMsg = new whMessage(WH_MSG_PANESTATUE, this, 1, "visible");
+		SendMessage(onMsg);
+		onMsg = new whMessage(WH_MSG_GETPANEINFO, this, 1, "");
+		if (SendMessage(onMsg))
+		{
+			onMsg = new whMessage(WH_MSG_PANEINFO, this, 1, onMsg.oParam);
+			SendMessage(onMsg);
+		}
+		return false;
+	}
+	else if (nMsgId == WH_MSG_HIDEPANE)
+	{
+		getElement("whPfset").cols = "0,*";
+		var onMsg = new whMessage(WH_MSG_PANESTATUE, this, 1, "invisible");
+		SendMessage(onMsg);
+		onMsg = new whMessage(WH_MSG_PANEINFO, this, 1, "");
+		SendMessage(onMsg);
+		return false;
+	}
+	else if (nMsgId == WH_MSG_ISPANEVISIBLE)
+	{
+		var n = parseInt(getElement("whPfset").cols);
+		if (n > 0)
+		{
+			oMsg.oParam.bVisible = true;
+		}
+		return false;
+	}
+	return true;
+}
+//-->
+</script>
+<body>
+<noscript>
+	<p> It seems javascript is disabled in your browser, please enable it and reload again, or click <a href="whnjs.htm">here</a> to view without javascript</p>
+</noscript>
+</body>
+</html>

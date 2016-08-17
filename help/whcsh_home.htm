@@ -1,0 +1,618 @@
+﻿<html>
+<script language="javascript1.2" src="whver.js"></script>
+<script language="javascript1.2" src="whmozemu.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2">
+<!--
+if(gbIE4||gbNav61)
+{
+	document.write("<body></body>");
+}
+else
+{
+	document.write("<frameset rows=\"100%,*\"><frame name=\"data_frm\" src=\"about:blank\"><frame name=\"dumb_frm\" src=\"about:blank\"></frameset>");
+}
+var gCSHFileName="whcshdata.htm";
+
+var gHomePage="index.htm";
+var gaProj=new Array();
+gaProj[0]=new Object();
+gaProj[0].sProjPath=_replaceSlash(_getPath(document.location.href));
+gaProj[0].nLoadState=0;
+var gCurrent=0;
+
+var gsTopicURL="";
+var gnCurProj=0;
+var gnCommand=-1;
+var CMD_SHOWTOC=1;
+var CMD_SHOWINDEX=2;
+var CMD_SHOWSEARCH=3;
+var CMD_SHOWGLOSSARY=4;
+var CMD_SHOWNONE=0;
+
+var RHWO_LOCATION=0x01;		/*need location bar?*/
+var RHWO_MENUBAR=0x02;		/*need menubar?*/		
+var RHWO_RESIZABLE=0x04;	/*resizable window?*/
+var RHWO_TOOLBAR=0x08;		/*need toolbar?*/
+var RHWO_STATUS=0x10;		/*need statusbar?*/
+var RHWO_SCROLLBARS=0x20;	/*need scrollbars?*/
+
+var gsStr="";
+var gnId=-1;
+var gsWindow="";
+var gsNewWnd="true";
+var gbUseStr=false;
+var gbURLReady=false;
+var goWnd=new Object();
+goWnd.sName="whCshDefault";
+goWnd.nBOptions=RHWO_RESIZABLE|RHWO_SCROLLBARS;
+goWnd.sBLeft="49%";
+goWnd.sBTop="0";
+goWnd.sBWidth="49%";
+goWnd.sBHeight="49%";
+goWnd.nPanes=1;
+var goFullWnd=new Object();
+goFullWnd.sName="whDefault";
+goFullWnd.nBOptions=RHWO_RESIZABLE|RHWO_SCROLLBARS;
+goFullWnd.sBLeft="20%";
+goFullWnd.sBTop="0";
+goFullWnd.sBWidth="79%";
+goFullWnd.sBHeight="79%";
+goFullWnd.nPanes=2;
+
+var goNewWnd=null;
+var gbLoadWnd=false;
+var gsURL="";
+
+function showCSH(sParam)
+{
+	//id=
+	//str=
+	//url=
+	//cmd=
+	//with the format #<a=xxx>>b=xxx>>c=xxx...
+	parseParam(sParam);
+	SwitchURL();
+}
+
+function IsWndReady()
+{
+	if(gaProj[0].nLoadState==0)
+	{
+		var sCshFile=_getFullPath(gaProj[0].sProjPath,gCSHFileName);
+		gaProj[0].nLoadState=1;
+		setTimeout("loadFail("+0+");",3000);
+		loadDataCsh(sCshFile);
+		gbLoadWnd=true;
+		return false;
+	}
+	else
+		return true;
+}
+
+function SwitchURL()
+{
+	if(gbURLReady)
+	{
+		var sURL="";
+		var oWnd=null;
+		if(gsTopicURL)
+		{
+			sURL=_getPath(document.location.href)+gHomePage+"#"+gsTopicURL;
+			oWnd=goWnd;
+		}
+		else
+		{
+			if(gnCommand!=-1)
+				sURL=_getPath(document.location.href)+gHomePage+"#>>cmd="+gnCommand;
+			else
+				sURL=_getPath(document.location.href)+gHomePage;
+			oWnd=goFullWnd;
+		}
+		if(gsWindow)
+		{
+			if(!IsWndReady())
+				return false;
+			if(gaProj[gnCurProj].aWnd)
+			{
+				var aWnd=gaProj[gnCurProj].aWnd;
+				var bFound=false;
+				for(var i=0;i<aWnd.length;i++)
+				{
+					if(aWnd[i].sName.toLowerCase()==gsWindow.toLowerCase())
+					{
+						oWnd=aWnd[i];
+						bFound=true;
+						break;
+					}
+				}
+				if(!bFound&&gnCurProj!=0)
+				{
+					var aWnd=gaProj[0].aWnd;
+					for(var j=0;j<aWnd.length;j++)
+					{
+						if(aWnd[j].sName.toLowerCase()==gsWindow.toLowerCase())
+						{
+							oWnd=aWnd[j];
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if(sURL&&oWnd)
+		{
+			strURLOpt="";
+			if(oWnd.sCaption)
+				strURLOpt+=">>cap="+oWnd.sCaption;
+			if(oWnd.nPanes==1)
+				strURLOpt+=">>pan="+oWnd.nPanes;
+			else if(oWnd.nPanes==2)
+			{
+				strURLOpt+=">>pan="+oWnd.nPanes;
+				if(oWnd.nPOptions)
+					strURLOpt+=">>pot="+oWnd.nPOptions;
+				if(oWnd.sPButtons)
+					strURLOpt+=">>pbs="+oWnd.sPButtons;
+				if(oWnd.sPDefBtn)
+					strURLOpt+=">>pdb="+oWnd.sPDefBtn;
+			}
+			if(strURLOpt)
+			{
+				if(sURL.indexOf("#")==-1)
+					sURL+="#";
+				sURL+=strURLOpt;
+			}
+			if(gsNewWnd=="true")
+			{
+				var strOpt=getBrowserOptionString(oWnd);
+				var sNewName=convertWindowName(oWnd.sName);
+				if(gbNav4 || gbSafari)
+				{
+					if (gbNav6)
+					{
+						gsURL = sURL;
+						goNewWnd=window.open("about:blank",sNewName,strOpt);
+						setTimeout("postWindowNSOpen();",100);
+					}
+					else
+					{
+						window.open("about:blank",sNewName,strOpt);
+						var oNewWnd=window.open(sURL,sNewName);
+						window.close();
+						oNewWnd.focus();
+						top.blur();
+					}
+				}
+				else
+				{
+					if(gbIE5)
+					{
+						var curWnd = null;	
+						curWnd = window.open("about:blank",sNewName,strOpt);
+						goNewWnd=window.open(sURL,sNewName);
+					}
+					else
+					{
+						gsURL = sURL; // IE4 had hard time to handle bookmark.
+						goNewWnd=window.open("about:blank",sNewName,strOpt);
+					}
+					setTimeout("postWindowOpen();",100);
+				}
+			}
+			else
+			{
+			     if(gsWindow)
+			    {
+			        var nTop=getSValue(oWnd.sBTop,screen.height);
+	                var nLeft=getSValue(oWnd.sBLeft,screen.width);
+	                var nWidth=getSValue(oWnd.sBWidth,screen.width);
+	                var nHeight=getSValue(oWnd.sBHeight,screen.height);
+			        window.resizeTo( nWidth , nHeight);
+			        window.moveTo(nLeft , nTop);
+			     }
+				document.location=sURL;
+			}
+		}
+	}
+}
+
+function convertWindowName(strName)
+{
+	var strNewName = strName;
+	var strResultName = "";
+	var re=new RegExp("_","g");
+	strNewName = strName.replace(re,"__");
+	for (var i=0;i<strNewName.length;i++)
+		if (!(strNewName[i] == '_' ||
+			(strNewName[i] <= '9' && strNewName[i] >= '0') ||
+			(strNewName[i] <= 'z' && strNewName[i] >= 'a') ||
+			(strNewName[i] <= 'Z' && strNewName[i] >= 'A')))
+		{
+			strResultName += "_" + strNewName.charCodeAt(i);
+		}
+		else
+			strResultName += strNewName[i];
+	return strResultName;
+}
+
+function postWindowNSOpen()
+{
+	if(goNewWnd)
+	{
+		if (gsURL)
+			goNewWnd.document.location.href=gsURL;
+		window.close();
+		goNewWnd.focus();
+		top.blur();
+	}
+}
+
+function postWindowOpen()
+{
+	if(goNewWnd)
+	{
+		if (gsURL&&!gbIE5&&gbIE4)
+			goNewWnd.document.location.href=gsURL;
+		goNewWnd.focus();
+	}
+}
+
+function parseParam(sParam)
+{
+	if(sParam)
+	{
+		var nBPos=0;
+		do
+		{
+			var nPos=sParam.indexOf(">>",nBPos);
+			if(nPos!=-1)
+			{
+				if(nPos>0)
+				{
+					var sPart=sParam.substring(nBPos,nPos);
+					parsePart(sPart);
+				}
+				nBPos=nPos+2;
+			}
+			else
+			{
+				var sPart=sParam.substring(nBPos);
+				parsePart(sPart);
+				break;
+			}
+		}while(nBPos<sParam.length);
+	}
+}
+
+function parsePart(sPart)
+{
+	if(sPart.toLowerCase().indexOf("id=")==0)
+	{
+		fetchURLById(sPart.substring(3));
+		gbURLReady=false;
+	}
+	else if(sPart.toLowerCase().indexOf("str=")==0)
+	{
+		fetchURLByStr(sPart.substring(4));
+		gbURLReady=false;
+	}
+	else if(sPart.toLowerCase().indexOf("url=")==0)
+	{
+		if(IsInternal(sPart.substring(4)))
+			gsTopicURL=sPart.substring(4);
+		gbURLReady=true;
+	}
+	else if(sPart.toLowerCase().indexOf("cmd=")==0)
+	{
+		var sCmd=sPart.substring(4);
+		if(sCmd.toLowerCase()=="toc")
+		{
+			gnCommand=CMD_SHOWTOC;
+		}
+		else if(sCmd.toLowerCase()=="idx")
+		{
+			gnCommand=CMD_SHOWINDEX;
+		}
+		else if(sCmd.toLowerCase()=="fts")
+		{
+			gnCommand=CMD_SHOWSEARCH;
+		}
+		else if(sCmd.toLowerCase()=="glo")
+		{
+			gnCommand=CMD_SHOWGLOSSARY;
+		}
+		else if(sCmd.toLowerCase()=="none")
+		{
+			gnCommand=CMD_SHOWNONE;
+		}
+		gbURLReady=true;
+	}
+	else if(sPart.toLowerCase().indexOf("wnd=")==0)
+	{
+		gsWindow=_browserStringToText(sPart.substring(4));
+	}
+	else if(sPart.toLowerCase().indexOf("newwnd=")==0)
+	{
+		gsNewWnd=sPart.substring(7);
+	}
+	else if(sPart.toLowerCase().indexOf("topicurl=") ==0)
+	{
+		document.location.href=_getPath(document.location.href)+gHomePage+"#"+ sPart.substring(9); 
+	}
+}
+
+function fetchURLById(sId)
+{
+	var nId=parseInt(sId);
+	gsTopicURL="";
+	fetchURL("",nId,false);
+}
+
+function fetchURLByStr(sStr)
+{
+	gsTopicURL="";
+	fetchURL(sStr,0,true);
+}
+
+function fetchURL(sStr,nId,bUseStr)
+{
+	var bNeedLoad=false;
+	var bFound=false;
+	for(var i=0;i<gaProj.length;i++)
+	{
+		if(gaProj[i].nLoadState==3)
+		{
+			if(gaProj[i].aCsh)
+			{
+				for(var j=0;j<gaProj[i].aCsh.length;j++)
+				{
+					var sTopicURL="";
+					if(bUseStr)
+					{
+						if(gaProj[i].aCsh[j].strAliasId.toLowerCase()==sStr.toLowerCase())
+							sTopicURL=gaProj[i].aCsh[j].strUrl;
+					}
+					else
+					{
+						if(gaProj[i].aCsh[j].nTopicNum==nId)
+							sTopicURL=gaProj[i].aCsh[j].strUrl;
+					}
+					if(sTopicURL)
+					{
+						if(i!=0)
+						{
+							gnCurProj=i;
+							if(gaProj[i].sProjPath.indexOf(gaProj[0].sProjPath)==0)
+							{
+								var sRelPath=gaProj[i].sProjPath.substring(gaProj[0].sProjPath.length);
+								gsTopicURL=sRelPath+sTopicURL;
+							}
+							else
+								gsTopicURL=gaProj[i].sProjPath+sTopicURL;
+						}
+						else
+							gsTopicURL=sTopicURL;
+						bFound=true;
+						break;
+					}
+				}
+			}
+			
+		}
+		else if(gaProj[i].nLoadState==0)
+		{
+			gsStr=sStr;
+			gnId=nId;
+			gbUseStr=bUseStr;
+			var sCshFile=_getFullPath(gaProj[i].sProjPath,gCSHFileName);
+			gaProj[i].nLoadState=1;
+			setTimeout("loadFail("+i+");",3000);
+			loadDataCsh(sCshFile);
+			bNeedLoad=true;
+		}
+		if(bFound||bNeedLoad)
+			break;
+	}
+	if(!bNeedLoad)
+	{
+		gbURLReady=true;
+		SwitchURL();
+	}
+}
+
+function loadDataCsh(sFile)
+{
+	if(gbIE4||gbNav61)
+		loadData(sFile);
+	else
+	{
+		window.frames[0].location=sFile;
+	}
+}
+
+function loadFail(nProj)
+{
+	if(gaProj[nProj].nLoadState==1)
+	{
+		gaProj[nProj].nLoadState=2;
+		if(!gbLoadWnd)
+			fetchURL(gsStr,gnId,gbUseStr);
+		else
+			SwitchURL();
+	}
+}
+
+function putCshData(strProj,aCsh,aWnd,aRmtProj)
+{
+	if(strProj)
+	{
+		strProj=_replaceSlash(strProj);
+		if(strProj.lastIndexOf("/")!=strProj.length-1)
+			strProj+="/";
+		for(var i=0;i<gaProj.length;i++)
+		{
+			if(gaProj[i].sProjPath)
+			{
+				if(isSamePath(gaProj[i].sProjPath,strProj))
+				{
+					gaProj[i].nLoadState=3;
+					gaProj[i].aCsh=aCsh;
+					gaProj[i].aWnd=aWnd;
+					break;
+				}
+			}
+		}
+		if(aRmtProj&&aRmtProj.length)
+		{
+			for(var j=0;j<aRmtProj.length;j++)
+			{
+				var strRPath=_getFullPath(strProj,aRmtProj[j]);
+				var bFound=false;
+				for (var k=0;k<gaProj.length;k++)
+				{
+					if(gaProj[k].sProjPath)
+					{
+						if(isSamePath(gaProj[k].sProjPath,strRPath))
+						{
+							bFound=true;
+							break;
+						}
+					}
+				}
+				if(!bFound)
+				{
+					var len=gaProj.length;
+					gaProj[len]=new Object();
+					gaProj[len].sProjPath=strRPath;
+					gaProj[len].nLoadState=0;
+				}
+			}
+		}
+		if(!gbLoadWnd)
+			fetchURL(gsStr,gnId,gbUseStr);
+		else
+			SwitchURL();
+			
+	}
+}
+
+function isSamePath(strPath1,strPath2)
+{
+	return strPath1.toLowerCase()==strPath2.toLowerCase();
+}
+
+function getRelHomePage(strLocation)
+{
+	var strCurPPath=_getPath(strLocation);
+	var strOriPPath=_getPath(getHomePage());
+	var strRelPath=_getRelativeFileName(strOriPPath,strCurPPath);
+	var strURL=getHomePage()+"#"+strRelPath;
+	return strURL;
+}
+
+function getHomePage()
+{
+	var strHomePage;
+	var strTmp=location.toString();
+	var nPos=strTmp.indexOf("#");
+	if(nPos!=-1)
+	{
+		strHomePage=strTmp.substring(0,nPos);
+	}
+	else
+	{
+		strHomePage=strTmp;
+	}
+	return strHomePage;
+}
+
+function getBrowserOptionString(oWnd)
+{
+	var strOpts="";
+	if(oWnd.bUseDefault)
+		return strOpts;
+	if(oWnd.nBOptions&RHWO_LOCATION)
+		strOpts+="location=yes";
+	else
+		strOpts+="location=no";
+	if(oWnd.nBOptions&RHWO_TOOLBAR)
+		strOpts+=",toolbar=yes";		
+	else
+		strOpts+=",toolbar=no";		
+	if(oWnd.nBOptions&RHWO_MENUBAR)
+		strOpts+=",menubar=yes";		
+	else
+		strOpts+=",menubar=no";
+	if(oWnd.nBOptions&RHWO_STATUS)
+		strOpts+=",status=yes";		
+	else
+		strOpts+=",status=no";		
+	if(oWnd.nBOptions&RHWO_SCROLLBARS)
+		strOpts+=",scrollbars=yes";
+	else
+		strOpts+=",scrollbars=no";	
+	if(oWnd.nBOptions&RHWO_RESIZABLE)
+		strOpts+=",resizable=yes";
+	else
+		strOpts+=",resizable=no";
+	if(oWnd.sBTop)
+	{
+		var nTop=getSValue(oWnd.sBTop,screen.height);
+		strOpts+=",top="+nTop;
+		strOpts+=",screenY="+nTop;
+	}
+	if(oWnd.sBLeft)
+	{
+		var nLeft=getSValue(oWnd.sBLeft,screen.width);
+		strOpts+=",left="+nLeft;
+		strOpts+=",screenX="+nLeft;
+	}
+	if(oWnd.sBWidth)
+	{
+		var nWidth=getSValue(oWnd.sBWidth,screen.width);
+		strOpts+=",width="+nWidth;
+		strOpts+=",outerWidth="+nWidth;
+	}
+	if(oWnd.sBHeight)
+	{
+		var nHeight=getSValue(oWnd.sBHeight,screen.height);
+		strOpts+=",height="+nHeight;
+		strOpts+=",outerHeight="+nHeight;
+	}
+	return strOpts;
+}
+
+function getSValue(sValue,nLength)
+{
+	var nValue=0;
+	var nPos=sValue.indexOf("%");
+	if(nPos!=-1)
+	{
+		if(nPos>0)
+		{
+			var nPart=parseInt(sValue.substring(0,nPos));
+			nValue=nLength*nPart/100;
+		}
+	}
+	else
+		nValue=parseInt(sValue);
+	return nValue;
+}
+
+
+window.onload=window_OnLoad;
+
+function window_OnLoad()
+{
+	var sParam = document.location.hash;
+	if(document.location.hash.length>0)
+	{
+		sParam = PatchParametersForEscapeChar(sParam);
+		showCSH(sParam.substring(1));
+	}
+}
+//-->
+</script>
+</html>

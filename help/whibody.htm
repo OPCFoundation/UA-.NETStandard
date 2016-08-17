@@ -1,0 +1,284 @@
+﻿<html>
+<head>
+<title>Index content</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+<base target="bsscright">
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmozemu.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whlang.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2" src="whhost.js"></script>
+<script language="javascript1.2" src="whihost.js"></script>
+<script language="javascript1.2">
+<!--
+var goPopup = null;
+var gbPopupMenuTimeoutExpired=false;
+var gBsClientWidth=640;
+var gBsClientHeight=480;
+var g_bIsPopupMenuInit=false;
+
+function WritePopupMenuLayer()
+{
+	if (!g_bIsPopupMenuInit)
+	{
+		document.write("<DIV ID='PopupMenu' STYLE='position:absolute; left:0px; top:0px; z-index:4; visibility:hidden;'></DIV>");
+		document.write("<STYLE TYPE='text/css'>");
+		if (gbMac && gbIE4) {
+			document.write(".PopupOver {font-family:'Arial'; color:white; background:navy; font-size:10pt; text-decoration:none;}");
+			document.write(".PopupNotOver {font-family:'Arial'; color:black; background:#c0c0c0; font-size:10pt; text-decoration:none;}");
+		} else {
+			document.write(".PopupOver {font-family:'Arial'; color:white; background:navy; font-size:8pt; text-decoration:none;}");
+			document.write(".PopupNotOver {font-family:'Arial'; color:black; background:#c0c0c0; font-size:8pt; text-decoration:none;}");
+		}
+		document.write("</STYLE>");
+	}
+	g_bIsPopupMenuInit = true;
+}
+
+function PopupMenu_Invoke()
+{
+	if (gbNav6)
+		resetHighLight();
+	
+	if (!gbNav6  && document.readyState != "complete")
+		return false;
+	var fn_arguments = PopupMenu_Invoke.arguments; 
+	// Make sure we have reasonable arguments
+	var argLen = fn_arguments.length;
+	if (argLen < 3) {
+		return false;
+	}
+
+	// Check to see if we only have one target
+	var strTarget = "";
+	
+	strTarget = "TARGET='" + fn_arguments[1] + "'";
+	
+	if (argLen < 5) {
+		// Get the place that we will be putting the topic into
+		var strURL = fn_arguments[3];
+
+		if (fn_arguments[1] != null && typeof(fn_arguments[1]) != "undefined")
+			window.open(strURL, fn_arguments[1]);
+		else
+			window.open(strURL);
+			
+		return false;
+	}
+	
+	var strMenu = '<TABLE STYLE="border:2px outset white;" CELLSPACING=0';
+	if (gbMac && gbIE4) {
+		strMenu += ' CELLPADDING=4';
+	} else {
+		strMenu += ' CELLPADDING=2';
+	}	
+	strMenu += ' BGCOLOR=#c0c0c0>';
+
+	// Add each of the items
+	if (gbIE55)
+	{
+		var i = 2;
+		while (i <= argLen - 1) {
+			strMenu += '<TR><TD><NOBR>'
+			strMenu += '<DIV STYLE="padding-left:3pt; padding-right:3pt;"><A ';
+			strMenu += ' onclick="parent.PopupMenu_2HandleClick(\'' + excapeSingleQuotandSlash(fn_arguments[i + 1]) + '\', \'' + fn_arguments[1] + '\');"';
+			strMenu += ' onmouseover="parent.PopupMenu_Over(event);"';
+			strMenu += ' onmouseout="parent.PopupMenu_Out(event);"';
+			strMenu += '>';
+			strMenu += '<SPAN CLASS="PopupNotOver">' + fn_arguments[i] + '</SPAN>';
+			strMenu += '</A></DIV></NOBR></TD></TR>';
+			i += 2;
+		}
+	}
+	else
+	{
+		var i = 2;
+		while (i <= argLen - 1) {
+			strMenu += '<TR><TD><NOBR>'
+			strMenu += '<DIV STYLE="padding-left:3pt; padding-right:3pt;"><A HREF="' + fn_arguments[i + 1] + '" ' + strTarget;
+			strMenu += ' onclick="PopupMenu_HandleClick(event);"';
+			strMenu += ' onmouseover="PopupMenu_Over(event);"';
+			strMenu += ' onmouseout="PopupMenu_Out(event);"';
+			strMenu += '>';
+			strMenu += '<SPAN CLASS="PopupNotOver">' + excapeSingleQuotandSlash(fn_arguments[i]) + '</SPAN>';
+			strMenu += '</A></DIV></NOBR></TD></TR>';
+			i += 2;
+		}
+	}
+	strMenu += "</TABLE>";
+
+	if (gbMac && gbIE4) {
+	// ie5 in mac need something. </TABLE> is one of them.
+		strMenu +="<TABLE></TABLE>";
+	}
+
+	var layerPopup = null;
+	var stylePopup = null;
+	var nEventX = 0;
+	var nEventY = 0;
+	var nWindowWidth = 0;
+	if (gbIE4||gbOpera7)
+	{
+		layerPopup = document.all["PopupMenu"];
+		layerPopup.innerHTML = strMenu;
+		stylePopup = layerPopup.style;
+
+		_BSPSGetClientSize();
+
+		// Get the position of the item causing the event (relative to its parent)
+		nEventX = window.event.clientX;
+		nEventY = window.event.clientY;
+		
+		if (nEventY + layerPopup.scrollHeight + 10 < gBsClientHeight) {
+			nEventY += document.body.scrollTop + 10;
+		} else {
+			nEventY = (document.body.scrollTop + gBsClientHeight) - layerPopup.scrollHeight - 20;
+		}
+		stylePopup.top = nEventY;
+
+		if (nEventX + layerPopup.scrollWidth + 20 > gBsClientWidth) {
+			if (gBsClientWidth - layerPopup.scrollWidth < 5) {
+				stylePopup.left = 5;
+			} else {
+				stylePopup.left = gBsClientWidth - layerPopup.scrollWidth - 5;
+			}
+		} else {
+			stylePopup.left = nEventX + document.body.scrollLeft + 20;
+		}
+
+		if (gbIE55) {
+			var nPosX = window.event.clientX;
+			var nPosY = window.event.clientY;
+			if (window.event.srcElement)
+			{
+				nPosX = window.event.srcElement.offsetLeft + window.event.srcElement.offsetWidth - document.body.scrollLeft;
+				nPosY = window.event.srcElement.offsetTop + window.event.srcElement.offsetHeight - document.body.scrollTop;
+			}
+			goPopup = window.createPopup();
+			var oPopupBody = goPopup.document.body;
+			goPopup.document.createStyleSheet();
+			goPopup.document.styleSheets[0].addRule(".PopupOver", "{font-family:\"Arial\"; cursor: hand;color:white; background:navy; font-size:8pt; text-decoration:none;}");
+			goPopup.document.styleSheets[0].addRule(".PopupNotOver", "{font-family:\"Arial\"; color:black; background:#c0c0c0; font-size:8pt; text-decoration:none;}");
+			oPopupBody.insertAdjacentHTML("afterBegin", strMenu);
+			goPopup.show(nPosX, nPosY, layerPopup.scrollWidth, layerPopup.scrollHeight, document.body);
+		}
+		else 
+		{
+			stylePopup.visibility = "visible";
+			document.onclick = PopupMenu_HandleClick;
+		}
+	} else if (gbNav6) {
+		layerPopup = document.getElementById("PopupMenu");
+		layerPopup.style.visibility = "hidden";
+	
+		var e = fn_arguments[0];
+		nEventX = e.pageX;
+		nEventY = e.pageY;
+		_BSPSGetClientSize();
+		layerPopup.innerHTML = strMenu;
+
+		if (nEventY + layerPopup.offsetHeight + 20  <  window.pageYOffset + gBsClientHeight) {
+			nEventY += 20;
+		} else {
+			nEventY = gBsClientHeight + window.pageYOffset - layerPopup.offsetHeight - 20;
+		}
+
+		if (nEventX + layerPopup.offsetWidth + 20 > gBsClientWidth + window.pageXOffset) {
+			if (gBsClientWidth + window.pageXOffset - layerPopup.offsetWidth < 20) {
+				nEventX = 5;
+			} else {
+				nEventX = gBsClientWidth + window.pageXOffset - layerPopup.offsetWidth - 20;
+			}
+		} else {
+			nEventX += 20;
+		}
+		layerPopup.style.top = nEventY;
+		layerPopup.style.left = nEventX;
+
+		// set again to avoid the frash in netscape 6.
+		layerPopup.innerHTML = strMenu;
+		layerPopup.style.visibility = "visible";
+		window.onclick = PopupMenu_HandleClick;
+	} 
+
+	window.gbPopupMenuTimeoutExpired = false;
+	setTimeout("PopupMenu_Timeout();", 100);
+	return false;
+}
+
+function PopupMenu_Timeout()
+{
+	window.gbPopupMenuTimeoutExpired = true;
+}
+
+function PopupMenu_Over(e)
+{
+	if (gbIE4||gbOpera7)
+		e.srcElement.className = "PopupOver";
+	else if (gbNav6)
+		e.target.parentNode.className = "PopupOver";
+}
+
+function PopupMenu_Out(e)
+{
+	if (gbIE4||gbOpera7)
+		e.srcElement.className = "PopupNotOver";
+	else if (gbNav6)
+		e.target.parentNode.className = "PopupNotOver";
+}
+
+function PopupMenu_2HandleClick(surl, starget)
+{
+	window.open(surl, starget);
+	goPopup.hide();
+}
+
+function PopupMenu_HandleClick(e)
+{
+	if (!window.gbPopupMenuTimeoutExpired) {
+		return;
+	}
+
+	var layerPopup = getElement("PopupMenu");
+	layerPopup.style.visibility = "hidden";
+
+	return;
+}
+
+//Get client size info
+function _BSPSGetClientSize()
+{
+	gBsClientWidth	= document.body.clientWidth;
+	gBsClientHeight = getClientHeight();
+}
+
+if (window.gbWhIHost)
+{
+	
+	
+	setFont("Normal", "Arial","9pt","#000000","normal","normal","none");
+	setFont("Empty", "Arial","9pt","#000000","normal","normal","none");
+	setFont("Hover", "Arial","9pt","#007f00","normal","normal","underline");
+	setActiveBgColor("#cccccc");
+	setMargin("0pt");
+	setIndent("9pt");
+	IndexWriteClassStyle();
+}
+else
+	document.location.reload();
+//-->
+</script>
+</head>
+<body topmargin="2" leftmargin="2" marginwidth="0" marginheight="0" bgproperties="fixed" scroll="auto" bgcolor="white">
+<script languageE="JavaScript">
+<!--
+WritePopupMenuLayer();
+//-->
+</script>
+</body>
+</html>
+

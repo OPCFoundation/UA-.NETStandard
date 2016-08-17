@@ -1,0 +1,106 @@
+﻿<html>
+<head>
+<title>OPC Foundation Unified Architecture Technology Samples</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+<script language="javascript" src="whutils.js"></script>
+<script language="javascript">
+<!--
+var gCSHFileName   = "whc_data.htm";
+var gCSHSuffixName1 = "_csh.html";
+var gCSHSuffixName2 = "_csh.htm";
+//-->
+</script>
+<script language="javascript">
+<!--
+gCSHFileName="cshdat_webhelp.htm";
+//-->
+</script>
+<script language="javascript">
+<!--
+var gasProj = new Array();
+gasProj[0] = _getPath(document.location.href);
+var gCurrent = 0;
+
+function addProject(strProj)
+{
+	var len  = gasProj.length;
+	if (strProj)
+	{
+		strProj = _replaceSlash(strProj);
+		if (strProj.lastIndexOf("/") != strProj.length - 1)
+			strProj += "/";
+		var strPPath = _getFullPath(_getPath(document.location.href), strProj);
+		var bFound = false;
+		for (var i = 0; i < len; i ++)
+		{
+			if (isSamePath(gasProj[i], strPPath))
+			{
+				bFound = true;
+				break;
+			}
+		}
+		if (!bFound)
+			gasProj[len] = strPPath;
+	}
+}
+
+function isSamePath(strPath1, strPath2)
+{
+	return strPath1.toLowerCase() == strPath2.toLowerCase();
+}
+
+function goNext()
+{
+	gCurrent ++;
+	var len = gasProj.length;
+	if (gCurrent >= len)
+		return getHomePage()
+	else
+		frames["csh"].location = gasProj[gCurrent] + gCSHFileName;
+	return "";
+}
+
+function getRelHomePage(strLocation)
+{
+	var strCurPPath = _getPath(strLocation);
+	var strOriPPath = _getPath(getHomePage());
+	var strRelPath = _getRelativeFileName(strOriPPath, strCurPPath);
+	var strURL = getHomePage() + "#" + strRelPath;
+	return strURL;
+}
+
+function getHomePage()
+{
+	var strHomePage;
+	var strTmp = location.toString();
+	var nPos = strTmp.indexOf("#");
+	if (nPos != -1)
+	{
+	   strHomePage = strTmp.substring(0, nPos);
+	}
+	else
+	{
+	   strHomePage = strTmp;
+	}
+	var nPos1 = strHomePage.indexOf(gCSHSuffixName1);
+	var nPos = strHomePage.indexOf(gCSHSuffixName2);
+	if (nPos != -1)
+	{
+	   strHomePage = strHomePage.substring(0,nPos);
+	   if (nPos1 != -1)
+	     strHomePage += ".html";
+	   else
+	     strHomePage += ".htm";
+	}
+	return strHomePage;
+}
+//-->
+</script>
+</head>
+<frameset rows="1,*">
+<frame name="dumb" src="about:blank"></frame>
+<frame name="csh" src="cshdat_webhelp.htm"></frame>		
+</frameset>
+</html>

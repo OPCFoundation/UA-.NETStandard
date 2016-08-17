@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<odb>
+	<odbtype type="WebHelp"/>
+	<language name="en_US"/>
+	<index type="TopicIndex" url="topictableindex.xml"/>
+	<index type="PackageIndex" url="packageindex.xml"/>
+	<index type="Synonym" url="synonym.xml"/>
+	<files>
+		<file url="whxdata\package_0.xml"/>
+		<file url="whxdata\package_1.xml"/>
+		<file url="whxdata\package_2.xml"/>
+		<file url="whxdata\package_3.xml"/>
+		<file url="whxdata\package_4.xml"/>
+		<file url="whxdata\packageindex.xml"/>
+		<file url="whxdata\synonym.xml"/>
+		<file url="whxdata\topictable_0.xml"/>
+		<file url="whxdata\topictableindex.xml"/>
+		<file url="whxdata\whfts.xml"/>
+	</files>
+</odb>

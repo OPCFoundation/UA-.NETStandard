@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="topic-comment" content="" />
+<meta name="Author" content="Nathan Pocock, nathan.pocock@opcfoundation.org" />
+<meta name="generator" content="Adobe RoboHelp 9" />
+<title>OPC Foundation Unified Architecture .NET Sample Code (open source)</title>
+<link rel="StyleSheet" href="default.css" type="text/css" />
+<style type="text/css">/*<![CDATA[*/
+P {
+	margin-left: 0pt;
+	margin-right: 0pt;
+	font-family: Verdana;
+	margin-bottom: 3pt;
+	margin-top: 18pt;
+}
+H1 {
+	font-weight: bold;
+	margin-top: 14pt;
+	margin-bottom: 14pt;
+	margin-left: 0pt;
+	margin-right: 0pt;
+	page-break-after: avoid;
+	font-family: Verdana;
+	x-next-class: ;
+	x-next-type: P;
+	font-size: 18pt;
+}
+H2 {
+	font-weight: bold;
+	margin-top: 14pt;
+	margin-bottom: 14pt;
+	margin-left: 0pt;
+	margin-right: 0pt;
+	page-break-after: avoid;
+	font-family: Verdana;
+	x-next-class: ;
+	x-next-type: P;
+	font-size: 14pt;
+}
+H3 {
+	font-weight: bold;
+	margin-top: 14pt;
+	margin-bottom: 14pt;
+	margin-left: 0pt;
+	margin-right: 0pt;
+	page-break-after: avoid;
+	font-family: Verdana;
+	x-next-class: ;
+	x-next-type: P;
+	font-size: 12pt;
+}
+/*]]>*/</style>
+</head>
+
+<body>
+<?rh-region_start type="header" style="width: 100%; position: relative;" ?>
+	<p><span style="font-weight: bold; font-size: 10pt;"><a href="http://www.opcfoundation.org" 
+															 style="color: #0000ff; 
+															 font-size: 10pt; 
+															 text-decoration: underline; "><img 
+	 src="OPCFoundation.jpg" alt="" style="border: none;" width="189" height="61" 
+	 align="left" border="0" /></a>The Interoperability Standard<br />
+	for Industrial Automation</span> </p>
+	<table cellspacing="0" width="100%" align="center">
+		<tr>
+			<td style="vertical-align: top;"><span style="font-size: 8pt;"><a 
+			 href="Welcome.htm">Welcome</a> | <a href="http://www.opcfoundation.org" 
+												 target="_blank" style="color: #0000ff; 
+												 text-decoration: underline; "><?rh-udv_start 
+			 name="CompanyName" ?>OPC Foundation<?rh-udv_end ?> Online</a> 
+			 | <a href="https://opcfoundation.org/certification/overview-benefits/" 
+					 target="_blank">Certification</a> | <a href="https://opcfoundation.org/about/opc-technologies/opc-ua/" 
+															 target="_blank">Technology</a> 
+			 | <a href="https://opcfoundation.org/news/opc-foundation-news/" 
+					 target="_blank">News</a></span><span style="font-size: 8pt;"> 
+			 </span></td>
+			<td style="vertical-align: top; text-align: right; font-size: 8pt;"><a 
+			 href="https://github.com/OPCFoundation">https://gitHub.com/OPCFoundation</a></td>
+		</tr>
+	</table>
+	<p style="border-bottom: Solid 1px #000000; font-weight: bold; text-align: center;"><span 
+	 style="font-weight: bold;"><?rh-udv_start name="TechnologyName" ?>Unified Architecture<?rh-udv_end ?> 
+	 Technology Sample Applications</span></p>
+<?rh-region_end type="header" ?>
+<?rh-region_start type="body" ?>
+	<p>This is Body Placeholder text for your Master Page. Topics created 
+	 using this Master Page will get this text by default. Replace text 
+	 of this Body Placeholder with your default content for topics.</p>
+	<p>Area outside this Body Placeholder represents the layout of the 
+	 Master Page which will not be shown in the associated topics but will 
+	 be present in the output. The Body Placeholder content will be replaced 
+	 by actual topic content in the output.</p>
+	<p>Use Master Page to define the layout of your topic in the output.</p>
+<?rh-region_end type="body" ?>
+<?rh-region_start type="footer" style="width: 100%; position: relative;" ?>
+	<p style="border-top: Solid 1px #000000; text-align: right; font-size: 8pt;">Copyright 
+	 OPC Foundation 1995-2015<br />
+	Author: <a href="mailto:nathan.pocock@opcfoundation.org" style="font-size: 8pt;">Nathan 
+	 Pocock</a>; Last Update: August 28, 2015</p>
+<?rh-region_end type="footer" ?>
+</body>
+</html>

@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="search-keywords" content="certificate, generator" />
+<meta name="generator" content="Adobe RoboHelp 9" />
+<title>Certificate Generator</title>
+<link rel="StyleSheet" href="default.css" type="text/css" />
+<style type="text/css">
+/*<![CDATA[*/
+<!--
+div.WebHelpPopupMenu { position:absolute;
+left:0px;
+top:0px;
+z-index:4;
+visibility:hidden; }
+p.WebHelpNavBar { text-align:right; }
+-->
+/*]]>*/
+</style>
+
+<script type="text/javascript" language="javascript1.2" src="whmsg.js">
+</script>
+<script type="text/javascript" language="javascript" src="whver.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whproxy.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whutils.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whlang.js">
+</script>
+<script type="text/javascript" language="javascript1.2" src="whtopic.js">
+</script>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.gbWhTopic)
+{
+        var strUrl = document.location.href;
+        var bc = 0;
+        var n = strUrl.toLowerCase().indexOf("bc-");
+        if(n != -1)
+        {
+                document.location.href = strUrl.substring(0, n);
+                bc = strUrl.substring(n+3);
+        }
+
+        if (window.setRelStartPage)
+        {
+        addTocInfo("Securing Applications\nCertificate Generator");
+addButton("show",BTN_TEXT,"Show","","","","",0,0,"whd_show0.gif","whd_show2.gif","whd_show1.gif");
+addButton("hide",BTN_TEXT,"Hide","","","","",0,0,"whd_hide0.gif","whd_hide2.gif","whd_hide1.gif");
+addButton("prev",BTN_TEXT,"<<","","","","",0,0,"whd_prev0.gif","whd_prev2.gif","whd_prev1.gif");
+addButton("next",BTN_TEXT,">>","","","","",0,0,"whd_next0.gif","whd_next2.gif","whd_next1.gif");
+
+        }
+
+        document.write("<p style=\"font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right\"> ");
+AddMasterBreadcrumbs("index.htm", "font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right", "&gt;", "Home", "welcome.htm");
+document.write("<a style=\"font-family: Arial; font-size: 8pt; font-weight: 400;  font-style:normal; color: rgb(0, 0, 255); text-decoration:none; text-align: right\" href=\"overviewsecuringapplications.htm\">Securing Applications<\/a> &gt; Certificate Generator<\/p>");
+
+
+        if (window.setRelStartPage)
+        {
+        setRelStartPage("index.htm");
+
+                autoSync(0);
+                sendSyncInfo();
+                sendAveInfoOut();
+        }
+
+}
+else
+        if (window.gbIE4)
+                document.location.reload();
+//-->
+//]]>
+</script>
+</head>
+<body>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.writeIntopicBar)
+        writeIntopicBar(4);
+//-->
+//]]>
+</script>
+<h1>Certificate Generator</h1>
+<p>Unified Architecture certificates can be generated from the command-line using the UA Certificate Generator. The <a href="ua_configuration_tool.htm" title="ua_configuration_tool.htm">UA Configuration Tool</a> uses this tool internally. Source code is provided with the sample application source-code.</p>
+<p>Run the following command from the command-prompt to obtain important help information:</p>
+<p class="Code">Opc.Ua.CertificateGenerator.exe -?</p>
+<p>&#160;</p>
+<p>... the following information will be displayed:</p>
+<p class="Code">-command or -cmd &lt;issue | revoke | unrevoke | install&gt; The action to perform (default = issue).</p>
+<p class="Code">-storePath or -sp &lt;filepath&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The directory of the certificate store (mandatory, must be writeable).</p>
+<p class="Code">-applicationName or -an &lt;name&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The name of the application (mandatory).</p>
+<p class="Code">-applicationUri or -au &lt;uri&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The URI for the appplication (optional).</p>
+<p class="Code">-subjectName or -sn &lt;DN&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The distinguished subject name, fields seperated by a / (i.e. CN=Hello/O=World).</p>
+<p class="Code">-organization or -o &lt;name&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The organization (optional).</p>
+<p class="Code">-domainNames or -dn &lt;name&gt;,&lt;name&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;A list of domain names seperated by commas (optional)</p>
+<p class="Code">-password or -pw &lt;password&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The password for the new private key file (optional).</p>
+<p class="Code">-issuerKeyFilePath or -ikf &lt;filepath&gt; &#160;&#160;&#160;&#160;&#160;&#160;The path to the issuer private key file (optional).</p>
+<p class="Code">-issuerKeyPassword or -ikp &lt;password&gt; &#160;&#160;&#160;&#160;&#160;&#160;The password for the issuer private key file (optional).</p>
+<p class="Code">-keySize or -ks &#160;&lt;bits&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The size of key as a multiple of 1024 (default = 1024).</p>
+<p class="Code">-lifetimeInMonths or -lm &lt;months&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The lifetime in months (default = 60).</p>
+<p class="Code">-publicKeyFilePath or -pbf &lt;filepath&gt; &#160;&#160;&#160;&#160;&#160;&#160;The path to the certificate to renew or revoke (a DER file).</p>
+<p class="Code">-privateKeyFilePath or -pvf &lt;filepath&gt; &#160;&#160;&#160;&#160;&#160;The path to an existing private key to reuse or convert.</p>
+<p class="Code">-privateKeyPassword or -pvp &lt;password&gt; &#160;&#160;&#160;&#160;&#160;The password for the private key.</p>
+<p class="Code">-reuseKey or -rk &lt;true | false&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Whether to reuse an existing public key (default = false).</p>
+<p class="Code">-ca &lt;true | false&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Whether to create a CA certificate (default = false).</p>
+<p class="Code">-pem &lt;true | false&gt; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Whether to output in the PEM format (default = PFX).</p>
+<p class="Code">&#160;&#160;</p>
+<h2>Examples</h2>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Create a self-signed Application Certificate:</span> -cmd issue -sp . -sn MyApp</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Create a CA Certificate:</span> -cmd issue -sp . -an MyCA -ca true</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Issue an Application Certificate:</span> -cmd issue -sp . -an MyApp -ikf CaKeyFile -ikp CaPassword</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Renew a Certificate:</span> -cmd issue -sp . -pbf MyCertFile -ikf CaKeyFile -ikp CaPassword</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Revoke a Certificate:</span> -cmd revoke -sp . -pbf MyCertFile -ikf CaKeyFile -ikp CaPassword</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Unrevoke a Certificate:</span> -cmd unrevoke -sp . -pbf MyCertFile -ikf CaKeyFile -ikp CaPassword</p>
+<p class="Code"><span style="font-family: Verdana, sans-serif;">Convert key format:</span> -cmd convert true -pw newpassword -pvf MyKeyFile -pvp oldpassword -pem true</p>
+<p style="color: #ff0000;">&#160;</p>
+<script type="text/javascript" language="javascript1.2">
+//<![CDATA[
+<!--
+if (window.writeIntopicBar)
+        writeIntopicBar(0);
+
+highlightSearch();
+//-->
+//]]>
+</script>
+</body>
+</html>

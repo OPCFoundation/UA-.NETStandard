@@ -1,0 +1,88 @@
+﻿<html>
+<head>
+<title>OPC Foundation Unified Architecture Technology Samples</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+</head>
+<body>
+<script language="javascript1.2" src="whver.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="JavaScript">
+<!--
+var gaCsh=new Array();
+
+var gaWindow=new Array();
+
+var gaRmtProj=new Array();
+
+var gsProjPath=_getPath(document.location.href);
+
+function CshEntityItem(strAliasId,nTopicNum,strUrl)
+{
+	this.strAliasId=strAliasId;
+	this.nTopicNum=nTopicNum;
+	this.strUrl=strUrl;
+}
+
+function CshWindow(sWName,bBUseDefault,nWBOptions,sWBLeft,sWBTop,sWBWidth,sWBHeight,sWCaption,nWPanes,nWPOptions,sWPButtons,sWPDefBtn)
+{
+	this.sName=sWName;
+	this.bUseDefault=bBUseDefault;
+	if(!this.bUseDefault)
+	{
+		this.nBOptions=nWBOptions;
+		this.sBLeft=sWBLeft;
+		this.sBTop=sWBTop;
+		this.sBWidth=sWBWidth;
+		this.sBHeight=sWBHeight;
+	}
+	this.sCaption=sWCaption;
+	this.nPanes=nWPanes;
+	if(this.nPanes==2)
+	{
+		this.nPOptions=nWPOptions;
+		this.sPButtons=sWPButtons;
+		this.sPDefBtn=sWPDefBtn;
+	}
+}
+
+function addRemoteProject(sPath)
+{
+	if(sPath.length!=0)
+	{
+		if(sPath.lastIndexOf("/")!=sPath.length-1)
+			sPath+="/";
+		gaRmtProj[gaRmtProj.length]=sPath;	
+	}
+}
+
+//Set Context-sensitive help entity...
+function SetCsh(n,strAliasId,nTopicNum,strUrl)
+{
+	gaCsh[n]=new CshEntityItem(strAliasId,nTopicNum,strUrl);
+}
+
+function addWindow(sWName,bBUseDefault,nWBOptions,sWBLeft,sWBTop,sWBWidth,sWBHeight,sWCaption,nWPanes,nWPOptions,sWPButtons,sWPDefBtn)
+{
+	gaWindow[gaWindow.length]=new CshWindow(sWName,bBUseDefault,nWBOptions,sWBLeft,sWBTop,sWBWidth,sWBHeight,sWCaption,nWPanes,nWPOptions,sWPButtons,sWPDefBtn);
+}
+
+
+addWindow("NewWindow",true,0,"","","","","NewWindow",2,2,"toc|ndx|nls|gls","toc");
+
+
+
+window.onload=window_OnLoad;
+
+function window_OnLoad()
+{
+	if(parent&&parent!=this&&parent.putCshData)
+	{
+		parent.putCshData(gsProjPath,gaCsh,gaWindow,gaRmtProj);
+	}
+}
+//-->
+</script>
+</body>
+</html>

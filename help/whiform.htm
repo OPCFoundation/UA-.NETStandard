@@ -1,0 +1,91 @@
+﻿<html>
+<head>
+<title>Index form</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+</head>
+<style>
+<!--
+body {margin:0;}
+-->
+</style>
+<body bgcolor="#c0c0c0">
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2" src="whform.js"></script>
+<script language="javascript1.2">
+<!--
+function indexLookup(bCR)
+{
+	var strInput = document.IndexInputForm.keywordField.value;
+	if (strInput != "") {
+		var oParam = new Object();
+		oParam.sInput = strInput;
+		oParam.bCR = bCR;
+		var oMessage = new whMessage(WH_MSG_SEARCHINDEXKEY, this, 1, oParam);
+		SendMessage(oMessage);
+	}
+	if (gbMac) {
+		document.IndexInputForm.keywordField.focus();
+	}
+}
+
+function window_Unload()
+{
+	UnRegisterListener2(this, WH_MSG_SHOWTOC);
+	UnRegisterListener2(this, WH_MSG_SHOWIDX);
+	UnRegisterListener2(this, WH_MSG_SHOWFTS);
+	UnRegisterListener2(this, WH_MSG_SHOWGLO);
+}
+
+function onSendMessage(oMessage)
+{
+	if (oMessage.nMessageId == WH_MSG_SHOWIDX)
+	{
+		document.IndexInputForm.keywordField.focus();
+	}
+	else if (oMessage.nMessageId == WH_MSG_SHOWFTS ||
+		oMessage.nMessageId == WH_MSG_SHOWTOC || 
+		oMessage.nMessageId == WH_MSG_SHOWGLO)
+	{
+		document.IndexInputForm.keywordField.blur();
+	}
+	return true;
+}
+
+if (window.gbWhForm)
+{
+	RegisterListener2(this, WH_MSG_SHOWTOC);
+	RegisterListener2(this, WH_MSG_SHOWIDX);
+	RegisterListener2(this, WH_MSG_SHOWFTS);
+	RegisterListener2(this, WH_MSG_SHOWGLO);
+	window.onunload=window_Unload;
+	window.onload = init;
+	gfunLookUp = indexLookup;
+	gfunInit = null;
+	gstrFormName = "IndexInputForm"
+	gsTitle = "Type in the keyword to find:";
+	gsTitle = "Type in the keyword to find:";
+
+	
+	
+	
+	
+	
+	
+	setGoText("Go");
+	setFont("Title", "Arial","9pt","#000000","normal","normal","none");
+	
+	
+	document.write(getFormHTML());
+	writeFormStyle();
+}
+else
+	document.location.reload();
+//-->
+</script>
+</body>
+</html>

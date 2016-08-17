@@ -1,0 +1,98 @@
+﻿<html>
+<head>
+<title>Glossary Definition</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2">
+<!--
+var gsBgColor="#ffffff";
+var gsBgImage="";
+var goGloFont=null;
+
+function setBackground(sBgImage)
+{
+	gsBgImage=sBgImage;
+}
+
+function setBackgroundcolor(sBgColor)
+{
+	gsBgColor=sBgColor;
+}
+
+function window_Unload()
+{
+	UnRegisterListener2(this, WH_MSG_SHOWGLODEF);
+}
+
+function window_OnLoad()
+{
+	if(gsBgImage&&gsBgImage.length>0)
+		document.body.background=gsBgImage;
+	if(gsBgColor&&gsBgColor.length>0)
+		document.body.bgColor=gsBgColor;
+}
+
+function setFont(sType, sFontName, sFontSize, sFontColor, sFontStyle, sFontWeight, sFontDecoration)
+{
+	var vFont = new whFont(sFontName, sFontSize, sFontColor, sFontStyle, sFontWeight, sFontDecoration);
+	if (sType == "Normal")
+		goGloFont = vFont;
+}
+
+function textToHtml_nbsp_specialcare(sText)
+{
+	if (sText == null) return null;
+	var sHTML= sText;
+	var re = new RegExp("  ","g");
+	sHTML=  sHTML.replace(re, "&nbsp; ");
+	return  sHTML;
+}
+
+function onSendMessage(oMsg)
+{
+	var nMsgId = oMsg.nMessageId;
+	if (nMsgId == WH_MSG_SHOWGLODEF)
+	{
+		document.body.innerHTML = sDefHead + textToHtml_nbsp_specialcare(oMsg.oParam.sDef) + sDefTail;
+		return true;
+	}
+}
+
+function GDefWriteClassStyle()
+{
+	var sStyle="<STYLE TYPE='text/css'>\n";
+	if (gsBgImage)
+		sStyle+="body {border-top:"+gsBgColor+" 1px solid;}\n";
+	else
+		sStyle+="body {border-top:black 1px solid;}\n";
+	sStyle+=".definition {"+getFontStyle(goGloFont)+"margin:2;}\n";
+	sStyle+="</STYLE>";
+	document.write(sStyle);
+}
+
+if (window.gbWhMsg&&window.gbWhUtil&&window.gbWhProxy&&window.gbWhVer)
+{
+	window.onload=window_OnLoad;
+	window.onunload = window_Unload;
+	goGloFont=new whFont("Microsoft Sans Serif", "8pt", "#000000", "normal", "normal", "none");
+	
+	
+	setFont("Normal", "Arial","9pt","#000000","normal","normal","none");
+	GDefWriteClassStyle();
+	RegisterListener2(this, WH_MSG_SHOWGLODEF);
+	var sDefHead = "<p class=\"definition\">";
+	var sDefTail = "</p>";
+}
+else
+	document.location.reload();
+//-->
+</script>
+</head>
+<body bgproperties="fixed" bgcolor="white">
+</body>
+</html>

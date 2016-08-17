@@ -1,0 +1,200 @@
+﻿<html>
+<head>
+<title>Search Form</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+</head>
+<style>
+<!--
+body {margin:0;}
+-->
+</style>
+<body bgcolor="#c0c0c0">
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2" src="whform.js"></script>
+<script language="javascript1.2">
+<!--
+var gstrInput = "";
+var gstrSyn = "";
+var nNumRslt = 0 ;
+
+function ftsLookup(bCR)
+{
+	if (bCR)
+	{
+		var strInput = document.FtsInputForm.keywordField.value.toUpperCase();
+		if (strInput != "") {
+			var oMsg = new whMessage(WH_MSG_SEARCHFTSKEY, this, 1, strInput);
+			if (!SendMessage(oMsg))
+			{
+				gstrInput = strInput;
+			}
+			else
+			{
+				gstrInput = "";
+				gstrSyn = "";
+				nNumRslt = 0 ;
+			}
+		}
+
+		if (gbMac) {
+			document.FtsInputForm.keywordField.focus();
+		}
+	}
+	return;
+}
+
+function beforeInit()
+{
+	var oParam = new Object();
+	oParam.sValue = "";
+	var oMsg = new whMessage(WH_MSG_GETSEARCHS, this, 1, oParam);
+	if (SendMessage(oMsg))
+	{
+		if (oParam.sValue != "" && oParam.sValue != "- Search -")
+		{
+			document.FtsInputForm.keywordField.value = oParam.sValue;
+			gfunLookUp(true);
+		}
+	}
+	init();	
+}
+
+function window_unload()
+{
+	UnRegisterListener2(this, WH_MSG_SHOWTOC);
+	UnRegisterListener2(this, WH_MSG_SHOWIDX);
+	UnRegisterListener2(this, WH_MSG_SHOWFTS);
+	UnRegisterListener2(this, WH_MSG_SHOWGLO);
+	UnRegisterListener2(this, WH_MSG_SEARCHTHIS);
+	UnRegisterListener2(this, WH_MSG_BACKUPSEARCH);
+	UnRegisterListener2(this, WH_MSG_HILITESEARCH);
+	UnRegisterListener2(this, WH_MSG_GETSEARCHSTR);
+	UnRegisterListener2(this, WH_MSG_SETSYNSTR);
+	UnRegisterListener2(this, WH_MSG_GETMAXRSLT);
+	UnRegisterListener2(this, WH_MSG_SETNUMRSLT);
+	UnRegisterListener2(this, WH_MSG_GETNUMRSLT);
+}
+
+function onSendMessage(oMsg)
+{
+	if (oMsg.nMessageId == WH_MSG_SHOWFTS)
+	{
+		document.FtsInputForm.keywordField.focus();
+	}
+	else if (oMsg.nMessageId == WH_MSG_SHOWIDX ||
+		oMsg.nMessageId == WH_MSG_SHOWTOC || 
+		oMsg.nMessageId == WH_MSG_SHOWGLO)
+	{
+		document.FtsInputForm.keywordField.blur();
+	}
+	else if (oMsg.nMessageId == WH_MSG_SEARCHTHIS)
+	{
+		if (oMsg.oParam != "- Search -")
+		{
+			document.FtsInputForm.keywordField.value = oMsg.oParam;
+			gfunLookUp(true);
+		}
+	}
+	else if (oMsg.nMessageId == WH_MSG_BACKUPSEARCH)
+	{
+		if (gstrInput)
+		{
+			oMsg.oParam = gstrInput;
+			gstrInput = "";
+			gstrSyn = "";
+			nNumRslt = 0 ;
+			return false;
+		}
+	}
+	else if (oMsg.nMessageId == WH_MSG_HILITESEARCH)
+	{
+		var bHiLite = (document.FtsInputForm.HiLite.checked == true);
+		if (bHiLite == 1)
+			oMsg.oParam = true; 
+		else
+			oMsg.oParam = false;
+	}
+	else if (oMsg.nMessageId == WH_MSG_GETSEARCHSTR)
+	{
+		oMsg.oParam = "";
+		if (oMsg.oParam != "- Search -")
+		{
+			oMsg.oParam = document.FtsInputForm.keywordField.value;
+			oMsg.oParam += " " + gstrSyn;
+		}	
+	}
+	else if(oMsg.nMessageId == WH_MSG_SETSYNSTR)
+	{
+		gstrSyn = oMsg.oParam;
+		
+	}
+	else if(oMsg.nMessageId == WH_MSG_GETMAXRSLT)
+	{
+		oMsg.oParam = document.FtsInputForm.MaxResults.value;	
+	}
+	else if(oMsg.nMessageId == WH_MSG_SETNUMRSLT)
+	{
+		nNumRslt = oMsg.oParam;		
+	}
+	else if(oMsg.nMessageId == WH_MSG_GETNUMRSLT)
+	{
+		oMsg.oParam = nNumRslt;	
+	}
+	return true;
+}
+
+if (window.gbWhForm)
+{
+	RegisterListener2(this, WH_MSG_SHOWTOC);
+	RegisterListener2(this, WH_MSG_SHOWIDX);
+	RegisterListener2(this, WH_MSG_SHOWFTS);
+	RegisterListener2(this, WH_MSG_SHOWGLO);
+	RegisterListener2(this, WH_MSG_SEARCHTHIS);
+	RegisterListener2(this, WH_MSG_BACKUPSEARCH);
+	RegisterListener2(this, WH_MSG_HILITESEARCH);
+	RegisterListener2(this, WH_MSG_GETSEARCHSTR);
+	RegisterListener2(this, WH_MSG_SETSYNSTR);
+	RegisterListener2(this, WH_MSG_GETMAXRSLT);
+	RegisterListener2(this, WH_MSG_SETNUMRSLT);
+	RegisterListener2(this, WH_MSG_GETNUMRSLT);
+	gfunLookUp = ftsLookup;
+	gfunInit = null;
+	gstrFormName = "FtsInputForm"
+	gsTitle = "Type in the word(s) to search for:";
+	gsTitle = "Type in the word(s) to search for:";
+	gsHiliteSearchTitle = "Highlight search results";
+	gsHiliteSearchTitle = "Highlight search results";
+	gsMaxSearchTitle = "Search results per page" ;
+	gsMaxSearchTitle = "Search results per page";
+	setGoImage1("");
+	
+	
+	
+	
+	
+	
+	setGoText("Go");
+	setFont("Title", "Arial","9pt","#000000","normal","normal","none");
+	
+	
+	var strHiliteSearchSetting = "enable,yellow,black";
+	strHiliteSearchSetting = "enable,#b2b4bf,black";
+	var searchSetting = strHiliteSearchSetting.match("^(.+),(.+),(.*)$");
+	if(searchSetting != null && searchSetting[1] == "enable")
+		setHighlightSearch(true);
+	document.write(getFormHTML());
+	writeFormStyle();
+	window.onload = beforeInit;
+	window.onunload=window_unload;
+}
+else
+	document.location.reload();
+//-->
+</script>
+</body>
+</html>

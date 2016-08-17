@@ -1,0 +1,67 @@
+﻿<html>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2">
+<!--
+var gsTopic="";
+
+if (location.hash.length > 1)
+{
+	var nPos = location.hash.indexOf(">>");
+	if (nPos>1)
+	{
+		if(IsInternal(location.hash.substring(1, nPos)))
+			gsTopic = location.hash.substring(1, nPos);
+		parseParam(location.hash.substring(nPos+2));
+	}
+	else
+	{
+		if(IsInternal(location.hash.substring(1)))
+			gsTopic = location.hash.substring(1);
+	}
+}
+
+
+	var strHtml="";
+	strHtml+="<frameset rows=\'100%,*\'>";
+	strHtml+="<frame name=\'topicwindow\' src=\'" + gsTopic +"\'></frame>";
+	strHtml+="<frame src=\'whskin_blank.htm\' noresize></frame>";
+	strHtml+="</frameset>";
+	document.write(strHtml);
+
+function parseParam(sParam)
+{
+	if (sParam)
+	{
+		var nBPos=0;
+		do 
+		{
+			var nPos=sParam.indexOf(">>", nBPos);
+			if (nPos!=-1)
+			{
+				if (nPos>0)
+				{
+					var sPart=sParam.substring(nBPos, nPos);
+					parsePart(sPart);
+				}
+				nBPos = nPos + 2;
+			}
+			else
+			{
+				var sPart=sParam.substring(nBPos);
+				parsePart(sPart);
+				break;
+			}
+		} while(nBPos < sParam.length);
+	}	
+}
+
+function parsePart(sPart)
+{
+	if(sPart.toLowerCase().indexOf("cap=")==0)
+	{
+		document.title=_browserStringToText(sPart.substring(4));
+	}
+}
+//-->
+</script>
+</html>

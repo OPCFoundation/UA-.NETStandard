@@ -1,0 +1,329 @@
+﻿<html>
+<head>
+<title>navigation pane</title>
+
+<meta name="generator" content="Adobe RoboHelp 9" />
+<meta name="description" content="WebHelp 5.50" />
+<script language="javascript" src="whver.js"></script>
+<script language="javascript1.2" src="whmsg.js"></script>
+<script language="javascript1.2" src="whproxy.js"></script>
+<script language="javascript1.2" src="whutils.js"></script>
+<script language="javascript1.2">
+<!--
+var gsInitPane="toc";
+var gsCurrentPane="";
+var gbLoading = "unknown";
+var gbTryTime = 0;
+var gbMaxTryTime = 6;
+var gbPassPhase0 = 0;
+var gbretried = 0;
+var gbmaxretry = 3;
+var gbretrytime = new Array();
+
+var origWidth = 0;
+var origHeight = 0;
+
+gbretrytime[0]= 5000;
+gbretrytime[1]= 30000;
+gbretrytime[2]= 60000;
+
+function addPane(sName, sFile)
+{
+}
+
+function setShowPane(sName)
+{
+	gsInitPane=sName;
+}
+
+  addPane("toc","whtdhtml.htm");
+  addPane("idx","whidhtml.htm");
+  addPane("fts","whfdhtml.htm");
+  setShowPane("toc");
+
+
+function window_unload()
+{
+	UnRegisterListener2(this, WH_MSG_SHOWTOC);
+	UnRegisterListener2(this, WH_MSG_SHOWIDX);
+	UnRegisterListener2(this, WH_MSG_SHOWFTS);
+	UnRegisterListener2(this, WH_MSG_SHOWGLO);
+	UnRegisterListener2(this, WH_MSG_SYNCTOC);
+	UnRegisterListener2(this, WH_MSG_SEARCHTHIS);
+	UnRegisterListener2(this, WH_MSG_GETPANEINFO);
+}
+
+function window_OnLoad()
+{
+	var bHidePane=false;
+	var oMsg=new whMessage(WH_MSG_GETCMD,this,1,null);
+	if (SendMessage(oMsg))
+	{
+		if(oMsg.oParam>0)
+		{
+			if(oMsg.oParam==1)
+				gsInitPane="toc";
+			else if(oMsg.oParam==2)
+				gsInitPane="idx";
+			else if(oMsg.oParam==3)
+				gsInitPane="fts";
+			else if(oMsg.oParam==4)
+				gsInitPane="glo";
+		}
+		else if(oMsg.oParam==0)
+		{
+			bHidePane=true;
+		}
+	}
+	if (bHidePane)
+	{
+		oMsg=new whMessage(WH_MSG_HIDEPANE,this,1,null)
+		SendMessage(oMsg);
+	}
+	else if (gsInitPane == "toc")
+	{
+		oMsg=new whMessage(WH_MSG_SHOWTOC,this,1,null)
+		SendMessage(oMsg);	
+	}
+	else if (gsInitPane=="idx")
+	{
+		oMsg=new whMessage(WH_MSG_SHOWIDX,this,1,null)
+		SendMessage(oMsg);	
+	}
+	else if (gsInitPane=="fts")
+	{
+		oMsg=new whMessage(WH_MSG_SHOWFTS,this,1,null)
+		SendMessage(oMsg);	
+	}
+	else if (gsInitPane=="glo")
+	{
+		oMsg=new whMessage(WH_MSG_SHOWGLO,this,1,null)
+		SendMessage(oMsg);	
+	}
+}
+
+function CheckLoadingPhase0()
+{
+	if (!gbPassPhase0) {
+		setTimeout("CheckLoadingPhase0()", 1000);
+		document.applets[0];
+		gbPassPhase0 = 1;
+	}
+	else {
+		CheckLoadingPhase1();
+	}
+}
+
+function CheckLoadingPhase1()
+{
+	if (gbNav4) {
+		if ("unknown" == gbLoading && document.readystate < 4) {
+			setTimeout("CheckLoadingPhase1()", 1000);
+		}
+		else if ("unknown" == gbLoading) {
+			CheckLoadingPhase2();
+		}
+	}
+}
+
+function CheckLoadingPhase2()
+{
+	if (gbNav4) {
+		gbTryTime ++;
+		if ("unknown" == gbLoading) {
+			if (gbTryTime <= gbMaxTryTime )
+				setTimeout("CheckLoadingPhase2()", 1000);
+			else {
+				if (gnVerMinor != 4.60) {
+					alert("Unable to load applet. If you are using an old version of Netscape, the prefs.js file needs to be edited.");
+				}
+			}	
+		}
+	}
+}
+
+function CheckAppletLoaded()
+{
+	if (typeof(document.webhelp) == "undefined")
+	{
+		document.location.reload();
+		if (gbretried < gbmaxretry)
+		{
+			gbretried ++;
+			setTimeout("CheckAppletLoaded();", gbretrytime[gbretried]);
+		}
+	}
+}
+
+function reDo() 
+{
+	if (innerWidth != origWidth || innerHeight != origHeight)  
+	{
+		//reloaded applet if nessary
+		gbretried = 0;
+
+		if (gnVerMinor == 4.60) 
+		{
+			//reload the applet again.
+			document.location.reload();
+			gbretried ++;
+		}
+		setTimeout("CheckAppletLoaded();", gbretrytime[gbretried]);
+	}
+}
+
+function onSendMessage(oMsg)
+{
+	if (oMsg)
+	{	
+		var nMsgId = oMsg.nMessageId;
+		var WebHelpApplet = null;
+		if (gbNav4)
+		{
+			WebHelpApplet = document.applets["WebHelp"];
+			if (!WebHelpApplet.Command)
+				document.location="whgdata/whnvp30.htm";
+		}
+		else
+			WebHelpApplet = WebHelp;
+
+		if(nMsgId==WH_MSG_GETPANEINFO)
+		{
+			oMsg.oParam=gsCurrentPane;
+			return false;
+		}
+		else if (gbLoading!="unknown"||gbNav6)
+		{
+			if (nMsgId == WH_MSG_SHOWTOC)
+			{
+				gsCurrentPane="toc";
+				WebHelpApplet .Command("Contents", null);
+				var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "toc");
+				SendMessage(onMsg);
+				onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
+				SendMessage(onMsg);
+			}
+			else if (nMsgId == WH_MSG_SHOWIDX)
+			{
+				gsCurrentPane="idx";
+				WebHelpApplet .Command("Index", null);
+				var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "idx");
+				SendMessage(onMsg);
+				onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
+				SendMessage(onMsg);
+			}
+			else if (nMsgId == WH_MSG_SHOWFTS)
+			{
+				gsCurrentPane="fts";
+				WebHelpApplet .Command("Search", null);
+				var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "fts");
+				SendMessage(onMsg);
+				onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
+				SendMessage(onMsg);
+			}
+			else if (nMsgId == WH_MSG_SHOWGLO)
+			{
+				gsCurrentPane="glo";
+				WebHelpApplet .Command("Glossary", null);
+				var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "glo");
+				SendMessage(onMsg);
+				onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
+				SendMessage(onMsg);
+			}
+			else if (nMsgId == WH_MSG_SYNCTOC)
+			{
+				gsCurrentPane="toc";
+				var oTopicParam = oMsg.oParam;
+				if (oTopicParam && oTopicParam.aPaths && oTopicParam.aPaths.length > 0 && oTopicParam.sPPath)
+				{
+					var sPPath = _browserStringToText(oTopicParam.sPPath);
+					var sParam = "";
+					for (var i = 0; i < oTopicParam.aPaths.length; i ++)
+					{
+						sParam += oTopicParam.aPaths[i] + "\r\r";
+					}
+					WebHelpApplet.Command("SyncToc", sPPath,  sParam);
+				}
+			}
+			else if(nMsgId==WH_MSG_SEARCHTHIS)
+			{
+				gsCurrentPane="fts";
+				WebHelpApplet .Command("Search", oMsg.oParam);
+				var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "fts");
+				SendMessage(onMsg);
+				onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
+				SendMessage(onMsg);
+			}
+		}
+	}
+	return true;
+}
+
+function getInitTocInfo()
+{
+	// send message ask for the first time sync toc info.
+	var oParam = new Object();
+	oParam.oTocInfo = null;
+	var oMsg = new whMessage(WH_MSG_GETTOCPATHS, this, 1, oParam);
+	if (SendMessage(oMsg ))
+	{
+		var oTopicParam = oMsg.oParam.oTocInfo;
+		if (oTopicParam && oTopicParam.aPaths && oTopicParam.aPaths.length > 0 && oTopicParam.sPPath)
+		{
+			var sPPath = _browserStringToText(oTopicParam.sPPath);
+			var sParam = "";
+			for (var i = 0; i < oTopicParam.aPaths.length; i ++)
+			{
+				sParam += oTopicParam.aPaths[i] + "\r\r";
+			}
+			var WebHelpApplet;
+			if (gbNav4)
+				WebHelpApplet = document.applets["WebHelp"];
+			else
+				WebHelpApplet = WebHelp;
+			WebHelpApplet.Command("SyncToc", sPPath,  sParam);
+		}
+	}
+}
+
+if(window.gbWhUtil&&window.gbWhMsg&&window.gbWhVer&&window.gbWhProxy)
+{
+	RegisterListener2(this, WH_MSG_SHOWTOC);
+	RegisterListener2(this, WH_MSG_SHOWIDX);
+	RegisterListener2(this, WH_MSG_SHOWFTS);
+	RegisterListener2(this, WH_MSG_SHOWGLO);
+	RegisterListener2(this, WH_MSG_SYNCTOC);
+	RegisterListener2(this, WH_MSG_SEARCHTHIS);
+	RegisterListener2(this, WH_MSG_GETPANEINFO);
+
+	window.onunload = window_unload;
+	window.onload=window_OnLoad;
+	window.onerror = null;
+	var gbWindows = ((gAgent.indexOf("win") != -1) || (gAgent.indexOf("16bit") != -1));
+
+	if (gbNav4 && !gbNav6 && gbWindows) {
+		setTimeout("CheckLoadingPhase0()", 1000);
+	}
+
+	if (gbNav4) 
+	{
+		origWidth = innerWidth;
+		origHeight = innerHeight;
+		onresize = reDo;
+	}
+}
+else
+	document.location.reload();
+
+if (window.gbNav6)
+{
+	var oMsg=new whMessage(WH_MSG_RELOADNS6,this, 1,null);
+	SendMessage(oMsg);
+}
+
+//-->
+</script>
+</head>
+<body topmargin="0" leftmargin="0" rightmargin="0" bottommargin="0" bgcolor="c0c0c0">
+</body>
+</html>
