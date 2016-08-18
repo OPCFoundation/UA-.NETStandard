@@ -118,7 +118,8 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxPoolSize, int maxBufferSize)
         {
-            m_name      = name;
+            m_name = name;
+
 #if TRACK_MEMORY
             m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + 5);
 #else
@@ -143,7 +144,7 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                #if TRACK_MEMORY
+#if TRACK_MEMORY
                 byte[] buffer = m_manager.TakeBuffer(size+5);                             
 
                 byte[] bytes = BitConverter.GetBytes(++m_id);
@@ -162,11 +163,11 @@ namespace Opc.Ua.Bindings
                 m_allocations[m_id] = allocation;
                 
                 return buffer;
-                #else
+#else
                 byte[] buffer = m_manager.TakeBuffer(size+1);               
                 buffer[buffer.Length-1] = 0;
                 return buffer;
-                #endif
+#endif
             }
         }
 
@@ -177,7 +178,7 @@ namespace Opc.Ua.Bindings
         /// <param name="owner">The owner.</param>
         public void TransferBuffer(byte[] buffer, string owner)
         {
-            #if TRACK_MEMORY
+#if TRACK_MEMORY
             if (buffer == null)
             {
                 return;
@@ -203,7 +204,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
-            #endif
+#endif
         }
 
         /// <summary>
@@ -214,7 +215,8 @@ namespace Opc.Ua.Bindings
         {
             if (buffer[buffer.Length-1] != 0)
             {
-                throw new InvalidOperationException("Buffer is already locked.");
+                // This is a non-critical error and can happen when a previous exception has occured
+                Utils.Trace("Warning: Buffer is already locked.");
             }
 
             buffer[buffer.Length-1] = 1;
@@ -228,7 +230,8 @@ namespace Opc.Ua.Bindings
         {
             if (buffer[buffer.Length-1] == 0)
             {
-                throw new InvalidOperationException("Buffer is not locked.");
+                // This is a non-critical error and can happen when a previous exception has occured
+                Utils.Trace("Warning: Buffer is not locked.");
             }
 
             buffer[buffer.Length-1] = 0;
@@ -253,7 +256,7 @@ namespace Opc.Ua.Bindings
                     throw new InvalidOperationException("Buffer has been locked.");
                 }
 
-                #if TRACK_MEMORY
+#if TRACK_MEMORY
                 m_allocated -= buffer.Length;
                 
                 int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
@@ -319,19 +322,19 @@ namespace Opc.Ua.Bindings
                         buffer[ii] = 0xFC;
                     }
                 }
-                #endif
+#endif
                
                 m_manager.ReturnBuffer(buffer);
             }
         }
-        #endregion
+#endregion
         
-        #region Private Fields
+#region Private Fields
         private object m_lock = new object();
         private string m_name;
         private System.ServiceModel.Channels.BufferManager m_manager;
 
-        #if TRACK_MEMORY
+#if TRACK_MEMORY
         class Allocation
         {
             public int Id;
@@ -345,9 +348,9 @@ namespace Opc.Ua.Bindings
         private int m_allocated;
         private int m_id;
         private SortedDictionary<int,Allocation> m_allocations = new SortedDictionary<int,Allocation>();
-        #endif
+#endif
 
-        #endregion
+#endregion
     }
-    #endregion 
+#endregion
 }

@@ -439,15 +439,6 @@ namespace Opc.Ua.Bindings
             {
                 ReadNextBlock();
                 
-#if TRACK_MEMORY
-                int cookie = BitConverter.ToInt32(m_receiveBuffer, 0);
-
-                if (cookie < 0)
-                {
-                    Utils.Trace("BufferCookieError (ReadNextBlock): Cookie={0:X8}", cookie);
-                }
-#endif
-
                 return ServiceResult.Good;
             }
 

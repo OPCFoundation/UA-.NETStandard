@@ -240,14 +240,6 @@ namespace Opc.Ua.Bindings
                     m_buffers.Add(new ArraySegment<byte>(newBuffer, m_start, m_count));
                     m_endOfLastBuffer = 0;
 
-                    // initialize buffer to zero (for debugging only).
-                    #if TRACK_MEMORY
-                    for (int ii = 0; ii < m_bufferSize; ii++)
-                    {
-                        newBuffer[ii] = 0;
-                    }
-                    #endif
-
                     SetCurrentBuffer(m_buffers.Count-1);
                 }
 
