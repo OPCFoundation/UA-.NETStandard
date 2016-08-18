@@ -119,10 +119,14 @@ namespace Opc.Ua.Bindings
         public BufferManager(string name, int maxPoolSize, int maxBufferSize)
         {
             m_name      = name;
-            m_manager   = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize);
+#if TRACK_MEMORY
+            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + 5);
+#else
+            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + 1);
+#endif
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Returns a buffer with at least the specified size.
