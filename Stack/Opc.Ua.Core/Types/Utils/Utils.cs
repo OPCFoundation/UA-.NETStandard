@@ -81,7 +81,7 @@ namespace Opc.Ua
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
 
-        private static string s_traceFileName = "trace.log";
+        private static string s_traceFileName = string.Empty;
         private static long s_BaseLineTicks = DateTime.UtcNow.Ticks;
         private static object s_traceFileLock = new object();
 
@@ -248,9 +248,9 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        FileInfo file = new FileInfo(Utils.Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, traceFileName));
+                        FileInfo file = new FileInfo(traceFileName);
 
-                        // limit the file size. hard coded for now - fix later.
+                        // limit the file size
                         bool truncated = false;
 
                         if (file.Exists && file.Length > 10000000)
@@ -312,7 +312,7 @@ namespace Opc.Ua
 
                     // write initial log message.
                     TraceWriteLine(
-                        "\r\nPID:{2} {1} Logging started at {0}",
+                        "\r\n{1} Logging started at {0}",
                         DateTime.Now,
                         new String('*', 25));
                 }

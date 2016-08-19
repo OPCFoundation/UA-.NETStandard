@@ -168,7 +168,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

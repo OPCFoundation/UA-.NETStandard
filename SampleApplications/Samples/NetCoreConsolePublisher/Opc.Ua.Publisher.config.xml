@@ -503,7 +503,7 @@
   -->
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Opc.Ua.Publisher.log.txt</OutputFilePath>
+    <OutputFilePath>Logs/Opc.Ua.Publisher.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

@@ -598,7 +598,8 @@ namespace Opc.Ua
         /// Applies the trace settings to the current process.
         /// </summary>
         public void ApplySettings()
-        {           
+        {
+            Utils.SetTraceLog(m_outputFilePath, m_deleteOnLoad);
             Utils.SetTraceMask(m_traceMasks);
 
             if (m_traceMasks == 0)
