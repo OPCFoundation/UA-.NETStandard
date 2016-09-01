@@ -17,6 +17,40 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 ##Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
+<a name="certificates"/>
+##How to create self signed certificates for the sample applications
+
+###On Windows
+1. Open a command prompt in the root folder of your repository
+2. Run the script `CreateAllCerts.cmd` in the root folder of your repository to create the certificates for all sample applications.
+3. Alternatively, you can run the script `CreateCert.cmd` in each sample project folder to create new self signed certificates for the application.
+4. The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+
+###On Linux
+1. Open a command prompt 
+2. Navigate to the project folder of the sample app, e.g. **SampleApplications/Samples/NetCoreConsoleClient**
+3. Run the script `./createcert.sh` to create the certificates for the sample applications.
+4. The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+
+##How to build and run the samples in Visual Studio on Windows
+
+0. Create [certificates](#certificates) for all sample applications.
+1. Open the solution UA-NetStandard.sln with VisualStudio.
+2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
+3. Hit `F5` to build and execute the sample.
+ 
+##How to build and run the console samples on Windows, Linux and iOS
+This section describes how to run the **NetCoreConsoleClient**, **NetCoreConsolePublisher** and **NetCoreConsoleServer** sample applications.
+
+Please follow instructions in this [article] (https://docs.microsoft.com/en-us/dotnet/articles/core/tutorials/using-with-xplat-cli) to setup the dotnet command line environment for your platform. 
+
+1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore`. This command calls into NuGet to restore the tree of dependencies.
+2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
+3. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
+4. To execute the sample type `dotnet run` to connect to the default OPC UA Sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
+5. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer** or **SampleApplications/Samples/NetCoreConsolePublisher** and repeat steps 3 and 4 to run the other samples. 
+
+
 ##How to configure the Publisher samples
 So far the Publisher sample application and the OPC UA Telemetry WebApp has been tested end to end against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue.
 They should work against any AMQP Broker that provides a standard AMQP 1.0 interface. These AMQP endpoint(s) can be configured via the Opc.UA.Publisher.Config.xml file. The `<AMQPConnectionConfiguration`> element in this file is extensively documented.
@@ -39,19 +73,11 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 
 * You will get a message that a certificate is missing. Keep this message on the screen while you generate your certificates.
 
-* Get the certificate generator tool from [OPC Misc Tool](https://github.com/OPCFoundation/Misc-Tools.git) . (build the solution and get the Opc.Ua.CerticateGenerator.exe)
-    
-* Open a command prompt
+* Open a command prompt and navigate to the Publisher project folder
 
-* Create the folder "%TEMP%\OPC Foundation\CertificateStores\MachineDefault" and use the hostname command to find out the {hostname} to be used below.
+* Run the script `CreateCert.cmd`. Alternatively, you can run the script `CreateAllCerts.cmd` in the root folder of your repository to create the certificates for all sample applications.
 
-* Issue the following two commands:
-   ```
-   Opc.Ua.CertificateGenerator.exe -cmd issue -sp "%TEMP%\OPC Foundation\CertificateStores\MachineDefault" -an "UA Sample Client" -dn {hostname} -sn "CN=UA Sample Client/DC={hostname}" -au "urn:localhost:OPCFoundation:SampleClient"
-
-   Opc.Ua.CertificateGenerator.exe -cmd issue -sp "%TEMP%\OPC Foundation\CertificateStores\MachineDefault" -an "UA Sample Server" -dn {hostname} -sn "CN=UA Sample Server/DC={hostname}" -au "urn:localhost:OPCFoundation:SampleServer"
-   ```
-* Copy the "%TEMP%\OPC Foundation" folder into the Publisher's binary folder of the path shown in the message.
+* Copy the "OPC Foundation" folder into the Publisher's binary folder of the path shown in the message.
 
 * Now acknowledge the certificate message in the Opc.Ua.Publisher app and close the application. 
 
