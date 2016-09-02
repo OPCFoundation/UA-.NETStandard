@@ -59,31 +59,8 @@ namespace NetCoreConsoleServer
         {
             try
             {
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-                ApplicationInstance application = new ApplicationInstance();
-                application.ApplicationName = "UA Sample Server";
-                application.ApplicationType = ApplicationType.Server;
-                application.ConfigSectionName = "Opc.Ua.SampleServer";
-
-                // load the application configuration.
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
-                task.Wait();
-
-                // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-                task2.Wait();
-                bool certOK = task2.Result;
-                if (!certOK)
-                {
-                    throw new Exception("Application instance certificate invalid!");
-                }
-
-                // start the server.
-                Task task3 = application.Start(new SampleServer());
-                task3.Wait();
-
-                Console.WriteLine("Server started. Press any key to exit...");
-                Console.ReadKey(true);
+                Task t = ConsoleSampleServer();
+                t.Wait();
             }
             catch (Exception ex)
             {
@@ -93,5 +70,43 @@ namespace NetCoreConsoleServer
                 Console.ReadKey(true);
             }
         }
+
+        private static async Task ConsoleSampleServer()
+        {
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance application = new ApplicationInstance();
+            
+            application.ApplicationName = "UA Sample Server";
+            application.ApplicationType = ApplicationType.Server;
+            application.ConfigSectionName = "Opc.Ua.SampleServer";
+
+            // load the application configuration.
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+
+            // check the application certificate.
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
+            if (!haveAppCertificate)
+            {
+                throw new Exception("Application instance certificate invalid!");
+            }
+
+            if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            {
+                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            }
+
+            // start the server.
+            await application.Start(new SampleServer());
+
+            Console.WriteLine("Server started. Press any key to exit...");
+            Console.ReadKey(true);
+        }
+
+        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        {
+            Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+            e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
+        }
+
     }
 }

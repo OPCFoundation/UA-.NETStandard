@@ -839,6 +839,12 @@ namespace Opc.Ua
                 return uri;
             }
 
+            // IPv6 address needs a surrounding [] 
+            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            {
+                hostname = "[" + hostname + "]";
+            }
+
             // check if the string localhost is specified.
             int index = uri.IndexOf("localhost", StringComparison.OrdinalIgnoreCase);
 
