@@ -181,6 +181,9 @@
     </None>
     <Content Include="App.ico" />
     <EmbeddedResource Include="InstallConfig.xml" />
+    <Content Include="libuv.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Model\Opc.Ua.Gds.PredefinedNodes.xml" />
     <Content Include="Opc.Ua.GlobalDiscoveryServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -193,6 +196,9 @@
     <Content Include="Opc.Ua.Gds.Model.Opc.Ua.Gds.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
