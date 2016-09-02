@@ -44,12 +44,20 @@ This section describes how to run the **NetCoreConsoleClient**, **NetCoreConsole
 
 Please follow instructions in this [article] (https://docs.microsoft.com/en-us/dotnet/articles/core/tutorials/using-with-xplat-cli) to setup the dotnet command line environment for your platform. 
 
+###Prerequisites
 1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore`. This command calls into NuGet to restore the tree of dependencies.
-2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
+ 
+### Start the server 
+1. Open a command prompt 
+2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
 3. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
-4. To execute the sample type `dotnet run` to connect to the default OPC UA Sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
-5. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer** or **SampleApplications/Samples/NetCoreConsolePublisher** and repeat steps 3 and 4 to run the other samples. 
-
+4. To run the server sample type `dotnet run`. The server is now running and waiting for connections. In this sample configuration the server always accepts new client certificates. 
+ 
+### Start the client 
+1. Open a command prompt 
+4. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
+5. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
+6. To execute the sample type `dotnet run` to connect to the OPC UA console sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
 
 ##How to configure the Publisher samples
 So far the Publisher sample application and the OPC UA Telemetry WebApp has been tested end to end against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue.
