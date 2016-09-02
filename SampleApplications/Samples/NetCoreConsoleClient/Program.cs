@@ -91,7 +91,7 @@ namespace NetCoreConsoleClient
                 Console.WriteLine("    WARN: missing application certificate, using unsecure connection.");
             }
 
-            Console.WriteLine("2 - Discover endpoints of OPC UA server.");
+            Console.WriteLine("2 - Discover endpoints of {0}.", endpointURL);
             Uri endpointURI = new Uri(endpointURL);
             var endpointCollection = DiscoverEndpoints(config, endpointURI, 10);
             var selectedEndpoint = SelectUaTcpEndpoint(endpointCollection, haveAppCertificate);
