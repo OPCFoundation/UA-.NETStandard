@@ -342,17 +342,20 @@ namespace Opc.Ua.Bindings
 
                 e.Dispose();
 
-                // go back and wait for the next connection.
-                try
-                {
-                    e = new SocketAsyncEventArgs();
-                    e.Completed += OnAccept;
-                    e.UserToken = listeningSocket;
-                    listeningSocket.AcceptAsync(e);
-                }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Unexpected error listening for a new connection.");
+                if (e.SocketError != SocketError.OperationAborted)
+                { 
+                    // go back and wait for the next connection.
+                    try
+                    {
+                        e = new SocketAsyncEventArgs();
+                        e.Completed += OnAccept;
+                        e.UserToken = listeningSocket;
+                        listeningSocket.AcceptAsync(e);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace(ex, "Unexpected error listening for a new connection.");
+                    }
                 }
             }
         }

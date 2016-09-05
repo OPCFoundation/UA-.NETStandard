@@ -36,6 +36,8 @@
       <StorePath>OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
     </RejectedCertificateStore>
 
+    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+  
   </SecurityConfiguration>
 
 

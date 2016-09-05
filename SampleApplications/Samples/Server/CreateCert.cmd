@@ -1,4 +1,6 @@
-REM create the app certificate for NetCoreConsoleServer
+@echo off
+REM create the app certificate
+cd /D %~dp0
 set CERTSTORE=".\OPC Foundation\CertificateStores\MachineDefault"
 rd /S/Q %CERTSTORE%
 md %CERTSTORE%
