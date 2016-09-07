@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_channel != null)
                     {
-                        m_channel.Close(5000);
+                        m_channel.Close(1000);
                         m_channel = null;
                     }
                 }
