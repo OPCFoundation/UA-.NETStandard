@@ -140,7 +140,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The response returned from the server.
         /// </summary>
-        public T End(int timeout)
+        public T End(int timeout, bool doNotThrowOnError = false)
         {
             // check if the request has already completed.
             bool mustWait = false;
@@ -158,7 +158,7 @@ namespace Opc.Ua.Bindings
             // wait for completion.
             if (mustWait)
             {
-                if (!m_event.WaitOne(timeout))
+                if (!m_event.WaitOne(timeout) && !doNotThrowOnError)
                 {
                     throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
                 }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings
             // return the response.
             lock (m_lock)
             {
-                if (m_error != null)
+                if (m_error != null && !doNotThrowOnError)
                 {
                     throw new ServiceResultException(m_error);
                 }
@@ -257,7 +257,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnTimeout(object state)
         {
-            InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
+            if (m_timer != null)
+            {
+                InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
+            }
         }
 
         /// <summary>
