@@ -476,6 +476,10 @@ namespace Opc.Ua.Bindings
                 {
                     // send notification (implementor responsible for freeing buffer) on success.
                     ArraySegment<byte> messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
+
+                    // must allocate a new buffer for the next message.
+                    m_receiveBuffer = null;
+
                     m_sink.OnMessageReceived(this, messageChunk);
                 }
                 catch (Exception ex)
