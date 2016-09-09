@@ -119,12 +119,8 @@ namespace Opc.Ua.Bindings
         public BufferManager(string name, int maxPoolSize, int maxBufferSize)
         {
             m_name = name;
-
-#if TRACK_MEMORY
-            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + 5);
-#else
-            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + 1);
-#endif
+            m_manager = System.ServiceModel.Channels.BufferManager.CreateBufferManager(maxPoolSize, maxBufferSize + m_cookieLength);
+            m_maxBufferSize = maxBufferSize;
         }
         #endregion
 
@@ -137,16 +133,15 @@ namespace Opc.Ua.Bindings
         /// <returns>The buffer content</returns>
         public byte[] TakeBuffer(int size, string owner)
         {
-            if (size > Int32.MaxValue - 5)
+            if (size > m_maxBufferSize)
             {
                 throw new ArgumentOutOfRangeException("size");
             }
 
             lock (m_lock)
             {
+                byte[] buffer = m_manager.TakeBuffer(size + m_cookieLength);
 #if TRACK_MEMORY
-                byte[] buffer = m_manager.TakeBuffer(size+5);                             
-
                 byte[] bytes = BitConverter.GetBytes(++m_id);
                 Array.Copy(bytes, 0, buffer, buffer.Length-5, bytes.Length);                
                 buffer[buffer.Length-1] = 0;
@@ -161,13 +156,13 @@ namespace Opc.Ua.Bindings
                 allocation.Owner = owner;
 
                 m_allocations[m_id] = allocation;
-                
-                return buffer;
 #else
-                byte[] buffer = m_manager.TakeBuffer(size+1);               
-                buffer[buffer.Length-1] = 0;
-                return buffer;
+                buffer[buffer.Length-1] = m_cookieUnlocked;
 #endif
+#if TRACE_MEMORY
+                Utils.Trace("TakeBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+#endif
+                return buffer;
             }
         }
 
@@ -205,6 +200,9 @@ namespace Opc.Ua.Bindings
                 }
             }
 #endif
+#if TRACE_MEMORY
+            Utils.Trace("TransferBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+#endif
         }
 
         /// <summary>
@@ -213,13 +211,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void LockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length-1] != 0)
+            if (buffer[buffer.Length-1] != m_cookieUnlocked)
             {
-                // This is a non-critical error and can happen when a previous exception has occured
-                Utils.Trace("Warning: Buffer is already locked.");
+                throw new InvalidOperationException("Buffer is already locked.");
             }
-
-            buffer[buffer.Length-1] = 1;
+#if TRACE_MEMORY
+            Utils.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+#endif
+            buffer[buffer.Length-1] = m_cookieLocked;
         }
 
         /// <summary>
@@ -228,13 +227,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void UnlockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length-1] == 0)
+            if (buffer[buffer.Length-1] != m_cookieLocked)
             {
-                // This is a non-critical error and can happen when a previous exception has occured
-                Utils.Trace("Warning: Buffer is not locked.");
+                throw new InvalidOperationException("Buffer is not locked.");
             }
-
-            buffer[buffer.Length-1] = 0;
+#if TRACE_MEMORY
+            Utils.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+#endif
+            buffer[buffer.Length-1] = m_cookieUnlocked;
         }
 
         /// <summary>
@@ -251,10 +251,16 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                if (buffer[buffer.Length-1] != 0)
+#if TRACE_MEMORY
+                Utils.Trace("ReturnBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+#endif
+                if (buffer[buffer.Length-1] != m_cookieUnlocked)
                 {
                     throw new InvalidOperationException("Buffer has been locked.");
                 }
+
+                // destroy cookie
+                buffer[buffer.Length - 1] = m_cookieUnlocked ^ m_cookieLocked;
 
 #if TRACK_MEMORY
                 m_allocated -= buffer.Length;
@@ -323,7 +329,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 #endif
-               
+
                 m_manager.ReturnBuffer(buffer);
             }
         }
@@ -332,9 +338,12 @@ namespace Opc.Ua.Bindings
 #region Private Fields
         private object m_lock = new object();
         private string m_name;
+        private int m_maxBufferSize;
         private System.ServiceModel.Channels.BufferManager m_manager;
-
+        const byte m_cookieLocked = 0xa5;
+        const byte m_cookieUnlocked = 0x5a;
 #if TRACK_MEMORY
+        const byte m_cookieLength = 5;
         class Allocation
         {
             public int Id;
@@ -348,6 +357,8 @@ namespace Opc.Ua.Bindings
         private int m_allocated;
         private int m_id;
         private SortedDictionary<int,Allocation> m_allocations = new SortedDictionary<int,Allocation>();
+#else
+        const byte m_cookieLength = 1;
 #endif
 
 #endregion
