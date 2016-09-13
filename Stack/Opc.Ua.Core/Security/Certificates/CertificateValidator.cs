@@ -150,12 +150,9 @@ namespace Opc.Ua
         /// Validates the specified certificate against the trust list.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public virtual void Validate(X509Certificate2Collection chain)
+        public virtual void Validate(X509Certificate2 certificate)
         {
-            foreach (X509Certificate2 certificate in chain)
-            {
-                Validate(certificate);
-            }
+            Validate(new X509Certificate2Collection() { certificate });
         }
 
         /// <summary>
@@ -177,18 +174,20 @@ namespace Opc.Ua
         /// 
         /// The validator may be configured to ignore the application trust list and/or trust chain.
         /// </remarks>
-        public virtual void Validate(X509Certificate2 certificate)
+        public virtual void Validate(X509Certificate2Collection chain)
         {
+            X509Certificate2 certificate = chain[0];
+
             try
             {
-                Task.Run(async () =>
-                {
-                    await InternalValidate(certificate);
-                }).Wait();
-
-                // add to list of validated certificates.
                 lock (m_lock)
-                {
+                { 
+                    Task.Run(async () =>
+                    {
+                        await InternalValidate(chain);
+                    }).Wait();
+
+                    // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = certificate;
                 }
             }
@@ -335,6 +334,9 @@ namespace Opc.Ua
             return null;
         }
 
+        /// <summary>
+        /// Returns the authority key identifier in the certificate.
+        /// </summary>
         private X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
         {
             for (int ii = 0; ii < certificate.Extensions.Count; ii++)
@@ -469,13 +471,11 @@ namespace Opc.Ua
                         issuer = await GetIssuer(certificate, collection, null, true);
                     }
                 }
-                else
-                {
-                    isTrusted = true;
-                }
 
                 if (issuer != null)
                 {
+                    isTrusted = true;
+
                     issuers.Add(issuer);
                     certificate = await issuer.Find(false);
 
@@ -484,6 +484,10 @@ namespace Opc.Ua
                     {
                         break;
                     }
+                }
+                else
+                {
+                    isTrusted = false;
                 }
             }
             while (issuer != null);
@@ -541,7 +545,7 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
-            string subjectName = certificate.IssuerName.ToString();
+            string subjectName = certificate.IssuerName.Name;
             string keyId = null;
             string serialNumber = null;
 
@@ -635,10 +639,12 @@ namespace Opc.Ua
         /// <summary>
         /// Throws an exception if validation fails.
         /// </summary>
-        /// <param name="certificate">The certificate to be checked.</param>
-        /// <exception cref="ServiceResultException">If certificate cannot be accepted</exception>
-        protected async virtual Task InternalValidate(X509Certificate2 certificate)
+        /// <param name="certificates">The certificates to be checked.</param>
+        /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
+        protected virtual async Task InternalValidate(X509Certificate2Collection certificates)
         {
+            X509Certificate2 certificate = certificates[0];
+
             // check for previously validated certificate.
             X509Certificate2 certificate2 = null;
 
@@ -654,7 +660,7 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            bool isIssuerTrusted = await GetIssuers(certificate, issuers);
+            bool isIssuerTrusted = await GetIssuers(certificates, issuers);
 
             // setup policy chain
             X509ChainPolicy policy = new X509ChainPolicy();
@@ -709,6 +715,12 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsBad(result))
                     {
+                        // check untrusted certificates.
+                        if (trustedCertificate == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                        }
+
                         throw new ServiceResultException(result);
                     }
                 }
@@ -719,6 +731,21 @@ namespace Opc.Ua
                 }
             }
 
+            bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+
+            // check if certificate issuer is trusted.
+            if (issuedByCA && !isIssuerTrusted)
+            {
+                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadCertificateUntrusted,
+                        "Certificate issuer is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
+                        certificate.SubjectName.Name,
+                        certificate.IssuerName.Name);
+                }
+            }
+
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
@@ -726,12 +753,13 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateUntrusted,
-                    "Certificate is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
-                    certificate.SubjectName.Name,
-                    certificate.IssuerName);
+                        "Certificate is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
+                        certificate.SubjectName.Name,
+                        certificate.IssuerName.Name);
                 }
             }
         }
+
 
         /// <summary>
         /// Returns an object that can be used with WCF channel.

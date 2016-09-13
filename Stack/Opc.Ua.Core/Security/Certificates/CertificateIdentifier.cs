@@ -371,7 +371,7 @@ namespace Opc.Ua
         {
             if (certificates == null || certificates.Count == 0)
             {
-                throw new Exception("Primary certificate has not been provided.");
+                throw new CryptographicException("Primary certificate has not been provided.");
             }
 
             // copy the primary certificate.
@@ -425,7 +425,7 @@ namespace Opc.Ua
         {
             if (!IsValidCertificateBlob(encodedData))
             {
-                throw new Exception("Primary certificate in blob is not valid.");
+                throw new CryptographicException("Primary certificate in blob is not valid.");
             }
 
             X509Certificate2Collection collection = new X509Certificate2Collection();
@@ -447,7 +447,7 @@ namespace Opc.Ua
 
                     if (!IsValidCertificateBlob(buffer))
                     {
-                        throw new Exception("Supporting certificate in blob is not valid.");
+                        throw new CryptographicException("Supporting certificate in blob is not valid.");
                     }
 
                     X509Certificate2 issuerCertificate = CertificateFactory.Create(buffer, true);
@@ -468,8 +468,7 @@ namespace Opc.Ua
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-            Task t = Task.Run(() => store.Open(this.StorePath));
-            t.Wait();
+            store.Open(this.StorePath);
             return store;
         }
 

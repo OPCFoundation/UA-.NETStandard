@@ -160,7 +160,6 @@ namespace Opc.Ua
         public string KeyId
         {
             get { return m_keyId; }
-            set { m_keyId = value; }
         }
 
         /// <summary>
@@ -169,7 +168,6 @@ namespace Opc.Ua
         public string[] AuthorityNames
         {
             get { return m_authorityNames; }
-            set { m_authorityNames = value; }
         }
 
         /// <summary>
@@ -178,7 +176,6 @@ namespace Opc.Ua
         public string SerialNumber
         {
             get { return m_serialNumber; }
-            set { m_serialNumber = value; }
         }
         #endregion
 
