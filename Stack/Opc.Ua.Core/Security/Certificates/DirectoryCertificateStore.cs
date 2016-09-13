@@ -428,13 +428,24 @@ namespace Opc.Ua
                     filePath.Append(fileRoot);
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
+                    RSA rsa = null;
 
-                    certificate = new X509Certificate2(
-                        privateKeyFile.FullName,
-                        (password == null) ? String.Empty : password,
-                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
-
-                    RSA rsa = certificate.GetRSAPrivateKey();
+                    try
+                    {
+                        certificate = new X509Certificate2(
+                            privateKeyFile.FullName,
+                            (password == null) ? String.Empty : password,
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+                        rsa = certificate.GetRSAPrivateKey();
+                    }
+                    catch (Exception)
+                    {
+                        certificate = new X509Certificate2(
+                            privateKeyFile.FullName,
+                            (password == null) ? String.Empty : password,
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+                        rsa = certificate.GetRSAPrivateKey();
+                    }
                     if (rsa != null)
                     {
                         int inputBlockSize = rsa.KeySize / 8 - 42;
