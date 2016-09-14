@@ -351,7 +351,7 @@ namespace Opc.Ua.Bindings
         {
         }
         #endregion
-        
+
         #region Outgoing Message Support Functions
         /// <summary>
         /// Handles a write complete event.
@@ -359,20 +359,23 @@ namespace Opc.Ua.Bindings
         protected virtual void OnWriteComplete(object sender, SocketAsyncEventArgs e)
         {
             lock (DataLock)
-            {                    
+            {
                 ServiceResult error = ServiceResult.Good;
-                             
+
                 try
                 {
                     if (e.BytesTransferred == 0)
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
                     }
-
-                    HandleWriteComplete((BufferCollection) e.BufferList, e.UserToken, e.BytesTransferred, error);
+                    if (e.Buffer != null)
+                    {
+                        BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
+                    }
+                    HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }
                 catch (Exception ex)
-                {     
+                {
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
                     HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }
