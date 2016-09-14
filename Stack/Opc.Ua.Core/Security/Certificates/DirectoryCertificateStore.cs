@@ -395,6 +395,11 @@ namespace Opc.Ua
                 return null;
             }
 
+            if (string.IsNullOrEmpty(thumbprint) && string.IsNullOrEmpty(subjectName))
+            {
+                return null;
+            }
+
             foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
             {
                 try
@@ -403,7 +408,7 @@ namespace Opc.Ua
 
                     if (!String.IsNullOrEmpty(thumbprint))
                     {
-                        if (certificate.Thumbprint != thumbprint)
+                        if (!string.Equals(certificate.Thumbprint, thumbprint, StringComparison.CurrentCultureIgnoreCase))
                         {
                             continue;
                         }
@@ -453,6 +458,7 @@ namespace Opc.Ua
                         byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
                         if (bytes2 != null)
                         {
+                            // Utils.Trace(1, "RSA: {0}", certificate.Thumbprint);
                             return certificate;
                         }
                     }

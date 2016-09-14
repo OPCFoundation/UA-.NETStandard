@@ -70,6 +70,11 @@ namespace NetCoreConsoleClient
                         StoreType = "Directory",
                         StorePath = "./OPC Foundation/CertificateStores/UA Certificate Authorities",
                     },
+                    RejectedCertificateStore = new CertificateTrustList
+                    {
+                        StoreType = "Directory",
+                        StorePath = "./OPC Foundation/CertificateStores/RejectedCertificates",
+                    },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true
                 },

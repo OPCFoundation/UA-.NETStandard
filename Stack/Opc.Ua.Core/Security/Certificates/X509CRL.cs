@@ -29,8 +29,11 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 
+using Org.BouncyCastle.X509;
+
 namespace Opc.Ua
 {
+    
     /// <summary>
     /// Provides access to an X509 CRL object.
     /// </summary>
@@ -110,9 +113,20 @@ namespace Opc.Ua
         /// </summary>
         public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
         {
-            //TODO
-
             m_issuer = issuer;
+            try
+            {
+                Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(issuer.RawData);
+                m_crl.Verify(bccert.GetPublicKey());
+            }
+            catch (Exception)
+            {
+                if (throwOnError)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not verify signature on CRL.");
+                }
+                return false;
+            }
             return true;
         }
 
@@ -127,22 +141,25 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate was not created by the CRL issuer.");
             }
 
-            // TODO: get the cert info for the target certificate and check revocation.
-         
-            // not revoked.
-            return false;
+            Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(certificate.RawData);
+            return m_crl.IsRevoked(bccert);
         }
         #endregion
         
         #region Private Methods
         private void Initialize(byte[] crl)
         {
-            
-        }
+            X509CrlParser parser = new X509CrlParser();
+            m_crl = parser.ReadCrl(crl);
+            UpdateTime = (m_crl.ThisUpdate == null) ? DateTime.MinValue : m_crl.ThisUpdate;
+            NextUpdateTime = (m_crl.NextUpdate == null) ? DateTime.MinValue : m_crl.NextUpdate.Value;
+            Issuer = m_crl.IssuerDN.ToString();
+       }
         #endregion
 
         #region Private Fields
-        private X509Certificate2 m_issuer;
-        #endregion    
+        X509Certificate2 m_issuer;
+        private X509Crl m_crl;
+        #endregion
     }
 }

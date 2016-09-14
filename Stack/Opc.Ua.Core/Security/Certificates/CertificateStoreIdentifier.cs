@@ -148,8 +148,7 @@ namespace Opc.Ua
         public ICertificateStore OpenStore()
         {
             ICertificateStore store = CreateStore(this.StoreType);
-            Task t = Task.Run(() => store.Open(this.StorePath));
-            t.Wait();
+            store.Open(this.StorePath);
             return store;
         }
 
