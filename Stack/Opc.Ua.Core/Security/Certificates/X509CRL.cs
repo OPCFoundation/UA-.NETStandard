@@ -114,8 +114,19 @@ namespace Opc.Ua
         public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
         {
             m_issuer = issuer;
-            Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(issuer.RawData);
-            m_crl.Verify(bccert.GetPublicKey());
+            try
+            {
+                Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(issuer.RawData);
+                m_crl.Verify(bccert.GetPublicKey());
+            }
+            catch (Exception)
+            {
+                if (throwOnError)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not verify signature on CRL.");
+                }
+                return false;
+            }
             return true;
         }
 
