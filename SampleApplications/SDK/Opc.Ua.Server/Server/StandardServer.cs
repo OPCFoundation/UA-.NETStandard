@@ -2847,7 +2847,10 @@ namespace Opc.Ua.Server
                     m_registrationInfo.IsOnline = false;
                 }
 
-                await RegisterWithDiscoveryServer();
+                if (m_maxRegistrationInterval > 0)
+                {
+                    await RegisterWithDiscoveryServer();
+                }
 
                 lock (m_lock)
                 {
