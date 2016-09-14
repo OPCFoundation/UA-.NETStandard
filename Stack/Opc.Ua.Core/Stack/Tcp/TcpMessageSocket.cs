@@ -539,7 +539,7 @@ namespace Opc.Ua.Bindings
                     if ((args.SocketError != SocketError.Success) || (args.BytesTransferred < (m_bytesToReceive - m_bytesReceived)))
                     {
                         BufferManager.UnlockBuffer(m_receiveBuffer);
-                        throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, null, args.SocketError.ToString());
+                        throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
                     }
 
                     args.Dispose();

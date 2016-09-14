@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Bindings
                 ChannelClosed();                
             }
             
-            return false;
+            return true;
         }
         
         

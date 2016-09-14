@@ -144,7 +144,6 @@ namespace Opc.Ua.Bindings
 #if TRACK_MEMORY
                 byte[] bytes = BitConverter.GetBytes(++m_id);
                 Array.Copy(bytes, 0, buffer, buffer.Length-5, bytes.Length);                
-                buffer[buffer.Length-1] = 0;
 
                 m_allocated += buffer.Length;
 
@@ -156,12 +155,11 @@ namespace Opc.Ua.Bindings
                 allocation.Owner = owner;
 
                 m_allocations[m_id] = allocation;
-#else
-                buffer[buffer.Length-1] = m_cookieUnlocked;
 #endif
 #if TRACE_MEMORY
-                Utils.Trace("TakeBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+                Utils.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
+                buffer[buffer.Length - 1] = m_cookieUnlocked;
                 return buffer;
             }
         }
@@ -201,7 +199,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.Trace("TransferBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+            Utils.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
 #endif
         }
 
@@ -252,7 +250,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
 #if TRACE_MEMORY
-                Utils.Trace("ReturnBuffer({0:X},{1:X},{2})", buffer.GetHashCode(), buffer.Length, owner);
+                Utils.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
                 if (buffer[buffer.Length-1] != m_cookieUnlocked)
                 {
@@ -339,6 +337,9 @@ namespace Opc.Ua.Bindings
         private object m_lock = new object();
         private string m_name;
         private int m_maxBufferSize;
+#if TRACE_MEMORY
+        private int m_buffersTaken = 0;
+#endif
         private System.ServiceModel.Channels.BufferManager m_manager;
         const byte m_cookieLocked = 0xa5;
         const byte m_cookieUnlocked = 0x5a;
@@ -360,8 +361,7 @@ namespace Opc.Ua.Bindings
 #else
         const byte m_cookieLength = 1;
 #endif
-
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 }
