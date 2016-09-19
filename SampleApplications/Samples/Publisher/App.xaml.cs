@@ -2,6 +2,7 @@
 using Opc.Ua.Configuration;
 using Opc.Ua.Sample;
 using System;
+using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.UI.Xaml;
@@ -43,6 +44,10 @@ namespace Opc.Ua.Publisher
             // Ensure the current window is active
             Window.Current.Activate();
 
+            // Allow the current window to activate since the stack initialization below can take some time
+            // and the app can be terminated by the runtime if this takes too long
+            await Task.Delay(1);
+
             try
             {
                 // load the application configuration.
@@ -50,22 +55,7 @@ namespace Opc.Ua.Publisher
 
                 // run the application interactively.
                 Window.Current.Content = new ClientPage(application.ApplicationConfiguration.CreateMessageContext(), application, null, application.ApplicationConfiguration);
-
-                // Ensure the current window is active
-                Window.Current.Activate();
-            }
-            catch (ServiceResultException ex)
-            {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                MessageDlg dialog = new MessageDlg("Client not started. Exit.\r\n" + ex.Message);
-                await dialog.ShowAsync();
-                Application.Current.Exit();
-                return;
-            }
-
-            try
-            { 
-
+      
                 // check the application certificate.
                 await application.CheckApplicationInstanceCertificate(false, 0);
 
@@ -73,11 +63,12 @@ namespace Opc.Ua.Publisher
                 await application.Start(new SampleServer());
 
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                MessageDlg dialog = new MessageDlg("Client ok but Server has not started.\r\n" + ex.Message);
+                Utils.Trace("Exception:" + ex.Message);
+                MessageDlg dialog = new MessageDlg(ex.Message);
                 await dialog.ShowAsync();
+                Application.Current.Exit();
             }
         }
 

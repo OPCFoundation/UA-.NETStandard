@@ -5,6 +5,7 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Navigation;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.SampleServer
 {
@@ -42,6 +43,10 @@ namespace Opc.Ua.SampleServer
             // Ensure the current window is active
             Window.Current.Activate();
 
+            // Allow the current window to activate since the stack initialization below can take some time
+            // and the app can be terminated by the runtime if this takes too long
+            await Task.Delay(1);
+
             try
             {
                 // load the application configuration.
@@ -55,14 +60,11 @@ namespace Opc.Ua.SampleServer
 
                 // run the application interactively.
                 Window.Current.Content = new ServerPage(application);
-
-                // Ensure the current window is active
-                Window.Current.Activate();
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                MessageDlg dialog = new MessageDlg("Server not started. Exit.\r\n"+ex.Message);
+                Utils.Trace("Exception:" + ex.Message);
+                MessageDlg dialog = new MessageDlg(ex.Message);
                 await dialog.ShowAsync();
                 Application.Current.Exit();
             }
