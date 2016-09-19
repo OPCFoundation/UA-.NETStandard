@@ -5,14 +5,13 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 
 ##Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
-2. Sample Servers, Clients and Publishers (for sending OPC UA Pub/Sub telemetry data to the cloud), including all required controls, for .Net 4.6, .NetCore and UWP.
-3. Sample Global Discovery Server and Client for .Net 4.6 (experimental)
-4. X.509 certificate support for client and server authentication
-5. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
-6. UA-TCP & HTTPS transports (client and server)
-7. Folder certificate-store support
-8. Sessions (including UI support in the samples)
-9. Subscriptions (including UI support in the samples)
+2. Sample Servers and Clients, including all required controls, for .Net 4.6, .NetCore and UWP.
+3. X.509 certificate support for client and server authentication
+4. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
+5. UA-TCP & HTTPS transports (client and server)
+6. Folder certificate-store support
+7. Sessions (including UI support in the samples)
+8. Subscriptions (including UI support in the samples)
 
 ##Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
@@ -58,50 +57,6 @@ Please follow instructions in this [article] (https://docs.microsoft.com/en-us/d
 4. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
 5. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
 6. To execute the sample type `dotnet run` to connect to the OPC UA console sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
-
-##How to configure the Publisher samples
-So far the Publisher sample application and the OPC UA Telemetry WebApp has been tested end to end against a Microsoft Azure IoTHub instance, as well as against a Microsoft Azure ServiceBus queue.
-They should work against any AMQP Broker that provides a standard AMQP 1.0 interface. These AMQP endpoint(s) can be configured via the Opc.UA.Publisher.Config.xml file. The `<AMQPConnectionConfiguration`> element in this file is extensively documented.
-
-* Go to the [Azure portal](https://portal.azure.com/) and create a new [IoTHub](https://azure.microsoft.com/en-us/documentation/articles/iot-hub-csharp-csharp-getstarted/).
-
-* Get [DeviceExplorer](https://github.com/Azure/azure-iot-sdks/blob/master/tools/DeviceExplorer/doc/how_to_use_device_explorer.md) and configure it and connect to the IoTHub you have just created.
-
-* Create a new device in your IoTHub using DeviceExplorer.
- 
-* Open the solution UA-NetStandard.sln with VisualStudio.
-
-* Open the Samples\XXXPublisher\Opc.Ua.Publisher.Config.xml file to setup your IoTHub connection. In the `<AmqpConnectionConfiguration>` element configure the following elements:
-   * `<Host>`{Host}`</Host>`, where {Host} is the Hostname shown on the details page of your IoTHub on the Azure portal (same as the HostName part of the IoT Hub Connection String DeviceExplorer Configuration tab).
-   * `<Endpoint>`/devices/{DeviceId}/messages/events`</Endpoint>`, where {DeviceID} is the name of the device you have created with DeviceExplorer (same as the Id of the device in DeviceExplorer Management tab).
-   * `<KeyValue>`{KeyValue}`</KeyValue>`, where {KeyValue} is the Primary Key of the device and could be found under Devices->{DeviceId}->Device Details->Primary Key of your IoTHub in the Azure portal (same as the PrimaryKey of your device shown in DeviceExplorer Management tab).
-   * `<TokenScope>`{Host}/devices/{DeviceId}`</TokenScope>`, {Host} and {DeviceID} are the same as above
-
-* Save the file, rebuild the solution and start it. This will start a local instance of the application.	
-
-* You will get a message that a certificate is missing. Keep this message on the screen while you generate your certificates.
-
-* Open a command prompt and navigate to the Publisher project folder
-
-* Run the script `CreateCert.cmd`. Alternatively, you can run the script `CreateAllCerts.cmd` in the root folder of your repository to create the certificates for all sample applications.
-
-* Copy the "OPC Foundation" folder into the Publisher's binary folder of the path shown in the message.
-
-* Now acknowledge the certificate message in the Opc.Ua.Publisher app and close the application. 
-
-* Restart the Opc.Ua.Publisher application. If you get a message for a missconfigured domain, acknowledge with "Yes" to use the certificate.
-        
-* Press "Connect" button to connect to the default endpoint currently displayed. 
-
-* You should see two dialogs, one after the other, which allows you to select "Security Mode", "Security Policy" and other settings. Just click "OK" for now to accept defaults.
-
-* On the left window in the application you see all existing sessions (you are able to connect to multiple OPC UA servers here) and on the right side you can browse the OPC UA node addresss space of the server.
-
-* Choose a node in the right window by browsing to it and selecting it with the mouse (for constantly updating results, choose a value, which changes frequently like Objects->Server->ServerStatus->CurrentTime).
-         
-* Press the "Publish" button and the application will start publishing the node's Pub/Sub encoded data to your IoTHub.
-
-* In DeviceExplorer go to the Data tab, press the Monitor button and you should see data being received by your IoTHub.
 
 ##How to build and run the OPC UA Web Telemetry sample
 
