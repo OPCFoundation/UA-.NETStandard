@@ -140,11 +140,7 @@ namespace Opc.Ua.Bindings
                     State = TcpChannelState.Open;
 
                     // no need to cleanup.
-                    if (m_cleanupTimer != null)
-                    {
-                        m_cleanupTimer.Dispose();
-                        m_cleanupTimer = null;
-                    }
+                    CleanupTimer();
 
                     // send response.
                     SendOpenSecureChannelResponse(requestId, token, request);
@@ -359,13 +355,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void StartCleanupTimer(ServiceResult reason)
         {
+            CleanupTimer();
+            m_cleanupTimer = new Timer(new TimerCallback(OnCleanup), reason, Quotas.ChannelLifetime, Timeout.Infinite);
+        }
+
+        /// <summary>
+        /// Cleans up a timer that will clean up the channel if it is not opened/re-opened.
+        /// </summary>
+        private void CleanupTimer()
+        {
             if (m_cleanupTimer != null)
             {
                 m_cleanupTimer.Dispose();
                 m_cleanupTimer = null;
             }
-
-            m_cleanupTimer = new Timer(new TimerCallback(OnCleanup), reason, Quotas.ChannelLifetime, Timeout.Infinite);
         }
 
         /// <summary>
@@ -373,32 +376,33 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnCleanup(object state)
         {
-            // nothing to do if the channel is now open or closed.
             lock (DataLock)
             {
+                CleanupTimer();
+                // nothing to do if the channel is now open or closed.
                 if (State == TcpChannelState.Closed || State == TcpChannelState.Open)
                 {
-                     return;
+                    return;
                 }
-            }                         
 
-            // get reason for cleanup.
-            ServiceResult reason = state as ServiceResult;
+                // get reason for cleanup.
+                ServiceResult reason = state as ServiceResult;
 
-            if (reason == null)
-            {
-                reason = new ServiceResult(StatusCodes.BadTimeout);
+                if (reason == null)
+                {
+                    reason = new ServiceResult(StatusCodes.BadTimeout);
+                }
+
+                Utils.Trace(
+                    "TCPSERVERCHANNEL Cleanup Socket={0:X8}, ChannelId={1}, TokenId={2}, Reason={3}",
+                    (Socket != null) ? Socket.Handle : 0,
+                    (CurrentToken != null) ? CurrentToken.ChannelId : 0,
+                    (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                    reason.ToLongString());
+
+                // close channel.
+                ChannelClosed();
             }
-
-            Utils.Trace(
-                "TCPSERVERCHANNEL Cleanup Socket={0:X8}, ChannelId={1}, TokenId={2}, Reason={3}",
-                (Socket != null)?Socket.Handle:0,
-                (CurrentToken != null)?CurrentToken.ChannelId:0,
-                (CurrentToken != null)?CurrentToken.TokenId:0,
-                reason.ToLongString());
-
-            // close channel.
-            ChannelClosed();
         }
 
         /// <summary>
@@ -417,15 +421,10 @@ namespace Opc.Ua.Bindings
             {
                 State = TcpChannelState.Closed;
                 m_listener.ChannelClosed(ChannelId);
-
-                if (m_cleanupTimer != null)
-                {
-                    m_cleanupTimer.Dispose();
-                    m_cleanupTimer = null;
-                }
+                CleanupTimer();
             }
         }
-        
+                
         /// <summary>
         /// Called to send queued responses after a reconnect.
         /// </summary>

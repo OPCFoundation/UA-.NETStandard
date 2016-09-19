@@ -27,12 +27,19 @@
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
             <local:SessionTreeCtrl Grid.Column="0" Grid.Row="0" x:Name="SessionsCTRL" Margin="10,10,10,10" />
-            <local:BrowseTreeCtrl Grid.Column="1" Grid.Row="0" x:Name="BrowseCTRL" Margin="10,10,100,10" />
+            <local:BrowseTreeCtrl Grid.Column="1" Grid.Row="0" x:Name="BrowseCTRL" Margin="10,10,10,10" />
         </Grid>
         <Grid Grid.Column="0" Grid.Row="2" BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Stretch" Height="80" Margin="10,10,10,10" VerticalAlignment="Bottom">
-            <TextBlock Text="None" x:Name="ServerUrlTB" HorizontalAlignment="Stretch" Height="30" Margin="10,10,10,0" VerticalAlignment="Top" />
-            <TextBlock x:Name="ServerStatusTB" HorizontalAlignment="Stretch" Height="30" Margin="10,50,10,10" VerticalAlignment="Top" />
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Grid.Row="0" Text="None" x:Name="ServerUrlTB" HorizontalAlignment="Stretch" Height="30" Margin="10,10,10,0" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="0" Grid.Row="0" x:Name="ServerStatusTB" HorizontalAlignment="Stretch" Height="30" Margin="10,50,10,10" VerticalAlignment="Top" />
+            <Button Grid.Column="1" Grid.Row="0" x:Name="CommandBTN" Width="100" Content="Command" Visibility="Collapsed" HorizontalAlignment="Right" Margin="10,10,10,10" VerticalAlignment="Center"/>
         </Grid>
-        <Button x:Name="CommandBTN" Width="100" Content="Command" Visibility="Collapsed" HorizontalAlignment="Right" Margin="0,10,10,0" Grid.Row="1" VerticalAlignment="Top"/>
     </Grid>
 </Page>
