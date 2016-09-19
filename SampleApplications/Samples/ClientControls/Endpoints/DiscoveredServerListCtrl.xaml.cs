@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.UI.Core;
 using Windows.UI.Xaml.Controls;
 
 namespace Opc.Ua.Client.Controls
@@ -190,12 +191,23 @@ namespace Opc.Ua.Client.Controls
             // return new item.
             return listItem;
         }
-        
+
         /// <summary>
         /// Updates the list of servers displayed in the control.
         /// </summary>
-        private void OnUpdateServers(object state)
+        private async void OnUpdateServers(object state)
         {
+            if (!Dispatcher.HasThreadAccess)
+            {
+                await Dispatcher.RunAsync(
+                CoreDispatcherPriority.Normal,
+                () =>
+                {
+                    OnUpdateServers(state);
+                });
+                return;
+            }
+
             ItemsLV.Items.Clear();
 
             ApplicationDescriptionCollection servers = state as ApplicationDescriptionCollection;
