@@ -14,6 +14,7 @@ using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Sample;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NetCoreConsoleServer
@@ -42,14 +43,18 @@ namespace NetCoreConsoleServer
             }
             if (ask)
             {
-                ConsoleKeyInfo result = Console.ReadKey();
-                Console.WriteLine();
-                return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                try
+                {
+                    ConsoleKeyInfo result = Console.ReadKey();
+                    Console.WriteLine();
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                }
+                catch
+                {
+                    // intentionally fall through
+                }
             }
-            else
-            {
-                return await Task.FromResult(true);
-            }
+            return await Task.FromResult(true);
         }
     }
 
@@ -61,13 +66,22 @@ namespace NetCoreConsoleServer
             {
                 Task t = ConsoleSampleServer();
                 t.Wait();
+                Console.WriteLine("Server started. Press any key to exit...");
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                Console.WriteLine("Press any key to exit...");
+            }
+
+            try
+            {
                 Console.ReadKey(true);
+            }
+            catch
+            {
+                // wait forever if there is no console
+                Thread.Sleep(Timeout.Infinite);
             }
         }
 
@@ -97,9 +111,6 @@ namespace NetCoreConsoleServer
 
             // start the server.
             await application.Start(new SampleServer());
-
-            Console.WriteLine("Server started. Press any key to exit...");
-            Console.ReadKey(true);
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
