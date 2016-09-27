@@ -538,12 +538,17 @@ namespace Opc.Ua.Bindings
                     // I/O completed synchronously
                     if ((args.SocketError != SocketError.Success) || (args.BytesTransferred < (m_bytesToReceive - m_bytesReceived)))
                     {
-                        BufferManager.UnlockBuffer(m_receiveBuffer);
                         throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
                     }
 
                     args.Dispose();
                 }
+            }
+            catch (ServiceResultException sre)
+            {
+                args.Dispose();
+                BufferManager.UnlockBuffer(m_receiveBuffer);
+                throw sre;
             }
             catch (Exception ex)
             {
