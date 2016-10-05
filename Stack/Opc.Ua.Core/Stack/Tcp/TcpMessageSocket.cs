@@ -523,6 +523,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 socket = m_socket;
+
+                // avoid stale ServiceException when socket is disconnected
+                if (!socket.Connected)
+                {
+                    return;
+                }
+
             }
 
             BufferManager.LockBuffer(m_receiveBuffer);

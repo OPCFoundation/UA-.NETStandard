@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 
 namespace Opc.Ua.Server
 {
@@ -85,7 +86,76 @@ namespace Opc.Ua.Server
                 m_eventsEnabled = value; 
             }
         }
+#if NET46
+        /// <summary>
+        /// Empties the event queue and saves it in the dataset.
+        /// </summary>
+        public static DataSet EmptyQueue(DataSet dataset)
+        {
+            if (dataset == null)
+            {
+                dataset = new DataSet();
+                dataset.Tables.Add("MonitoredItems");
 
+                dataset.Tables[0].Columns.Add("Id", typeof(uint));
+                dataset.Tables[0].Columns.Add("Timestamp", typeof(string));
+                dataset.Tables[0].Columns.Add("EventType", typeof(string));
+                dataset.Tables[0].Columns.Add("NodeId", typeof(NodeId));
+                dataset.Tables[0].Columns.Add("MonitoringMode", typeof(MonitoringMode));
+                dataset.Tables[0].Columns.Add("SamplingInterval", typeof(double));
+                dataset.Tables[0].Columns.Add("QueueSize", typeof(uint));
+                dataset.Tables[0].Columns.Add("DiscardOldest", typeof(bool));
+                dataset.Tables[0].Columns.Add("Filter", typeof(string));
+                dataset.Tables[0].Columns.Add("Value", typeof(Variant));
+                dataset.Tables[0].Columns.Add("StatusCode", typeof(StatusCode));
+                dataset.Tables[0].Columns.Add("SourceTimestamp", typeof(string));
+                dataset.Tables[0].Columns.Add("ServerTimestamp", typeof(string));
+
+                dataset.Tables[0].DefaultView.Sort = "Timestamp";
+            }
+
+            lock (m_events)
+            {
+                while (m_events.Count > 0)
+                {
+                    Event e = m_events.Dequeue();
+
+                    DataRow row = dataset.Tables[0].NewRow();
+
+                    row[0] = e.ServerHandle;
+                    row[1] = e.Timestamp.ToLocalTime().ToString("HH:mm:ss.ffffff");
+                    row[2] = e.EventType.ToString();
+                    row[3] = e.NodeId;
+
+                    if (e.Parameters != null)
+                    {
+                        row[4] = e.MonitoringMode;
+                        row[5] = e.Parameters.SamplingInterval;
+                        row[6] = e.Parameters.QueueSize;
+                        row[7] = e.Parameters.DiscardOldest;
+
+                        if (e.Parameters.Filter != null)
+                        {
+                            row[8] = e.Parameters.Filter.ToString();
+                        }
+                    }
+
+                    if (e.Value != null)
+                    {
+                        row[9]  = e.Value.WrappedValue;
+                        row[10] = e.Value.StatusCode;
+                        row[11] = e.Value.ServerTimestamp.ToLocalTime().ToString("HH:mm:ss.fff");
+                        row[12] = e.Value.ServerTimestamp.ToLocalTime().ToString("HH:mm:ss.fff");
+                    }
+
+                    dataset.Tables[0].Rows.Add(row);
+                }
+            }
+
+            dataset.AcceptChanges();
+            return dataset;
+        }
+#endif
         /// <summary>
         /// Reports a value written.
         /// </summary>

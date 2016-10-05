@@ -233,21 +233,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
+                    // Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] TRIGGERED", m_id);
+                    // Utils.Trace("IsReadyToPublish[{0}] TRIGGERED", m_id);
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (m_monitoringMode != MonitoringMode.Reporting)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
+                    // Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
@@ -258,12 +258,12 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.Trace("IsReadyToPublish[{0}] FALSE {1}", m_id, new TimeSpan(m_nextSamplingTime - now).TotalSeconds);
+                        // Utils.Trace("IsReadyToPublish[{0}] FALSE {1}", m_id, new TimeSpan(m_nextSamplingTime - now).TotalSeconds);
                         return false;
                     }
                 }
 
-                Utils.Trace("IsReadyToPublish[{0}] NORMAL", m_id);
+                // Utils.Trace("IsReadyToPublish[{0}] NORMAL", m_id);
                 return true;
             }
         }
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    Utils.Trace("SetTriggered[{0}]", m_id);
+                    // Utils.Trace("SetTriggered[{0}]", m_id);
                     m_triggered = true;
                     return true;
                 }
@@ -754,7 +754,7 @@ namespace Opc.Ua.Server
                     return previousMode;
                 }
 
-                Utils.Trace("MONITORING MODE[{0}] {1} -> {2}", m_id, m_monitoringMode, monitoringMode);
+                // Utils.Trace("MONITORING MODE[{0}] {1} -> {2}", m_id, m_monitoringMode, monitoringMode);
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    Utils.Trace("RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
+                    // Utils.Trace("RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
 
                     DataValue copy = new DataValue();
 
@@ -940,7 +940,7 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            Utils.Trace("QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}", m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
+            // Utils.Trace("QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}", m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
         }
         
         /// <summary>
@@ -1187,7 +1187,7 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_events != null)
                 {
-                    Utils.Trace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    // Utils.Trace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
 
                     EventFieldList overflowEvent = null;
 
@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                     }
 
-                    Utils.Trace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    // Utils.Trace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
 
 				// reset state variables.
@@ -1327,7 +1327,7 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing.
                 else
                 {
-                    Utils.Trace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}", m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
+                    // Utils.Trace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}", m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
                 

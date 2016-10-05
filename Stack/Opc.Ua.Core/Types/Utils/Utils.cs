@@ -1559,6 +1559,22 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
+            // copy Opc.Ua.Range.
+            {
+                Opc.Ua.Range castedObject = value as Opc.Ua.Range;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.EUInformation
+            {
+                Opc.Ua.EUInformation castedObject = value as Opc.Ua.EUInformation;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
 
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));

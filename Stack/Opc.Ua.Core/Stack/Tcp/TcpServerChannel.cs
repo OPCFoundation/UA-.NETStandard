@@ -339,7 +339,6 @@ namespace Opc.Ua.Bindings
                         SendErrorMessage(reason);
                     }
 
-                    Socket.Close();
                 }
 
                 State = TcpChannelState.Faulted;
