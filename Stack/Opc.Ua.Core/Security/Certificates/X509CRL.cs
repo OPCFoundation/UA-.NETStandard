@@ -31,6 +31,7 @@ using System.IO;
 
 using Org.BouncyCastle.X509;
 
+
 namespace Opc.Ua
 {
     
@@ -153,8 +154,15 @@ namespace Opc.Ua
             m_crl = parser.ReadCrl(crl);
             UpdateTime = (m_crl.ThisUpdate == null) ? DateTime.MinValue : m_crl.ThisUpdate;
             NextUpdateTime = (m_crl.NextUpdate == null) ? DateTime.MinValue : m_crl.NextUpdate.Value;
-            Issuer = m_crl.IssuerDN.ToString();
-       }
+            // a few conversions to match System.Security conventions
+            string issuerDN = m_crl.IssuerDN.ToString();
+            // replace state ST= with S= 
+            issuerDN = issuerDN.Replace("ST=", "S=");
+            // reverse DN order to match System.Security
+            List<string> issuerList = Utils.ParseDistinguishedName(issuerDN);
+            issuerList.Reverse();
+            Issuer = string.Join(", ", issuerList);
+        }
         #endregion
 
         #region Private Fields

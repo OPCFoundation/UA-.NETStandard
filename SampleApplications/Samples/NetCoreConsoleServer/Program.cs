@@ -104,7 +104,7 @@ namespace NetCoreConsoleServer
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
@@ -115,8 +115,11 @@ namespace NetCoreConsoleServer
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
-            Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-            e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            {
+                e.Accept = false;
+                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+            }
         }
 
     }

@@ -175,7 +175,7 @@ namespace Opc.Ua.Bindings
                 {
                     try
                     {
-                        channel.Close(1000);
+                        channel.Close(m_operationTimeout);
                     }
                     catch (Exception)
                     {
@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_channel != null)
                     {
-                        m_channel.Close(1000);
+                        m_channel.Close(m_operationTimeout);
                         m_channel = null;
                     }
                 }
