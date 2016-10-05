@@ -203,7 +203,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    operation.End(timeout, true);
+                    operation.End(timeout, false);
                 }
                 catch (ServiceResultException e)
                 {
