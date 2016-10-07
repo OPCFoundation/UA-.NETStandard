@@ -258,6 +258,11 @@ namespace Opc.Ua.Bindings
         public const double TokenRenewalPeriod = 0.75;
 
         /// <summary>
+        /// The fraction of the lifetime to wait before forcing the activation of the renewed token.
+        /// </summary>
+        public const double TokenActivationPeriod = 0.95;
+
+        /// <summary>
         /// The certificates that have the key size larger than KeySizeExtraPadding need an extra padding byte in the transport message
         /// </summary>
         public const int KeySizeExtraPadding = 2048;

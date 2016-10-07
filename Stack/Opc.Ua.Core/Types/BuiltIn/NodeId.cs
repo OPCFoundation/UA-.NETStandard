@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// Creates a new instance of the class which will have the default values. The actual
         /// Node Id will need to be defined as this constructor does not specify the id.
         /// </remarks>
-        public NodeId()
+        internal NodeId()
         {
             Initialize();
         }
@@ -280,6 +280,8 @@ namespace Opc.Ua
                 SetIdentifier(IdType.Opaque, value);
                 return;
             }
+
+            throw new ArgumentException("Identifier type not supported.", "value");
         }
         #endregion
 

@@ -832,8 +832,8 @@ namespace Opc.Ua
                 }
             }
             
-            // assign a default configuration.
-            if (m_configuration == null)
+            // ensure a default configuration.
+            if (configuration == null)
             {
                 configuration = EndpointConfiguration.Create();
             }

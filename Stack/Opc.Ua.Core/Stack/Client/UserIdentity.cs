@@ -178,7 +178,15 @@ namespace Opc.Ua
             {
                 m_tokenType = UserTokenType.Certificate;
                 m_issuedTokenType = null;
-                m_displayName = x509Token.Certificate.Subject;
+                if (x509Token.Certificate != null)
+                {
+                    m_displayName = x509Token.Certificate.Subject;
+                }
+                else
+                {
+                    X509Certificate2 cert = CertificateFactory.Create(x509Token.CertificateData, true);
+                    m_displayName = cert.Subject;
+                }
                 return;
             }
 

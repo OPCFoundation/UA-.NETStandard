@@ -14,6 +14,7 @@ using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Sample;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NetCoreConsoleServer
@@ -42,14 +43,18 @@ namespace NetCoreConsoleServer
             }
             if (ask)
             {
-                ConsoleKeyInfo result = Console.ReadKey();
-                Console.WriteLine();
-                return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                try
+                {
+                    ConsoleKeyInfo result = Console.ReadKey();
+                    Console.WriteLine();
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                }
+                catch
+                {
+                    // intentionally fall through
+                }
             }
-            else
-            {
-                return await Task.FromResult(true);
-            }
+            return await Task.FromResult(true);
         }
     }
 
@@ -61,13 +66,22 @@ namespace NetCoreConsoleServer
             {
                 Task t = ConsoleSampleServer();
                 t.Wait();
+                Console.WriteLine("Server started. Press any key to exit...");
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                Console.WriteLine("Press any key to exit...");
+            }
+
+            try
+            {
                 Console.ReadKey(true);
+            }
+            catch
+            {
+                // wait forever if there is no console
+                Thread.Sleep(Timeout.Infinite);
             }
         }
 
@@ -90,22 +104,22 @@ namespace NetCoreConsoleServer
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
 
             // start the server.
             await application.Start(new SampleServer());
-
-            Console.WriteLine("Server started. Press any key to exit...");
-            Console.ReadKey(true);
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
-            Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-            e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            {
+                e.Accept = false;
+                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+            }
         }
 
     }

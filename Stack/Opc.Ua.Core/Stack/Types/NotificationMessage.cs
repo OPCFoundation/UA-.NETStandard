@@ -34,6 +34,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets a value indicating whether this NotificationMessage is empty.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance is empty; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsEmpty
+        {
+            get
+            {
+                if (SequenceNumber == 0 &&
+                    PublishTime == DateTime.MinValue &&
+                    NotificationData.Count == 0)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Returns the data changes contained in the notification message.
         /// </summary>
         public IList<MonitoredItemNotification> GetDataChanges(bool reverse)

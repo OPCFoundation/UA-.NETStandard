@@ -53,21 +53,21 @@ namespace Opc.Ua.Server
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
         }
-        
+
         #region Public Methods
         /// <summary>
         /// Gets the current queue size.
         /// </summary>
         public uint QueueSize
         {
-            get 
+            get
             {
                 if (m_values == null)
                 {
                     return 0;
                 }
 
-                return (uint)m_values.Length; 
+                return (uint)m_values.Length;
             }
         }
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
                 return m_values.Length - m_start + m_end - 1;
             }
         }
-        
+
         /// <summary>
         /// Sets the sampling interval used when queuing values.
         /// </summary>
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate the next sampling interval.
-            m_samplingInterval = (long)(samplingInterval*TimeSpan.TicksPerMillisecond);
+            m_samplingInterval = (long)(samplingInterval * TimeSpan.TicksPerMillisecond);
 
             if (m_samplingInterval > 0)
             {
@@ -136,14 +136,14 @@ namespace Opc.Ua.Server
             int end = m_end;
 
             // create new queue.
-            DataValue[] values = new DataValue[length];            
+            DataValue[] values = new DataValue[length];
             ServiceResult[] errors = null;
 
             if ((diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
                 errors = new ServiceResult[length];
             }
-            
+
             // copy existing values.
             List<DataValue> existingValues = null;
             List<ServiceResult> existingErrors = null;
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <summary>
         /// Adds the value to the queue.
         /// </summary>
@@ -195,11 +195,11 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
-                    int last = m_end-1;
+                    int last = m_end - 1;
 
                     if (last < 0)
                     {
-                        last = m_values.Length-1;
+                        last = m_values.Length - 1;
                     }
 
                     // replace last value and error.
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server
 
                 if (m_samplingInterval > 0 && delta >= 0)
                 {
-                    m_nextSampleTime += ((delta/m_samplingInterval)+1)*m_samplingInterval;                 
+                    m_nextSampleTime += ((delta / m_samplingInterval) + 1) * m_samplingInterval;
                 }
             }
             else
@@ -244,7 +244,7 @@ namespace Opc.Ua.Server
             return Dequeue(out value, out error);
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Adds the value to the queue. Discards values if the queue is full.
@@ -274,47 +274,56 @@ namespace Opc.Ua.Server
 
             int next = m_end;
 
-            // check for wrap around.
-            if (next >= m_values.Length)
+            // check if the latest value has initial dummy data
+            if (m_values[m_end - 1].StatusCode != StatusCodes.BadWaitingForInitialData)
             {
-                next = 0;
-            }
-
-            // check if queue is full.
-            if (m_start == next)
-            {
-
-                if (!m_discardOldest)
+                // check for wrap around.
+                if (next >= m_values.Length)
                 {
-                    m_overflow = m_end - 1;
-                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, value);
+                    next = 0;
+                }
 
-                    // overwrite last value
-                    m_values[m_overflow] = value;
+                // check if queue is full.
+                if (m_start == next)
+                {
 
-                    if (m_errors != null)
+                    if (!m_discardOldest)
                     {
-                        m_errors[m_overflow] = error;
+                        m_overflow = m_end - 1;
+                        ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, value);
+
+                        // overwrite last value
+                        m_values[m_overflow] = value;
+
+                        if (m_errors != null)
+                        {
+                            m_errors[m_overflow] = error;
+                        }
+
+                        return;
                     }
 
-                    return;
+                    // remove oldest value.
+                    m_start++;
+
+                    if (m_start >= m_values.Length)
+                    {
+                        m_start = 0;
+                    }
+
+                    // set overflow bit.
+                    m_overflow = m_start;
+                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_values[m_overflow]);
                 }
-
-                // remove oldest value.
-                m_start++;
-
-                if (m_start >= m_values.Length)
+                else
                 {
-                    m_start = 0;
+                    Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
                 }
-
-                // set overflow bit.
-                m_overflow = m_start;
-                ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_values[m_overflow]);
             }
             else
             {
-               Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
+                // overwrite the last value
+                next = m_end - 1;
             }
 
             // add value.
@@ -325,7 +334,7 @@ namespace Opc.Ua.Server
                 m_errors[next] = error;
             }
 
-            m_end = next+1;
+            m_end = next + 1;
         }
 
         /// <summary>
@@ -347,7 +356,7 @@ namespace Opc.Ua.Server
 
             value = m_values[m_start];
             m_values[m_start] = null;
-            
+
             if (m_errors != null)
             {
                 error = m_errors[m_start];
@@ -362,7 +371,7 @@ namespace Opc.Ua.Server
             }
 
             m_start++;
-            
+
             // check if queue has been emptied.
             if (m_start == m_end)
             {

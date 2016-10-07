@@ -83,6 +83,22 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether the token should be activated in case a new one is already created.
+        /// </summary>
+        public bool ActivationRequired
+        {
+            get
+            {
+                if (DateTime.UtcNow > m_createdAt.AddMilliseconds(m_lifetime*TcpMessageLimits.TokenActivationPeriod))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
         /// The nonce provided by the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]

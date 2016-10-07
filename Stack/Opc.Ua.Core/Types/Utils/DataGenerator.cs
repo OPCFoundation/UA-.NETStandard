@@ -843,7 +843,7 @@ namespace Opc.Ua.Test
         public ExpandedNodeId GetRandomExpandedNodeId()
         {
             NodeId nodeId = GetRandomNodeId();            
-            ushort serverIndex = (ushort)m_random.NextInt32(m_serverUris.Count-1);
+            ushort serverIndex = m_serverUris.Count == 0 ? (ushort)0 : (ushort)m_random.NextInt32(m_serverUris.Count-1);
             return new ExpandedNodeId(nodeId, m_namespaceUris.GetString(nodeId.NamespaceIndex), serverIndex);
         }
         #endregion

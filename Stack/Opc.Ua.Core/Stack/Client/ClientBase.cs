@@ -58,6 +58,9 @@ namespace Opc.Ua
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
+            CloseChannel();
+            DisposeChannel();
+
             m_disposed = true;
         }
         #endregion
@@ -300,6 +303,23 @@ namespace Opc.Ua
             }
         }
 
+        protected void DisposeChannel()
+        {
+            if (m_channel != null)
+            {
+                try
+                {
+                    m_channel.Dispose();
+                }
+                catch
+                {
+                    // ignore errors.
+                }
+
+                m_channel = null;
+            }
+        }
+
         /// <summary>
         /// An object used to synchronize access to the session state.
         /// </summary>
@@ -409,6 +429,11 @@ namespace Opc.Ua
                 statusCode = response.ResponseHeader.ServiceResult;
             }
             
+            if (response == null)
+            {
+                statusCode = StatusCodes.Bad;
+            }
+
             int pendingRequestCount = Interlocked.Decrement(ref m_pendingRequestCount);
 
             if (statusCode != StatusCodes.Good)

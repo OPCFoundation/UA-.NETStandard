@@ -200,6 +200,11 @@ namespace Opc.Ua.Server
         {
             lock (NodeManager.Lock)
             {
+                if (EventMonitoredItems == null)
+                {
+                    return;
+                }
+
                 for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
                 {
                     IEventMonitoredItem monitoredItem = EventMonitoredItems[ii];
