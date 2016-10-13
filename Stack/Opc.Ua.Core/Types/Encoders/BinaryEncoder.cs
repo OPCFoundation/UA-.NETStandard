@@ -490,7 +490,7 @@ namespace Opc.Ua
                 return;
             }
                         
-            WriteByteString(null, new UTF8Encoding().GetBytes(value.Value));
+            WriteByteString(null, new UTF8Encoding().GetBytes(value.OuterXml));
         }
 
         /// <summary>

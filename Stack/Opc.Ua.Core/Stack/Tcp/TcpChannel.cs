@@ -430,7 +430,10 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                if (!m_socket.m_socket.SendAsync(args))
+                args.SocketError = SocketError.NotConnected;
+                if (m_socket == null ||
+                    m_socket.m_socket == null ||
+                    !m_socket.m_socket.SendAsync(args))
                 {
                     // I/O completed synchronously
                     if ((args.SocketError != SocketError.Success) || (args.BytesTransferred < buffers.TotalSize))
@@ -507,6 +510,8 @@ namespace Opc.Ua.Bindings
 
                 reason = new UTF8Encoding().GetString(reasonBytes, 0, reasonLength);
             }
+            
+            // Utils.Trace("Channel {0}: Read = {1}", ChannelId, reason);
             
             return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
         }

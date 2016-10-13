@@ -180,13 +180,13 @@ namespace Opc.Ua
 
             try
             {
+                Task.Run(async () =>
+                {
+                    await InternalValidate(chain);
+                }).Wait();
+
                 lock (m_lock)
                 { 
-                    Task.Run(async () =>
-                    {
-                        await InternalValidate(chain);
-                    }).Wait();
-
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = certificate;
                 }
@@ -316,11 +316,11 @@ namespace Opc.Ua
                 {
                     X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint);
 
-                    if (trusted.Count > 0)
+                    for (int ii = 0; ii < trusted.Count; ii++)
                     {
-                        if (Utils.IsEqual(trusted[0].RawData, certificate.RawData))
+                        if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                         {
-                            return new CertificateIdentifier(trusted[0], m_trustedCertificateStore.ValidationOptions);
+                            return new CertificateIdentifier(trusted[ii], m_trustedCertificateStore.ValidationOptions);
                         }
                     }
                 }

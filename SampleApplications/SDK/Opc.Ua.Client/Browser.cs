@@ -318,8 +318,16 @@ namespace Opc.Ua.Client
                     }
                     
                     additionalReferences = BrowseNext(ref continuationPoint, false);
-                    references.AddRange(additionalReferences);
-                }
+                    if (additionalReferences != null && additionalReferences.Count > 0)
+                    {
+                        references.AddRange(additionalReferences);
+                    }
+                    else
+                    {
+                        Utils.Trace("Continuation point exists, but the browse results are null/empty.");
+                        break;
+                    }
+                 }
 
                 // return the results.
                 return references;

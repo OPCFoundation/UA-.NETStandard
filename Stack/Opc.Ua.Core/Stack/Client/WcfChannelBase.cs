@@ -239,7 +239,9 @@ namespace Opc.Ua
         /// <param name="url">The URL for the endpoint.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(Uri url, TransportChannelSettings settings)
+        public void Initialize(
+            Uri url,
+            TransportChannelSettings settings)
         {
             if (m_wcfBypassChannel != null)
             {

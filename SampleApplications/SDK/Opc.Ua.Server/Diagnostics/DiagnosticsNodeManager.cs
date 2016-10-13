@@ -949,9 +949,7 @@ namespace Opc.Ua.Server
 
                 if (isHistorical)
                 {
-                    HistoryServerCapabilitiesState capabilities = GetDefaultHistoryCapabilities();
-
-                    folder = capabilities.AggregateFunctions;
+                    folder = FindPredefinedNode(ObjectIds.HistoryServerCapabilities_AggregateFunctions, typeof(BaseObjectState));
                     
                     if (folder != null)
                     {

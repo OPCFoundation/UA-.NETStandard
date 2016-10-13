@@ -189,7 +189,7 @@ namespace Opc.Ua.Server
                 // must assign a hard-to-guess id if not secured.
                 if (authenticationToken == null)
                 {
-                    byte [] token = Utils.CreateNonce("SessionManager", 32);
+                    byte [] token = Utils.Nonce.CreateNonce("SessionManager", 32);
                     authenticationToken = new NodeId(token);
                 }
                 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server
                 }
                 
                 // create server nonce.
-                serverNonce = Utils.CreateNonce("CreateSession", (uint) m_minNonceLength);
+                serverNonce = Utils.Nonce.CreateNonce("CreateSession", (uint) m_minNonceLength);
 
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
@@ -271,7 +271,7 @@ namespace Opc.Ua.Server
                 }
                 
                 // create new server nonce.
-                serverNonce = Utils.CreateNonce("ActivateSession", (uint)m_minNonceLength);
+                serverNonce = Utils.Nonce.CreateNonce("ActivateSession", (uint)m_minNonceLength);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(

@@ -273,6 +273,7 @@ namespace Opc.Ua.Bindings
             }
                        
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            Utils.Trace("Channel {0} reconnected", channelId);
             return true;
         }
 
