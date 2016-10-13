@@ -497,7 +497,7 @@ namespace Opc.Ua
                 if (matrix == null || matrix.Dimensions.Length != m_subranges.Length)
                 {
                     value = null;
-                    return StatusCodes.BadIndexRangeInvalid;
+                    return StatusCodes.BadIndexRangeNoData;
                 }
 
                 array = matrix.ToArray();
@@ -973,7 +973,7 @@ namespace Opc.Ua
                 if (chars == null)
                 {
                     value = null;
-                    return StatusCodes.BadIndexRangeInvalid;
+                    return StatusCodes.BadIndexRangeNoData;
                 }
                 
                 isString = true;

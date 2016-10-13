@@ -37,6 +37,14 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Returns the renewed but not yet activated token.
+        /// </summary>
+        protected TcpChannelToken RenewedToken
+        {
+            get { return m_renewedToken; }
+        }
+
+        /// <summary>
         /// Creates a new token.
         /// </summary>
         protected TcpChannelToken CreateToken()
@@ -47,6 +55,8 @@ namespace Opc.Ua.Bindings
             token.TokenId   = 0;
             token.CreatedAt = DateTime.UtcNow;
             token.Lifetime  = (int)Quotas.SecurityTokenLifetime;
+
+            Utils.Trace("Token #{0} created. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
 
             return token;
         }
@@ -61,6 +71,19 @@ namespace Opc.Ua.Bindings
 
             m_previousToken = m_currentToken;
             m_currentToken  = token;
+            m_renewedToken  = null;
+
+            Utils.Trace("Token #{0} activated. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
+        }
+
+        /// <summary>
+        /// Sets the renewed token
+        /// </summary>
+        protected void SetRenewedToken(TcpChannelToken token)
+        {
+            m_renewedToken = token;
+
+            Utils.Trace("RenewedToken #{0} set. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>
@@ -406,6 +429,20 @@ namespace Opc.Ua.Bindings
                     ChannelId);
             }
 
+            // check for a message secured with the new token.
+            if (RenewedToken != null && RenewedToken.TokenId == tokenId)
+            {
+                ActivateToken(RenewedToken);
+            }
+
+            // check if activation of the new token should be forced.
+            if (RenewedToken != null && CurrentToken.ActivationRequired)
+            {
+                ActivateToken(RenewedToken);
+
+                Utils.Trace("Token #{0} activated forced.", CurrentToken.TokenId);
+            }
+
             // check for valid token.
             TcpChannelToken currentToken = CurrentToken;
 
@@ -720,6 +757,7 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private TcpChannelToken m_currentToken;
         private TcpChannelToken m_previousToken;
+        private TcpChannelToken m_renewedToken;
         private int m_hmacHashSize;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;

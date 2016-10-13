@@ -225,7 +225,7 @@ namespace Opc.Ua
             }
 
             throw ServiceResultException.Create(
-                StatusCodes.BadSecurityChecksFailed,
+                StatusCodes.BadIdentityTokenInvalid, 
                 "Unexpected encryption algorithm : {0}",
                 dataToDecrypt.Algorithm);
         }

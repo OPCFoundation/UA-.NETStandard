@@ -1420,7 +1420,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
         /// <summary>
         /// Begins an asynchronous publish operation.
         /// </summary>
@@ -2054,9 +2053,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Public Methods used by the Host Process
+#region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2273,9 +2272,9 @@ namespace Opc.Ua.Server
                 Utils.Trace(e, "Unexpected exception handling registration timer.");
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Request Processing
+#region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2505,9 +2504,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }        
-        #endregion
+#endregion
 
-        #region Protected Members used for Initialization
+#region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -2841,14 +2840,10 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                // unregister from Discovery Server
-                if (m_registrationInfo != null)
-                {
-                    m_registrationInfo.IsOnline = false;
-                }
-
                 if (m_maxRegistrationInterval > 0)
                 {
+                    // unregister from Discovery Server
+                    m_registrationInfo.IsOnline = false;
                     await RegisterWithDiscoveryServer();
                 }
 

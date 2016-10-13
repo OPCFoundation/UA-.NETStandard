@@ -142,7 +142,7 @@ namespace Opc.Ua
                 {
                     if (senderNonce[ii] != decryptedPassword[ii+startOfNonce])
                     {
-                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                        throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                     }
                 }
             }            
@@ -316,7 +316,7 @@ namespace Opc.Ua
                 {
                     if (senderNonce[ii] != decryptedTokenData[ii+startOfNonce])
                     {
-                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                        throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                     }
                 }
             }         

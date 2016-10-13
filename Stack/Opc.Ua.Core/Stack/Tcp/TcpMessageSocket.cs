@@ -432,6 +432,8 @@ namespace Opc.Ua.Bindings
                 return ServiceResult.Good;
             }
 
+            // Utils.Trace("Bytes read: {0}", bytesRead);
+
             m_bytesReceived += bytesRead;
 
             // check if more data left to read.
@@ -523,6 +525,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 socket = m_socket;
+
+                // avoid stale ServiceException when socket is disconnected
+                if (!socket.Connected)
+                {
+                    return;
+                }
+
             }
 
             BufferManager.LockBuffer(m_receiveBuffer);
@@ -538,12 +547,17 @@ namespace Opc.Ua.Bindings
                     // I/O completed synchronously
                     if ((args.SocketError != SocketError.Success) || (args.BytesTransferred < (m_bytesToReceive - m_bytesReceived)))
                     {
-                        BufferManager.UnlockBuffer(m_receiveBuffer);
                         throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
                     }
 
                     args.Dispose();
                 }
+            }
+            catch (ServiceResultException sre)
+            {
+                args.Dispose();
+                BufferManager.UnlockBuffer(m_receiveBuffer);
+                throw sre;
             }
             catch (Exception ex)
             {

@@ -548,7 +548,7 @@ namespace Opc.Ua
 
                 case FilterOperator.RelatedTo:
                 {
-                    operandCount = 4;
+                    operandCount = 6;
                     break;
                 }
 
