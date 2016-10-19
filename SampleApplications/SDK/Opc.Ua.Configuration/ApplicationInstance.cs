@@ -1121,7 +1121,7 @@ namespace Opc.Ua.Configuration
             string computerName = Utils.GetHostName();
 
             // get IP addresses.
-            IPAddress[] addresses = await Utils.GetHostAddresses(computerName);
+            IPAddress[] addresses = null;
 
             for (int ii = 0; ii < serverDomainNames.Count; ii++)
             {
@@ -1139,6 +1139,12 @@ namespace Opc.Ua.Configuration
 
                     // check for aliases.
                     bool found = false;
+
+                    // get IP addresses only if necessary.
+                    if (addresses == null)
+                    {
+                        addresses = await Utils.GetHostAddresses(computerName);
+                    }
 
                     // check for ip addresses.
                     for (int jj = 0; jj < addresses.Length; jj++)
