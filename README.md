@@ -72,10 +72,10 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 * Open the solution UA-NetStandard.sln with VisualStudio.
 
 * Open the Samples\XXXPublisher\Opc.Ua.Publisher.Config.xml file to setup your IoTHub connection. In the `<AmqpConnectionConfiguration>` element configure the following elements:
-   * `<Host>`{Host}`</Host>`, where {Host} is the Hostname shown on the details page of your IoTHub on the Azure portal (same as the HostName part of the IoT Hub Connection String DeviceExplorer Configuration tab).
-   * `<Endpoint>`/devices/{DeviceId}/messages/events`</Endpoint>`, where {DeviceID} is the name of the device you have created with DeviceExplorer (same as the Id of the device in DeviceExplorer Management tab).
+   * `<Host>`{Host}`</Host>`, where {Host} is the Hostname shown on the details page of your IoTHub on the Azure portal (same as the HostName part of the IoT Hub Connection String DeviceExplorer Configuration tab, eg. *myiothub.azure-devices.net*).
+   * `<Endpoint>`/devices/{DeviceId}/messages/events`</Endpoint>`, where {DeviceID} is the name of the device you have created with DeviceExplorer (same as the Id of the device in DeviceExplorer Management tab, eg. */devices/myOPCDevice/messages/events*).
    * `<KeyValue>`{KeyValue}`</KeyValue>`, where {KeyValue} is the Primary Key of the device and could be found under Devices->{DeviceId}->Device Details->Primary Key of your IoTHub in the Azure portal (same as the PrimaryKey of your device shown in DeviceExplorer Management tab).
-   * `<TokenScope>`{Host}/devices/{DeviceId}`</TokenScope>`, {Host} and {DeviceID} are the same as above
+   * `<TokenScope>`{Host}/devices/{DeviceId}`</TokenScope>`, {Host} and {DeviceID} are the same as above, eg. *myiothub.azure-devices.net/devices/myOPCDevice*
 
 * Save the file, rebuild the solution and start it. This will start a local instance of the application.	
 
@@ -90,10 +90,12 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 * Now acknowledge the certificate message in the Opc.Ua.Publisher app and close the application. 
 
 * Restart the Opc.Ua.Publisher application. If you get a message for a missconfigured domain, acknowledge with "Yes" to use the certificate.
-        
-* Press "Connect" button to connect to the default endpoint currently displayed. 
 
-* You should see two dialogs, one after the other, which allows you to select "Security Mode", "Security Policy" and other settings. Just click "OK" for now to accept defaults.
+* When the Opc.Ua.Publisher application is started from the debugger, the line *13:03:01.079 AMQP Connection opened, connected to '/devices/myOPCDevice/messages/events'...* should be in the output window indicating a succesful connection.
+        
+* Press "Connect" button to connect to the default endpoint currently displayed, even though is not the AMQP endpoint.
+
+* You should see two dialogs, one after the other, which allows you to select "Security Mode", "Security Policy" and other settings. Just click "OK" twice for now to accept defaults.
 
 * On the left window in the application you see all existing sessions (you are able to connect to multiple OPC UA servers here) and on the right side you can browse the OPC UA node addresss space of the server.
 
@@ -112,7 +114,7 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
 * Open the MessageProcessing\Configuration.cs file to configure the app to use your Azure resources (Storage account and IoTHub).
 ```
         // {StorageAccountName} is the name of the storage account and could be found 
-        // under Settings->Access keys->Storage account name of your storage account on the Azure portal.
+        // under Settings->Access keys->Storage account name of your storage account on the Azure portal, eg. *myopcstore*.
         // {AccessKey} is the access key of the storage account and could be found 
         // under Settings->Access keys->key1 of your storage account on the Azure portal.
         public static string StorageConnectionString = "DefaultEndpointsProtocol=https;AccountName={StorageAccountName};AccountKey={AccessKey}";
@@ -124,13 +126,14 @@ They should work against any AMQP Broker that provides a standard AMQP 1.0 inter
         public static string EventHubConsumerGroup = "{ConsumerGroupName}";
 
         // {EventHubEndpoint} is the Event Hub compatible endpoint of your IoTHub and could be found 
-        // under Settings->Messaging->Event Hub-compatible endpoint of your IoTHub in the Azure portal.
+        // under Settings->Messaging->Event Hub-compatible endpoint of your IoTHub in the Azure portal,
+        // eg. *sb://iothub-ns-myiothub-12345-d35c0ac1cab.servicebus.windows.net/*
         // {PrimaryKey} is the IoT Hub primary key for access with iothubowner policy and could be found
         // under Settings->Shared access policies->iothubowner->Primary key of your IoTHub in the Azure portal.  
-        public static string EventHubConnectionString = "Endpoint={EventHubEndpoint};SharedAccessKeyName=iothubowner;{PrimaryKey}";
+        public static string EventHubConnectionString = "Endpoint={EventHubEndpoint};SharedAccessKeyName=iothubowner;SharedAccessKey={PrimaryKey}";
 
         // {HubName} is the Event Hub compatible name of your IoTHub and could be found 
-        // under Settings->Messaging->Event Hub-compatible name of your IoTHub in the Azure portal.
+        // under Settings->Messaging->Event Hub-compatible name of your IoTHub in the Azure portal, eg. *myiothub*
         public static string EventHubName = "{HubName}";
 ```
 * Save the file, rebuild the solution and start it. This will start a local instance of the application.
