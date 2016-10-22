@@ -131,6 +131,10 @@ namespace Boiler
             m_boilers.Add(boiler);
 
             AddPredefinedNode(context, boiler);
+
+            // Autostart boiler simulation
+            boiler.OnControlSimulation(context, null, 0, Opc.Ua.Methods.ProgramStateMachineType_Start, null, null);
+
         }
 
         /// <summary>
@@ -198,6 +202,9 @@ namespace Boiler
 
                     BoilerState activeNode = new BoilerState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
+
+                    // Autostart boiler simulation
+                    activeNode.OnControlSimulation(context, null, 0, Opc.Ua.Methods.ProgramStateMachineType_Start, null, null);
 
                     // replace the node in the parent.
                     if (passiveNode.Parent != null)

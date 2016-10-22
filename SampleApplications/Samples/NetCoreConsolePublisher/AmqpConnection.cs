@@ -159,7 +159,11 @@ namespace Opc.Ua.Publisher
                 messages.Enqueue(body);
             }
 
-            if (!IsClosed())
+            if (IsClosed())
+            {
+                Task.Run(OpenAsync);
+            }
+            else
             {
                 // Push out the messages we have so far
                 Task.Run(new Action(SendAll));
@@ -188,8 +192,6 @@ namespace Opc.Ua.Publisher
             catch (Exception)
             {
                 Close();
-
-                Task t = OpenAsync();
             }
         }
 
@@ -440,7 +442,14 @@ namespace Opc.Ua.Publisher
         {
             try
             {
-                RenewTokenAsync(GenerateSharedAccessToken()).Wait(60000);
+                lock (messages)
+                {
+                    bool result = RenewTokenAsync(GenerateSharedAccessToken()).Wait(60000);
+                    if (!result)
+                    {
+                        Utils.Trace( "Unexpected timeout error renewing token.");
+                    }
+                }
             }
             catch (Exception e)
             {
