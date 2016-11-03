@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 

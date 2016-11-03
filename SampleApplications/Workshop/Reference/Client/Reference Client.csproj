@@ -102,10 +102,13 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <EmbeddedResource Include="InstallConfig.xml" />
+    <EmbeddedResource Include="InstallConfig.xml">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <Content Include="Quickstarts.ReferenceClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="CreateCert.cmd" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -129,8 +132,8 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\UA-.NetStandard\SampleApplications\Samples\ClientControls.Net4\UA Client Controls.csproj">
-      <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
+    <ProjectReference Include="..\..\..\Samples\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
   </ItemGroup>

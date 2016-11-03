@@ -28,11 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Controls;
 using System.Threading.Tasks;

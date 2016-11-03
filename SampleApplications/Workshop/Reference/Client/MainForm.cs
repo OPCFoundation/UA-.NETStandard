@@ -79,11 +79,11 @@ namespace Quickstarts.ReferenceClient
         /// <summary>
         /// Connects to a server.
         /// </summary>
-        private void Server_ConnectMI_Click(object sender, EventArgs e)
+        private async void Server_ConnectMI_Click(object sender, EventArgs e)
         {
             try
             {
-                ConnectServerCTRL.Connect();
+                await ConnectServerCTRL.Connect();
             }
             catch (Exception exception)
             {

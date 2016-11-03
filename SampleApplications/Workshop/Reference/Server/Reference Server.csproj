@@ -126,6 +126,7 @@
     </Content>
     <None Include="app.manifest">
     </None>
+    <None Include="CreateCert.cmd" />
     <None Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -152,14 +153,15 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\UA-.NetStandard\SampleApplications\Samples\ServerControls.Net4\UA Server Controls.csproj">
-      <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
+    <ProjectReference Include="..\..\..\Samples\ServerControls.Net4\UA Server Controls.csproj">
+      <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
       <Name>UA Server Controls</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>mkdir "$(ProjectDir)OPC Foundation"
+    <PostBuildEvent>rmdir /s/q "$(TargetDir)OPC Foundation\CertificateStores\MachineDefault"
+mkdir "$(ProjectDir)OPC Foundation"
 xcopy "$(ProjectDir)OPC Foundation\*.*" "$(TargetDir)OPC Foundation" /I/E/R/Y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
