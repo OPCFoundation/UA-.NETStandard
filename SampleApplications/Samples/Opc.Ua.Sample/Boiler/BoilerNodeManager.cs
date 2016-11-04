@@ -132,8 +132,12 @@ namespace Boiler
 
             AddPredefinedNode(context, boiler);
 
-            // Autostart boiler simulation
-            boiler.OnControlSimulation(context, null, 0, Opc.Ua.Methods.ProgramStateMachineType_Start, null, null);
+            // Autostart boiler simulation state machine
+            MethodState start = boiler.Simulation.Start;
+            IList<Variant> inputArguments = new List<Variant>();
+            IList<Variant> outputArguments = new List<Variant>();
+            List<ServiceResult> errors = new List<ServiceResult>();
+            start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
 
         }
 
@@ -203,14 +207,18 @@ namespace Boiler
                     BoilerState activeNode = new BoilerState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
 
-                    // Autostart boiler simulation
-                    activeNode.OnControlSimulation(context, null, 0, Opc.Ua.Methods.ProgramStateMachineType_Start, null, null);
-
                     // replace the node in the parent.
                     if (passiveNode.Parent != null)
                     {
                         passiveNode.Parent.ReplaceChild(context, activeNode);
                     }
+
+                    // Autostart boiler simulation state machine
+                    MethodState start = activeNode.Simulation.Start;
+                    IList<Variant> inputArguments = new List<Variant>();
+                    IList<Variant> outputArguments = new List<Variant>();
+                    List<ServiceResult> errors = new List<ServiceResult>();
+                    start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
                 }
