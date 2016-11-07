@@ -75,12 +75,14 @@ namespace Opc.Ua.Publisher
         private Connection m_connection;
         private Session m_session;
         private SenderLink m_link;
-        private Queue<ArraySegment<byte>> messages;
+        private LinkedList<ArraySegment<byte>> messages;
 
         private DateTime m_currentExpiryTime;
         private Timer m_tokenRenewalTimer;
         private bool m_closed;
         private int m_counter;
+        private object m_sending;
+        private int m_sendallthreads;
 
         #endregion
 
@@ -108,7 +110,13 @@ namespace Opc.Ua.Publisher
         /// </summary>
         private void Initialize()
         {
-            messages = new Queue<ArraySegment<byte>>();
+            m_connection = null;
+            m_session = null;
+            m_link = null;
+            m_closed = true;
+            m_sending = new object();
+            m_sendallthreads = 0;
+            messages = new LinkedList<ArraySegment<byte>>();
         }
 
         #endregion
@@ -156,7 +164,7 @@ namespace Opc.Ua.Publisher
         {
             lock (messages)
             {
-                messages.Enqueue(body);
+                messages.AddLast(body);
             }
 
             if (IsClosed())
@@ -175,16 +183,40 @@ namespace Opc.Ua.Publisher
         /// </summary>
         protected void SendAll()
         {
+            // make sure only one send all task is active
+            if (Interlocked.Increment(ref m_sendallthreads) != 1)
+            {
+                Interlocked.Decrement(ref m_sendallthreads);
+                return;
+            }
+
             try
             {
-                lock (messages)
+
+                while (!IsClosed())
                 {
-                    while (!IsClosed() && messages.Count != 0)
+                    ArraySegment<byte> onemessage;
+                    lock (messages)
                     {
-                        bool sent = SendOne(messages.Peek());
-                        if (sent)
+                        if (messages.Count == 0)
                         {
-                            messages.Dequeue();
+                            break;
+                        }
+                        onemessage = messages.First.Value;
+                        messages.RemoveFirst();
+                    }
+
+                    bool sent;
+                    lock (m_sending)
+                    {
+                        sent = SendOne(onemessage);
+                    }
+
+                    if (!sent)
+                    {
+                        lock (messages)
+                        {
+                            messages.AddFirst(onemessage);
                         }
                     }
                 }
@@ -192,6 +224,10 @@ namespace Opc.Ua.Publisher
             catch (Exception)
             {
                 Close();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_sendallthreads);
             }
         }
 
@@ -360,7 +396,10 @@ namespace Opc.Ua.Publisher
             }
 
             // Ensure we have a token
-            await RenewTokenAsync(GenerateSharedAccessToken());
+            lock (m_sending)
+            {
+                RenewTokenAsync(GenerateSharedAccessToken()).Wait();
+            }
 
             // then start the periodic renewal
             int interval = (int)(TokenLifetime * 0.8);
@@ -442,12 +481,12 @@ namespace Opc.Ua.Publisher
         {
             try
             {
-                lock (messages)
+                lock (m_sending)
                 {
                     bool result = RenewTokenAsync(GenerateSharedAccessToken()).Wait(60000);
                     if (!result)
                     {
-                        Utils.Trace( "Unexpected timeout error renewing token.");
+                        Utils.Trace("Unexpected timeout error renewing token.");
                     }
                 }
             }
