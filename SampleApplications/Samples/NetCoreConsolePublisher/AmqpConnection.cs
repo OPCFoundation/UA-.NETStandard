@@ -80,7 +80,9 @@ namespace Opc.Ua.Publisher
         private DateTime m_currentExpiryTime;
         private Timer m_tokenRenewalTimer;
         private bool m_closed;
-        private int m_counter;
+        private int m_sendCounter;
+        private int m_sendAcceptedCounter;
+        private int m_sendRejectedCounter;
         private object m_sending;
         private int m_sendallthreads;
 
@@ -117,6 +119,9 @@ namespace Opc.Ua.Publisher
             m_sending = new object();
             m_sendallthreads = 0;
             messages = new LinkedList<ArraySegment<byte>>();
+            m_sendCounter = 0;
+            m_sendAcceptedCounter = 0;
+            m_sendRejectedCounter = 0;
         }
 
         #endregion
@@ -127,33 +132,47 @@ namespace Opc.Ua.Publisher
         /// <returns></returns>
         public async Task OpenAsync()
         {
-            Close();
-
-            ConnectionFactory factory = new ConnectionFactory();
-            factory.AMQP.ContainerId = Guid.NewGuid().ToString();
-            if (UseCbs)
+            // make sure only one SendAll or OpenAsync task is active
+            if (Interlocked.Increment(ref m_sendallthreads) != 1)
             {
-                factory.SASL.Profile = SaslProfile.External;
+                Interlocked.Decrement(ref m_sendallthreads);
+                return;
             }
 
-            m_connection = await factory.CreateAsync(GetAddress());
-            m_connection.Closed += new ClosedCallback(OnConnectionClosed);
-
-            if (UseCbs && KeyName != null && KeyValue != null)
+            try
             {
-                await StartCbs();
+                Close();
+
+                ConnectionFactory factory = new ConnectionFactory();
+                factory.AMQP.ContainerId = Guid.NewGuid().ToString();
+                if (UseCbs)
+                {
+                    factory.SASL.Profile = SaslProfile.External;
+                }
+
+                m_connection = await factory.CreateAsync(GetAddress());
+                m_connection.Closed += new ClosedCallback(OnConnectionClosed);
+
+                if (UseCbs && KeyName != null && KeyValue != null)
+                {
+                    StartCbs();
+                }
+                else
+                {
+                    await ResetLinkAsync();
+                }
+
+                Utils.Trace("AMQP Connection opened, connected to '{0}'...", Endpoint);
+
+                m_closed = false;
             }
-            else
+            finally
             {
-                await ResetLinkAsync();
+                Interlocked.Decrement(ref m_sendallthreads);
             }
-
-            Utils.Trace("AMQP Connection opened, connected to '{0}'...", Endpoint);
-
-            m_closed = false;
 
             // Push out the messages we have so far
-            await Task.Run(new Action(SendAll));
+            SendAll();
         }
 
         /// <summary>
@@ -209,7 +228,7 @@ namespace Opc.Ua.Publisher
                     bool sent;
                     lock (m_sending)
                     {
-                        sent = SendOne(onemessage);
+                        sent = SendOneAsync(onemessage, SendAllCallback);
                     }
 
                     if (!sent)
@@ -232,36 +251,60 @@ namespace Opc.Ua.Publisher
         }
 
         /// <summary>
+        /// Send outcome callback
+        /// </summary>
+        /// <param name="body"></param>
+        /// <returns>Whether message was sent</returns>
+        void SendAllCallback(Message message, Outcome outcome, object state)
+        {
+            if (outcome.Descriptor.Code == 36)
+            {
+                // accepted
+                m_sendAcceptedCounter++;
+            }
+            else 
+            {
+                // rejected or other fail reason
+                m_sendRejectedCounter++;
+            }
+            if (((m_sendRejectedCounter + m_sendAcceptedCounter) % 100) == 0)
+            {
+                Console.WriteLine("Send Statistics: {0} sent {1} accepted {2} rejected", 
+                    m_sendCounter, m_sendAcceptedCounter, m_sendRejectedCounter);
+            }
+        }
+
+        /// <summary>
         /// Send message
         /// </summary>
         /// <param name="body"></param>
         /// <returns>Whether message was sent</returns>
-        protected bool SendOne(ArraySegment<byte> body)
+        protected bool SendOneAsync(ArraySegment<byte> body, OutcomeCallback SendCallback)
         {
-            m_counter++;
-
             if (IsClosed())
             {
                 return false;
             }
 
-            var istrm = new MemoryStream(body.Array, body.Offset, body.Count, false);
-
-            Message message = new Message()
+            using (var istrm = new MemoryStream(body.Array, body.Offset, body.Count, false))
             {
-                BodySection = new Data() { Binary = istrm.ToArray() }
-            };
+                Message message = new Message()
+                {
+                    BodySection = new Data() { Binary = istrm.ToArray() }
+                };
 
-            message.Properties = new Properties()
-            {
-                MessageId = Guid.NewGuid().ToString(),
-                ContentType = "application/opcua+json"
-            };
+                message.Properties = new Properties()
+                {
+                    MessageId = Guid.NewGuid().ToString(),
+                    ContentType = "application/opcua+json"
+                };
 
-            if (m_link != null)
-            {
-                m_link.Send(message, 6000);
-                return true;
+                if (m_link != null)
+                {
+                    m_sendCounter++;
+                    m_link.Send(message, SendCallback, null);
+                    return true;
+                }
             }
 
             return false;
@@ -378,7 +421,7 @@ namespace Opc.Ua.Publisher
         /// Start cbs protocol on the underlying connection
         /// </summary>
         /// <returns>Task to wait on</returns>
-        protected async Task StartCbs()
+        protected void StartCbs()
         {
             if (m_connection == null)
             {
@@ -398,7 +441,7 @@ namespace Opc.Ua.Publisher
             // Ensure we have a token
             lock (m_sending)
             {
-                RenewTokenAsync(GenerateSharedAccessToken()).Wait();
+                RenewTokenAsync(GenerateSharedAccessToken()).Wait(TokenLifetime);
             }
 
             // then start the periodic renewal
@@ -483,7 +526,7 @@ namespace Opc.Ua.Publisher
             {
                 lock (m_sending)
                 {
-                    bool result = RenewTokenAsync(GenerateSharedAccessToken()).Wait(60000);
+                    bool result = RenewTokenAsync(GenerateSharedAccessToken()).Wait(TokenLifetime);
                     if (!result)
                     {
                         Utils.Trace("Unexpected timeout error renewing token.");
