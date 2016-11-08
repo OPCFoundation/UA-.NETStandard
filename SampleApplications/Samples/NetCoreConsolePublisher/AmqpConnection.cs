@@ -17,10 +17,6 @@ namespace Opc.Ua.Publisher
     [CollectionDataContract(Name = "ListOfAmqpConnectionConfigurations", Namespace = Namespaces.OpcUaConfig, ItemName = "AmqpConnectionConfiguration")]
     public partial class AmqpConnectionCollection : List<AmqpConnection>
     {
-        public AmqpConnectionCollection()
-        {
-        }
-
         public static AmqpConnectionCollection Load(ApplicationConfiguration configuration)
         {
             return configuration.ParseExtension<AmqpConnectionCollection>();
@@ -155,7 +151,7 @@ namespace Opc.Ua.Publisher
 
                 if (UseCbs && KeyName != null && KeyValue != null)
                 {
-                    StartCbs();
+                    await StartCbs();
                 }
                 else
                 {
@@ -165,6 +161,10 @@ namespace Opc.Ua.Publisher
                 Utils.Trace("AMQP Connection opened, connected to '{0}'...", Endpoint);
 
                 m_closed = false;
+            }
+            catch (Exception e)
+            {
+                Utils.Trace("AMQP Connection failed to open, exception: {0}...", e.Message);
             }
             finally
             {
@@ -269,7 +269,7 @@ namespace Opc.Ua.Publisher
             }
             if (((m_sendRejectedCounter + m_sendAcceptedCounter) % 100) == 0)
             {
-                Console.WriteLine("Send Statistics: {0} sent {1} accepted {2} rejected", 
+                Utils.Trace("Send Statistics: {0} sent {1} accepted {2} rejected", 
                     m_sendCounter, m_sendAcceptedCounter, m_sendRejectedCounter);
             }
         }
@@ -316,6 +316,11 @@ namespace Opc.Ua.Publisher
         public void Close()
         {
             m_closed = true;
+            if (m_tokenRenewalTimer != null)
+            {
+                m_tokenRenewalTimer.Dispose();
+                m_tokenRenewalTimer = null;
+            }
             Dispose(true);
         }
 
@@ -421,7 +426,7 @@ namespace Opc.Ua.Publisher
         /// Start cbs protocol on the underlying connection
         /// </summary>
         /// <returns>Task to wait on</returns>
-        protected void StartCbs()
+        protected async Task StartCbs()
         {
             if (m_connection == null)
             {
@@ -439,10 +444,7 @@ namespace Opc.Ua.Publisher
             }
 
             // Ensure we have a token
-            lock (m_sending)
-            {
-                RenewTokenAsync(GenerateSharedAccessToken()).Wait(TokenLifetime);
-            }
+            await RenewTokenAsync(GenerateSharedAccessToken());
 
             // then start the periodic renewal
             int interval = (int)(TokenLifetime * 0.8);
