@@ -17,6 +17,10 @@ namespace Opc.Ua.Publisher
     [CollectionDataContract(Name = "ListOfAmqpConnectionConfigurations", Namespace = Namespaces.OpcUaConfig, ItemName = "AmqpConnectionConfiguration")]
     public partial class AmqpConnectionCollection : List<AmqpConnection>
     {
+        public AmqpConnectionCollection()
+        {
+        }
+
         public static AmqpConnectionCollection Load(ApplicationConfiguration configuration)
         {
             return configuration.ParseExtension<AmqpConnectionCollection>();
@@ -71,12 +75,16 @@ namespace Opc.Ua.Publisher
         private Connection m_connection;
         private Session m_session;
         private SenderLink m_link;
-        private Queue<ArraySegment<byte>> messages;
+        private LinkedList<ArraySegment<byte>> messages;
 
         private DateTime m_currentExpiryTime;
         private Timer m_tokenRenewalTimer;
         private bool m_closed;
-        private int m_counter;
+        private int m_sendCounter;
+        private int m_sendAcceptedCounter;
+        private int m_sendRejectedCounter;
+        private object m_sending;
+        private int m_sendallthreads;
 
         #endregion
 
@@ -104,7 +112,16 @@ namespace Opc.Ua.Publisher
         /// </summary>
         private void Initialize()
         {
-            messages = new Queue<ArraySegment<byte>>();
+            m_connection = null;
+            m_session = null;
+            m_link = null;
+            m_closed = true;
+            m_sending = new object();
+            m_sendallthreads = 0;
+            messages = new LinkedList<ArraySegment<byte>>();
+            m_sendCounter = 0;
+            m_sendAcceptedCounter = 0;
+            m_sendRejectedCounter = 0;
         }
 
         #endregion
@@ -115,33 +132,47 @@ namespace Opc.Ua.Publisher
         /// <returns></returns>
         public async Task OpenAsync()
         {
-            Close();
-
-            ConnectionFactory factory = new ConnectionFactory();
-            factory.AMQP.ContainerId = Guid.NewGuid().ToString();
-            if (UseCbs)
+            // make sure only one SendAll or OpenAsync task is active
+            if (Interlocked.Increment(ref m_sendallthreads) != 1)
             {
-                factory.SASL.Profile = SaslProfile.External;
+                Interlocked.Decrement(ref m_sendallthreads);
+                return;
             }
 
-            m_connection = await factory.CreateAsync(GetAddress());
-            m_connection.Closed += new ClosedCallback(OnConnectionClosed);
-
-            if (UseCbs && KeyName != null && KeyValue != null)
+            try
             {
-                await StartCbs();
+                Close();
+
+                ConnectionFactory factory = new ConnectionFactory();
+                factory.AMQP.ContainerId = Guid.NewGuid().ToString();
+                if (UseCbs)
+                {
+                    factory.SASL.Profile = SaslProfile.External;
+                }
+
+                m_connection = await factory.CreateAsync(GetAddress());
+                m_connection.Closed += new ClosedCallback(OnConnectionClosed);
+
+                if (UseCbs && KeyName != null && KeyValue != null)
+                {
+                    StartCbs();
+                }
+                else
+                {
+                    await ResetLinkAsync();
+                }
+
+                Utils.Trace("AMQP Connection opened, connected to '{0}'...", Endpoint);
+
+                m_closed = false;
             }
-            else
+            finally
             {
-                await ResetLinkAsync();
+                Interlocked.Decrement(ref m_sendallthreads);
             }
-
-            Utils.Trace("AMQP Connection opened, connected to '{0}'...", Endpoint);
-
-            m_closed = false;
 
             // Push out the messages we have so far
-            await Task.Run(new Action(SendAll));
+            SendAll();
         }
 
         /// <summary>
@@ -152,10 +183,14 @@ namespace Opc.Ua.Publisher
         {
             lock (messages)
             {
-                messages.Enqueue(body);
+                messages.AddLast(body);
             }
 
-            if (!IsClosed())
+            if (IsClosed())
+            {
+                Task.Run(OpenAsync);
+            }
+            else
             {
                 // Push out the messages we have so far
                 Task.Run(new Action(SendAll));
@@ -167,16 +202,40 @@ namespace Opc.Ua.Publisher
         /// </summary>
         protected void SendAll()
         {
+            // make sure only one send all task is active
+            if (Interlocked.Increment(ref m_sendallthreads) != 1)
+            {
+                Interlocked.Decrement(ref m_sendallthreads);
+                return;
+            }
+
             try
             {
-                lock (messages)
+
+                while (!IsClosed())
                 {
-                    while (!IsClosed() && messages.Count != 0)
+                    ArraySegment<byte> onemessage;
+                    lock (messages)
                     {
-                        bool sent = SendOne(messages.Peek());
-                        if (sent)
+                        if (messages.Count == 0)
                         {
-                            messages.Dequeue();
+                            break;
+                        }
+                        onemessage = messages.First.Value;
+                        messages.RemoveFirst();
+                    }
+
+                    bool sent;
+                    lock (m_sending)
+                    {
+                        sent = SendOneAsync(onemessage, SendAllCallback);
+                    }
+
+                    if (!sent)
+                    {
+                        lock (messages)
+                        {
+                            messages.AddFirst(onemessage);
                         }
                     }
                 }
@@ -184,8 +243,34 @@ namespace Opc.Ua.Publisher
             catch (Exception)
             {
                 Close();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref m_sendallthreads);
+            }
+        }
 
-                Task t = OpenAsync();
+        /// <summary>
+        /// Send outcome callback
+        /// </summary>
+        /// <param name="body"></param>
+        /// <returns>Whether message was sent</returns>
+        void SendAllCallback(Message message, Outcome outcome, object state)
+        {
+            if (outcome.Descriptor.Code == 36)
+            {
+                // accepted
+                m_sendAcceptedCounter++;
+            }
+            else 
+            {
+                // rejected or other fail reason
+                m_sendRejectedCounter++;
+            }
+            if (((m_sendRejectedCounter + m_sendAcceptedCounter) % 100) == 0)
+            {
+                Utils.Trace("Send Statistics: {0} sent {1} accepted {2} rejected", 
+                    m_sendCounter, m_sendAcceptedCounter, m_sendRejectedCounter);
             }
         }
 
@@ -194,32 +279,32 @@ namespace Opc.Ua.Publisher
         /// </summary>
         /// <param name="body"></param>
         /// <returns>Whether message was sent</returns>
-        protected bool SendOne(ArraySegment<byte> body)
+        protected bool SendOneAsync(ArraySegment<byte> body, OutcomeCallback SendCallback)
         {
-            m_counter++;
-
             if (IsClosed())
             {
                 return false;
             }
 
-            var istrm = new MemoryStream(body.Array, body.Offset, body.Count, false);
-
-            Message message = new Message()
+            using (var istrm = new MemoryStream(body.Array, body.Offset, body.Count, false))
             {
-                BodySection = new Data() { Binary = istrm.ToArray() }
-            };
+                Message message = new Message()
+                {
+                    BodySection = new Data() { Binary = istrm.ToArray() }
+                };
 
-            message.Properties = new Properties()
-            {
-                MessageId = Guid.NewGuid().ToString(),
-                ContentType = "application/opcua+json"
-            };
+                message.Properties = new Properties()
+                {
+                    MessageId = Guid.NewGuid().ToString(),
+                    ContentType = "application/opcua+json"
+                };
 
-            if (m_link != null)
-            {
-                m_link.Send(message, 6000);
-                return true;
+                if (m_link != null)
+                {
+                    m_sendCounter++;
+                    m_link.Send(message, SendCallback, null);
+                    return true;
+                }
             }
 
             return false;
@@ -336,7 +421,7 @@ namespace Opc.Ua.Publisher
         /// Start cbs protocol on the underlying connection
         /// </summary>
         /// <returns>Task to wait on</returns>
-        protected async Task StartCbs()
+        protected void StartCbs()
         {
             if (m_connection == null)
             {
@@ -354,7 +439,10 @@ namespace Opc.Ua.Publisher
             }
 
             // Ensure we have a token
-            await RenewTokenAsync(GenerateSharedAccessToken());
+            lock (m_sending)
+            {
+                RenewTokenAsync(GenerateSharedAccessToken()).Wait(TokenLifetime);
+            }
 
             // then start the periodic renewal
             int interval = (int)(TokenLifetime * 0.8);
@@ -436,7 +524,14 @@ namespace Opc.Ua.Publisher
         {
             try
             {
-                RenewTokenAsync(GenerateSharedAccessToken()).Wait(60000);
+                lock (m_sending)
+                {
+                    bool result = RenewTokenAsync(GenerateSharedAccessToken()).Wait(TokenLifetime);
+                    if (!result)
+                    {
+                        Utils.Trace("Unexpected timeout error renewing token.");
+                    }
+                }
             }
             catch (Exception e)
             {
