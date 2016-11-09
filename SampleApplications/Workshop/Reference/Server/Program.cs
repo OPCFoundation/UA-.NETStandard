@@ -54,18 +54,6 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                // process and command line arguments.
-                // TODO if (application.ProcessCommandLine())
-                //{
-                //    return;
-                //}
-
-                // check if running as a service.
-                if (!Environment.UserInteractive)
-                {
-                    // TODO application.StartAsService(new ReferenceServer());
-                    return;
-                }
 
                 // load the application configuration.
                 Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);

@@ -52,11 +52,6 @@ namespace Quickstarts.ReferenceClient
 
             try
             {
-                // process and command line arguments.
-                //TODOif (application.ProcessCommandLine())
-                {
-                    //TODO return;
-                }
                 
                 // load the application configuration.
                 application.LoadApplicationConfiguration(false);
@@ -69,7 +64,13 @@ namespace Quickstarts.ReferenceClient
             }
             catch (Exception e)
             {
-                // TODO ExceptionDlg.Show(application.ApplicationName, e);
+                string text = "Exception: " + e.Message;
+                if (e.InnerException != null)
+                {
+                    text += "\r\nInner exception: ";
+                    text += e.InnerException.Message;
+                }
+                MessageBox.Show(text, application.ApplicationName);
                 return;
             }
         }
