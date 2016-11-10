@@ -1,7 +1,7 @@
 # OPC UA .Net Standard Library Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting the [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
+This OPC UA reference implementation is targeting the [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandardLibrary).
 
 ##Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
@@ -95,16 +95,6 @@ Please follow instructions in this [article] (https://docs.microsoft.com/en-us/d
 * Now run the OPC UA Publisher sample, connect to a OPC UA server and publish a node.
 
 * You should see the node value on the web page after a few seconds.
-
-##License
-
-This repository includes the UA .NetStandard Stack, sample libraries, and sample applications. The UA .NetStandard Stack follows a dual-license:
-
- * **OPC Foundation Corporate Members**: [RCL](https://opcfoundation.org/license/rcl.html)
- * **Everybody else**: [GPL 2.0](https://opcfoundation.org/license/gpl.html)
- * RCL enables OPC Foundation members to deploy their applications using the UA .NetStandard stack without being required to disclose the application code. Non-members must disclose their application code when using the UA .NetStandard Stack.
- * **Note**: Dual license applies to this repository only; GPL 2.0 applies to all derived repositories (for example 'forks'). For details check the License section below.
- * All samples are provided under the [MIT license](https://opcfoundation.org/license/mit.html).
 
 ##Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.

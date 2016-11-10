@@ -9,7 +9,7 @@
     <language>en-US</language>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandardLibrary</projectUrl>
     <iconUrl>https://opcfoundation.org/wp-content/themes/opc/images/logo.jpg</iconUrl>
-    <licenseUrl>https://opcfoundation.org/license</licenseUrl>
+    <licenseUrl>http://opcfoundation.github.io/UA-.NETStandardLibrary</licenseUrl>
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net net46 netcore uwp</tags>
     <dependencies>
       <group targetFramework="net46" >
