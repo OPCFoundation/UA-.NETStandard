@@ -7,9 +7,9 @@ namespace Microsoft.Azure.Devices.Relay.Worker
     {
         public static long CheckpointMessageCount = 10;
 
-        // {StorageAccountName} is the name of the storage account and could be found 
+        // {StorageAccountName} is the name of the storage account and can be found 
         // under Settings->Access keys->Storage account name of your storage account on the Azure portal, eg. *myopcstore*.
-        // {AccessKey} is the access key of the storage account and could be found 
+        // {AccessKey} is the access key of the storage account and can be found 
         // under Settings->Access keys->key1 of your storage account on the Azure portal.
         public static string StorageConnectionString = "DefaultEndpointsProtocol=https;AccountName={StorageAccountName};AccountKey={AccessKey}";
 
@@ -19,14 +19,14 @@ namespace Microsoft.Azure.Devices.Relay.Worker
         // We recommend that you do not share this Consumer group with other consumers, nor that you use the $Default consumer group. 
         public static string EventHubConsumerGroup = "{ConsumerGroupName}";
 
-        // {EventHubEndpoint} is the Event Hub compatible endpoint of your IoTHub and could be found 
+        // {EventHubEndpoint} is the Event Hub compatible endpoint of your IoTHub and can be found 
         // under Settings->Messaging->Event Hub-compatible endpoint of your IoTHub in the Azure portal,
         // eg. *sb://iothub-ns-myiothub-12345-d35c0ac1cab.servicebus.windows.net/*
-        // {PrimaryKey} is the IoT Hub primary key for access with iothubowner policy and could be found
+        // {PrimaryKey} is the IoT Hub primary key for access with iothubowner policy and can be found
         // under Settings->Shared access policies->iothubowner->Primary key of your IoTHub in the Azure portal.  
         public static string EventHubConnectionString = "Endpoint={EventHubEndpoint};SharedAccessKeyName=iothubowner;SharedAccessKey={PrimaryKey}";
 
-        // {HubName} is the Event Hub compatible name of your IoTHub and could be found 
+        // {HubName} is the Event Hub compatible name of your IoTHub and can be found 
         // under Settings->Messaging->Event Hub-compatible name of your IoTHub in the Azure portal, eg. *myiothub*
         public static string EventHubName = "{HubName}";
     }
