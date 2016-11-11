@@ -192,7 +192,7 @@ namespace Opc.Ua
             string result = "";
             while (i < hex.Length)
             {
-                if (!Char.IsWhiteSpace(hex[i]))
+                if (Char.IsLetterOrDigit(hex[i]))
                 {
                     result += Char.ToUpper(hex[i]);
                 }
@@ -216,9 +216,10 @@ namespace Opc.Ua
             int position = 1;
             foreach (string pair in pairedData)
             {
-                string[] splitPair = pair.Trim().Split('=');
+                string[] splitPair = pair.Trim().Split(new Char[] { '=', ':' }, 2);
                 if (splitPair.Length == 2)
                 {
+                    splitPair[0] = splitPair[0].ToLower();
                     if (splitPair[0] == s_KeyIdentifier && position == 1)
                     {
                         m_keyId = TrimHexString(splitPair[1]);
@@ -255,8 +256,8 @@ namespace Opc.Ua
         /// Authority Key Identifier extension string
         /// definitions see RFC 3281 4.3.3
         /// </summary>
-        private const string s_KeyIdentifier = "KeyID";
-        private const string s_SerialNumber = "SerialNumber";
+        private const string s_KeyIdentifier = "keyid";
+        private const string s_SerialNumber = "serialnumber";
         private const string s_FriendlyName = "Authority Key Identifier";
         private string m_keyId;
         private string[] m_authorityNames;
