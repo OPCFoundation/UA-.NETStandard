@@ -99,11 +99,6 @@ namespace Opc.Ua.Publisher
 
             m_publishers = AmqpConnectionCollection.Load(configuration);
 
-            foreach (var publisher in m_publishers)
-            {
-                Task t = publisher.OpenAsync();
-            }
-
             m_MonitoredItem_Notification = new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
         }
 
@@ -545,6 +540,12 @@ namespace Opc.Ua.Publisher
 
                 JsonEncoder encoder = new JsonEncoder(
                     monitoredItem.Subscription.Session.MessageContext, false);
+                string hostname = monitoredItem.Subscription.Session.ConfiguredEndpoint.EndpointUrl.DnsSafeHost;
+                if (hostname == "localhost")
+                {
+                    hostname = Utils.GetHostName();
+                }
+                encoder.WriteString("HostName", hostname);
                 encoder.WriteNodeId("MonitoredItem", monitoredItem.ResolvedNodeId);
                 e.NotificationValue.Encode(encoder);
 

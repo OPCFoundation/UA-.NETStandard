@@ -71,7 +71,7 @@ namespace Boiler
         /// <summary>
         /// Changes the state of the simulation.
         /// </summary>
-        public ServiceResult OnControlSimulation(
+        private ServiceResult OnControlSimulation(
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
