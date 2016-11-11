@@ -74,7 +74,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
-<!--      
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -85,7 +84,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
--->
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
