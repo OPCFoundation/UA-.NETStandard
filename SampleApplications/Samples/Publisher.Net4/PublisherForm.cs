@@ -97,10 +97,6 @@ namespace Opc.Ua.Sample.Controls
             Disconnect();
 
             m_publishers = AmqpConnectionCollection.Load(configuration);
-            foreach (var publisher in m_publishers)
-            {
-                Task t = publisher.OpenAsync();
-            }
 
             this.NotificationsCTRL.ItemsAdded += NotificationsCTRL_ItemsAdded;
         }
@@ -111,34 +107,14 @@ namespace Opc.Ua.Sample.Controls
             {
                 foreach (NotificationMessageListCtrl.ItemData item in e.Items)
                 {
-                    if (item.NotificationMessage == null || item.Subscription.Session == null)
+                    if (item.NotificationMessage != null && item.Subscription.Session != null)
                     {
-                        return;
-                    }
-
-                    JsonEncoder encoder = new JsonEncoder(
-                        item.Subscription.Session.MessageContext, false);
-
-                    foreach (MonitoredItem monitoredItem in item.Subscription.MonitoredItems)
-                    {
-                        encoder.WriteNodeId("MonitoredItem", monitoredItem.ResolvedNodeId);
-                        ((DataChangeNotification)((NotificationData)item.NotificationMessage.NotificationData[0].Body)).MonitoredItems[0].Encode(encoder);
-
-                        string json = encoder.Close();
-                        json = json.Replace("\\", "");
-                        byte[] bytes = new UTF8Encoding(false).GetBytes(json);
-
-                        foreach (var publisher in m_publishers)
+                        IList<MonitoredItemNotification> listOfNotifications = item.NotificationMessage.GetDataChanges(false);
+                        foreach (MonitoredItemNotification notification in listOfNotifications)
                         {
-                            try
-                            {
-                                publisher.Publish(new ArraySegment<byte>(bytes));
-                                Utils.Trace(null, "Publishing: " + json);
-                            }
-                            catch (Exception ex)
-                            {
-                                Utils.Trace(ex, "Failed to publish message, dropping....");
-                            }
+                            // lookup the monitored item.
+                            MonitoredItem monitoredItem = item.Subscription.FindItemByClientHandle(notification.ClientHandle);
+                            this.CreateAmqpMessage(monitoredItem, notification.Value);
                         }
                     }
                 }
@@ -146,6 +122,37 @@ namespace Opc.Ua.Sample.Controls
             catch (Exception exception)
             {
                 Utils.Trace(exception, "Error processing monitored item notification.");
+            }
+        }
+
+        private void CreateAmqpMessage(MonitoredItem monitoredItem, DataValue value)
+        {
+            JsonEncoder encoder = new JsonEncoder(
+                monitoredItem.Subscription.Session.MessageContext, false);
+
+            string hostname = monitoredItem.Subscription.Session.ConfiguredEndpoint.EndpointUrl.DnsSafeHost;
+            if (hostname == "localhost")
+            {
+                hostname = Utils.GetHostName();
+            }
+            encoder.WriteString("HostName", hostname);
+            encoder.WriteNodeId("MonitoredItem", monitoredItem.ResolvedNodeId);
+            encoder.WriteDataValue("Value", value);
+
+            var json = encoder.Close();
+            var bytes = new UTF8Encoding(false).GetBytes(json);
+
+            foreach (var publisher in m_publishers)
+            {
+                try
+                {
+                    publisher.Publish(new ArraySegment<byte>(bytes));
+                    Utils.Trace(null, "New JSON Message: " + json);
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace(ex, "Failed to add message, dropping....");
+                }
             }
         }
 

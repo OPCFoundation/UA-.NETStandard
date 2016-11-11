@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NetCoreConsolePublisher
@@ -58,16 +59,22 @@ namespace NetCoreConsolePublisher
             {
                 Console.WriteLine(message);
             }
+
             if (ask)
             {
-                ConsoleKeyInfo result = Console.ReadKey();
-                Console.WriteLine();
-                return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                try
+                {
+                    ConsoleKeyInfo result = Console.ReadKey();
+                    Console.WriteLine();
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                }
+                catch
+                {
+                    // intentionally fall through
+                }
             }
-            else
-            {
-                return await Task.FromResult(true);
-            }
+
+            return await Task.FromResult(true);
         }
     }
 
@@ -81,96 +88,111 @@ namespace NetCoreConsolePublisher
 
         public static void Main(string[] args)
         {
+            bool started = false;
+            try
+            {
+                Task t = ConsoleSamplePublisher();
+                t.Wait();
+                Console.WriteLine("Publisher started. Press any key to exit...");
+                started = true;
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace("Exception:" + ex.Message);
+                Console.WriteLine("Exception: {0}", ex.Message);
+                Console.WriteLine("Press any key to exit...");
+            }
+
+            try {
+                Console.ReadKey(true);
+            }
+            catch
+            {
+                if (started)
+                {
+                    // wait forever if there is no console
+                    Thread.Sleep(Timeout.Infinite);
+                }
+            }
+
+            CleanupPublisher();
+        }
+
+        private static async Task ConsoleSamplePublisher()
+        {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationName = "UA AMQP Publisher";
             application.ApplicationType = ApplicationType.ClientAndServer;
             application.ConfigSectionName = "Opc.Ua.Publisher";
 
-            try
+            // load the application configuration.
+            m_configuration = await application.LoadApplicationConfiguration(false);
+
+            // check the application certificate.
+            bool certOK = await application.CheckApplicationInstanceCertificate(false, 0);
+            if (!certOK)
             {
-                // load the application configuration.
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
-                task.Wait();
-                m_configuration = task.Result;
-
-                // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-                task2.Wait();
-                bool certOK = task2.Result;
-                if (!certOK)
-                {
-                    throw new Exception("Application instance certificate invalid!");
-                }
-
-                // start the server.
-                Task task3 = application.Start(new SampleServer());
-                task3.Wait();
-
-                // get list of cached endpoints.
-                m_endpoints = m_configuration.LoadCachedEndpoints(true);
-                m_endpoints.DiscoveryUrls = m_configuration.ClientConfiguration.WellKnownDiscoveryUrls;
-
-                // start publishers.
-                m_publishers = AmqpConnectionCollection.Load(m_configuration);
-                foreach (AmqpConnection publisher in m_publishers)
-                {
-                    Task t = publisher.OpenAsync();
-                }
-
-                m_MonitoredItem_Notification = new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
-
-                // connect to a server.
-                EndpointConnect();
-
-                // publish preconfigured nodes
-                PublishedNodesCollection nodes = PublishedNodesCollection.Load(m_configuration);
-                foreach (NodeId node in nodes)
-                {
-                    CreateMonitoredItem(node);
-                }
-
-                Console.WriteLine("Publisher started. Press any key to exit...");
-                Console.ReadKey(true);
-            
-                if (m_publishers != null)
-                {
-                    foreach (var publisher in m_publishers)
-                    {
-                        publisher.Close();
-                    }
-                }
-
-                if (m_session != null)
-                {
-                    m_session.Close();
-                }
+                throw new Exception("Application instance certificate invalid!");
             }
-            catch (ServiceResultException ex)
+
+            // start the server.
+            await application.Start(new SampleServer());
+
+            // get list of cached endpoints.
+            m_endpoints = m_configuration.LoadCachedEndpoints(true);
+            m_endpoints.DiscoveryUrls = m_configuration.ClientConfiguration.WellKnownDiscoveryUrls;
+
+            // start publishers.
+            m_publishers = AmqpConnectionCollection.Load(m_configuration);
+            foreach (AmqpConnection publisher in m_publishers)
             {
-                Utils.Trace("ServiceResultException:" + ex.Message);
-                Console.WriteLine("Exception: {0}", ex.Message);
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey(true);
+                await publisher.OpenAsync();
+            }
+
+            m_MonitoredItem_Notification = new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
+
+            // connect to first server
+            await EndpointConnect(0);
+
+            // publish preconfigured nodes
+            PublishedNodesCollection nodes = PublishedNodesCollection.Load(m_configuration);
+            foreach (NodeId node in nodes)
+            {
+                CreateMonitoredItem(node);
             }
         }
 
-        public static void EndpointConnect()
+        private static void CleanupPublisher()
         {
-            // Connect to the first cached endpoint in our list
-            if (m_endpoints.Count > 0)
+            if (m_publishers != null)
             {
-                Task<Session> task = Session.Create(
-                m_configuration,
-                m_endpoints[0],
-                true,
-                false,
-                m_configuration.ApplicationName,
-                60000,
-                null,
-                null);
-                task.Wait();
-                m_session = task.Result;
+                foreach (var publisher in m_publishers)
+                {
+                    publisher.Close();
+                }
+            }
+
+            if (m_session != null)
+            {
+                m_session.Close();
+            }
+        }
+
+        private static async Task EndpointConnect(int endpoint)
+        {
+            // Connect to cached endpoint in our list
+            if (m_endpoints.Count > endpoint)
+            {
+                m_session = await Session.Create(
+                    m_configuration,
+                    m_endpoints[endpoint],
+                    true,
+                    false,
+                    m_configuration.ApplicationName,
+                    60000,
+                    null,
+                    null);
 
                 if (m_session != null)
                 {
