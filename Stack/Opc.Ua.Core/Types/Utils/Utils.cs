@@ -2307,6 +2307,22 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+        /// <summary>
+        /// Compare Nonce for equality.
+        /// </summary>
+        /// <returns></returns>
+        public static bool CompareNonce(byte[] a, byte[] b)
+        {
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i])
+                    return false;
+
+            return true;
+        }
+
         public class Nonce
         {
             private static int m_calls = 0;

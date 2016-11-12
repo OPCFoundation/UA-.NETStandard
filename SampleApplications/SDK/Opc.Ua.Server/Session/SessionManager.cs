@@ -175,6 +175,17 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
+                // check for same Nonce in another session
+                if (clientNonce != null)
+                {
+                    foreach (Session sessionIterator in m_sessions.Values)
+                    {
+                        if (Utils.CompareNonce(sessionIterator.ClientNonce, clientNonce))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                        }
+                    }
+                }
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
 
@@ -219,6 +230,7 @@ namespace Opc.Ua.Server
                     m_server,
                     serverCertificate,
                     authenticationToken,
+                    clientNonce,
                     serverNonce,
                     sessionName,
                     clientDescription,
@@ -483,6 +495,7 @@ namespace Opc.Ua.Server
             IServerInternal           server,
             X509Certificate2          serverCertificate,
             NodeId                    sessionCookie,
+            byte[]                    clientNonce,
             byte[]                    serverNonce,
             string                    sessionName, 
             ApplicationDescription    clientDescription,
@@ -498,6 +511,7 @@ namespace Opc.Ua.Server
                 m_server,
                 serverCertificate,
                 sessionCookie,
+                clientNonce,
                 serverNonce,
                 sessionName,
                 clientDescription,
