@@ -576,7 +576,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, localeIds, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -627,6 +627,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the response header.
+        /// </summary>
+        /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
+        /// <param name="exception">The exception used to create DiagnosticInfo assigned to the ServiceDiagnostics.</param>
+        /// <returns>Returns a description for the ResponseHeader DataType. </returns>
+        protected ResponseHeader CreateResponse(RequestHeader requestHeader, ServiceResultException exception)
+        {
+            ResponseHeader responseHeader = new ResponseHeader();
+
+            responseHeader.ServiceResult = exception.StatusCode;
+
+            responseHeader.Timestamp = DateTime.UtcNow;
+            responseHeader.RequestHandle = requestHeader.RequestHandle;
+
+            StringTable stringTable = new StringTable();
+            responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
+            responseHeader.StringTable = stringTable.ToArray();
+
+            return responseHeader;
+        }
+
+        /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -645,6 +667,11 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
+                if (e.StatusCode == StatusCodes.BadSessionNotActivated)
+                {
+                    return CreateResponse(requestHeader, e);
+                }
+
                 lock (ServerInternal.DiagnosticsLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;

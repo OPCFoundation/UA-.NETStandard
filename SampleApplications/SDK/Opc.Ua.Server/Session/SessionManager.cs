@@ -101,7 +101,6 @@ namespace Opc.Ua.Server
                 }
 
                 m_shutdownEvent.Set();
-                m_shutdownEvent.Dispose();
             }
         }
         #endregion
@@ -404,7 +403,10 @@ namespace Opc.Ua.Server
             {            
                 // raise session related event.
                 RaiseSessionEvent(session, SessionEventReason.Closing);
-                
+
+                // remember activation
+                bool activated = session.Activated;
+
                 // close the session.
                 session.Close();
 
@@ -412,6 +414,11 @@ namespace Opc.Ua.Server
                 lock (m_server.DiagnosticsLock)
                 {
                     m_server.ServerDiagnostics.CurrentSessionCount--;
+                }
+
+                if (!activated)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
             }
 

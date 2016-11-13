@@ -92,7 +92,6 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_shutdownEvent.Set();
-                    m_shutdownEvent.Dispose();
                     m_samplingRates.Clear();
                 }
             }

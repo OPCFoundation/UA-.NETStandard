@@ -111,7 +111,6 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(subscription);
                 }
 
-                m_shutdownEvent.Dispose();
             }
         }
         #endregion
