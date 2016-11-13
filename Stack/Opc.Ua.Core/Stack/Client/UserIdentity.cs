@@ -67,10 +67,7 @@ namespace Opc.Ua
             X509Certificate2 certificate = task.Result;
             if (certificate != null)
             {
-                X509IdentityToken token = new X509IdentityToken();
-                token.CertificateData = certificate.RawData;
-                token.Certificate = certificate;
-                Initialize(token);
+                Initialize(certificate);
             }
         }
 
@@ -80,11 +77,7 @@ namespace Opc.Ua
         public UserIdentity(X509Certificate2 certificate)
         {
             if (certificate == null) throw new ArgumentNullException("certificate");
-
-            X509IdentityToken token = new X509IdentityToken();
-            token.CertificateData = certificate.RawData;
-            token.Certificate = certificate;
-            Initialize(token);
+            Initialize(certificate);
         }
 
         /// <summary>
@@ -222,8 +215,19 @@ namespace Opc.Ua
   
             throw new ArgumentException("Unrecognized UA user identity token type.", "token");
         }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate
+        /// </summary>
+        private void Initialize(X509Certificate2 certificate)
+        {
+            X509IdentityToken token = new X509IdentityToken();
+            token.CertificateData = certificate.RawData;
+            token.Certificate = certificate;
+            Initialize(token);
+        }
         #endregion
-        
+
         #region Private Fields
         private UserIdentityToken m_token;
         private string m_displayName;

@@ -152,7 +152,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <TraceMasks>0</TraceMasks>
     <!-- Show Only Errors -->

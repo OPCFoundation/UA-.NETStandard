@@ -168,7 +168,14 @@ namespace Opc.Ua
         /// </summary>
         public X509Certificate2 Certificate
         {
-            get { return m_certificate;  }
+            get
+            {
+                if (m_certificate == null && m_certificateData != null)
+                {
+                    return CertificateFactory.Create(m_certificateData, true);
+                }
+                return m_certificate;
+            }
             set { m_certificate = value; }
         }
         #endregion
