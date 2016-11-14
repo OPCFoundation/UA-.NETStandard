@@ -385,13 +385,12 @@
         <AmqpConnectionConfiguration>
           
           <!-- A unique name for this connection -->
-          <Name>My Windows OPC Publishing Endpoint</Name>
+          <Name>My OPC Publishing Endpoint</Name>
            
           <!-- The broker's host name - In case of e.g. an Azure broker, the host is part of the 
             connection string provided by the Azure portal and prefixed with 'Host='. Otherwise
             it is the server the broker runs on, such as localhost, etc. -->
-          <!-- HostName=iotswcdemo.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=gjIa3Vm3pcj+agp0I80gboqCkJ5GRgpYKeServJd8j4= -->
-          <Host>iotswcdemo.azure-devices.net</Host>
+          <Host>{Host}</Host>
           
           <!-- Broker port - Omit to use default AMQP ports, such as 5671 for AMQPS and 443
             for websocket based AMQP connections. Only TLS secured connections are supported. -->
@@ -406,9 +405,8 @@
             To configure the connection to use Azure Service bus use the Entity value in the 
             connection string (prefix 'Entity=') and prefix with '/'. For example 
                 /{Entity}
-                HostName=iotswcdemo.azure-devices.net;DeviceId=winPublisher;SharedAccessKey=YgdMdUiFT/tuWKZiRM4advBEfdmUlgtJw3PmuzNOEdA=
           -->
-          <Endpoint>/devices/winPublisher/messages/events</Endpoint>
+          <Endpoint>/devices/{DeviceId}/messages/events</Endpoint>
           
           <!-- If the amqp connection is supposed to be over websocket transport, set the
             websocket url endpoint here.  Otherwise this can be omitted.
@@ -423,7 +421,7 @@
             For unauthenticated connections leave both blank 
           -->
           <KeyName></KeyName>
-          <KeyValue>YgdMdUiFT/tuWKZiRM4advBEfdmUlgtJw3PmuzNOEdA=</KeyValue>
+          <KeyValue>{KeyValue}</KeyValue>
           <!-- Specifies the encoding of the key. The default encoding is utf-8, however, 
             Azure IoTHub Connection strings are base 64 encoded, this setting is thus for 
             convinience -->
@@ -444,7 +442,7 @@
                 {Host}/{Endpoint}
             Host, DeviceId, and Entity name are part of the Azure portal supplied 
             connection string (see publishing endpoint section) -->
-          <TokenScope>iotswcdemo.azure-devices.net/devices/winPublisher</TokenScope>
+          <TokenScope>{Host}/devices/{deviceid}</TokenScope>
           <!-- Specifies the token lifetime in milliseconds, defaults to 60 seconds -->
           <!-- <TokenLifetime>60000</TokenLifetime> -->
 
@@ -502,7 +500,7 @@
     <!-- Show Only Security and Errors -->
     <!-- <TraceMasks>513</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->
     <!-- <TraceMasks>771</TraceMasks> -->
     <!-- Show Only Security, Service Calls, Errors and Trace -->
