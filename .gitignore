@@ -236,3 +236,4 @@ _Pvt_Extensions
 # OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der
+/UA-NetStandard.VC.db
