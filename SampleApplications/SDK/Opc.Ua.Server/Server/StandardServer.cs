@@ -372,6 +372,12 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
+
+                    // ignore nonce if security policy set to none
+                    if (context.SecurityPolicyUri == SecurityPolicies.None)
+                    {
+                        clientNonce = null;
+                    }
                 }
 
                 // create the session.
