@@ -1475,6 +1475,15 @@ namespace Opc.Ua
                 }
             }
 
+            // copy DataChangeFilter.
+            {
+                DataChangeFilter castedObject = value as DataChangeFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
             // copy SimpleAttributeOperandCollection.
             {
                 SimpleAttributeOperandCollection castedObject = value as SimpleAttributeOperandCollection;
