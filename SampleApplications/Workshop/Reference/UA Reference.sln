@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Client Controls", "..\..
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "..\..\Samples\ServerControls.Net4\UA Server Controls.csproj", "{80056988-44E7-4EF4-9F59-50BCF215CB03}"
 EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "ConsoleReferenceServer", "ConsoleReferenceServer\ConsoleReferenceServer.xproj", "{F64EA66B-B3E5-4887-8001-EB5F9359FDF3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,10 @@ Global
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F64EA66B-B3E5-4887-8001-EB5F9359FDF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F64EA66B-B3E5-4887-8001-EB5F9359FDF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F64EA66B-B3E5-4887-8001-EB5F9359FDF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F64EA66B-B3E5-4887-8001-EB5F9359FDF3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

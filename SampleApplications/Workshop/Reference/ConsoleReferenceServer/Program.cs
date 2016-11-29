@@ -12,14 +12,13 @@
 
 using Opc.Ua;
 using Opc.Ua.Configuration;
-using Opc.Ua.Sample;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NetCoreConsoleServer
+namespace Quickstarts.ReferenceServer
 {
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
@@ -64,14 +63,14 @@ namespace NetCoreConsoleServer
     {
         public static void Main(string[] args)
         {
-            MySampleServer server = new MySampleServer();
+            MyRefServer server = new MyRefServer();
             server.Start();
         }
     }
 
-    public class MySampleServer
+    public class MyRefServer
     {
-        SampleServer server;
+        ReferenceServer server;
         Task status;
         DateTime lastEventTime;
 
@@ -124,9 +123,9 @@ namespace NetCoreConsoleServer
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
 
-            application.ApplicationName = "UA Sample Server";
+            application.ApplicationName = "Quickstart Reference Server";
             application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.SampleServer";
+            application.ConfigSectionName = "Quickstarts.ReferenceServer";
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
@@ -144,7 +143,7 @@ namespace NetCoreConsoleServer
             }
 
             // start the server.
-            server = new SampleServer();
+            server = new ReferenceServer();
             await application.Start(server);
 
             // start the status thread
@@ -170,7 +169,7 @@ namespace NetCoreConsoleServer
                 string item = String.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
-                    item += String.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item += String.Format(":{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
                 }
                 else
                 {

@@ -203,18 +203,19 @@ namespace Opc.Ua
             // find desired keys in formatted data
             foreach (string pair in pairedData)
             {
-                string[] splitPair = pair.Trim().Split('=');
+                // Windows style
+                string[] splitPair = pair.Trim().Split(new Char[] { ':', '=' }, 2);
                 if (splitPair.Length == 2)
                 {
-                    if (splitPair[0] == s_UniformResourceIdentifier)
+                    if (splitPair[0] == s_UniformResourceIdentifier || splitPair[0] == s_URI)
                     {
                         uris.Add(splitPair[1]);
                     }
-                    else if (splitPair[0] == s_DnsName)
+                    else if (splitPair[0] == s_DnsName || splitPair[0] == s_Dns)
                     {
                         domainNames.Add(splitPair[1]);
                     }
-                    else if (splitPair[0] == s_IpAddress)
+                    else if (splitPair[0] == s_IpAddress || splitPair[0] == s_Ip)
                     {
                         ipAddresses.Add(splitPair[1]);
                     }
@@ -250,8 +251,11 @@ namespace Opc.Ua
         /// definitions see RFC 3280 4.2.1.7
         /// </summary>
         private const string s_UniformResourceIdentifier = "URL";
+        private const string s_URI = "URI";
         private const string s_DnsName = "DNS Name";
+        private const string s_Dns = "DNS";
         private const string s_IpAddress = "IP Address";
+        private const string s_Ip = "IP";
         private const string s_SubjectAltNameOid = "2.5.29.7";
         private const string s_SubjectAltName2Oid = "2.5.29.17";
         private const string s_FriendlyName = "Subject Alternative Name";
