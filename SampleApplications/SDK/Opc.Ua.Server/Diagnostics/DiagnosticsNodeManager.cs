@@ -519,53 +519,6 @@ namespace Opc.Ua.Server
 
                         m_subscriptions.Clear();
                     }
-
-#if diagnostics_outofservice
-                    // set error for main diagnostics node.
-                    if (m_serverDiagnostics != null)
-                    {
-                        m_serverDiagnostics.Value = null;
-                        m_serverDiagnostics.Error = StatusCodes.BadOutOfService;
-                        m_serverDiagnostics.Timestamp = DateTime.UtcNow;
-                    }
-
-                    // get the node.
-                    ServerDiagnosticsState diagnosticsNode = (ServerDiagnosticsState)FindPredefinedNode(
-                        ObjectIds.Server_ServerDiagnostics,
-                        typeof(ServerDiagnosticsState));
-
-                    // clear arrays.
-                    if (diagnosticsNode != null)
-                    {
-                        if (diagnosticsNode.SamplingIntervalDiagnosticsArray != null)
-                        {
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Value = null;
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService;
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Timestamp = DateTime.UtcNow;
-                        }
-
-                        if (diagnosticsNode.SubscriptionDiagnosticsArray != null)
-                        {
-                            diagnosticsNode.SubscriptionDiagnosticsArray.Value = null;
-                            diagnosticsNode.SubscriptionDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService;
-                            diagnosticsNode.SubscriptionDiagnosticsArray.Timestamp = DateTime.UtcNow;
-                        }
-
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
-                        {
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Value = null;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Timestamp = DateTime.UtcNow;
-                        }
-
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
-                        {
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Value = null;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Timestamp = DateTime.UtcNow;
-                        }
-                    }
-#endif
                 }
                 else
                 {
