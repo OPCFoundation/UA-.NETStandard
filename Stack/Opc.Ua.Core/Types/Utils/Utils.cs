@@ -1300,7 +1300,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            
+
             // copy arrays.
             Array array = value as Array;
             if (array != null)
@@ -1579,6 +1579,30 @@ namespace Opc.Ua
             // copy Opc.Ua.EUInformation
             {
                 Opc.Ua.EUInformation castedObject = value as Opc.Ua.EUInformation;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValueCollection
+            {
+                Opc.Ua.WriteValueCollection castedObject = value as Opc.Ua.WriteValueCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValue
+            {
+                Opc.Ua.WriteValue castedObject = value as Opc.Ua.WriteValue;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.DataValue
+            {
+                Opc.Ua.DataValue castedObject = value as Opc.Ua.DataValue;
                 if (castedObject != null)
                 {
                     return castedObject.MemberwiseClone();

@@ -190,6 +190,12 @@ namespace Opc.Ua.Server
         object DiagnosticsLock { get; }
 
         /// <summary>
+        /// Used to synchronize write access to the server diagnostics.
+        /// </summary>
+        /// <value>The diagnostics lock.</value>
+        object DiagnosticsWriteLock { get; }
+
+        /// <summary>
         /// Returns the diagnostics structure for the server.
         /// </summary>
         /// <value>The server diagnostics.</value>

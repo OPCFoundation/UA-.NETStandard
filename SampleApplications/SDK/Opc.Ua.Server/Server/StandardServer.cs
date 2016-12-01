@@ -421,7 +421,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.CurrentSessionCount++;
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
             {
                 Utils.Trace("Server - SESSION CREATE failed. {0}", e.Message);
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedSessionCount++;
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
@@ -571,7 +571,7 @@ namespace Opc.Ua.Server
             {
                 Utils.Trace("Server - SESSION ACTIVATE failed. {0}", e.Message);
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -678,7 +678,7 @@ namespace Opc.Ua.Server
                     return CreateResponse(requestHeader, e);
                 }
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -721,7 +721,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -783,7 +783,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -842,7 +842,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -895,7 +895,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -940,7 +940,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -996,7 +996,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1350,7 +1350,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1504,7 +1504,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
 
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1583,7 +1583,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1649,7 +1649,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1706,7 +1706,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1779,7 +1779,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1838,7 +1838,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1898,7 +1898,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -1955,7 +1955,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -2015,7 +2015,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -2069,7 +2069,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                lock (ServerInternal.DiagnosticsLock)
+                lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
@@ -2858,7 +2858,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called before the server stops
         /// </summary>
-        protected override async void OnServerStopping()
+        protected override void OnServerStopping()
         {
             // halt any outstanding timer.
             lock (m_registrationLock)
@@ -2877,7 +2877,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    await RegisterWithDiscoveryServer();
+                    Task.Run(async () => await RegisterWithDiscoveryServer()).Wait();
                 }
 
                 lock (m_lock)

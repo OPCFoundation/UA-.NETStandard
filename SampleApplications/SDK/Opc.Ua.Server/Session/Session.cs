@@ -407,13 +407,8 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
-                    //if (m_diagnostics.ClientConnectionTime.AddMilliseconds(60000) < DateTime.UtcNow)
-                    //{
-                    //    return true;
-                    //}
-
                     if (m_diagnostics.ClientLastContactTime.AddMilliseconds(m_diagnostics.ActualSessionTimeout) < DateTime.UtcNow)
                     {
                         return true;
@@ -503,7 +498,7 @@ namespace Opc.Ua.Server
                     m_localeIds = ids;
                     
                     // update diagnostics.
-                    lock (m_diagnostics)
+                    lock (DiagnosticsLock)
                     {
                         m_diagnostics.LocaleIds = new StringCollection(localeIds);
                     }
@@ -650,7 +645,7 @@ namespace Opc.Ua.Server
                 ReportAuditActivateSessionEvent(systemContext);
 
                 // update the contact time.
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
                     m_diagnostics.ClientLastContactTime = DateTime.UtcNow;
                 }
@@ -861,7 +856,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 value = Utils.Clone(m_diagnostics);
             }
@@ -877,7 +872,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 value = Utils.Clone(m_securityDiagnostics);
             }
@@ -1064,7 +1059,7 @@ namespace Opc.Ua.Server
                 m_effectiveIdentity = effectiveIdentity;
                                                                 
                 // update diagnostics.
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
                     m_securityDiagnostics.ClientUserIdOfSession   = identity.DisplayName;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
@@ -1082,7 +1077,7 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private void UpdateDiagnosticCounters(RequestType requestType, bool error, bool authorizationError)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 if (!error)
                 {

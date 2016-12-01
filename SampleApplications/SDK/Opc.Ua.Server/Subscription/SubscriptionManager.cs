@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
                 // get the count for the diagnostics.
                 publishingIntervalCount = GetPublishingIntervalCount();
 
-                lock (m_server.DiagnosticsLock)
+                lock (m_server.DiagnosticsWriteLock)
                 {
                     ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                     diagnostics.CurrentSubscriptionCount--;
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server
                 }
             }
             
-            lock (m_server.DiagnosticsLock)
+            lock (m_server.DiagnosticsWriteLock)
             {
                 ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.CurrentSubscriptionCount++;
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
 
-            lock (m_server.DiagnosticsLock)
+            lock (m_server.DiagnosticsWriteLock)
             {
                 ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;

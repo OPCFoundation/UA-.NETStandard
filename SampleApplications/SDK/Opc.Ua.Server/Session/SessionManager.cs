@@ -411,7 +411,7 @@ namespace Opc.Ua.Server
                 session.Close();
 
                 // update diagnostics.
-                lock (m_server.DiagnosticsLock)
+                lock (m_server.DiagnosticsWriteLock)
                 {
                     m_server.ServerDiagnostics.CurrentSessionCount--;
                 }
@@ -591,7 +591,7 @@ namespace Opc.Ua.Server
                         if (sessions[ii].HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsLock)
+                            lock (m_server.DiagnosticsWriteLock)
                             {
                                 m_server.ServerDiagnostics.SessionTimeoutCount++;
                             }
