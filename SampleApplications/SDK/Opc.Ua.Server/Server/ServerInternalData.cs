@@ -410,6 +410,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Used to synchronize write access to
+        /// the server diagnostics.
+        /// </summary>
+        /// <value>The diagnostics lock.</value>
+        public object DiagnosticsWriteLock
+        {
+            get
+            {
+                // implicitly force diagnostics update
+                if (DiagnosticsNodeManager != null)
+                {
+                    DiagnosticsNodeManager.ForceDiagnosticsScan();
+                }
+                return DiagnosticsLock;
+            }
+        }
+
+        /// <summary>
         /// Returns the diagnostics structure for the server.
         /// </summary>
         /// <value>The server diagnostics.</value>
@@ -561,6 +579,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
+                serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
                                
                 // initialize status.
@@ -658,7 +677,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns a copy of the server array.
+        /// Returns Diagnostics.EnabledFlag
         /// </summary>
         private ServiceResult OnReadDiagnosticsEnabledFlag(
             ISystemContext context,
@@ -666,6 +685,22 @@ namespace Opc.Ua.Server
             ref object value)
         {
             value = m_diagnosticsNodeManager.DiagnosticsEnabled;
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Sets the Diagnostics.EnabledFlag
+        /// </summary>
+        private ServiceResult OnWriteDiagnosticsEnabledFlag(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
+        {
+            bool enabled = (bool)value;
+            m_diagnosticsNodeManager.SetDiagnosticsEnabled(
+                m_defaultSystemContext,
+                enabled);
+
             return ServiceResult.Good;
         }
 

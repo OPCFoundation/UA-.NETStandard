@@ -131,6 +131,14 @@ namespace Boiler
             m_boilers.Add(boiler);
 
             AddPredefinedNode(context, boiler);
+
+            // Autostart boiler simulation state machine
+            MethodState start = boiler.Simulation.Start;
+            IList<Variant> inputArguments = new List<Variant>();
+            IList<Variant> outputArguments = new List<Variant>();
+            List<ServiceResult> errors = new List<ServiceResult>();
+            start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
+
         }
 
         /// <summary>
@@ -204,6 +212,13 @@ namespace Boiler
                     {
                         passiveNode.Parent.ReplaceChild(context, activeNode);
                     }
+
+                    // Autostart boiler simulation state machine
+                    MethodState start = activeNode.Simulation.Start;
+                    IList<Variant> inputArguments = new List<Variant>();
+                    IList<Variant> outputArguments = new List<Variant>();
+                    List<ServiceResult> errors = new List<ServiceResult>();
+                    start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
                 }

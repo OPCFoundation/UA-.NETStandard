@@ -1300,7 +1300,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            
+
             // copy arrays.
             Array array = value as Array;
             if (array != null)
@@ -1579,6 +1579,30 @@ namespace Opc.Ua
             // copy Opc.Ua.EUInformation
             {
                 Opc.Ua.EUInformation castedObject = value as Opc.Ua.EUInformation;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValueCollection
+            {
+                Opc.Ua.WriteValueCollection castedObject = value as Opc.Ua.WriteValueCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValue
+            {
+                Opc.Ua.WriteValue castedObject = value as Opc.Ua.WriteValue;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.DataValue
+            {
+                Opc.Ua.DataValue castedObject = value as Opc.Ua.DataValue;
                 if (castedObject != null)
                 {
                     return castedObject.MemberwiseClone();
@@ -2316,6 +2340,22 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+        /// <summary>
+        /// Compare Nonce for equality.
+        /// </summary>
+        /// <returns></returns>
+        public static bool CompareNonce(byte[] a, byte[] b)
+        {
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i])
+                    return false;
+
+            return true;
+        }
+
         public class Nonce
         {
             private static int m_calls = 0;
@@ -2685,6 +2725,41 @@ namespace Opc.Ua
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Check if certificate has an application urn.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>true if the application URI starts with urn: </returns>
+        public static bool HasApplicationURN(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = null;
+
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            // find the application urn.
+            if (alternateName != null && alternateName.Uris.Count > 0)
+            {
+                string urn = "urn:";
+                for (int i = 0; i < alternateName.Uris.Count; i++)
+                {
+                    if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

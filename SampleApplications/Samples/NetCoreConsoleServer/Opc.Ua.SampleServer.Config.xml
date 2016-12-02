@@ -38,7 +38,7 @@
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
-    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
   
   </SecurityConfiguration>
 
@@ -95,7 +95,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
-      <!--
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -106,7 +105,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
-      -->
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
@@ -174,10 +172,11 @@
   <TraceConfiguration>
     <OutputFilePath>Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
+    <TraceMasks>0</TraceMasks>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
     <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->

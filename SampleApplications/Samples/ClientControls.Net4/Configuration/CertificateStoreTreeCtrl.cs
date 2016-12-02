@@ -43,6 +43,7 @@ using System.Management;
 using System.Management.Instrumentation;
 using System.Runtime.InteropServices;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -162,10 +163,10 @@ namespace Opc.Ua.Client.Controls
         protected override void SelectNode()
         {
             base.SelectNode();
-            
+
             if (m_certificateListCtrl != null)
             {
-                m_certificateListCtrl.Initialize(SelectedStore, null);
+                Task.Run( async () => await m_certificateListCtrl.Initialize(SelectedStore, null)).Wait();
             }
         }
 

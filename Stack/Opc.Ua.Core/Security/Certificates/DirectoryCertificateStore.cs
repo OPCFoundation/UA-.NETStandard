@@ -611,7 +611,7 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
-        public async void AddCRL(X509CRL crl)
+        public void AddCRL(X509CRL crl)
         {
             if (crl == null)
             {
@@ -619,7 +619,8 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await Enumerate();
+            X509Certificate2Collection certificates = null;
+            Task.Run( async () => certificates = await Enumerate()).Wait();
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))

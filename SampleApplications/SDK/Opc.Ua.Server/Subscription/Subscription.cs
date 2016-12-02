@@ -259,6 +259,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
+        /// </summary>
+        public object DiagnosticsWriteLock
+        {
+            get
+            {
+                // mark diagnostic nodes dirty
+                if (m_server != null && m_server.DiagnosticsNodeManager != null)
+                {
+                    m_server.DiagnosticsNodeManager.ForceDiagnosticsScan();
+                }
+                return DiagnosticsLock;
+            }
+        }
+
+        /// <summary>
         /// Gets the current diagnostics for the subscription.
         /// </summary>
         public SubscriptionDiagnosticsDataType Diagnostics
@@ -381,7 +397,7 @@ namespace Opc.Ua.Server
                 {
                     m_lifetimeCounter++;
 
-                    lock (m_diagnostics)
+                    lock (DiagnosticsWriteLock)
                     {
                         m_diagnostics.LatePublishRequestCount++;
                         m_diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
@@ -397,7 +413,7 @@ namespace Opc.Ua.Server
                 // increment keep alive counter.
                 m_keepAliveCounter++;
                 
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.CurrentKeepAliveCount = m_keepAliveCounter;
                 }
@@ -503,7 +519,7 @@ namespace Opc.Ua.Server
                 m_session = null;
             }
 
-            lock (m_diagnostics)
+            lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.SessionId = null;
             }
@@ -516,7 +532,7 @@ namespace Opc.Ua.Server
         {
             m_keepAliveCounter = 0;
 
-            lock (m_diagnostics)
+            lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.CurrentKeepAliveCount = 0;
             }
@@ -529,7 +545,7 @@ namespace Opc.Ua.Server
         {
             m_lifetimeCounter = 0;
 
-            lock (m_diagnostics)
+            lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.CurrentLifetimeCount = 0;
             }
@@ -601,14 +617,14 @@ namespace Opc.Ua.Server
                 try
                 {
                     // update diagnostics.
-                    lock (m_diagnostics)
+                    lock (DiagnosticsWriteLock)
                     {
                         m_diagnostics.PublishRequestCount++;
                     }
 
                     message = InnerPublish(context, out availableSequenceNumbers, out moreNotifications);
                     
-                    lock (m_diagnostics)
+                    lock (DiagnosticsWriteLock)
                     {
                         m_diagnostics.UnacknowledgedMessageCount = (uint)availableSequenceNumbers.Count;
                     }
@@ -647,7 +663,7 @@ namespace Opc.Ua.Server
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
                 }
@@ -743,7 +759,7 @@ namespace Opc.Ua.Server
                         // add to list of messages to send.
                         messages.Add(message);
 
-                        lock (m_diagnostics)
+                        lock (DiagnosticsWriteLock)
                         {
                             m_diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount - datachanges.Count);
                             m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
@@ -771,7 +787,7 @@ namespace Opc.Ua.Server
                     // add to list of messages to send.
                     messages.Add(message);
 
-                    lock (m_diagnostics)
+                    lock (DiagnosticsWriteLock)
                     {
                         m_diagnostics.DataChangeNotificationsCount += (uint)(dataChangeCount - datachanges.Count);
                         m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
@@ -835,7 +851,7 @@ namespace Opc.Ua.Server
             // remove old messages if queue is full.
             if (m_sentMessages.Count > m_maxMessageCount - messages.Count)
             {
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.UnacknowledgedMessageCount += (uint)messages.Count;
                 }
@@ -885,7 +901,7 @@ namespace Opc.Ua.Server
 
             Utils.IncrementIdentifier(ref m_sequenceNumber);
 
-            lock (m_diagnostics)
+            lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
             }
@@ -951,7 +967,7 @@ namespace Opc.Ua.Server
         {            
             if (context == null) throw new ArgumentNullException("context");
 
-            lock (m_diagnostics)
+            lock (DiagnosticsWriteLock)
             {
                 m_diagnostics.RepublishMessageRequestCount++;
             }
@@ -964,7 +980,7 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
                 
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.RepublishRequestCount++;
                     m_diagnostics.RepublishMessageRequestCount++;
@@ -975,7 +991,7 @@ namespace Opc.Ua.Server
                 {
                     if (sentMessage.SequenceNumber == retransmitSequenceNumber)
                     {
-                        lock (m_diagnostics)
+                        lock (DiagnosticsWriteLock)
                         {
                             m_diagnostics.RepublishMessageCount++;
                         }
@@ -1030,7 +1046,7 @@ namespace Opc.Ua.Server
                 m_priority = priority;
 
                 // update diagnostics
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {   
                     m_diagnostics.ModifyCount++;
                     m_diagnostics.PublishingInterval = m_publishingInterval;
@@ -1065,7 +1081,7 @@ namespace Opc.Ua.Server
                     m_publishingEnabled = publishingEnabled;
 
                     // update diagnostics
-                    lock (m_diagnostics)
+                    lock (DiagnosticsWriteLock)
                     {
                         m_diagnostics.PublishingEnabled = m_publishingEnabled;
 
@@ -1375,7 +1391,7 @@ namespace Opc.Ua.Server
                 }
 
                 // update diagnostics.
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.MonitoredItemCount = 0;
                     m_diagnostics.DisabledMonitoredItemCount = 0;
@@ -1743,7 +1759,7 @@ namespace Opc.Ua.Server
                 }
 
                 // update diagnostics.
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.MonitoredItemCount = 0;
                     m_diagnostics.DisabledMonitoredItemCount = 0;
@@ -1876,7 +1892,7 @@ namespace Opc.Ua.Server
                 }
 
                 // update diagnostics.
-                lock (m_diagnostics)
+                lock (DiagnosticsWriteLock)
                 {
                     m_diagnostics.MonitoredItemCount = 0;
                     m_diagnostics.DisabledMonitoredItemCount = 0;
@@ -2044,7 +2060,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 value = Utils.Clone(m_diagnostics);
             }

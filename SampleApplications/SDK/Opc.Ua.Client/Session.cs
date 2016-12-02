@@ -824,6 +824,12 @@ namespace Opc.Ua.Client
         {
             bool domainFound = false;
 
+            if (endpoint.EndpointUrl.HostNameType != UriHostNameType.Dns)
+            {
+                // ignore endpoints configured with IPv4 / IPv6 addresses
+                return;
+            }
+
             X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
 
             // check the certificate domains.

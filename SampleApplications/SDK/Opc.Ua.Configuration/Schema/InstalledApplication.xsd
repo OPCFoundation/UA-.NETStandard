@@ -9,9 +9,9 @@
     xmlns:uas="http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd"
     xmlns:uac="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" schemaLocation="../../Core/Schema/Opc.Ua.Types.xsd" />
-  <xs:import namespace="http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd" schemaLocation="../../Core/Schema/SecuredApplication.xsd" />
-  <xs:import namespace="http://opcfoundation.org/UA/SDK/Configuration.xsd" schemaLocation="../../Core/Schema/ApplicationConfiguration.xsd" />
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" schemaLocation="../../../../Stack/Opc.Ua.Core/Schema/Opc.Ua.Types.xsd" />
+  <xs:import namespace="http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd" schemaLocation="../../../../Stack/Opc.Ua.Core/Schema/SecuredApplication.xsd" />
+  <xs:import namespace="http://opcfoundation.org/UA/SDK/Configuration.xsd" schemaLocation="../../../../Stack/Opc.Ua.Core/Schema/ApplicationConfiguration.xsd" />
 
   <xs:complexType name="ListOfInstalledApplication">
     <xs:sequence>

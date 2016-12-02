@@ -813,6 +813,18 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Static Methods
+        public static ApplicationConfiguration FixupAppConfig(
+            ApplicationConfiguration configuration)
+        {
+            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
+            for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+            {
+                configuration.ServerConfiguration.BaseAddresses[i] = 
+                    Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+            }
+            return configuration;
+        }
+
         /// <summary>
         /// Loads the configuration.
         /// </summary>
@@ -885,9 +897,9 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
             }
 
-            m_applicationConfiguration = configuration;
+            m_applicationConfiguration = FixupAppConfig(configuration);
 
-            return configuration;
+            return m_applicationConfiguration;
         }
 
         /// <summary>
@@ -1071,7 +1083,10 @@ namespace Opc.Ua.Configuration
             // check domains.
             if (configuration.ApplicationType != ApplicationType.Client)
             {
-                return await CheckDomainsInCertificate(configuration, certificate, silent);
+                if (!await CheckDomainsInCertificate(configuration, certificate, silent))
+                {
+                    return false;
+                }
             }
 
             // check uri.
@@ -1095,9 +1110,12 @@ namespace Opc.Ua.Configuration
                     return false;
                 }
             }
+            else
+            {
+                configuration.ApplicationUri = applicationUri;
+            }
 
             // update configuration.
-            configuration.ApplicationUri = applicationUri;
             configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
 
             return true;
@@ -1121,7 +1139,7 @@ namespace Opc.Ua.Configuration
             string computerName = Utils.GetHostName();
 
             // get IP addresses.
-            IPAddress[] addresses = await Utils.GetHostAddresses(computerName);
+            IPAddress[] addresses = null;
 
             for (int ii = 0; ii < serverDomainNames.Count; ii++)
             {
@@ -1139,6 +1157,12 @@ namespace Opc.Ua.Configuration
 
                     // check for aliases.
                     bool found = false;
+
+                    // get IP addresses only if necessary.
+                    if (addresses == null)
+                    {
+                        addresses = await Utils.GetHostAddresses(computerName);
+                    }
 
                     // check for ip addresses.
                     for (int jj = 0; jj < addresses.Length; jj++)

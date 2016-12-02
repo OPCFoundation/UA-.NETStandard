@@ -13,7 +13,9 @@
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Sample;
+using Opc.Ua.Server;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -62,6 +64,20 @@ namespace NetCoreConsoleServer
     {
         public static void Main(string[] args)
         {
+            MySampleServer server = new MySampleServer();
+            server.Start();
+        }
+    }
+
+    public class MySampleServer
+    {
+        SampleServer server;
+        Task status;
+        DateTime lastEventTime;
+
+        public void Start()
+        {
+
             try
             {
                 Task t = ConsoleSampleServer();
@@ -83,13 +99,31 @@ namespace NetCoreConsoleServer
                 // wait forever if there is no console
                 Thread.Sleep(Timeout.Infinite);
             }
+
+            if (server != null)
+            {
+                Console.WriteLine("Server stopped. Waiting for exit...");
+
+                server.Dispose();
+                server = null;
+
+                status.Wait();
+            }
+        }
+        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        {
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            {
+                e.Accept = false;
+                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+            }
         }
 
-        private static async Task ConsoleSampleServer()
+        private async Task ConsoleSampleServer()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
-            
+
             application.ApplicationName = "UA Sample Server";
             application.ApplicationType = ApplicationType.Server;
             application.ConfigSectionName = "Opc.Ua.SampleServer";
@@ -110,17 +144,62 @@ namespace NetCoreConsoleServer
             }
 
             // start the server.
-            await application.Start(new SampleServer());
+            server = new SampleServer();
+            await application.Start(server);
+
+            // start the status thread
+            status = Task.Run(new Action(StatusThread));
+
+            // print notification on session events
+            server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
+            server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
+            server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
+
         }
 
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private void EventStatus(Session session, SessionEventReason reason)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            lastEventTime = DateTime.UtcNow;
+            PrintSessionStatus(session, reason.ToString());
+        }
+
+        void PrintSessionStatus(Session session, string reason, bool lastContact = false)
+        {
+            lock (session.DiagnosticsLock)
             {
-                e.Accept = false;
-                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                string item = String.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
+                if (lastContact)
+                {
+                    item += String.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                }
+                else
+                {
+                    if (session.Identity != null)
+                    {
+                        item += String.Format(":{0,20}", session.Identity.DisplayName);
+                    }
+                    item += String.Format(":{0}", session.Id);
+                }
+                Console.WriteLine(item);
             }
         }
 
+        private void StatusThread()
+        {
+            while (server != null)
+            {
+                if (DateTime.UtcNow - lastEventTime > TimeSpan.FromMilliseconds(6000))
+                {
+                    IList<Session> sessions = server.CurrentInstance.SessionManager.GetSessions();
+                    for (int ii = 0; ii < sessions.Count; ii++)
+                    {
+                        Session session = sessions[ii];
+                        PrintSessionStatus(session, "-Status-", true);
+                    }
+                    lastEventTime = DateTime.UtcNow;
+                }
+                Thread.Sleep(1000);
+            }
+        }
     }
 }
