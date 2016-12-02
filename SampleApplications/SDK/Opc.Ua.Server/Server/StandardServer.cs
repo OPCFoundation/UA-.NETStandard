@@ -372,6 +372,12 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
+
+                    // ignore nonce if security policy set to none
+                    if (context.SecurityPolicyUri == SecurityPolicies.None)
+                    {
+                        clientNonce = null;
+                    }
                 }
 
                 // create the session.
@@ -576,7 +582,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, localeIds, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -627,6 +633,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the response header.
+        /// </summary>
+        /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
+        /// <param name="exception">The exception used to create DiagnosticInfo assigned to the ServiceDiagnostics.</param>
+        /// <returns>Returns a description for the ResponseHeader DataType. </returns>
+        protected ResponseHeader CreateResponse(RequestHeader requestHeader, ServiceResultException exception)
+        {
+            ResponseHeader responseHeader = new ResponseHeader();
+
+            responseHeader.ServiceResult = exception.StatusCode;
+
+            responseHeader.Timestamp = DateTime.UtcNow;
+            responseHeader.RequestHandle = requestHeader.RequestHandle;
+
+            StringTable stringTable = new StringTable();
+            responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
+            responseHeader.StringTable = stringTable.ToArray();
+
+            return responseHeader;
+        }
+
+        /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -645,6 +673,11 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
+                if (e.StatusCode == StatusCodes.BadSessionNotActivated)
+                {
+                    return CreateResponse(requestHeader, e);
+                }
+
                 lock (ServerInternal.DiagnosticsLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
@@ -1420,7 +1453,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
         /// <summary>
         /// Begins an asynchronous publish operation.
         /// </summary>
@@ -2054,9 +2086,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Public Methods used by the Host Process
+#region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2273,9 +2305,9 @@ namespace Opc.Ua.Server
                 Utils.Trace(e, "Unexpected exception handling registration timer.");
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Request Processing
+#region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2505,9 +2537,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }        
-        #endregion
+#endregion
 
-        #region Protected Members used for Initialization
+#region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -2841,14 +2873,10 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                // unregister from Discovery Server
-                if (m_registrationInfo != null)
-                {
-                    m_registrationInfo.IsOnline = false;
-                }
-
                 if (m_maxRegistrationInterval > 0)
                 {
+                    // unregister from Discovery Server
+                    m_registrationInfo.IsOnline = false;
                     await RegisterWithDiscoveryServer();
                 }
 

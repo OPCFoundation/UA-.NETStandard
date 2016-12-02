@@ -113,22 +113,20 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                // dispose of the timer.
-                lock (m_lock)
-                {
-                    if (m_reconnectTimer != null)
-                    {
-                        m_reconnectTimer.Dispose();
-                        m_reconnectTimer = null;
-                    }
-                }
-
                 // do the reconnect.
                 if (DoReconnect())
                 {
+                    lock (m_lock)
+                    {
+                        if (m_reconnectTimer != null)
+                        {
+                            m_reconnectTimer.Dispose();
+                            m_reconnectTimer = null;
+                        }
+                    }
+
                     // notify the caller.
                     m_callback(this, null);
-                    return;
                 }
             }
             catch (Exception exception)
@@ -160,38 +158,23 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception exception)
                 {
-                    bool recreateNow = false;
-
-                    // recreate the session if it has been closed or the nonce is wrong.
+                    // recreate the session if it has been closed.
                     ServiceResultException sre = exception as ServiceResultException;
 
-                    if (sre != null)
+                    // check if the server endpoint could not be reached.
+                    if ((sre != null && (sre.StatusCode == StatusCodes.BadTcpInternalError || sre.StatusCode == StatusCodes.BadCommunicationError)) ||
+                        exception is System.ServiceModel.EndpointNotFoundException)
                     {
-                        switch (sre.StatusCode)
+                        // check if reconnecting is still an option.
+                        if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
                         {
-                            case StatusCodes.BadSessionClosed:
-                            case StatusCodes.BadApplicationSignatureInvalid:
-                            {
-                                recreateNow = true;
-                                break;
-                            }
+                            Utils.Trace("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
 
-                            default:
-                            {
-                                Utils.Trace((int)Utils.TraceMasks.Error, "Unexpected RECONNECT error code. {0}", sre.StatusCode);
-                                break;
-                            }
+                            return false;
                         }
                     }
 
                     m_reconnectFailed = true;
-
-                    // try a reconnect again after a delay.
-                    if (!recreateNow)
-                    {
-                        Utils.Trace("Reconnect failed. {0}", exception.Message);
-                        return false;
-                    }
                 }
             }
 
@@ -205,7 +188,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace("Unexpected re-creating a Session with the UA Server. {0}", exception.Message);
+                Utils.Trace("Could not reconnect the Session. {0}", exception.Message);
                 return false;
             }
         }

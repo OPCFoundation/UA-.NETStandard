@@ -92,7 +92,6 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_shutdownEvent.Set();
-                    m_shutdownEvent.Dispose();
                     m_samplingRates.Clear();
                 }
             }
@@ -415,6 +414,8 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
+                
+                //Utils.Trace("Server: {0} Thread Exited Normally.", Thread.CurrentThread.Name);
             }
             catch (Exception e)
             {

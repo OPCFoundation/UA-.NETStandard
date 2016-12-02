@@ -412,7 +412,7 @@ namespace Opc.Ua
             
             // 2) Replace all OPC UA wildcards with their regular expression equivalents
             // replace all '%' with ".+", except "\%"
-            expression = Regex.Replace(expression, "(?<!\\\\)%", ".+", RegexOptions.Compiled);
+            expression = Regex.Replace(expression, "(?<!\\\\)%", ".*", RegexOptions.Compiled);
             
             // replace all '_' with '.', except "\_"
             expression = Regex.Replace(expression, "(?<!\\\\)_", ".", RegexOptions.Compiled);
@@ -1531,12 +1531,26 @@ namespace Opc.Ua
             
             if (lhs == null)
             {
-                return (rhs == null)?null:(bool?)false;
+                if (rhs == null || rhs == true)
+                {
+                    return null;
+                }
+                else
+                {
+                    return false;
+                }
             }
             
             if (rhs == null)
             {
-                return (lhs == null)?null:(bool?)false;
+                if (lhs == null || lhs == true)
+                {
+                    return null;
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             return lhs.Value && rhs.Value;
@@ -1559,9 +1573,28 @@ namespace Opc.Ua
 
             bool? rhs = GetValue(context, operands[1], target) as bool?;
             
-            if (lhs == null || rhs == null)
+            if (lhs == null)
+            {
+                if (rhs == null || rhs == false)
             {
                 return null;
+            }
+                else
+                {
+                    return true;
+                }
+            }
+
+            if (rhs == null)
+            {
+                if (lhs == null || lhs == false)
+                {
+                    return null;
+                }
+                else
+                {
+                    return true;
+                }
             }
             
             return lhs.Value || rhs.Value;
@@ -1765,8 +1798,29 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            object lhs = GetValue(context, operands[0], target) as string;
-            object rhs = GetValue(context, operands[1], target) as string;
+            object firstOperand = GetValue(context, operands[0], target);
+            string lhs;
+            LocalizedText firstOperandLocalizedText = firstOperand as LocalizedText;
+            if (firstOperandLocalizedText != null)
+            {
+                lhs = firstOperandLocalizedText.Text;
+            }
+            else
+            {
+                lhs = firstOperand as string;
+            }
+            
+            object secondOperand = GetValue(context, operands[1], target);
+            string rhs;
+            LocalizedText secondOperandLocalizedText = secondOperand as LocalizedText;
+            if (secondOperandLocalizedText != null)
+            {
+                rhs = secondOperandLocalizedText.Text;
+            }
+            else
+            {
+                rhs = secondOperand as string;
+            }
 
             // this operator requires strings.
             if (lhs == null || rhs == null)

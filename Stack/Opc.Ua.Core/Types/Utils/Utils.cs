@@ -50,16 +50,16 @@ namespace Opc.Ua
         public const int UaTcpDefaultPort = 4840;
         
         /// <summary>
-		/// The urls of the discovery servers on a node.
-		/// </summary>
+        /// The urls of the discovery servers on a node.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         public static readonly string[] DiscoveryUrls = new string[]
-		{ 
+        { 
             "opc.tcp://{0}:4840",
             "https://{0}:4843",
             "http://{0}:52601/UADiscovery",
             "http://{0}/UADiscovery/Default.svc"
-		};
+        };
         
         /// <summary>
         /// The class that provides the default implementation for the UA TCP protocol.
@@ -742,8 +742,8 @@ namespace Opc.Ua
 #region String, Object and Data Convienence Functions
         private const int MAX_MESSAGE_LENGTH = 1024;
 
-		private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
-		private const uint FORMAT_MESSAGE_FROM_SYSTEM    = 0x00001000;
+        private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+        private const uint FORMAT_MESSAGE_FROM_SYSTEM    = 0x00001000;
 
         /// <summary>
         /// Supresses any exceptions while disposing the object.
@@ -784,11 +784,11 @@ namespace Opc.Ua
         
         private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1);
         
-		/// <summary>
-		/// Returns an absolute deadline for a timeout.
-		/// </summary>
+        /// <summary>
+        /// Returns an absolute deadline for a timeout.
+        /// </summary>
         public static DateTime GetDeadline(TimeSpan timeSpan)
-		{
+        {
             DateTime now = DateTime.UtcNow;
 
             if (DateTime.MaxValue.Ticks - now.Ticks < timeSpan.Ticks)
@@ -796,14 +796,14 @@ namespace Opc.Ua
                 return DateTime.MaxValue;
             }
 
-			return now + timeSpan;
+            return now + timeSpan;
         }
                 
-		/// <summary>
-		/// Returns a timeout as integer number of milliseconds
-		/// </summary>
+        /// <summary>
+        /// Returns a timeout as integer number of milliseconds
+        /// </summary>
         public static int GetTimeout(TimeSpan timeSpan)
-		{
+        {
             if (timeSpan.TotalMilliseconds > Int32.MaxValue)
             {
                 return -1;
@@ -814,7 +814,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-			return (int)timeSpan.TotalMilliseconds;
+            return (int)timeSpan.TotalMilliseconds;
         }
 
         public static async Task<IPAddress[]> GetHostAddresses(string remoteHostName)
@@ -1551,6 +1551,30 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
+            // copy X509IdentityToken.
+            {
+                X509IdentityToken castedObject = value as X509IdentityToken;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.Range.
+            {
+                Opc.Ua.Range castedObject = value as Opc.Ua.Range;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.EUInformation
+            {
+                Opc.Ua.EUInformation castedObject = value as Opc.Ua.EUInformation;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
 
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
@@ -1708,240 +1732,240 @@ namespace Opc.Ua
             return value1.Equals(value2);
         }
         
-		/// <summary>
-		/// Tests if the specified string matches the specified pattern.
-		/// </summary>
+        /// <summary>
+        /// Tests if the specified string matches the specified pattern.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public static bool Match(string target, string pattern, bool caseSensitive)
-		{
-			// an empty pattern always matches.
-			if (pattern == null || pattern.Length == 0)
-			{
-				return true;
-			}
+        {
+            // an empty pattern always matches.
+            if (pattern == null || pattern.Length == 0)
+            {
+                return true;
+            }
 
-			// an empty string never matches.
-			if (target == null || target.Length == 0)
-			{
-				return false;
-			}
+            // an empty string never matches.
+            if (target == null || target.Length == 0)
+            {
+                return false;
+            }
 
-			// check for exact match
-			if (caseSensitive)
-			{
-				if (target == pattern)
-				{
-					return true;
-				}
-			}
-			else
-			{
+            // check for exact match
+            if (caseSensitive)
+            {
+                if (target == pattern)
+                {
+                    return true;
+                }
+            }
+            else
+            {
                 if (target.ToUpperInvariant() == pattern.ToUpperInvariant())
-				{
-					return true;
-				}
-			}
+                {
+                    return true;
+                }
+            }
  
-			char c;
-			char p;
-			char l;
+            char c;
+            char p;
+            char l;
 
-			int pIndex = 0;
-			int tIndex = 0;
+            int pIndex = 0;
+            int tIndex = 0;
 
-			while (tIndex < target.Length && pIndex < pattern.Length)
-			{
-				p = ConvertCase(pattern[pIndex++], caseSensitive);
+            while (tIndex < target.Length && pIndex < pattern.Length)
+            {
+                p = ConvertCase(pattern[pIndex++], caseSensitive);
 
-				if (pIndex > pattern.Length)
-				{
-					return (tIndex >= target.Length); // if end of string true
-				}
-	
-				switch (p)
-				{
-					// match zero or more char.
-					case '*':
-					{
-						while (tIndex < target.Length) 
-						{   
-							if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
-							{
-								return true;
-							}
-						}
-			
-						return Match(target, pattern.Substring(pIndex), caseSensitive);
-					}
+                if (pIndex > pattern.Length)
+                {
+                    return (tIndex >= target.Length); // if end of string true
+                }
+    
+                switch (p)
+                {
+                    // match zero or more char.
+                    case '*':
+                    {
+                        while (tIndex < target.Length) 
+                        {   
+                            if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
+                            {
+                                return true;
+                            }
+                        }
+            
+                        return Match(target, pattern.Substring(pIndex), caseSensitive);
+                    }
 
-					// match any one char.
-					case '?':
-					{
-						// check if end of string when looking for a single character.
-						if (tIndex >= target.Length) 
-						{
-							return false;  
-						}
+                    // match any one char.
+                    case '?':
+                    {
+                        // check if end of string when looking for a single character.
+                        if (tIndex >= target.Length) 
+                        {
+                            return false;  
+                        }
 
-						// check if end of pattern and still string data left.
-						if (pIndex >= pattern.Length && tIndex < target.Length-1)
-						{
-							return false;
-						}
+                        // check if end of pattern and still string data left.
+                        if (pIndex >= pattern.Length && tIndex < target.Length-1)
+                        {
+                            return false;
+                        }
 
-						tIndex++;
-						break;
-					}
+                        tIndex++;
+                        break;
+                    }
 
-					// match char set 
-					case '[': 
-					{
-						c = ConvertCase(target[tIndex++], caseSensitive);
+                    // match char set 
+                    case '[': 
+                    {
+                        c = ConvertCase(target[tIndex++], caseSensitive);
 
-						if (tIndex > target.Length)
-						{
-							return false; // syntax 
-						}
+                        if (tIndex > target.Length)
+                        {
+                            return false; // syntax 
+                        }
 
-						l = '\0'; 
+                        l = '\0'; 
 
-						// match a char if NOT in set []
-						if (pattern[pIndex] == '!') 
-						{
-							++pIndex;
+                        // match a char if NOT in set []
+                        if (pattern[pIndex] == '!') 
+                        {
+                            ++pIndex;
 
-							p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            p = ConvertCase(pattern[pIndex++], caseSensitive);
 
-							while (pIndex < pattern.Length) 
-							{
-								if (p == ']') // if end of char set, then 
-								{
-									break; // no match found 
-								}
+                            while (pIndex < pattern.Length) 
+                            {
+                                if (p == ']') // if end of char set, then 
+                                {
+                                    break; // no match found 
+                                }
 
-								if (p == '-') 
-								{
-									// check a range of chars? 
-									p = ConvertCase(pattern[pIndex], caseSensitive);
+                                if (p == '-') 
+                                {
+                                    // check a range of chars? 
+                                    p = ConvertCase(pattern[pIndex], caseSensitive);
 
-									// get high limit of range 
-									if (pIndex > pattern.Length || p == ']')
-									{
-										return false; // syntax 
-									}
+                                    // get high limit of range 
+                                    if (pIndex > pattern.Length || p == ']')
+                                    {
+                                        return false; // syntax 
+                                    }
 
-									if (c >= l && c <= p) 
-									{
-										return false; // if in range, return false
-									}
-								} 
+                                    if (c >= l && c <= p) 
+                                    {
+                                        return false; // if in range, return false
+                                    }
+                                } 
 
-								l = p;
-						
-								if (c == p) // if char matches this element 
-								{
-									return false; // return false 
-								}
-								
-								p = ConvertCase(pattern[pIndex++], caseSensitive);
-							} 
-						}
+                                l = p;
+                        
+                                if (c == p) // if char matches this element 
+                                {
+                                    return false; // return false 
+                                }
+                                
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            } 
+                        }
 
-						// match if char is in set []
-						else 
-						{
-							p = ConvertCase(pattern[pIndex++], caseSensitive);
+                        // match if char is in set []
+                        else 
+                        {
+                            p = ConvertCase(pattern[pIndex++], caseSensitive);
 
-							while (pIndex < pattern.Length) 
-							{
-								if (p == ']') // if end of char set, then no match found 
-								{
-									return false;
-								}
+                            while (pIndex < pattern.Length) 
+                            {
+                                if (p == ']') // if end of char set, then no match found 
+                                {
+                                    return false;
+                                }
 
-								if (p == '-') 
-								{   
-									// check a range of chars? 
-									p = ConvertCase(pattern[pIndex], caseSensitive);
-							
-									// get high limit of range 
-									if (pIndex > pattern.Length || p == ']')
-									{
-										return false; // syntax 
-									}
+                                if (p == '-') 
+                                {   
+                                    // check a range of chars? 
+                                    p = ConvertCase(pattern[pIndex], caseSensitive);
+                            
+                                    // get high limit of range 
+                                    if (pIndex > pattern.Length || p == ']')
+                                    {
+                                        return false; // syntax 
+                                    }
 
-									if (c >= l  &&  c <= p) 
-									{
-										break; // if in range, move on 
-									}
-								} 
+                                    if (c >= l  &&  c <= p) 
+                                    {
+                                        break; // if in range, move on 
+                                    }
+                                } 
 
-								l = p;
-						
-								if (c == p) // if char matches this element move on 
-								{
-									break;           
-								}
-								
-								p = ConvertCase(pattern[pIndex++], caseSensitive);
-							} 
+                                l = p;
+                        
+                                if (c == p) // if char matches this element move on 
+                                {
+                                    break;           
+                                }
+                                
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            } 
 
-							while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
-							{
-								p = pattern[pIndex++];             
-							}
-						}
+                            while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
+                            {
+                                p = pattern[pIndex++];             
+                            }
+                        }
 
-						break; 
-					}
+                        break; 
+                    }
 
-					// match digit.
-					case '#':
-					{
-						c = target[tIndex++]; 
+                    // match digit.
+                    case '#':
+                    {
+                        c = target[tIndex++]; 
 
-						if (!Char.IsDigit(c))
-						{
-							return false; // not a digit
-						}
+                        if (!Char.IsDigit(c))
+                        {
+                            return false; // not a digit
+                        }
 
-						break;
-					}
+                        break;
+                    }
 
-					// match exact char.
-					default: 
-					{
-						c = ConvertCase(target[tIndex++], caseSensitive); 
-				
-						if (c != p) // check for exact char
-						{
-							return false; // not a match
-						}
+                    // match exact char.
+                    default: 
+                    {
+                        c = ConvertCase(target[tIndex++], caseSensitive); 
+                
+                        if (c != p) // check for exact char
+                        {
+                            return false; // not a match
+                        }
 
-						// check if end of pattern and still string data left.
-						if (pIndex >= pattern.Length && tIndex < target.Length-1)
-						{
-							return false;
-						}
+                        // check if end of pattern and still string data left.
+                        if (pIndex >= pattern.Length && tIndex < target.Length-1)
+                        {
+                            return false;
+                        }
 
-						break;
-					}
-				} 
-			}
+                        break;
+                    }
+                } 
+            }
 
             if (tIndex >= target.Length)
-			{
-				return (pIndex >= pattern.Length); // if end of pattern true
-			}
-	
-			return true;
-		} 
-		
-		// ConvertCase
-		private static char ConvertCase(char c, bool caseSensitive)
-		{
-			return (caseSensitive)?c:Char.ToUpperInvariant(c);
-		}
+            {
+                return (pIndex >= pattern.Length); // if end of pattern true
+            }
+    
+            return true;
+        } 
+        
+        // ConvertCase
+        private static char ConvertCase(char c, bool caseSensitive)
+        {
+            return (caseSensitive)?c:Char.ToUpperInvariant(c);
+        }
 
         /// <summary>
         /// Returns the TimeZone information for the current local time.
@@ -2105,23 +2129,23 @@ namespace Opc.Ua
 
 #region Reflection Helper Functions
         /// <summary>
-		/// Returns the public static field names for a class.
-		/// </summary>
-		public static string[] GetFieldNames(Type systemType)
-		{
+        /// Returns the public static field names for a class.
+        /// </summary>
+        public static string[] GetFieldNames(Type systemType)
+        {
             FieldInfo[] fields = systemType.GetFields(BindingFlags.Public | BindingFlags.Static);
 
             int ii = 0;
 
             string[] names = new string[fields.Length];
             
-			foreach (FieldInfo field in fields)
-			{
-				names[ii++] = field.Name;
-			}
+            foreach (FieldInfo field in fields)
+            {
+                names[ii++] = field.Name;
+            }
 
-			return names;
-		}
+            return names;
+        }
 
         /// <summary>
         /// Returns the data member name for a property.
@@ -2151,22 +2175,22 @@ namespace Opc.Ua
             return null;
         }
                 
-		/// <summary>
-		/// Returns the numeric constant associated with a name.
-		/// </summary>
+        /// <summary>
+        /// Returns the numeric constant associated with a name.
+        /// </summary>
         public static uint GetIdentifier(string name, Type constants)
-		{
-			FieldInfo[] fields = constants.GetFields(BindingFlags.Public | BindingFlags.Static);
+        {
+            FieldInfo[] fields = constants.GetFields(BindingFlags.Public | BindingFlags.Static);
 
-			foreach (FieldInfo field in fields)
-			{
-				if (field.Name == name)
-				{
+            foreach (FieldInfo field in fields)
+            {
+                if (field.Name == name)
+                {
                     return (uint)field.GetValue(constants);
-				}
-			}
+                }
+            }
 
-			return 0;
+            return 0;
         }
         
         /// <summary>
@@ -2262,7 +2286,7 @@ namespace Opc.Ua
             X509Certificate2 certificate = null;
 
             while (certificatesBytes.Count > 0)
-	        {
+            {
                 try
                 {
                     certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
@@ -2283,10 +2307,38 @@ namespace Opc.Ua
             return certificateChain;
         }
 
-        public static byte[] CreateNonce(string secret, uint length)
+        /// <summary>
+        /// Compare Nonce for equality.
+        /// </summary>
+        /// <returns></returns>
+        public static bool CompareNonce(byte[] a, byte[] b)
         {
-            string label = DateTime.UtcNow.Ticks.ToString();
-            return PSHA1(new UTF8Encoding().GetBytes(secret), label, null, 0, (int)length);
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i])
+                    return false;
+
+            return true;
+        }
+
+        public class Nonce
+        {
+            private static int m_calls = 0;
+
+            /// <summary>
+            /// Generates a Nonce for cryptographic functions.
+            /// </summary>
+            public static byte[] CreateNonce(string secret, uint length)
+            {
+                // This function should rather use a crypthographic random number generator
+                // once available in .Net Standard library
+                string label = DateTime.UtcNow.Ticks.ToString();
+                // ensure every Nonce is different, even when the ticks didn't change since the last call
+                m_calls++;
+                return PSHA1(new UTF8Encoding().GetBytes(secret), label, BitConverter.GetBytes(m_calls), 0, (int)length);
+            }
         }
 
         /// <summary>
@@ -2295,8 +2347,8 @@ namespace Opc.Ua
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
             if (secret == null) throw new ArgumentNullException("secret");
-            if (offset < 0)     throw new ArgumentOutOfRangeException("offset");
-            if (length < 0)     throw new ArgumentOutOfRangeException("length");
+            if (offset < 0) throw new ArgumentOutOfRangeException("offset");
+            if (length < 0) throw new ArgumentOutOfRangeException("length");
 
             byte[] seed = null;
 
@@ -2311,7 +2363,7 @@ namespace Opc.Ua
             {
                 if (seed != null)
                 {
-                    byte[] seed2 = new byte[seed.Length+data.Length];
+                    byte[] seed2 = new byte[seed.Length + data.Length];
                     seed.CopyTo(seed2, 0);
                     data.CopyTo(seed2, seed.Length);
                     seed = seed2;
@@ -2329,13 +2381,13 @@ namespace Opc.Ua
             }
 
             // create the hmac.
-            HMACSHA1 hmac = new HMACSHA1(secret); 
-           
+            HMACSHA1 hmac = new HMACSHA1(secret);
+
             byte[] keySeed = hmac.ComputeHash(seed);
-            byte[] prfSeed = new byte[hmac.HashSize/8 + seed.Length];
+            byte[] prfSeed = new byte[hmac.HashSize / 8 + seed.Length];
             Array.Copy(keySeed, prfSeed, keySeed.Length);
             Array.Copy(seed, 0, prfSeed, keySeed.Length, seed.Length);
-                        
+
             // create buffer with requested size.
             byte[] output = new byte[length];
 
@@ -2643,6 +2695,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Check if certificate has an application urn.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>true if the application URI starts with urn: </returns>
+        public static bool HasApplicationURN(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = null;
+
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            // find the application urn.
+            if (alternateName != null && alternateName.Uris.Count > 0)
+            {
+                string urn = "urn:";
+                for (int i = 0; i < alternateName.Uris.Count; i++)
+                {
+                    if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks that the domain in the URL provided matches one of the domains in the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
@@ -2727,5 +2814,5 @@ namespace Opc.Ua
             return true;
         }
 #endregion
-	}
+    }
 }

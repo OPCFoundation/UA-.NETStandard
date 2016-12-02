@@ -149,6 +149,7 @@ namespace Opc.Ua.Client
             m_publishingEnabled          = false;
             m_timestampsToReturn         = TimestampsToReturn.Both;
             m_maxMessageCount            = 10;
+            m_outstandingMessageWorkers  = 0;
             m_messageCache               = new LinkedList<NotificationMessage>();
             m_monitoredItems             = new SortedDictionary<uint,MonitoredItem>();
             m_deletedItems               = new List<MonitoredItem>(); 
@@ -737,6 +738,8 @@ namespace Opc.Ua.Client
                     {
                         lifetimeCount++;
                     }
+
+                    Utils.Trace("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
                 }
             }
 
@@ -744,12 +747,14 @@ namespace Opc.Ua.Client
             // to ensure the user does not experience unexpected drop outs.
             else
             {
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, 1000, Id);
                 lifetimeCount = 1000;
             }
 
             // lifetime must be greater than the keep alive count.
             if (lifetimeCount < keepAliveCount)
             {
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, keepAliveCount, Id);
                 lifetimeCount = keepAliveCount;
             }
         }
@@ -793,6 +798,31 @@ namespace Opc.Ua.Client
             StartKeepAliveTimer();
 
             m_changeMask |= SubscriptionChangeMask.Created;
+
+            if (m_keepAliveCount != revisedKeepAliveCount)
+            {
+                Utils.Trace("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
+            }
+
+            if (m_lifetimeCount != revisedLifetimeCounter)
+            {
+                Utils.Trace("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
+            }
+
+            if (m_publishingInterval != revisedPublishingInterval)
+            {
+                Utils.Trace("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
+            }
+
+            if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
+            {
+                Utils.Trace("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
+            }
+
+            if (m_currentPriority == 0)
+            {
+                Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
+            }
 
             CreateItems();
 
@@ -1543,6 +1573,7 @@ namespace Opc.Ua.Client
                 // process messages.
                 Task.Run(() =>
                 {
+                    Interlocked.Increment(ref m_outstandingMessageWorkers);
                     OnMessageRecieved(null);
                 });
             }
@@ -1640,11 +1671,12 @@ namespace Opc.Ua.Client
                 {
                     FastDataChangeNotificationEventHandler datachangeCallback = m_fastDataChangeCallback;
                     FastEventNotificationEventHandler eventCallback = m_fastEventCallback;
+                    int noNotificationsReceived = 0;
 
                     for (int ii = 0; ii < messagesToProcess.Count; ii++)
                     {                
                         NotificationMessage message = messagesToProcess[ii];
-
+                        noNotificationsReceived = 0;
                         try
                         {
                             for (int jj = 0; jj < message.NotificationData.Count; jj++)
@@ -1653,6 +1685,8 @@ namespace Opc.Ua.Client
 
                                 if (datachange != null)
                                 {
+                                    noNotificationsReceived += datachange.MonitoredItems.Count;
+
                                     if (!m_disableMonitoredItemCache)
                                     {
                                         SaveDataChange(message, datachange, message.StringTable);
@@ -1668,6 +1702,8 @@ namespace Opc.Ua.Client
 
                                 if (events != null)
                                 {
+                                    noNotificationsReceived += events.Events.Count;
+
                                     if (!m_disableMonitoredItemCache)
                                     {
                                         SaveEvents(message, events, message.StringTable);
@@ -1678,11 +1714,23 @@ namespace Opc.Ua.Client
                                         eventCallback(this, events, message.StringTable);
                                     }
                                 }
+                                
+                                StatusChangeNotification statusChanged = message.NotificationData[jj].Body as StatusChangeNotification;
+
+                                if (statusChanged != null)
+                                {
+                                    Utils.Trace("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.", statusChanged.Status.ToString(), Id);
+                                }
                             }
                         }
                         catch (Exception e)
                         {
                             Utils.Trace(e, "Error while processing incoming message #{0}.", message.SequenceNumber);
+                        }
+
+                        if (MaxNotificationsPerPublish != 0 && noNotificationsReceived > MaxNotificationsPerPublish)
+                        {
+                            Utils.Trace("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}", Id, noNotificationsReceived, MaxNotificationsPerPublish);    
                         }
                     }
                 }
@@ -1702,6 +1750,16 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.Trace(e, "Error while processing incoming messages.");
+            }
+            Interlocked.Decrement(ref m_outstandingMessageWorkers);
+        }
+
+        /// <summary>
+        /// Get the number of outstanding message workers
+        /// </summary>
+        public int OutstandingMessageWorkers {
+            get {
+                return m_outstandingMessageWorkers;
             }
         }
         
@@ -1870,6 +1928,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private void SaveDataChange(NotificationMessage message, DataChangeNotification notifications, IList<string> stringTable)
         {
+            // check for empty monitored items list.
+            if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
+            {
+                Utils.Trace("Publish response contains empty MonitoredItems list for SubscritpionId = {0}.", m_id);                
+            }
+
             for (int ii = 0; ii < notifications.MonitoredItems.Count; ii++)
             {
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
@@ -1881,6 +1945,7 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
                     {
+                        Utils.Trace("Publish response contains invalid MonitoredItem.SubscritpionId = {0}, ClientHandle = {1}", m_id, notification.ClientHandle);
                         continue;
                     }
                 } 
@@ -1914,6 +1979,7 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))
                     {
+                        Utils.Trace("Publish response contains invalid MonitoredItem.SubscritpionId = {0}, ClientHandle = {1}", m_id, eventFields.ClientHandle);
                         continue;
                     }
                 }
@@ -1963,6 +2029,7 @@ namespace Opc.Ua.Client
         private bool m_disableMonitoredItemCache;
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;
+        private int m_outstandingMessageWorkers;
         
         /// <summary>
         /// A message received from the server cached until is processed or discarded.

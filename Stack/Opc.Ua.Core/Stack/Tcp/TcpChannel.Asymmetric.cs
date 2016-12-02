@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
             uint length = GetNonceLength();
             if (length > 0)
             {
-                return Utils.CreateNonce("TCPChannel", GetNonceLength());
+                return Utils.Nonce.CreateNonce("TCPChannel", length);
             }
             return null;
         }

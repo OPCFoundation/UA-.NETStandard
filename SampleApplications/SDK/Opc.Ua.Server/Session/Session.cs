@@ -49,6 +49,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The Server object.</param>
         /// <param name="serverCertificate">The server certificate.</param>
         /// <param name="authenticationToken">The unique private identifier assigned to the Session.</param>
+        /// <param name="clientNonce">The client nonce.</param>
         /// <param name="serverNonce">The server nonce.</param>
         /// <param name="sessionName">The name assigned to the Session.</param>
         /// <param name="clientDescription">Application description for the client application.</param>
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server
             IServerInternal         server,
             X509Certificate2        serverCertificate,
             NodeId                  authenticationToken,
+            byte[]                  clientNonce,
             byte[]                  serverNonce,
             string                  sessionName, 
             ApplicationDescription  clientDescription,    
@@ -87,6 +89,7 @@ namespace Opc.Ua.Server
 
             m_server                       = server;
             m_authenticationToken          = authenticationToken;
+            m_clientNonce                  = clientNonce;
             m_serverNonce                  = serverNonce;
             m_sessionName                  = sessionName;
             m_serverCertificate            = serverCertificate;
@@ -370,6 +373,14 @@ namespace Opc.Ua.Server
         {
             get { return m_serverCertificateChain; }
             set { m_serverCertificateChain = value; }
+        }
+
+        /// <summary>
+        /// The client Nonce associated with the session.
+        /// </summary>
+        public byte [] ClientNonce
+        {
+            get { return m_clientNonce; }
         }
 
         /// <summary>
@@ -1152,6 +1163,7 @@ namespace Opc.Ua.Server
         private X509Certificate2 m_clientCertificate;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
+        private byte[] m_clientNonce;
         private byte[] m_serverNonce;
         private string m_sessionName;
         private string m_secureChannelId;

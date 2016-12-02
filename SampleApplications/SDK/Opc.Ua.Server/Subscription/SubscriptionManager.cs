@@ -111,7 +111,6 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(subscription);
                 }
 
-                m_shutdownEvent.Dispose();
             }
         }
         #endregion
@@ -1602,7 +1601,7 @@ namespace Opc.Ua.Server
 
                 Task.Run(() =>
                 {
-                    CleanupSubscriptions(server, subscriptionsToDelete);
+                    CleanupSubscriptions(new object[] { server, subscriptionsToDelete });
                 });
             }
         }

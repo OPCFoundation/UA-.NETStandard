@@ -598,12 +598,23 @@ namespace Opc.Ua.Client
 
                     if (datachange != null)
                     {                            
-                        Utils.Trace(
-                          "SaveValueInCache: ServerHandle={0}, Value={1}, StatusCode={2}", 
-                          this.ClientHandle,
-                          datachange.Value.WrappedValue, 
-                          datachange.Value.StatusCode);
-                        
+                        // validate the ServerTimestamp of the notification.
+                        if (datachange.Value != null && datachange.Value.ServerTimestamp > DateTime.UtcNow)
+                        {
+                            Utils.Trace("Received ServerTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                        }
+
+                        // validate SourceTimestamp of the notification.
+                        if (datachange.Value != null && datachange.Value.SourceTimestamp > DateTime.UtcNow)
+                        {
+                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                        }
+
+                        if (datachange.Value != null && datachange.Value.StatusCode.Overflow)
+                        {
+                            Utils.Trace("Overflow bit set for data change with ServerTimestamp {0} and value {1} for MonitoredItemId {2}", datachange.Value.ServerTimestamp.ToLocalTime(), datachange.Value.Value, ClientHandle);
+                        }
+
                         m_dataCache.OnNotification(datachange);
                     }
                 }
