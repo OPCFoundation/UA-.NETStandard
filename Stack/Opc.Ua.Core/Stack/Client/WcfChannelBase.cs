@@ -16,12 +16,14 @@ using Opc.Ua.Bindings;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
-{        
+{
     /// <summary>
     /// A base class for WCF channel objects used access UA interfaces
     /// </summary>
     public abstract class WcfChannelBase : IChannelBase, ITransportChannel
-    {        
+    {
+        public static ITransportChannel g_CustomTransportChannel = null;
+        
         #region Constructors
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
@@ -720,7 +722,14 @@ namespace Opc.Ua
 
             if (useUaTcp)
             {
-                channel = new TcpTransportChannel();
+                if (g_CustomTransportChannel != null)
+                {
+                    channel = g_CustomTransportChannel;
+                }
+                else
+                {
+                    channel = new TcpTransportChannel();
+                }
             }
             else if (useHttps)
             {
