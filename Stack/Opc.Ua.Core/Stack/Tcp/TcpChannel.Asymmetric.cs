@@ -199,6 +199,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
                 {
                     return 32;
                 }
@@ -248,6 +249,7 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
                     {
                         return Rsa_GetPlainTextBlockSize(receiverCertificate, true);
                     }
@@ -273,6 +275,7 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
                     {
                         return Rsa_GetCipherTextBlockSize(receiverCertificate, true);
                     }
@@ -371,11 +374,12 @@ namespace Opc.Ua.Bindings
         {
             switch (SecurityPolicyUri)
             {
-                case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return RsaPkcs15Sha1_GetSignatureLength(senderCertificate);
-                    }
+                case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    return RsaPkcs15_GetSignatureLength(senderCertificate);
+                }
 
                 default:
                 case SecurityPolicies.None:
@@ -958,9 +962,14 @@ namespace Opc.Ua.Bindings
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return RsaPkcs15Sha1_Sign(dataToSign, senderCertificate);
-                    }
+                {
+                    return RsaPkcs15_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA1);
+                }
+
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    return RsaPkcs15_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
+                }
             }
         }
 
@@ -988,7 +997,12 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 {
-                    return RsaPkcs15Sha1_Verify(dataToVerify, signature, senderCertificate);
+                    return RsaPkcs15_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA1);
+                }
+
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    return RsaPkcs15_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256);
                 }
 
                 default:
@@ -1024,14 +1038,15 @@ namespace Opc.Ua.Bindings
                     return new ArraySegment<byte>(encryptedBuffer, 0, dataToEncrypt.Count+headerToCopy.Count);
                 }
                 case SecurityPolicies.Basic256:
-                    {
-                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, true);
-                    }
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, true);
+                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, false);
-                    }
+                {
+                    return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, false);
+                }
             }
         }
 
@@ -1060,14 +1075,15 @@ namespace Opc.Ua.Bindings
                     return new ArraySegment<byte>(decryptedBuffer, 0, dataToDecrypt.Count+headerToCopy.Count);
                 }
                 case SecurityPolicies.Basic256:
-                    {
-                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, true);
-                    }
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, true);
+                }
 
                 case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, false);
-                    }
+                {
+                    return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, false);
+                }
             }
         }
 #endregion

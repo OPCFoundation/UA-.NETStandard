@@ -61,9 +61,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Returns the length of a RSA PKCS#1 v1.5 signature of a SHA1 digest.
+        /// Returns the length of a RSA PKCS#1 v1.5 signature.
         /// </summary>
-        private static int RsaPkcs15Sha1_GetSignatureLength(X509Certificate2 signingCertificate)
+        private static int RsaPkcs15_GetSignatureLength(X509Certificate2 signingCertificate)
         {
             using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
@@ -71,17 +71,17 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
-
                 return rsa.KeySize / 8;
             }
         }
 
         /// <summary>
-        /// Creates an RSA PKCS#1 v1.5 signature of a SHA1 for the stream.
+        /// Creates an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
         /// </summary>
-        private static byte[] RsaPkcs15Sha1_Sign(
+        private static byte[] RsaPkcs15_Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2   signingCertificate)
+            X509Certificate2 signingCertificate,
+            HashAlgorithmName algorithm)
         {
             // extract the private key.
             using (RSA rsa = signingCertificate.GetRSAPrivateKey())
@@ -92,17 +92,19 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create the signature.
-                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, RSASignaturePadding.Pkcs1);
             }
         }
-        
+
+
         /// <summary>
-        /// Verifies an RSA PKCS#1 v1.5 signature of a SHA1 for the stream.
+        /// Verifies an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
         /// </summary>
-        private static bool RsaPkcs15Sha1_Verify(
+        private static bool RsaPkcs15_Verify(
             ArraySegment<byte> dataToVerify,
             byte[]             signature,
-            X509Certificate2   signingCertificate)
+            X509Certificate2   signingCertificate,
+            HashAlgorithmName algorithm)
         {
             // extract the public key.
             using (RSA rsa = signingCertificate.GetRSAPublicKey())
@@ -114,7 +116,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // verify signature.
-                if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1))
+                if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm, RSASignaturePadding.Pkcs1))
                 {
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
