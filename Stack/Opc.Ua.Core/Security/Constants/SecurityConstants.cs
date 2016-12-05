@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// The RSA-SHA256 algorithm used to create asymmetric key signatures.
         /// </summary>
-        public const string RsaSha256 = "RsaSha256Signature";
+        public const string RsaSha256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
         
         /// <summary>
         /// The SHA1 algorithm used to create message digests.

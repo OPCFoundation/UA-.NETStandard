@@ -61,9 +61,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the length of a RSA PKCS#1 v1.5 signature of a SHA1 digest.
+        /// Returns the length of a RSA PKCS#1 v1.5 signature of a digest.
         /// </summary>
-        public static int RsaPkcs15Sha1_GetSignatureLength(X509Certificate2 signingCertificate)
+        public static int RsaPkcs15_GetSignatureLength(X509Certificate2 signingCertificate)
         {
             using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
@@ -98,6 +98,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Computes an RSA/SHA256 PKCS#1 v1.5 signature.
+        /// </summary>
+        public static byte[] RsaPkcs15Sha256_Sign(
+            ArraySegment<byte> dataToSign,
+            X509Certificate2 signingCertificate)
+        {
+            // extract the private key.
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
+            {
+
+                if (rsa == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+                }
+
+                // create the signature.
+                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            }
+        }
+
+        /// <summary>
         /// Verifies an RSA/SHA1 PKCS#1 v1.5 signature.
         /// </summary>
         public static bool RsaPkcs15Sha1_Verify(
@@ -116,6 +137,28 @@ namespace Opc.Ua
 
                 // verify signature.
                 return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            }
+        }
+
+        /// <summary>
+        /// Verifies an RSA/SHA256 PKCS#1 v1.5 signature.
+        /// </summary>
+        public static bool RsaPkcs15Sha256_Verify(
+            ArraySegment<byte> dataToVerify,
+            byte[] signature,
+            X509Certificate2 signingCertificate)
+        {
+            // extract the private key.
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            {
+
+                if (rsa == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+                }
+
+                // verify signature.
+                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
         }
 

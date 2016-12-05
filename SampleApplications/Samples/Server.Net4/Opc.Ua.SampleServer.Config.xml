@@ -79,7 +79,7 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
+        <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
@@ -99,7 +99,17 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>4</SecurityLevel>
+        <SecurityLevel>5</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>3</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>6</SecurityLevel>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 
@@ -107,25 +117,36 @@
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
     
+    <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
+      <!-- Allows anonymous users -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
+
+      <!-- Allows username/password -->
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
+        <!-- passwords must be encrypted - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
+
+      <!-- Allows user certificates -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
+        <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
       <!--
       <ua:UserTokenPolicy>
         <ua:TokenType>IssuedToken_3</ua:TokenType>
         <ua:IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</ua:IssuedTokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
       -->
     </UserTokenPolicies>
-    <DiagnosticsEnabled>false</DiagnosticsEnabled>
+    <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
@@ -171,7 +192,7 @@
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
     <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->
