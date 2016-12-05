@@ -809,7 +809,7 @@ namespace Opc.Ua.Client
             // create the session.
             try
             {
-                session.Open(sessionName, sessionTimeout, identity, preferredLocales);
+                session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
             }
             catch (Exception e)
             {
