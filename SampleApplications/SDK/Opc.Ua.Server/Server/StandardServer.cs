@@ -509,7 +509,7 @@ namespace Opc.Ua.Server
                         SoftwareCertificate softwareCertificate = null;
 
                         ServiceResult result = SoftwareCertificate.Validate(
-                            new CertificateValidator(),
+                            CertificateValidator,
                             signedCertificate.CertificateData,
                             out softwareCertificate);
 

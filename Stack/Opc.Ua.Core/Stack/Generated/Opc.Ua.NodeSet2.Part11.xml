@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.7164689Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -546,7 +549,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=2999</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=3029" BrowseName="NewValues" ParentNodeId="i=2999" DataType="i=920">
+  <UAVariable NodeId="i=3029" BrowseName="NewValues" ParentNodeId="i=2999" DataType="i=920" ValueRank="1">
     <DisplayName>NewValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -554,7 +557,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=2999</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=3030" BrowseName="OldValues" ParentNodeId="i=2999" DataType="i=920">
+  <UAVariable NodeId="i=3030" BrowseName="OldValues" ParentNodeId="i=2999" DataType="i=920" ValueRank="1">
     <DisplayName>OldValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -728,8 +731,8 @@
     </References>
     <Definition Name="ExceptionDeviationFormat">
       <Field Name="AbsoluteValue" Value="0" />
-      <Field Name="PercentOfRange" Value="1" />
-      <Field Name="PercentOfValue" Value="2" />
+      <Field Name="PercentOfValue" Value="1" />
+      <Field Name="PercentOfRange" Value="2" />
       <Field Name="PercentOfEURange" Value="3" />
       <Field Name="Unknown" Value="4" />
     </Definition>
@@ -751,12 +754,12 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>PercentOfRange</Text>
+          <Text>PercentOfValue</Text>
         </LocalizedText>
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>PercentOfValue</Text>
+          <Text>PercentOfRange</Text>
         </LocalizedText>
         <LocalizedText>
           <Locale>
