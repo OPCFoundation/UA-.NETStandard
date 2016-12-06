@@ -51,7 +51,7 @@ namespace NetCoreConsoleClient
             {
                 ApplicationName = "UA Sample Client",
                 ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:localhost:OPCFoundation:SampleClient",
+                ApplicationUri = "urn:"+Utils.GetHostName()+":OPCFoundation:SampleClient",
                 SecurityConfiguration = new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier
@@ -86,11 +86,15 @@ namespace NetCoreConsoleClient
 
             bool haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
-            if (haveAppCertificate && config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (haveAppCertificate)
             {
-                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
-            }
+                config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
 
+                if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                {
+                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                }
+            }
             if (!haveAppCertificate)
             {
                 Console.WriteLine("    WARN: missing application certificate, using unsecure connection.");
