@@ -15,9 +15,9 @@ using System;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Wraps the IoTProxyTransportChannel and provides an ITransportChannel implementation.
+    /// Wraps the CustomTransportChannel and provides an ITransportChannel implementation.
     /// </summary>
-    public class IoTProxyTransportChannel : ITransportChannel
+    public class CustomTransportChannel : ITransportChannel
     {
         #region IDisposable Members
         /// <summary>
@@ -153,7 +153,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect()
         {
-            Utils.Trace("IoTProxyTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            Utils.Trace("CustomTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
             lock (m_lock)
             {
