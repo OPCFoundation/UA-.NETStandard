@@ -127,7 +127,6 @@
     </Content>
     <None Include="app.manifest">
     </None>
-    <None Include="CreateCert.cmd" />
     <None Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
