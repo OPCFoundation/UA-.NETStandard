@@ -13,10 +13,20 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
+using System.Collections;
+using System.Globalization;
 using System.IO;
-using System.Threading.Tasks;
-using System.Diagnostics;
+using System.Text;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.X509;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Utilities;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Operators;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Asn1;
 
 namespace Opc.Ua
 {
@@ -25,6 +35,15 @@ namespace Opc.Ua
     /// </summary>
     public class CertificateFactory
     {
+        #region Public Constants
+        /// <summary>
+        /// The default certificate factory security parameter.
+        /// </summary>
+        public const ushort defaultKeySize = 2048;
+        public const ushort defaultHashSize = 256;
+        public const ushort defaultLifeTime = 120;
+        #endregion
+        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -84,10 +103,337 @@ namespace Opc.Ua
 
                 // save the key container so it can be deleted later.
                 m_temporaryKeyContainers.Add(certificate);
-        }
+            }
 
             return certificate;
         }
+
+        /// <summary>
+        /// Creates a self signed application instance certificate.
+        /// </summary>
+        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="storePath">The store path (syntax depends on storeType).</param>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <returns>The certificate with a private key.</returns>
+        public static X509Certificate2 CreateCertificate(
+            string storeType,
+            string storePath,
+            string applicationUri,
+            string applicationName,
+            string subjectName = null,
+            IList<string> serverDomainNames = null,
+            ushort keySize = defaultKeySize,
+            ushort lifetimeInMonths = defaultLifeTime,
+            ushort hashSizeInBits = defaultHashSize
+            )
+        {
+            return CreateCertificate(
+                storeType,
+                storePath,
+                null,
+                applicationUri,
+                applicationName,
+                subjectName,
+                serverDomainNames,
+                keySize,
+                DateTime.UtcNow,
+                lifetimeInMonths,
+                hashSizeInBits,
+                false,
+                null
+                );
+        }
+
+        /// <summary>
+        /// Creates a self signed application instance certificate.
+        /// </summary>
+        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="storePath">The store path (syntax depends on storeType).</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <param name="isCA">if set to <c>true</c> the a CA certificate is created.</param>
+        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+        /// <returns>The certificate with a private key.</returns>
+        public static X509Certificate2 CreateCertificate(
+            string storeType,
+            string storePath,
+            string password,
+            string applicationUri,
+            string applicationName,
+            string subjectName,
+            IList<String> domainNames,
+            ushort keySize,
+            DateTime startTime,
+            ushort lifetimeInMonths,
+            ushort hashSizeInBits,
+            bool isCA,
+            X509Certificate2 issuerCAKeyCert)
+        {
+            if (!String.IsNullOrEmpty(storeType) &&
+                storeType != CertificateStoreType.Directory)
+            {
+                throw new NotSupportedException("Cannot create a certificate for a non directory store.");
+            }
+
+            if (issuerCAKeyCert != null)
+            {
+                if (!issuerCAKeyCert.HasPrivateKey)
+                {
+                    throw new NotSupportedException("Cannot sign with a CA certificate without a private key.");
+                }
+
+                throw new NotSupportedException("Signing with an issuer CA certificate is unsupported yet.");
+            }
+
+            // set default values.
+            SetSuitableDefaults(
+                ref applicationUri,
+                ref applicationName,
+                ref subjectName,
+                ref domainNames,
+                ref keySize,
+                ref lifetimeInMonths,
+                isCA);
+
+            // cert generators
+            SecureRandom random = new SecureRandom();
+            X509V3CertificateGenerator cg = new X509V3CertificateGenerator();
+
+            // Serial Number
+            BigInteger serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
+            cg.SetSerialNumber(serialNumber);
+
+            // build name attributes
+            var nameOids = new ArrayList();
+            nameOids.Add(X509Name.C);
+            //nameOids.Add(X509Name.O);
+            //nameOids.Add(X509Name.OU);
+            nameOids.Add(X509Name.DC);
+            nameOids.Add(X509Name.CN);
+
+            var nameValues = new ArrayList();
+            nameValues.Add(CultureInfo.CurrentCulture.TwoLetterISOLanguageName.ToUpper());
+            //nameValues.Add("OPC Foundation");
+            //nameValues.Add(unit);
+            nameValues.Add(domainNames[0]);
+            nameValues.Add(applicationName);
+
+            // self signed (TODO support issuer and subject)
+            X509Name subjectDN = new X509Name(nameOids, nameValues);
+            X509Name issuerDN = subjectDN;
+            cg.SetIssuerDN(issuerDN);
+            cg.SetSubjectDN(subjectDN);
+
+            // valid for
+            cg.SetNotBefore(startTime);
+            cg.SetNotAfter(startTime.AddMonths(lifetimeInMonths));
+
+            // Private/Public Key
+            AsymmetricCipherKeyPair subjectKeyPair;
+            var keyGenerationParameters = new KeyGenerationParameters(random, keySize);
+            var keyPairGenerator = new RsaKeyPairGenerator();
+            keyPairGenerator.Init(keyGenerationParameters);
+            subjectKeyPair = keyPairGenerator.GenerateKeyPair();
+            cg.SetPublicKey(subjectKeyPair.Public);
+
+            // add extensions
+            // Subject key identifier
+            cg.AddExtension(X509Extensions.SubjectKeyIdentifier.Id, false,
+                new SubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectKeyPair.Public)));
+
+            // Basic constraints
+            cg.AddExtension(X509Extensions.BasicConstraints.Id, true, new BasicConstraints(isCA));
+
+            // Authority Key identifier
+            var issuerKeyPair = subjectKeyPair;
+            var issuerSerialNumber = serialNumber;
+            cg.AddExtension(X509Extensions.AuthorityKeyIdentifier.Id, false,
+                new AuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectKeyPair.Public),
+                    new GeneralNames(new GeneralName(issuerDN)), issuerSerialNumber));
+
+            if (!isCA)
+            {
+                // Key usage 
+                cg.AddExtension(X509Extensions.KeyUsage, true,
+                    new KeyUsage(KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
+                        KeyUsage.NonRepudiation | KeyUsage.KeyCertSign | KeyUsage.KeyEncipherment));
+
+                // Extended Key usage
+                cg.AddExtension(X509Extensions.ExtendedKeyUsage, true,
+                    new ExtendedKeyUsage(new List<DerObjectIdentifier>() {
+                    new DerObjectIdentifier("1.3.6.1.5.5.7.3.1"), // server auth
+                    new DerObjectIdentifier("1.3.6.1.5.5.7.3.2"), // client auth
+                    }));
+
+                // subject alternate name
+                cg.AddExtension(X509Extensions.SubjectAlternativeName, false,
+                    new GeneralNames(new GeneralName[] {
+                    new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri),
+                    new GeneralName(GeneralName.DnsName, domainNames[0])}));
+            }
+            else
+            {
+                // Key usage CA
+                cg.AddExtension(X509Extensions.KeyUsage, true,
+                    new KeyUsage(KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
+            }
+
+            // sign certificate
+            ISignatureFactory signatureFactory = 
+                new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
+            Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
+
+            // create pkcs12 store for cert and private key
+            MemoryStream pfxData = new MemoryStream();
+            Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
+            X509CertificateEntry[] chain = new X509CertificateEntry[1];
+            chain[0] = new X509CertificateEntry(x509);
+            pkcsStore.SetKeyEntry(applicationName, new AsymmetricKeyEntry(subjectKeyPair.Private), chain);
+            pkcsStore.Save(pfxData, null, random);
+
+            // merge into X509Certificate2
+            X509Certificate2 certificate = new X509Certificate2(pfxData.ToArray(), (string)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+
+            Utils.Trace("Created new cert: {0}", certificate.ToString());
+
+            // add cert to the store.
+            if (!String.IsNullOrEmpty(storePath))
+            {
+                ICertificateStore store = null;
+                if (storeType == CertificateStoreType.Directory)
+                {
+                    store = new Opc.Ua.DirectoryCertificateStore();
+                    store.Open(storePath);
+                    store.Add(certificate);
+                    store.Close();
+                }
+            }
+
+            // note: this cert has a private key!
+            return certificate;
+        }
+        #endregion
+        #region Private Methods
+        /// <summary>
+        /// Sets the parameters to suitable defaults.
+        /// </summary>
+        private static void SetSuitableDefaults(
+            ref string applicationUri,
+            ref string applicationName,
+            ref string subjectName,
+            ref IList<String> domainNames,
+            ref ushort keySize,
+            ref ushort lifetimeInMonths,
+            bool isCA)
+        {
+            // enforce recommended keysize unless lower value is enforced.
+            if (keySize < 1024)
+            {
+                keySize = defaultKeySize;
+            }
+
+            if (keySize % 1024 != 0)
+            {
+                throw new ArgumentNullException("keySize", "KeySize must be a multiple of 1024.");
+            }
+
+            // enforce minimum lifetime.
+            if (lifetimeInMonths < 1)
+            {
+                lifetimeInMonths = 1;
+            }
+
+            // parse the subject name if specified.
+            List<string> subjectNameEntries = null;
+
+            if (!String.IsNullOrEmpty(subjectName))
+            {
+                subjectNameEntries = Utils.ParseDistinguishedName(subjectName);
+            }
+
+            // check the application name.
+            if (String.IsNullOrEmpty(applicationName))
+            {
+                if (subjectNameEntries == null)
+                {
+                    throw new ArgumentNullException("applicationName", "Must specify a applicationName or a subjectName.");
+                }
+
+                // use the common name as the application name.
+                for (int ii = 0; ii < subjectNameEntries.Count; ii++)
+                {
+                    if (subjectNameEntries[ii].StartsWith("CN="))
+                    {
+                        applicationName = subjectNameEntries[ii].Substring(3).Trim();
+                        break;
+                    }
+                }
+            }
+
+            // remove special characters from name.
+            StringBuilder buffer = new StringBuilder();
+
+            for (int ii = 0; ii < applicationName.Length; ii++)
+            {
+                char ch = applicationName[ii];
+
+                if (Char.IsControl(ch) || ch == '/' || ch == ',' || ch == ';')
+                {
+                    ch = '+';
+                }
+
+                buffer.Append(ch);
+            }
+
+            applicationName = buffer.ToString();
+
+            // ensure at least one host name.
+            if (domainNames == null || domainNames.Count == 0)
+            {
+                domainNames = new List<string>();
+                domainNames.Add(Utils.GetHostName());
+            }
+
+            // create the application uri.
+            if (String.IsNullOrEmpty(applicationUri))
+            {
+                StringBuilder builder = new StringBuilder();
+
+                builder.Append("urn:");
+                builder.Append(domainNames[0]);
+                builder.Append(":");
+                builder.Append(applicationName);
+
+                applicationUri = builder.ToString();
+            }
+
+            Uri uri = Utils.ParseUri(applicationUri);
+
+            if (uri == null)
+            {
+                throw new ArgumentNullException("applicationUri", "Must specify a valid URL.");
+            }
+
+            // create the subject name,
+            if (String.IsNullOrEmpty(subjectName))
+            {
+                subjectName = Utils.Format("CN={0}/DC={1}", applicationName, domainNames[0]);
+            }
+        }
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

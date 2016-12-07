@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
+using System.Security.Cryptography.X509Certificates;
 
 namespace NetCoreConsoleClient
 {
@@ -49,31 +50,31 @@ namespace NetCoreConsoleClient
             Console.WriteLine("1 - Create an Application Configuration.");
             var config = new ApplicationConfiguration()
             {
-                ApplicationName = "UA Sample Client",
+                ApplicationName = "UA Core Sample Client",
                 ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:"+Utils.GetHostName()+":OPCFoundation:SampleClient",
+                ApplicationUri = "urn:"+Utils.GetHostName()+":OPCFoundation:CoreSampleClient",
                 SecurityConfiguration = new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = "Directory",
-                        StorePath = "./OPC Foundation/CertificateStores/MachineDefault",
-                        SubjectName = Utils.Format("CN={0}, DC={1}", "UA Sample Client", Utils.GetHostName())
+                        StorePath = "OPC Foundation/CertificateStores/MachineDefault",
+                        SubjectName = "UA Core Sample Client"
                     },
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "./OPC Foundation/CertificateStores/UA Applications",
+                        StorePath = "OPC Foundation/CertificateStores/UA Applications",
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "./OPC Foundation/CertificateStores/UA Certificate Authorities",
+                        StorePath = "OPC Foundation/CertificateStores/UA Certificate Authorities",
                     },
                     RejectedCertificateStore = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "./OPC Foundation/CertificateStores/RejectedCertificates",
+                        StorePath = "OPC Foundation/CertificateStores/RejectedCertificates",
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true
@@ -82,9 +83,27 @@ namespace NetCoreConsoleClient
                 TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
                 ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
             };
+
             await config.Validate(ApplicationType.Client);
 
             bool haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
+
+            if (!haveAppCertificate)
+            {
+                Console.WriteLine("    INFO: Create new application certificate: {0}", config.ApplicationName);
+
+                X509Certificate2 certificate = CertificateFactory.CreateCertificate(
+                    config.SecurityConfiguration.ApplicationCertificate.StoreType,
+                    config.SecurityConfiguration.ApplicationCertificate.StorePath,
+                    config.ApplicationUri,
+                    config.ApplicationName
+                    );
+
+                config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
+
+            }
+
+            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (haveAppCertificate)
             {
@@ -95,7 +114,7 @@ namespace NetCoreConsoleClient
                     config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
                 }
             }
-            if (!haveAppCertificate)
+            else
             {
                 Console.WriteLine("    WARN: missing application certificate, using unsecure connection.");
             }
@@ -104,6 +123,8 @@ namespace NetCoreConsoleClient
             Uri endpointURI = new Uri(endpointURL);
             var endpointCollection = DiscoverEndpoints(config, endpointURI, 10);
             var selectedEndpoint = SelectUaTcpEndpoint(endpointCollection, haveAppCertificate);
+            Console.WriteLine("    Selected endpoint uses: {0}", 
+                selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
             Console.WriteLine("3 - Create a session with OPC UA server.");
             var endpointConfiguration = EndpointConfiguration.Create(config);

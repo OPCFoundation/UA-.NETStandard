@@ -26,6 +26,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -70,10 +71,15 @@ namespace Opc.Ua
         /// The default certificate store's type.
         /// </summary>
         public const string DefaultStoreType = CertificateStoreType.Directory;
+
+        /// <summary>
+        /// The default LocalFolder.
+        /// </summary>
+        public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
         #endregion
-                
+
         #region Trace Support
-        #if DEBUG
+#if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
         #else
@@ -425,6 +431,15 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
+        public static bool IsPathRooted(string path)
+        {
+            // allow for local file locations
+            return Path.IsPathRooted(path) || path[0] == '.';
+        }
+
+        /// <summary>
+        /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
+        /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
             // nothing to do for nulls.
@@ -434,7 +449,7 @@ namespace Opc.Ua
             }
 
             // check for absolute path.
-            if (Path.IsPathRooted(input))
+            if (Utils.IsPathRooted(input))
             {
                 return input;
             }
@@ -469,7 +484,14 @@ namespace Opc.Ua
             {
                 buffer.Append(value);
             }
-                       
+            else
+            {
+                if (folder == "LocalFolder")
+                {
+                    buffer.Append(DefaultLocalFolder);
+                }
+            }
+
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -533,7 +555,7 @@ namespace Opc.Ua
                 FileInfo file = new FileInfo(filePath);
 
                 // check for absolute path.
-                bool isAbsolute = Path.IsPathRooted(filePath);
+                bool isAbsolute = Utils.IsPathRooted(filePath);
                 
                 if (isAbsolute)
                 {
@@ -647,7 +669,7 @@ namespace Opc.Ua
                 DirectoryInfo directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
-                bool isAbsolute = Path.IsPathRooted(dirPath);
+                bool isAbsolute = Utils.IsPathRooted(dirPath);
                 
                 if (isAbsolute)
                 {
