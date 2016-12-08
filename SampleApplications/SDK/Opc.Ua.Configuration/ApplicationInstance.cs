@@ -696,14 +696,16 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // create a new certificate.
             if (certificate == null)
             {
+                // create a new certificate.
                 certificate = await CreateApplicationInstanceCertificate(configuration, InstallConfig.MinimumKeySize, InstallConfig.LifeTimeInMonths);
             }
-
-            // ensure the certificate is trusted.
-            await AddToTrustedStore(configuration, certificate);
+            else
+            {
+                // ensure the certificate is trusted.
+                await AddToTrustedStore(configuration, certificate);
+            }
 
             // add to discovery server.
             if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
@@ -996,11 +998,8 @@ namespace Opc.Ua.Configuration
                 {
                     string message = Utils.Format(
                         "There is no cert with subject {0} in the configuration." +
-                        "\r\n Please generate a cert for your application," +
-                        "\r\n for example using the provided scripts in the sample" +
-                        "\r\n application's project directory, or OpenSSL, or the" +
-                        "\r\n OPC Foundation's certificate generator." +
-                        "\r\n Then copy the new cert to this location:" +
+                        "\r\n Please generate a cert for your application,",
+                        "\r\n then copy the new cert to this location:" +
                         "\r\n{1}",
                         id.SubjectName,
                         id.StorePath);

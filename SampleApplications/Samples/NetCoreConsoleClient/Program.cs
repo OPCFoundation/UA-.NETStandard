@@ -90,7 +90,7 @@ namespace NetCoreConsoleClient
 
             if (!haveAppCertificate)
             {
-                Console.WriteLine("    INFO: Create new application certificate: {0}", config.ApplicationName);
+                Console.WriteLine("    INFO: Creating new application certificate: {0}", config.ApplicationName);
 
                 X509Certificate2 certificate = CertificateFactory.CreateCertificate(
                     config.SecurityConfiguration.ApplicationCertificate.StoreType,

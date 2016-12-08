@@ -27,6 +27,7 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
+using System.Security.Cryptography;
 
 namespace Opc.Ua
 {
@@ -164,7 +165,7 @@ namespace Opc.Ua
         /// <param name="startTime">The start time.</param>
         /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
         /// <param name="hashSizeInBits">The hash size in bits.</param>
-        /// <param name="isCA">if set to <c>true</c> the a CA certificate is created.</param>
+        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
         /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificate(
@@ -195,7 +196,7 @@ namespace Opc.Ua
                     throw new NotSupportedException("Cannot sign with a CA certificate without a private key.");
                 }
 
-                throw new NotSupportedException("Signing with an issuer CA certificate is unsupported yet.");
+                throw new NotSupportedException("Signing with an issuer CA certificate is currently unsupported.");
             }
 
             // set default values.
@@ -218,20 +219,14 @@ namespace Opc.Ua
 
             // build name attributes
             var nameOids = new ArrayList();
-            nameOids.Add(X509Name.C);
-            //nameOids.Add(X509Name.O);
-            //nameOids.Add(X509Name.OU);
             nameOids.Add(X509Name.DC);
             nameOids.Add(X509Name.CN);
 
             var nameValues = new ArrayList();
-            nameValues.Add(CultureInfo.CurrentCulture.TwoLetterISOLanguageName.ToUpper());
-            //nameValues.Add("OPC Foundation");
-            //nameValues.Add(unit);
             nameValues.Add(domainNames[0]);
             nameValues.Add(applicationName);
 
-            // self signed (TODO support issuer and subject)
+            // self signed 
             X509Name subjectDN = new X509Name(nameOids, nameValues);
             X509Name issuerDN = subjectDN;
             cg.SetIssuerDN(issuerDN);
@@ -297,17 +292,21 @@ namespace Opc.Ua
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
             // create pkcs12 store for cert and private key
-            MemoryStream pfxData = new MemoryStream();
-            Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
-            X509CertificateEntry[] chain = new X509CertificateEntry[1];
-            chain[0] = new X509CertificateEntry(x509);
-            pkcsStore.SetKeyEntry(applicationName, new AsymmetricKeyEntry(subjectKeyPair.Private), chain);
-            pkcsStore.Save(pfxData, null, random);
+            X509Certificate2 certificate = null;
+            using (MemoryStream pfxData = new MemoryStream())
+            {
+                Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
+                X509CertificateEntry[] chain = new X509CertificateEntry[1];
+                string passcode = "passcode";
+                chain[0] = new X509CertificateEntry(x509);
+                pkcsStore.SetKeyEntry(applicationName, new AsymmetricKeyEntry(subjectKeyPair.Private), chain);
+                pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
-            // merge into X509Certificate2
-            X509Certificate2 certificate = new X509Certificate2(pfxData.ToArray(), (string)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+                // merge into X509Certificate2
+                certificate = CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
+            }
 
-            Utils.Trace("Created new cert: {0}", certificate.ToString());
+            Utils.Trace(Utils.TraceMasks.Security, "Created new certificate: {0}", certificate.Thumbprint);
 
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath))
@@ -315,14 +314,65 @@ namespace Opc.Ua
                 ICertificateStore store = null;
                 if (storeType == CertificateStoreType.Directory)
                 {
-                    store = new Opc.Ua.DirectoryCertificateStore();
-                    store.Open(storePath);
-                    store.Add(certificate);
-                    store.Close();
+                    using (store = new DirectoryCertificateStore())
+                    {
+                        store.Open(storePath);
+                        store.Add(certificate);
+                        store.Close();
+                    }
                 }
             }
 
             // note: this cert has a private key!
+            return certificate;
+        }
+
+        /// <summary>
+        /// Creates a certificate from a PKCS #12 store with a private key.
+        /// </summary>
+        /// <param name="rawData">The raw PKCS #12 store data.</param>
+        /// <param name="password">The password to use to access the store.</param>
+        /// <returns>The certificate with a private key.</returns>
+        public static X509Certificate2 CreateCertificateFromPKCS12(
+            byte[] rawData, 
+            string password
+            )
+        {
+            Exception ex = null;
+            int flagsRetryCounter = 0;
+            X509Certificate2 certificate = null;
+            X509KeyStorageFlags[] storageFlags = {
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet
+            };
+
+            // try some combinations of storage flags, support is platform dependent
+            while (certificate == null &&
+                flagsRetryCounter < storageFlags.Length)
+            {
+                try
+                {
+                    // merge first cert with private key into X509Certificate2
+                    certificate = new X509Certificate2(
+                        rawData, 
+                        (password == null) ? String.Empty : password, 
+                        storageFlags[flagsRetryCounter]);
+                    // can we really access the private key?
+                    using (RSA rsa = certificate.GetRSAPrivateKey()) { }
+                }
+                catch (Exception e)
+                {
+                    ex = e;
+                    certificate = null;
+                }
+                flagsRetryCounter++;
+            }
+
+            if (certificate == null)
+            {
+                throw new NotSupportedException("Creating X509Certificate from PKCS #12 store failed", ex);
+            }
+
             return certificate;
         }
         #endregion
