@@ -459,10 +459,20 @@
 
     <ua:XmlElement>
       <ListOfPublishedNodes xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
-        <NodeId>
-          <!-- Current Server Time -->
-          <ua:Identifier>i=2258</ua:Identifier>
-        </NodeId>
+        <NodeLookup>
+          <ua:EndpointUrl>opc.tcp://TODO:Add uri here</ua:EndpointUrl>
+          <ua:NodeId>
+            <!-- Current Server Time -->
+            <ua:Identifier>i=2258</ua:Identifier>
+          </ua:NodeId>
+        </NodeLookup>
+        <NodeLookup>
+          <ua:EndpointUrl>opc.tcp://TODO:Add another uri here</ua:EndpointUrl>
+          <ua:NodeId>
+            <!-- Current Server Time -->
+            <ua:Identifier>i=2258</ua:Identifier>
+          </ua:NodeId>
+        </NodeLookup>
       </ListOfPublishedNodes>
     </ua:XmlElement>
   
