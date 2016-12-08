@@ -209,12 +209,14 @@ namespace Opc.Ua.Client.Controls
         {
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not validated: {0}\r\n\r\n", e.Error.StatusCode);
+            buffer.AppendFormat("Certificate could not be validated: {0}\r\n\r\n", e.Error.StatusCode);
             buffer.AppendFormat("Subject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer) ? "Self-signed" : e.Certificate.Issuer);
             buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
-
-            buffer.AppendFormat("Accept anyways?");
+            buffer.AppendFormat("The security certificate was not issued by a trusted certificate authority.\r\n");
+            buffer.AppendFormat("Security certificate problems may indicate an attempt to intercept any data you send\r\n");
+            buffer.AppendFormat("to a server or to allow an untrusted client to connect to your server.\r\n");
+            buffer.AppendFormat("\r\nAccept anyway?");
             MessageDlg dialog = new MessageDlg(buffer.ToString(), MessageDlgButton.Yes, MessageDlgButton.No);
             MessageDlgButton result = await dialog.ShowAsync();
             if (result == MessageDlgButton.Yes)
