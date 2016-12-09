@@ -17,29 +17,27 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
 <a name="certificates"/>
-##How to create self signed certificates for the sample applications
+##Self signed certificates for the sample applications
 
-###On Windows
-1. Open a command prompt in the root folder of your repository
-2. Run the script `CreateAllCerts.cmd` in the root folder of your repository to create the certificates for all sample applications.
-3. Alternatively, you can run the script `CreateCert.cmd` in each sample project folder to create new self signed certificates for the application.
-4. The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+All required application certificates for OPC UA are created at the first start of each application in a directory store and remain in use until deleted from the store.
 
-###On Linux
-1. Open a command prompt 
-2. Navigate to the project folder of the sample app, e.g. **SampleApplications/Samples/NetCoreConsoleClient**
-3. Run the script `./createcert.sh` to create the certificates for the sample applications.
-4. The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+###Windows .Net applications
+By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the release folder where the executable is started. E.g. a debug build would start in **bin\Debug** relative to the project folder.
+
+###Windows UWP applications
+By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate store.
+
+###.Net Standard console applications on Windows, Linux, iOS etc.
+The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
 
 ##How to build and run the samples in Visual Studio on Windows
 
-0. Create [certificates](#certificates) for all sample applications.
 1. Open the solution UA-NetStandard.sln with VisualStudio.
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
  
 ##How to build and run the console samples on Windows, Linux and iOS
-This section describes how to run the **NetCoreConsoleClient**, **NetCoreConsolePublisher** and **NetCoreConsoleServer** sample applications.
+This section describes how to run the **NetCoreConsoleClient** and **NetCoreConsoleServer** sample applications.
 
 Please follow instructions in this [article] (https://docs.microsoft.com/en-us/dotnet/articles/core/tutorials/using-with-xplat-cli) to setup the dotnet command line environment for your platform. 
 
@@ -49,14 +47,14 @@ Please follow instructions in this [article] (https://docs.microsoft.com/en-us/d
 ### Start the server 
 1. Open a command prompt 
 2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
-3. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
-4. To run the server sample type `dotnet run`. The server is now running and waiting for connections. In this sample configuration the server always accepts new client certificates. 
+3. To run the server sample type `dotnet run`. The server is now running and waiting for connections. In this sample configuration the server always rejects new client certificates. 
  
 ### Start the client 
 1. Open a command prompt 
-4. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
-5. Run the script `./createcert.sh` on Linux or `CreateCert.cmd` on Windows to create the self signed certificate for the command line application.
-6. To execute the sample type `dotnet run` to connect to the OPC UA console sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
+2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
+3. To execute the sample type `dotnet run` to connect to the OPC UA console sample server running on the same host. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run opc.tcp://myserver:51210/UA/SampleServer`.
+4. On first connection, or after certificates were renewed, the server may have refused the client certificate. Check the server and client folder **OPC Foundation\CertificateStores\RejectedCertificates** for rejected certificates. To approve a certificate copy it to the **OPC Foundation\CertificateStores\UA Applications** folder.
+5. Retry step 3 to connect using a secure connection.
 
 ##How to build and run the OPC UA Web Telemetry sample
 
