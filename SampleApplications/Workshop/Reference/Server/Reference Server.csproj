@@ -161,8 +161,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>rmdir /s/q "$(TargetDir)OPC Foundation\CertificateStores\MachineDefault"
-mkdir "$(ProjectDir)OPC Foundation"
+    <PostBuildEvent>mkdir "$(ProjectDir)OPC Foundation"
 xcopy "$(ProjectDir)OPC Foundation\*.*" "$(TargetDir)OPC Foundation" /I/E/R/Y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

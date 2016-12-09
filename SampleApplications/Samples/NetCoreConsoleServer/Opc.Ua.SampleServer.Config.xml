@@ -4,8 +4,8 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
   schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
-  <ApplicationName>Opc.Ua.SampleServer</ApplicationName>
-  <ApplicationUri>urn:localhost:OPCFoundation:SampleServer</ApplicationUri>
+  <ApplicationName>UA Core Sample Server</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleServer</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/SampleServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
 
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
-      <SubjectName>UA Sample Server</SubjectName>
+      <SubjectName>UA Core Sample Server</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -180,9 +180,8 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>./Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
-    <TraceMasks>0</TraceMasks>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

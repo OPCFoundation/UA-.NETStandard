@@ -1970,18 +1970,7 @@ namespace Opc.Ua
 
             set
             {
-                if (value.StartsWith(Directory.GetCurrentDirectory()) == true)
-                {
-                    m_storePath = value;
-                }
-                else
-                {
-                    m_storePath = Directory.GetCurrentDirectory();
-                    if (!String.IsNullOrEmpty(value))
-                    {
-                        m_storePath += Path.DirectorySeparatorChar + value;
-                    }
-                }
+                m_storePath = value;
 
                 if (!String.IsNullOrEmpty(m_storePath))
                 {
@@ -2237,18 +2226,7 @@ namespace Opc.Ua
 
             set
             {
-                if (value.StartsWith(Directory.GetCurrentDirectory()))
-                {
-                    m_storePath = value;
-                }
-                else
-                {
-                    m_storePath = Directory.GetCurrentDirectory();
-                    if (!String.IsNullOrEmpty(value))
-                    {
-                        m_storePath += Path.DirectorySeparatorChar + value;
-                    }
-                }
+                m_storePath = value;
 
                 if (!String.IsNullOrEmpty(m_storePath))
                 {

@@ -68,6 +68,7 @@ artifacts/
 *.svclog
 *.scc
 
+
 # Chutzpah Test files
 _Chutzpah*
 
@@ -236,4 +237,6 @@ _Pvt_Extensions
 # OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der
+*.pfx
 /UA-NetStandard.VC.db
+*.log.txt
