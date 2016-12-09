@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.SDK</id>
-    <version>0.0.6</version>
+    <version>0.0.9</version>
     <title>OPC UA .Net Standard Library SDK</title>
     <description>This package contains sample libaries for the OPC UA core reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -13,13 +13,13 @@
     <tags>OPCFoundation .Net OPC-UA OPC SDK</tags>
     <dependencies>
       <group targetFramework="net46" >
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.6"/>
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.9"/>
       </group>
       <group targetFramework="uap">
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.6"/>
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.9"/>
       </group>
       <group targetFramework="netstandard1.3">
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.6"/>
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="0.0.9"/>
       </group>
     </dependencies>
   </metadata>
