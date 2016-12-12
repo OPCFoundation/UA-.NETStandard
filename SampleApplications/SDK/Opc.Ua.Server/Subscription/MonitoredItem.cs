@@ -38,15 +38,15 @@ using System.Globalization;
 
 namespace Opc.Ua.Server
 {	
-	/// <summary>
-	/// A handle that describes how to access a node/attribute via an i/o manager.
-	/// </summary>
+    /// <summary>
+    /// A handle that describes how to access a node/attribute via an i/o manager.
+    /// </summary>
     public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
-	{
-		#region Constructors
-		/// <summary>
-		/// Initializes the object with its node type.
-		/// </summary>
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the object with its node type.
+        /// </summary>
         public MonitoredItem(
             IServerInternal     server,
             INodeManager        nodeManager,
@@ -66,10 +66,10 @@ namespace Opc.Ua.Server
             uint                queueSize,
             bool                discardOldest,
             double              sourceSamplingInterval)
-		{
+        {
             if (itemToMonitor == null) throw new ArgumentNullException("itemToMonitor");
             
-			Initialize();
+            Initialize();
             
             m_server                  = server;
             m_nodeManager             = nodeManager;
@@ -139,65 +139,65 @@ namespace Opc.Ua.Server
                 m_monitoringMode);
 
             InitializeQueue();
-		}
+        }
 
-		/// <summary>
-		/// Sets private members to default values.
-		/// </summary>
-		private void Initialize()
-		{
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
             m_server                  = null;
             m_nodeManager             = null;
             m_managerHandle           = null;
             m_subscriptionId          = 0;
             m_id                      = 0;
-			m_session                 = null;
+            m_session                 = null;
             m_nodeId                  = null;
             m_attributeId             = 0;
             m_indexRange              = null;
             m_parsedIndexRange        = NumericRange.Empty;
             m_encoding                = null;
-			m_clientHandle            = 0;
-			m_monitoringMode          = MonitoringMode.Disabled;
-			m_samplingInterval        = 0;
-			m_queueSize               = 0;
-			m_discardOldest           = true;
-			m_originalFilter          = null;
-			m_lastValue               = null;
-			m_lastError               = null;
+            m_clientHandle            = 0;
+            m_monitoringMode          = MonitoringMode.Disabled;
+            m_samplingInterval        = 0;
+            m_queueSize               = 0;
+            m_discardOldest           = true;
+            m_originalFilter          = null;
+            m_lastValue               = null;
+            m_lastError               = null;
             m_events                  = null;
-			m_overflow                = false;
-			m_readyToPublish          = false;
+            m_overflow                = false;
+            m_readyToPublish          = false;
             m_readyToTrigger          = false;
             m_sourceSamplingInterval  = 0;
             m_samplingError           = ServiceResult.Good;
-		}
-		#endregion
+        }
+        #endregion
 
-		#region IMonitoredItem Members
-		/// <summary>
-		/// The node manager that created the item.
-		/// </summary>
+        #region IMonitoredItem Members
+        /// <summary>
+        /// The node manager that created the item.
+        /// </summary>
         public INodeManager NodeManager
-		{
-			get { return m_nodeManager; }
-		}
+        {
+            get { return m_nodeManager; }
+        }
 
-		/// <summary>
-		/// The handle assigned by the node manager when it created the item.
-		/// </summary>
-		public object ManagerHandle
-		{
-			get { return m_managerHandle; }
-		}
+        /// <summary>
+        /// The handle assigned by the node manager when it created the item.
+        /// </summary>
+        public object ManagerHandle
+        {
+            get { return m_managerHandle; }
+        }
 
-		/// <summary>
-		/// The identifier for the subscription that owns the monitored item.
-		/// </summary>
-		public uint SubscriptionId
-		{
-			get { return m_subscriptionId; }
-		}
+        /// <summary>
+        /// The identifier for the subscription that owns the monitored item.
+        /// </summary>
+        public uint SubscriptionId
+        {
+            get { return m_subscriptionId; }
+        }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -336,59 +336,59 @@ namespace Opc.Ua.Server
             m_structureChanged = true;
         }    
                 
-		/// <summary>
-		/// The filter used by the monitored item.
-		/// </summary>
-		public MonitoringFilter Filter
-		{
-			get 
+        /// <summary>
+        /// The filter used by the monitored item.
+        /// </summary>
+        public MonitoringFilter Filter
+        {
+            get 
             { 
                 return m_originalFilter; 
             }
-		}     
+        }     
         
-		/// <summary>
-		/// The event filter used by the monitored item.
-		/// </summary>
-		public EventFilter EventFilter
-		{
-			get 
+        /// <summary>
+        /// The event filter used by the monitored item.
+        /// </summary>
+        public EventFilter EventFilter
+        {
+            get 
             { 
                 return m_originalFilter as EventFilter; 
             }
-		}     
+        }     
         
-		/// <summary>
-		/// The data change filter used by the monitored item.
-		/// </summary>
-		public DataChangeFilter DataChangeFilter
-		{
-			get 
+        /// <summary>
+        /// The data change filter used by the monitored item.
+        /// </summary>
+        public DataChangeFilter DataChangeFilter
+        {
+            get 
             { 
                 return m_originalFilter as DataChangeFilter; 
             }
-		}     
+        }     
 
-		/// <summary>
-		/// The session that owns the monitored item.
-		/// </summary>
-		public Session Session
-		{
-			get 
+        /// <summary>
+        /// The session that owns the monitored item.
+        /// </summary>
+        public Session Session
+        {
+            get 
             { 
                 lock (m_lock) 
                 { 
                     return m_session; 
                 } 
             }
-		}
+        }
         
-		/// <summary>
-		/// The identifier for the item that is unique within the server.
-		/// </summary>
-		public uint Id
-		{
-			get { return m_id; }
+        /// <summary>
+        /// The identifier for the item that is unique within the server.
+        /// </summary>
+        public uint Id
+        {
+            get { return m_id; }
         }
 
         /// <summary>
@@ -407,60 +407,60 @@ namespace Opc.Ua.Server
             get { return m_nodeId; }
         }     
         
-		/// <summary>
-		/// The attribute being monitored.
-		/// </summary>
-		public uint AttributeId
-		{
-			get { return m_attributeId; }
-		}     
+        /// <summary>
+        /// The attribute being monitored.
+        /// </summary>
+        public uint AttributeId
+        {
+            get { return m_attributeId; }
+        }     
  
-		/// <summary>
-		/// The current monitoring mode for the item
-		/// </summary>
-		public MonitoringMode MonitoringMode
-		{
-			get 
+        /// <summary>
+        /// The current monitoring mode for the item
+        /// </summary>
+        public MonitoringMode MonitoringMode
+        {
+            get 
             { 
                 return m_monitoringMode; 
             }
-		}        
+        }        
 
-		/// <summary>
-		/// The sampling interval for the item.
-		/// </summary>
-		public double SamplingInterval
-		{
-			get 
+        /// <summary>
+        /// The sampling interval for the item.
+        /// </summary>
+        public double SamplingInterval
+        {
+            get 
             { 
                 lock (m_lock) 
                 {
                     return m_samplingInterval; 
                 } 
             }
-		}
+        }
 
-		/// <summary>
-		/// The minimum sampling interval for the item.
-		/// </summary>
-		public double MinimumSamplingInterval
-		{
-			get 
+        /// <summary>
+        /// The minimum sampling interval for the item.
+        /// </summary>
+        public double MinimumSamplingInterval
+        {
+            get 
             { 
                 return m_sourceSamplingInterval; 
             }
-		}
+        }
 
-		/// <summary>
-		/// The queue size for the item.
-		/// </summary>
-		public uint QueueSize
-		{
-			get 
+        /// <summary>
+        /// The queue size for the item.
+        /// </summary>
+        public uint QueueSize
+        {
+            get 
             { 
                 return m_queueSize; 
             }
-		}
+        }
               
         /// <summary>
         /// Gets number of elements actually contained in value queue.
@@ -486,12 +486,12 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// The diagnostics masks to use when collecting notifications for the item.
-		/// </summary>
-		public DiagnosticsMasks DiagnosticsMasks
-		{
-			get 
+        /// <summary>
+        /// The diagnostics masks to use when collecting notifications for the item.
+        /// </summary>
+        public DiagnosticsMasks DiagnosticsMasks
+        {
+            get 
             { 
                 return m_diagnosticsMasks; 
             }
@@ -528,9 +528,9 @@ namespace Opc.Ua.Server
             set { m_alwaysReportUpdates = value; }
         }
         
-		/// <summary>
-		/// Returns a description of the item being monitored. 
-		/// </summary>
+        /// <summary>
+        /// Returns a description of the item being monitored. 
+        /// </summary>
         public ReadValueId GetReadValueId()
         {
             lock (m_lock)
@@ -547,7 +547,7 @@ namespace Opc.Ua.Server
                 return valueId;
             }
         }
-		
+        
         /// <summary>
         /// Sets an error that occured in the sampling group.
         /// </summary>
@@ -569,10 +569,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Returns the result after creating the monitor item.
-		/// </summary>
-		public ServiceResult GetCreateResult(out MonitoredItemCreateResult result)
+        /// <summary>
+        /// Returns the result after creating the monitor item.
+        /// </summary>
+        public ServiceResult GetCreateResult(out MonitoredItemCreateResult result)
         {
             lock (m_lock)
             {
@@ -592,10 +592,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Returns the result after modifying the monitor item.
-		/// </summary>
-		public ServiceResult GetModifyResult(out MonitoredItemModifyResult result)
+        /// <summary>
+        /// Returns the result after modifying the monitor item.
+        /// </summary>
+        public ServiceResult GetModifyResult(out MonitoredItemModifyResult result)
         {
             lock (m_lock)
             {
@@ -614,10 +614,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Modifies the attributes for monitored item.
-		/// </summary>
-		public ServiceResult ModifyAttributes(
+        /// <summary>
+        /// Modifies the attributes for monitored item.
+        /// </summary>
+        public ServiceResult ModifyAttributes(
             DiagnosticsMasks   diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint               clientHandle,
@@ -629,7 +629,7 @@ namespace Opc.Ua.Server
             bool               discardOldest)
         {
             lock (m_lock)
-			{
+            {
                 m_diagnosticsMasks   = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
                 m_clientHandle       = clientHandle;
@@ -688,13 +688,13 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Updates the sampling interval for an item.
-		/// </summary>
-		public void SetSamplingInterval(double samplingInterval)
+        /// <summary>
+        /// Updates the sampling interval for an item.
+        /// </summary>
+        public void SetSamplingInterval(double samplingInterval)
         {
             lock (m_lock)
-			{
+            {
                 if (samplingInterval == -1)
                 {
                     return;
@@ -724,29 +724,29 @@ namespace Opc.Ua.Server
             }
         }
         
-		/// <summary>
-		/// Changes the monitoring mode for the item.
-		/// </summary>
+        /// <summary>
+        /// Changes the monitoring mode for the item.
+        /// </summary>
         void ISampledDataChangeMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
         {
             SetMonitoringMode(monitoringMode);            
         }
         
-		/// <summary>
-		/// Changes the monitoring mode for the item.
-		/// </summary>
+        /// <summary>
+        /// Changes the monitoring mode for the item.
+        /// </summary>
         void IEventMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
         {
             SetMonitoringMode(monitoringMode);            
         }
 
-		/// <summary>
-		/// Changes the monitoring mode for the item.
-		/// </summary>
+        /// <summary>
+        /// Changes the monitoring mode for the item.
+        /// </summary>
         public MonitoringMode SetMonitoringMode(MonitoringMode monitoringMode)
         {
             lock (m_lock)
-			{
+            {
                 MonitoringMode previousMode = m_monitoringMode;
 
                 if (previousMode == monitoringMode)
@@ -789,31 +789,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-		/// Adds an event to the queue.
-		/// </summary>
+        /// Adds an event to the queue.
+        /// </summary>
         public virtual void QueueValue(DataValue value, ServiceResult error)
         {
             QueueValue(value, error, false);
         }
 
-		/// <summary>
-		/// Updates the queue with a data value or an error.
-		/// </summary>
+        /// <summary>
+        /// Updates the queue with a data value or an error.
+        /// </summary>
         public virtual void QueueValue(DataValue value, ServiceResult error, bool bypassFilter)
         {
             lock (m_lock)
-			{
+            {
                 // this method should only be called for variables. 
                 if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-				// check monitoring mode.
-				if (m_monitoringMode == MonitoringMode.Disabled)
-				{
-					return;
-				}
+                // check monitoring mode.
+                if (m_monitoringMode == MonitoringMode.Disabled)
+                {
+                    return;
+                }
                 
                 // make a shallow copy of the value.
                 if (value != null)
@@ -855,7 +855,7 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                    			
+                                
                 // apply aggregate filter.
                 if (m_calculator != null)
                 {
@@ -872,10 +872,10 @@ namespace Opc.Ua.Server
                         processedValue = m_calculator.GetProcessedValue(false);
                     }
 
-					return;
+                    return;
                 }
-            	
-				// apply filter to incoming item.
+                
+                // apply filter to incoming item.
                 if (!m_alwaysReportUpdates && !bypassFilter)
                 {
                     if (!ApplyFilter(value, error))
@@ -889,7 +889,7 @@ namespace Opc.Ua.Server
 
                 // add the value to the queue.
                 AddValueToQueue(value, error);
-			}
+            }
         }
         
         /// <summary>
@@ -998,7 +998,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-		/// Adds an event to the queue.
+        /// Adds an event to the queue.
         /// </summary>
         public virtual void QueueEvent(IFilterTarget instance)
         {
@@ -1006,14 +1006,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-		/// Adds an event to the queue.
-		/// </summary>
+        /// Adds an event to the queue.
+        /// </summary>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
             if (instance == null) throw new ArgumentNullException("instance");
          
             lock (m_lock)
-			{
+            {
                 // this method should only be called for objects or views. 
                 if ((m_typeMask & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1073,12 +1073,12 @@ namespace Opc.Ua.Server
                 // fetch the event fields.
                 EventFieldList fields = GetEventFields(context, filter, instance);
                 QueueEvent(fields);
-			}
+            }
         }
 
         /// <summary>
-		/// Adds an event to the queue.
-		/// </summary>
+        /// Adds an event to the queue.
+        /// </summary>
         public virtual void QueueEvent(EventFieldList fields)
         {
             lock (m_lock)
@@ -1101,12 +1101,12 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Whether the item has notifications that are ready to publish.
-		/// </summary>
+        /// <summary>
+        /// Whether the item has notifications that are ready to publish.
+        /// </summary>
         [Obsolete("Not used - Use IsReadyToPublish")]
-		public virtual bool ReadyToPublish
-		{
+        public virtual bool ReadyToPublish
+        {
             get
             {
                 lock (m_lock)
@@ -1120,7 +1120,7 @@ namespace Opc.Ua.Server
                     return m_readyToPublish;
                 }
             }
-		}
+        }
         
         /// <summary>
         /// Used to check whether the item is ready to sample.
@@ -1159,9 +1159,9 @@ namespace Opc.Ua.Server
             }
         }
         
-		/// <summary>
-		/// Publishes all available event notifications.
-		/// </summary>
+        /// <summary>
+        /// Publishes all available event notifications.
+        /// </summary>
         public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications)
         {
             if (context == null)       throw new ArgumentNullException("context");
@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Server
                 // check if the item reports events.
                 if ((m_typeMask & MonitoredItemTypeMask.Events) == 0)
                 {
-					return false;
+                    return false;
                 }
 
                 // only publish if reporting.
@@ -1256,8 +1256,8 @@ namespace Opc.Ua.Server
                     Utils.Trace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
 
-				// reset state variables.
-				m_overflow = false;
+                // reset state variables.
+                m_overflow = false;
                 m_readyToPublish = false;
                 m_readyToTrigger = false;
                 m_triggered = false;
@@ -1266,24 +1266,24 @@ namespace Opc.Ua.Server
             }
         }
                     
-		/// <summary>
-		/// Publishes all available data change notifications.
-		/// </summary>
-		public virtual bool Publish(
+        /// <summary>
+        /// Publishes all available data change notifications.
+        /// </summary>
+        public virtual bool Publish(
             OperationContext                 context, 
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo>            diagnostics)
-		{
+        {
             if (context == null)       throw new ArgumentNullException("context");
             if (notifications == null) throw new ArgumentNullException("notifications");
             if (diagnostics == null)   throw new ArgumentNullException("diagnostics");
             
-			lock (m_lock)
-		    {
+            lock (m_lock)
+            {
                 // check if the item reports data changes.
                 if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
                 {
-					return false;
+                    return false;
                 }
 
                 // only publish if reporting.
@@ -1331,19 +1331,19 @@ namespace Opc.Ua.Server
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
                 
-				// reset state variables.
-				m_overflow = false;
+                // reset state variables.
+                m_overflow = false;
                 m_readyToPublish = false;
                 m_readyToTrigger = false;
                 m_triggered = false;
 
                 return false;
-			}
-		}
+            }
+        }
         
-		/// <summary>
-		/// Publishes a single data change notifications.
-		/// </summary>
+        /// <summary>
+        /// Publishes a single data change notifications.
+        /// </summary>
         protected virtual bool Publish(
             OperationContext                 context,
             Queue<MonitoredItemNotification> notifications,
@@ -1481,14 +1481,14 @@ namespace Opc.Ua.Server
                 }
             }
         }
-		#endregion
+        #endregion
 
-		#region Private Methods
-		/// <summary>
-		/// Applies the filter to value to determine if the new value should be kept.
-		/// </summary>
-		protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
-		{
+        #region Private Methods
+        /// <summary>
+        /// Applies the filter to value to determine if the new value should be kept.
+        /// </summary>
+        protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
+        {
             if (value == null) throw new ArgumentNullException("value");
 
             bool changed = ValueChanged(
@@ -1609,13 +1609,13 @@ namespace Opc.Ua.Server
             // check for invalid values.
             if (value1 == null || value2 == null)
             {
-			    return value1 == value2;
+                return value1 == value2;
             }
             
             // check for type change.
             if (value1.GetType() != value2.GetType())
             {
-			    return false;
+                return false;
             }
 
             // check if values are equal.
@@ -1630,10 +1630,19 @@ namespace Opc.Ua.Server
 
             if (array1 == null || array2 == null)
             {
+
+                XmlElement xmlElement1 = value1 as XmlElement;
+                XmlElement xmlElement2 = value2 as XmlElement;
+
+                if (xmlElement1 != null && xmlElement2 != null)
+                {
+                    return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml);
+                }
+
                 // nothing more to do if no deadband.
                 if (deadbandType == DeadbandType.None)
                 {
-			        return false;
+                    return false;
                 }
 
                 // check deadband.
@@ -1643,7 +1652,7 @@ namespace Opc.Ua.Server
             // compare lengths.
             if (array1.Length != array2.Length)
             {
-			    return false;
+                return false;
             }
 
             // compare each element.
@@ -1731,20 +1740,20 @@ namespace Opc.Ua.Server
             return true;
         }        
 
-		/// <summary>
-		/// Clears and re-initializes the queue if the monitoring parameters changed.
-		/// </summary>
+        /// <summary>
+        /// Clears and re-initializes the queue if the monitoring parameters changed.
+        /// </summary>
         protected void InitializeQueue()
         {
-			switch (m_monitoringMode)
-			{
-				default:
-				case MonitoringMode.Disabled:
-				{
+            switch (m_monitoringMode)
+            {
+                default:
+                case MonitoringMode.Disabled:
+                {
                     m_queue = null;
                     m_events = null;
-					break;
-				}
+                    break;
+                }
 
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
@@ -1811,14 +1820,14 @@ namespace Opc.Ua.Server
                         }
                     }
                     
-					break;
-				}
-			}
-		}
-		#endregion
+                    break;
+                }
+            }
+        }
+        #endregion
 
-		#region Private Members
-		private object m_lock = new object();
+        #region Private Members
+        private object m_lock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private object m_managerHandle;
@@ -1844,20 +1853,20 @@ namespace Opc.Ua.Server
         private int m_sourceSamplingInterval;
         private bool m_alwaysReportUpdates;
         
-		private DataValue m_lastValue;
-		private ServiceResult m_lastError;
+        private DataValue m_lastValue;
+        private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private List<EventFieldList> m_events;
         private MonitoredItemQueue m_queue;
-		private bool m_overflow;
-		private bool m_readyToPublish;
+        private bool m_overflow;
+        private bool m_readyToPublish;
         private bool m_readyToTrigger;
-		private bool m_semanticsChanged;
-		private bool m_structureChanged;
+        private bool m_semanticsChanged;
+        private bool m_structureChanged;
         private ISubscription m_subscription;
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
-		#endregion
-	}
+        #endregion
+    }
 }

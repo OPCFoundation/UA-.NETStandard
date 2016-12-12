@@ -598,6 +598,18 @@ namespace Quickstarts.ReferenceServer
                     arAllRW.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     arAllRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     variables.Add(arAllRW);
+                    BaseDataVariableState arAllRONotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RO_NotUser", "RO_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead;
+                    arAllRONotUser.UserAccessLevel = AccessLevels.None;
+                    variables.Add(arAllRONotUser);
+                    BaseDataVariableState arAllWONotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "WO_NotUser", "WO_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllWONotUser.AccessLevel = AccessLevels.CurrentWrite;
+                    arAllWONotUser.UserAccessLevel = AccessLevels.None;
+                    variables.Add(arAllWONotUser);
+                    BaseDataVariableState arAllRWNotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RW_NotUser", "RW_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    arAllRWNotUser.UserAccessLevel = AccessLevels.CurrentRead;
+                    variables.Add(arAllRWNotUser);
                     BaseDataVariableState arAllROUserRW = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RO_User1_RW", "RO_User1_RW", BuiltInType.Int16, ValueRanks.Scalar);
                     arAllROUserRW.AccessLevel = AccessLevels.CurrentRead;
                     arAllROUserRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
