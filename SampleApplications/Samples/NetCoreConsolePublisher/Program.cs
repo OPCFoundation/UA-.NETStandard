@@ -24,8 +24,22 @@ using System.Threading.Tasks;
 
 namespace NetCoreConsolePublisher
 {
-    [CollectionDataContract(Name = "ListOfPublishedNodes", Namespace = Namespaces.OpcUaConfig, ItemName = "NodeId")]
-    public partial class PublishedNodesCollection : List<NodeId>
+    [DataContract(Name = "NodeLookup", Namespace = Namespaces.OpcUaXsd)]
+    public partial class NodeLookup
+    {
+        public NodeLookup()
+        {
+        }
+
+        [DataMember(Name = "EndpointUrl", IsRequired = true, Order = 0)]
+        public Uri EndPointURL;
+
+        [DataMember(Name = "NodeId", IsRequired = true, Order = 1)]
+        public NodeId NodeID;
+    }
+
+    [CollectionDataContract(Name = "ListOfPublishedNodes", Namespace = Namespaces.OpcUaConfig, ItemName = "NodeLookup")]
+    public partial class PublishedNodesCollection : List<NodeLookup>
     {
         public PublishedNodesCollection()
         {
@@ -81,10 +95,8 @@ namespace NetCoreConsolePublisher
     public class Program
     {
         private static AmqpConnectionCollection m_publishers = null;
-        private static ConfiguredEndpointCollection m_endpoints = null;
-        private static MonitoredItemNotificationEventHandler m_MonitoredItem_Notification = null;
         private static ApplicationConfiguration m_configuration = null;
-        private static Session m_session = null;
+        private static List<Session> m_sessions = new List<Session>();
 
         public static void Main(string[] args)
         {
@@ -139,9 +151,16 @@ namespace NetCoreConsolePublisher
             // start the server.
             await application.Start(new SampleServer());
 
-            // get list of cached endpoints.
-            m_endpoints = m_configuration.LoadCachedEndpoints(true);
-            m_endpoints.DiscoveryUrls = m_configuration.ClientConfiguration.WellKnownDiscoveryUrls;
+             // get a list of persisted endpoint URLs and create a session for each.
+            List<Uri> endpointUrls = new List<Uri>();
+            PublishedNodesCollection nodesLookups = PublishedNodesCollection.Load(m_configuration);
+            foreach (NodeLookup nodeLookup in nodesLookups)
+            {
+                if (!endpointUrls.Contains(nodeLookup.EndPointURL))
+                {
+                    endpointUrls.Add(nodeLookup.EndPointURL);
+                }
+            }
 
             // start publishers.
             m_publishers = AmqpConnectionCollection.Load(m_configuration);
@@ -150,20 +169,31 @@ namespace NetCoreConsolePublisher
                 await publisher.OpenAsync();
             }
 
-            m_MonitoredItem_Notification = new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
+            // publish preconfigured nodes
+            try
+            {
+                List<Task> connectionAttempts = new List<Task>();
+                foreach (Uri endpointUrl in endpointUrls)
+                {
+                    connectionAttempts.Add(EndpointConnect(endpointUrl));
+                }
 
-            // connect to first server
-            await EndpointConnect(0);
+                // Wait for all sessions to be connected
+                Task.WaitAll(connectionAttempts.ToArray());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception: " + ex.ToString() + "\r\n" + ex.InnerException != null? ex.InnerException.ToString() : null );
+            }
 
             // publish preconfigured nodes
-            PublishedNodesCollection nodes = PublishedNodesCollection.Load(m_configuration);
-            foreach (NodeId node in nodes)
+            foreach (NodeLookup nodeLookup in nodesLookups)
             {
-                CreateMonitoredItem(node);
+                CreateMonitoredItem(nodeLookup);
             }
         }
 
-        private static void CleanupPublisher()
+    	private static void CleanupPublisher()
         {
             if (m_publishers != null)
             {
@@ -173,58 +203,78 @@ namespace NetCoreConsolePublisher
                 }
             }
 
-            if (m_session != null)
+            foreach (Session session in m_sessions)
             {
-                m_session.Close();
+                // Disconnect and dispose
+                session.Dispose();
             }
+
+            m_sessions.Clear();
         }
 
-        private static async Task EndpointConnect(int endpoint)
+       private static async Task EndpointConnect(Uri endpointUrl)
         {
-            // Connect to cached endpoint in our list
-            if (m_endpoints.Count > endpoint)
-            {
-                m_session = await Session.Create(
-                    m_configuration,
-                    m_endpoints[endpoint],
-                    true,
-                    false,
-                    m_configuration.ApplicationName,
-                    60000,
-                    null,
-                    null);
+            EndpointDescription selectedEndpoint = SelectUaTcpEndpoint(DiscoverEndpoints(m_configuration, endpointUrl, 10));
+            ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(selectedEndpoint.Server, EndpointConfiguration.Create(m_configuration));
+            configuredEndpoint.Update(selectedEndpoint);
 
-                if (m_session != null)
+            Session newSession = await Session.Create(
+                m_configuration,
+                configuredEndpoint,
+                true,
+                false,
+                m_configuration.ApplicationName,
+                60000,
+                null,
+                null);
+
+            if (newSession != null)
+            {
+                Console.WriteLine("Created session with updated endpoint " + selectedEndpoint.EndpointUrl + " from server!");
+                newSession.KeepAlive += new KeepAliveEventHandler(StandardClient_KeepAlive);
+                m_sessions.Add(newSession);
+            }
+        }
+        public static void CreateMonitoredItem(NodeLookup nodeLookup)
+        {
+            // find the right session using our lookup
+            Session matchingSession = null;
+            foreach(Session session in m_sessions)
+            {
+                if (session.Endpoint.EndpointUrl == nodeLookup.EndPointURL.ToString())
                 {
-                    m_session.KeepAlive += new KeepAliveEventHandler(StandardClient_KeepAlive);
+                    matchingSession = session;
+                    break;
                 }
             }
-        }
 
-        public static void CreateMonitoredItem(NodeId nodeId)
-        {
-            if (m_session != null)
+            if (matchingSession != null)
             {
-                Subscription subscription = m_session.DefaultSubscription;
-                if (m_session.AddSubscription(subscription))
+                Subscription subscription = matchingSession.DefaultSubscription;
+                if (matchingSession.AddSubscription(subscription))
                 {
                     subscription.Create();
                 }
-                
+
                 // add the new monitored item.
                 MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem);
 
-                monitoredItem.StartNodeId = nodeId;
+                monitoredItem.StartNodeId = nodeLookup.NodeID;
                 monitoredItem.AttributeId = Attributes.Value;
-                monitoredItem.DisplayName = nodeId.Identifier.ToString();
+                monitoredItem.DisplayName = nodeLookup.NodeID.Identifier.ToString();
                 monitoredItem.MonitoringMode = MonitoringMode.Reporting;
                 monitoredItem.SamplingInterval = 0;
                 monitoredItem.QueueSize = 0;
                 monitoredItem.DiscardOldest = true;
 
-                monitoredItem.Notification += MonitoredItem_Notification;
+                monitoredItem.Notification += new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
                 subscription.AddItem(monitoredItem);
                 subscription.ApplyChanges();
+            }
+            else
+            {
+                Console.WriteLine("ERROR: Could not find endpoint URL " + nodeLookup.EndPointURL.ToString() + " in active server sessions, NodeID " + nodeLookup.NodeID.Identifier.ToString() + " NOT published!");
+                Console.WriteLine("To fix this, please update your config.xml with the updated enpoint URL!");
             }
         }
 
@@ -237,8 +287,7 @@ namespace NetCoreConsolePublisher
                     return;
                 }
 
-                JsonEncoder encoder = new JsonEncoder(
-                    monitoredItem.Subscription.Session.MessageContext, false);
+                JsonEncoder encoder = new JsonEncoder(monitoredItem.Subscription.Session.MessageContext, false);
                 string hostname = monitoredItem.Subscription.Session.ConfiguredEndpoint.EndpointUrl.DnsSafeHost;
                 if (hostname == "localhost")
                 {
@@ -251,6 +300,7 @@ namespace NetCoreConsolePublisher
                 string json = encoder.Close();
                 byte[] bytes = new UTF8Encoding(false).GetBytes(json);
 
+                // publish to all publishers
                 foreach (AmqpConnection publisher in m_publishers)
                 {
                     try
@@ -283,7 +333,7 @@ namespace NetCoreConsolePublisher
                     (sender.EndpointConfiguration.UseBinaryEncoding) ? "UABinary" : "XML"));
             }
 
-            if (e != null && m_session != null)
+            if (e != null && sender != null)
             {
                 if (ServiceResult.IsGood(e.Status))
                 {
@@ -291,17 +341,76 @@ namespace NetCoreConsolePublisher
                         "Server Status: {0} {1:yyyy-MM-dd HH:mm:ss} {2}/{3}",
                         e.CurrentState,
                         e.CurrentTime.ToLocalTime(),
-                        m_session.OutstandingRequestCount,
-                        m_session.DefunctRequestCount));
+                        sender.OutstandingRequestCount,
+                        sender.DefunctRequestCount));
                 }
                 else
                 {
                     Console.WriteLine(String.Format(
                         "{0} {1}/{2}", e.Status,
-                        m_session.OutstandingRequestCount,
-                        m_session.DefunctRequestCount));
+                        sender.OutstandingRequestCount,
+                        sender.DefunctRequestCount));
                 }
             }
+        }
+
+        private static EndpointDescriptionCollection DiscoverEndpoints(ApplicationConfiguration config, Uri discoveryUrl, int timeout)
+        {
+            // use a short timeout.
+            EndpointConfiguration configuration = EndpointConfiguration.Create(config);
+            configuration.OperationTimeout = timeout;
+
+            using (DiscoveryClient client = DiscoveryClient.Create(
+                discoveryUrl,
+                EndpointConfiguration.Create(config)))
+            {
+                try
+                {
+                    EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+                    ReplaceLocalHostWithRemoteHost(endpoints, discoveryUrl);
+                    return endpoints;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Could not fetch endpoints from url: {0}", discoveryUrl);
+                    Console.WriteLine("Reason = {0}", e.Message);
+                    throw e;
+                }
+            }
+        }
+
+        private static void ReplaceLocalHostWithRemoteHost(EndpointDescriptionCollection endpoints, Uri discoveryUrl)
+        {
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                endpoint.EndpointUrl = Utils.ReplaceLocalhost(endpoint.EndpointUrl, discoveryUrl.DnsSafeHost);
+                StringCollection updatedDiscoveryUrls = new StringCollection();
+
+                foreach (string url in endpoint.Server.DiscoveryUrls)
+                {
+                    updatedDiscoveryUrls.Add(Utils.ReplaceLocalhost(url, discoveryUrl.DnsSafeHost));
+                }
+
+                endpoint.Server.DiscoveryUrls = updatedDiscoveryUrls;
+            }
+        }
+
+        private static EndpointDescription SelectUaTcpEndpoint(EndpointDescriptionCollection endpointCollection)
+        {
+            EndpointDescription bestEndpoint = null;
+            foreach (EndpointDescription endpoint in endpointCollection)
+            {
+                if (endpoint.TransportProfileUri == Profiles.UaTcpTransport)
+                {
+                    if ((bestEndpoint == null) ||
+                        (endpoint.SecurityLevel > bestEndpoint.SecurityLevel))
+                    {
+                        bestEndpoint = endpoint;
+                    }
+                }
+            }
+
+            return bestEndpoint;
         }
     }
 }
