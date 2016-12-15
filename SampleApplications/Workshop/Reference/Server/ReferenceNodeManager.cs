@@ -1742,7 +1742,7 @@ namespace Quickstarts.ReferenceServer
             variable.EnumValues.Value = values;
             variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValueAsText.Value = strings[0];
+            variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
 
             if (parent != null)
             {
@@ -1817,8 +1817,13 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            double number = Convert.ToDouble(value);
+            Int32 number = Convert.ToInt32(value);
             if (number >= variable.EnumValues.Value.Length || number < 0)
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            if (!node.SetChildValue(context, BrowseNames.ValueAsText, variable.EnumValues.Value[number].DisplayName, true))
             {
                 return StatusCodes.BadOutOfRange;
             }
