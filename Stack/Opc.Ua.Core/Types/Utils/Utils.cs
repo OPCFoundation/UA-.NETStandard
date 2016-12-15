@@ -79,7 +79,7 @@ namespace Opc.Ua
         #endregion
 
         #region Trace Support
-#if DEBUG
+        #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
         #else
@@ -328,10 +328,11 @@ namespace Opc.Ua
                 }
             }
         }
-        
+
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
+        [Conditional("DEBUG")]
         public static void Trace(string format, params object[] args)
         {
             Trace((int)TraceMasks.Information, format, args);
@@ -478,17 +479,32 @@ namespace Opc.Ua
             }
 
             StringBuilder buffer = new StringBuilder();
+#if NET46
+            // check for special folder (<= .Net 4.6 only)
+            try
+            {
+                Environment.SpecialFolder specialFolder = (Environment.SpecialFolder)Enum.Parse(
+                    typeof(Environment.SpecialFolder),
+                    folder,
+                    true);
 
-            string value = Environment.GetEnvironmentVariable(folder);
-            if (value != null)
-            {
-                buffer.Append(value);
+                buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-            else
+            // check for generic environment variable.
+            catch (Exception)
+#endif
             {
-                if (folder == "LocalFolder")
+                string value = Environment.GetEnvironmentVariable(folder);
+                if (value != null)
                 {
-                    buffer.Append(DefaultLocalFolder);
+                    buffer.Append(value);
+                }
+                else
+                {
+                    if (folder == "LocalFolder")
+                    {
+                        buffer.Append(DefaultLocalFolder);
+                    }
                 }
             }
 
