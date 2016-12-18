@@ -388,6 +388,18 @@
     <Compile Include="Common\Client\WriteRequestListViewCtrl.Designer.cs">
       <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
+    </Compile>
     <Compile Include="Common\SelectHostCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -840,6 +852,12 @@
     <EmbeddedResource Include="Common\Client\WriteRequestListViewCtrl.resx">
       <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListCtrl.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListDlg.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Common\SelectHostCtrl.resx">
       <DependentUpon>SelectHostCtrl.cs</DependentUpon>

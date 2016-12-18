@@ -93,6 +93,34 @@ namespace Opc.Ua
 
             return servers;
         }
+
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        /// <param name="startingRecordId"></param>
+        /// <param name="maxRecordsToReturn"></param>
+        /// <param name="serverCapabilityFilter"></param>
+        /// <param name="lastCounterResetTime"></param>
+        /// <returns></returns>
+        public virtual ServerOnNetworkCollection FindServersOnNetwork(
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            StringCollection serverCapabilityFilter,
+            out DateTime lastCounterResetTime)
+        {
+            ServerOnNetworkCollection servers = null;
+
+            FindServersOnNetwork(
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                serverCapabilityFilter,
+                out lastCounterResetTime,
+                out servers);
+
+            return servers;
+        }
+
         #endregion  
     }
     
