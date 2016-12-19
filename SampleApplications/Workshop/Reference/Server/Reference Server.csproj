@@ -99,9 +99,6 @@
     <Content Include="libuv.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Opc.Ua.Core.Types.Utils.LocalizedData.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Readme.htm" />
     <Content Include="Resources\OPCFoundation.jpg" />
     <EmbeddedResource Include="MonitoredItemEventLogDlg.resx">
@@ -126,10 +123,6 @@
       <SubType>Designer</SubType>
     </Content>
     <None Include="app.manifest">
-    </None>
-    <None Include="CreateCert.cmd" />
-    <None Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
