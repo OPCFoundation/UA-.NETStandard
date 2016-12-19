@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// </summary>
     public abstract class WcfChannelBase : IChannelBase, ITransportChannel
     {
-        public static ITransportChannel g_CustomTransportChannel = null;
+        public static ITransportChannelFactory g_CustomTransportChannel = null;
         
         #region Constructors
         /// <summary>
@@ -724,7 +724,7 @@ namespace Opc.Ua
             {
                 if (g_CustomTransportChannel != null)
                 {
-                    channel = g_CustomTransportChannel;
+                    channel = g_CustomTransportChannel.Create();
                 }
                 else
                 {

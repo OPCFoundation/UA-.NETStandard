@@ -15,6 +15,21 @@ using System;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
+    /// Creates a new CustomTransportChannel with ITransportChannel interface.
+    /// </summary>
+    public class CustomTransportChannelFactory : ITransportChannelFactory
+    {
+        /// <summary>
+        /// The method creates a new instance of a custom transport channel
+        /// </summary>
+        /// <returns> the transport channel</returns>
+        public ITransportChannel Create()
+        {
+            return new CustomTransportChannel();
+        }
+    }
+
+    /// <summary>
     /// Wraps the CustomTransportChannel and provides an ITransportChannel implementation.
     /// </summary>
     public class CustomTransportChannel : ITransportChannel
