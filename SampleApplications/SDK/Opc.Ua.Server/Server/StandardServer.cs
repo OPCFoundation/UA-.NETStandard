@@ -2178,8 +2178,29 @@ namespace Opc.Ua.Server
                             requestHeader.Timestamp = DateTime.UtcNow;
 
                             client.OperationTimeout = 10000;
-                            client.RegisterServer(requestHeader, m_registrationInfo);
-                            return true;
+	                        try
+	                        {
+	                            ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
+	                            StatusCodeCollection configurationResults = null;
+	                            DiagnosticInfoCollection diagnosticInfos = null;
+
+	                            client.RegisterServer2(
+	                                requestHeader,
+	                                m_registrationInfo,
+	                                discoveryConfiguration,
+	                                out configurationResults,
+	                                out diagnosticInfos);
+
+	                            return true;
+	                        }
+	                        catch (Exception e)
+	                        {
+	                            // fall back to calling RegisterServer in case RegisterServer2 fails.
+	                            Utils.Trace("RegisterServer2 failed for: {0}. Falling back to RegisterServer. Exception={1}.", endpoint.EndpointUrl, e.Message);
+
+	                            client.RegisterServer(requestHeader, m_registrationInfo);
+	                            return true;
+	                        }
                         }
                         catch (Exception e)
                         {
