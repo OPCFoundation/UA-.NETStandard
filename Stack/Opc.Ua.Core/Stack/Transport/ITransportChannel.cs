@@ -17,6 +17,19 @@ using System.Text;
 namespace Opc.Ua
 {
     /// <summary>
+    /// This is an interface to a channel which supports a factory 
+    /// </summary>
+    public interface ITransportChannelFactory
+    {
+        /// <summary>
+        /// The method creates a new transport channel
+        /// </summary>
+        /// <returns> the transport channel</returns>
+        ITransportChannel Create();
+
+    }
+
+    /// <summary>
     /// This is an interface to a channel which supports 
     /// </summary>
     public interface ITransportChannel : IDisposable
