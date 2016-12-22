@@ -31,7 +31,7 @@
            The name of the store is appended.
            Note that the names used in code are difference from what appears in the control panel.
            e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
 
 
       <!-- The subject for the certificate 
@@ -60,7 +60,7 @@
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- The list of trusted certificates. 
@@ -79,7 +79,7 @@
          -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
     </TrustedPeerCertificates>
     
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -88,7 +88,7 @@
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
@@ -285,50 +285,50 @@
          provided the maximum subscription lifetime is not exceeded -->
     <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
 
-	  <!-- The maximum number of sent messages kept in the queue for each subscription-->
-	  <MaxMessageQueueSize>100</MaxMessageQueueSize>
+    <!-- The maximum number of sent messages kept in the queue for each subscription-->
+    <MaxMessageQueueSize>100</MaxMessageQueueSize>
 
-	  <!-- The maximum number of notifications kept in the queue for each monitored item-->
-	  <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
+    <!-- The maximum number of notifications kept in the queue for each monitored item-->
+    <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
 
-	  <!-- The maximum number of notifications in a single publish response -->
-	  <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+    <!-- The maximum number of notifications in a single publish response -->
+    <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
 
-	  <!-- The minimum sampling rate for rarely changing metadata information (such as the server status) -->
-	  <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+    <!-- The minimum sampling rate for rarely changing metadata information (such as the server status) -->
+    <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
 
-	  <!-- The set of supported sampling rates -->
+    <!-- The set of supported sampling rates -->
     <AvailableSamplingRates />
 
-	  <!-- Servers must create a secure channel with the DiscoveryServer 
+    <!-- Servers must create a secure channel with the DiscoveryServer 
          This element specifies the connection information.
          Note that server will use the discovery endpoint to update this information -->
 
-	  <RegistrationEndpoint>
-		  <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
-		  <ua:Server>
+    <RegistrationEndpoint>
+      <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+      <ua:Server>
         <ua:ApplicationUri>opc.tcp://localhost:4840</ua:ApplicationUri>
-			  <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
-			  <ua:DiscoveryUrls>
-				  <ua:String>opc.tcp://localhost:4840</ua:String>
-			  </ua:DiscoveryUrls>
-		  </ua:Server>
-		  <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+        <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
+        <ua:DiscoveryUrls>
+          <ua:String>opc.tcp://localhost:4840</ua:String>
+        </ua:DiscoveryUrls>
+      </ua:Server>
+      <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
       <ua:SecurityPolicyUri />
-		  <ua:UserIdentityTokens />
-		  <ua:SecurityLevel>1</ua:SecurityLevel>
-	  </RegistrationEndpoint>
+      <ua:UserIdentityTokens />
+      <ua:SecurityLevel>1</ua:SecurityLevel>
+    </RegistrationEndpoint>
 
-	  <!-- The maximum interval between registration. 0 disables periodic registration -->
-	  <MaxRegistrationInterval>0</MaxRegistrationInterval>
+    <!-- The maximum interval between registration. 0 disables periodic registration -->
+    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
 
-	  <!-- The file used to save nodes added to the CoreNodeManager. If missing the CoreNodeManger will discard nodes when it stops. -->
-	  <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
+    <!-- The file used to save nodes added to the CoreNodeManager. If missing the CoreNodeManger will discard nodes when it stops. -->
+    <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
 
-	  <!-- The minimum subscription lifetime.
-		This ensures subscriptions are not set to expire too quickly. The revised lifetime count
-		and keep alive count are calculated with this value. -->
-	  <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <!-- The minimum subscription lifetime.
+    This ensures subscriptions are not set to expire too quickly. The revised lifetime count
+    and keep alive count are calculated with this value. -->
+    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
 
   </ServerConfiguration>
   
@@ -346,16 +346,16 @@
     </WellKnownDiscoveryUrls>
     
     <!-- EndpointDescriptions for system wide discovery servers -->
-	<DiscoveryServers></DiscoveryServers>
+  <DiscoveryServers></DiscoveryServers>
     
     <!-- The file used to save the EndpointDescriptions for servers known to the Client -->
     <EndpointCacheFilePath>Opc.Ua.SampleClient.Endpoints.xml</EndpointCacheFilePath>
   
-	<!-- The minimum subscription lifetime.
-	This ensures subscriptions are not set to expire too quickly. The requesed lifetime count
-	and keep alive count are calculated using this value and the request publishing interval -->
-	<MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
-	  
+  <!-- The minimum subscription lifetime.
+  This ensures subscriptions are not set to expire too quickly. The requesed lifetime count
+  and keep alive count are calculated using this value and the request publishing interval -->
+  <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    
   </ClientConfiguration>
 
   <Extensions>
@@ -416,7 +416,7 @@
   -->
   
   <TraceConfiguration>
-    <OutputFilePath>Logs\Opc.Ua.SampleClient.log.txt</OutputFilePath>
+    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Opc.Ua.SampleClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

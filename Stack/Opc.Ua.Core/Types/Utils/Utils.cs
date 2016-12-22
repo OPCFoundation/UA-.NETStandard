@@ -73,16 +73,22 @@ namespace Opc.Ua
         public const string DefaultStoreType = CertificateStoreType.Directory;
 
         /// <summary>
+        /// The path to the default certificate store.
+        /// </summary>
+        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/CertificateStores/MachineDefault";
+
+        /// <summary>
         /// The default LocalFolder.
         /// </summary>
         public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+
         #endregion
 
         #region Trace Support
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
-        #else
+#else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
@@ -438,10 +444,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Maps a special folder to environment variable with folder path.
+        /// </summary>
+        private static string ReplaceSpecialFolderWithEnvVar(string input)
+        {
+            switch (input)
+            {
+                case "CommonApplicationData": return "ProgramData";
+            }
+
+            return input;
+        }
+
+        /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
+
             // nothing to do for nulls.
             if (String.IsNullOrEmpty(input))
             {
@@ -476,6 +496,8 @@ namespace Opc.Ua
                 folder = input.Substring(1, index-1);
                 path = input.Substring(index+1);
             }
+
+            folder = ReplaceSpecialFolderWithEnvVar(folder);
 
             StringBuilder buffer = new StringBuilder();
 

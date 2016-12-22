@@ -1,0 +1,48 @@
+//============================================================================
+// TITLE: OpcEnum.idl
+//
+// CONTENTS:
+// 
+// IDL declaration for OpcEnum.
+//
+// (c) Copyright 1998-2002 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2002/06/12 mar   Add IOPCServerList2 to OpcServerList object
+//
+
+import "opccomn.idl";
+
+[
+	uuid(13486D43-4821-11D2-A494-3CB306C10000),
+	version(1.1),
+	helpstring("OpcEnum 1.1 Type Library")
+]
+library OpcEnumLib
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+	[
+		uuid(13486D51-4821-11D2-A494-3CB306C10000),
+		helpstring("OpcEnum Class")
+	]
+	coclass OpcServerList
+	{
+		[default] interface IOpcServerList2;
+		          interface IOpcServerList;
+	};
+};
+

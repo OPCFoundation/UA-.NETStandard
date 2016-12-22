@@ -29,12 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
 using System.Xml;
-using System.IO;
 using System.Threading;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -523,7 +519,9 @@ namespace Quickstarts.ReferenceServer
                     CreateMultiStateDiscreteItemVariable(multiStateDiscreteFolder, daMultiStateDiscrete + "003", "003", "lolo", "lo", "normal", "hi", "hihi");
                     CreateMultiStateDiscreteItemVariable(multiStateDiscreteFolder, daMultiStateDiscrete + "004", "004", "left", "right", "center");
                     CreateMultiStateDiscreteItemVariable(multiStateDiscreteFolder, daMultiStateDiscrete + "005", "005", "circle", "cross", "triangle");
+                    #endregion
 
+                    #region DataAccess_MultiStateValueDiscreteType
                     FolderState multiStateValueDiscreteFolder = CreateFolder(discreteTypeFolder, "DataAccess_MultiStateValueDiscreteType", "MultiStateValueDiscreteType");
                     const string daMultiStateValueDiscrete = "DataAccess_MultiStateValueDiscreteType_";
 
@@ -533,6 +531,17 @@ namespace Quickstarts.ReferenceServer
                     CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "003", "003", new string[] { "lolo", "lo", "normal", "hi", "hihi" });
                     CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "004", "004", new string[] { "left", "right", "center" });
                     CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "005", "005", new string[] { "circle", "cross", "triangle" });
+
+                    // Add our Nodes to the folder and specify varying data types
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "Byte", "Byte", DataTypeIds.Byte, new string[] { "open", "closed", "jammed" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "Int16", "Int16", DataTypeIds.Int16, new string[] { "red", "green", "blue", "cyan" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "Int32", "Int32", DataTypeIds.Int32, new string[] { "lolo", "lo", "normal", "hi", "hihi" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "Int64", "Int64", DataTypeIds.Int64, new string[] { "left", "right", "center" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "SByte", "SByte", DataTypeIds.SByte, new string[] { "open", "closed", "jammed" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "UInt16", "UInt16", DataTypeIds.UInt16, new string[] { "red", "green", "blue", "cyan" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "UInt32", "UInt32", DataTypeIds.UInt32, new string[] { "lolo", "lo", "normal", "hi", "hihi" });
+                    CreateMultiStateValueDiscreteItemVariable(multiStateValueDiscreteFolder, daMultiStateValueDiscrete + "UInt64", "UInt64", DataTypeIds.UInt64, new string[] { "left", "right", "center" });
+
                     #endregion
 
                     #region References
@@ -589,6 +598,18 @@ namespace Quickstarts.ReferenceServer
                     arAllRW.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     arAllRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     variables.Add(arAllRW);
+                    BaseDataVariableState arAllRONotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RO_NotUser", "RO_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead;
+                    arAllRONotUser.UserAccessLevel = AccessLevels.None;
+                    variables.Add(arAllRONotUser);
+                    BaseDataVariableState arAllWONotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "WO_NotUser", "WO_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllWONotUser.AccessLevel = AccessLevels.CurrentWrite;
+                    arAllWONotUser.UserAccessLevel = AccessLevels.None;
+                    variables.Add(arAllWONotUser);
+                    BaseDataVariableState arAllRWNotUser = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RW_NotUser", "RW_NotUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    arAllRWNotUser.UserAccessLevel = AccessLevels.CurrentRead;
+                    variables.Add(arAllRWNotUser);
                     BaseDataVariableState arAllROUserRW = CreateVariable(folderAccessRightsAccessAll, accessRightsAccessAll + "RO_User1_RW", "RO_User1_RW", BuiltInType.Int16, ValueRanks.Scalar);
                     arAllROUserRW.AccessLevel = AccessLevels.CurrentRead;
                     arAllROUserRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -845,6 +866,49 @@ namespace Quickstarts.ReferenceServer
 
                     helloMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnHelloCall);
                     #endregion
+
+                    #region Input Method
+                    MethodState inputMethod = CreateMethod(methodsFolder, methods + "Input", "Input");
+                    // set input arguments
+                    inputMethod.InputArguments = new PropertyState<Argument[]>(inputMethod);
+                    inputMethod.InputArguments.NodeId = new NodeId(inputMethod.BrowseName.Name + "InArgs", NamespaceIndex);
+                    inputMethod.InputArguments.BrowseName = BrowseNames.InputArguments;
+                    inputMethod.InputArguments.DisplayName = inputMethod.InputArguments.BrowseName.Name;
+                    inputMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
+                    inputMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                    inputMethod.InputArguments.DataType = DataTypeIds.Argument;
+                    inputMethod.InputArguments.ValueRank = ValueRanks.OneDimension;
+
+                    inputMethod.InputArguments.Value = new Argument[]
+                    {
+                        new Argument() { Name = "String value", Description = "String value",  DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar }
+                    };
+
+                    inputMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnInputCall);
+                    #endregion
+
+                    #region Output Method
+                    MethodState outputMethod = CreateMethod(methodsFolder, methods + "Output", "Output");
+
+                    // set output arguments
+                    outputMethod.OutputArguments = new PropertyState<Argument[]>(helloMethod);
+                    outputMethod.OutputArguments.NodeId = new NodeId(helloMethod.BrowseName.Name + "OutArgs", NamespaceIndex);
+                    outputMethod.OutputArguments.BrowseName = BrowseNames.OutputArguments;
+                    outputMethod.OutputArguments.DisplayName = helloMethod.OutputArguments.BrowseName.Name;
+                    outputMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
+                    outputMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                    outputMethod.OutputArguments.DataType = DataTypeIds.Argument;
+                    outputMethod.OutputArguments.ValueRank = ValueRanks.OneDimension;
+
+                    outputMethod.OutputArguments.Value = new Argument[]
+                    {
+                        new Argument() { Name = "Output Result", Description = "Output Result",  DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar }
+                    };
+
+                    outputMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnOutputCall);
+                    #endregion
+
+
                     #endregion
 
                     #region Locales
@@ -1196,7 +1260,7 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, (uint)m_simulationInterval);
+                    m_simulationTimer.Change(100, (int)m_simulationInterval);
                 }
 
                 return ServiceResult.Good;
@@ -1216,7 +1280,7 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, (uint)m_simulationInterval);
+                    m_simulationTimer.Change(100, (int)m_simulationInterval);
                 }
                 else
                 {
@@ -1594,7 +1658,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
-            // variable.OnWriteValue = OnWriteDiscrete;
+            variable.OnWriteValue = OnWriteDiscrete;
 
             LocalizedText[] strings = new LocalizedText[values.Length];
 
@@ -1616,9 +1680,17 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Creates a new variable.
+        /// Creates a new UInt32 variable.
         /// </summary>
         private DataItemState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, params string[] enumNames)
+        {
+            return CreateMultiStateValueDiscreteItemVariable(parent, path, name, null, enumNames);
+        }
+
+        /// <summary>
+        /// Creates a new variable.
+        /// </summary>
+        private DataItemState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, NodeId nodeId, params string[] enumNames)
         {
             MultiStateValueDiscreteState variable = new MultiStateValueDiscreteState(parent);
 
@@ -1637,7 +1709,7 @@ namespace Quickstarts.ReferenceServer
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
-            variable.DataType = DataTypeIds.UInt32;
+            variable.DataType = (nodeId == null) ? DataTypeIds.UInt32 : nodeId;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -1645,11 +1717,11 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
-            // variable.OnWriteValue = OnWriteDiscrete;
+            variable.OnWriteValue = OnWriteValueDiscrete;
 
             // there are two enumerations for this type:
             // EnumStrings = the string representations for enumerated values
-            // EnumValues  = the actual enumerated value
+            // ValueAsText = the actual enumerated value
 
             // set the enumerated strings
             LocalizedText[] strings = new LocalizedText[enumNames.Length];
@@ -1657,11 +1729,6 @@ namespace Quickstarts.ReferenceServer
             {
                 strings[ii] = enumNames[ii];
             }
-
-            //variable.EnumStrings = new PropertyState<LocalizedText[]>( variable );
-            //variable.EnumStrings.Value = strings;
-            //variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            //variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // set the enumerated values
             EnumValueType[] values = new EnumValueType[enumNames.Length];
@@ -1675,7 +1742,7 @@ namespace Quickstarts.ReferenceServer
             variable.EnumValues.Value = values;
             variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValueAsText.Value = strings[0];
+            variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
 
             if (parent != null)
             {
@@ -1717,6 +1784,46 @@ namespace Quickstarts.ReferenceServer
             double number = Convert.ToDouble(value);
 
             if (number >= variable.EnumStrings.Value.Length | number < 0)
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnWriteValueDiscrete(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            MultiStateValueDiscreteState variable = node as MultiStateValueDiscreteState;
+
+            TypeInfo typeInfo = TypeInfo.Construct(value);
+
+            if (variable == null ||
+                typeInfo == null || 
+                typeInfo == Opc.Ua.TypeInfo.Unknown || 
+                !TypeInfo.IsNumericType(typeInfo.BuiltInType))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            if (indexRange != NumericRange.Empty)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            Int32 number = Convert.ToInt32(value);
+            if (number >= variable.EnumValues.Value.Length || number < 0)
+            {
+                return StatusCodes.BadOutOfRange;
+            }
+
+            if (!node.SetChildValue(context, BrowseNames.ValueAsText, variable.EnumValues.Value[number].DisplayName, true))
             {
                 return StatusCodes.BadOutOfRange;
             }
@@ -2195,6 +2302,41 @@ namespace Quickstarts.ReferenceServer
 
                 // set output parameter
                 outputArguments[0] = (string)("hello " + op1);
+                return ServiceResult.Good;
+            }
+            catch
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+        }
+
+        private ServiceResult OnInputCall(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+
+            // all arguments must be provided.
+            if (inputArguments.Count < 1)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnOutputCall(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            // all arguments must be provided.
+            try
+            {
+                // set output parameter
+                outputArguments[0] = (string)("Output");
                 return ServiceResult.Good;
             }
             catch

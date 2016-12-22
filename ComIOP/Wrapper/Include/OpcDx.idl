@@ -1,0 +1,492 @@
+//================================================================================
+// TITLE: OpcDx.idl
+//
+// CONTENTS:
+// 
+// The OPC Data Exchange 1.00 IDL file.
+//
+// This IDL was derived from the XML service description defined in the 
+// specification. The mapping the XML service and the IDL elements is
+// a direct as possible (i.e. XML data types map onto IDL structures, XML
+// services map onto IDL interfaces/methods et. al.). However, there is no
+// standard representation in IDL for 'missing' attributes (i.e. values that
+// are not contained in the XML). The IDL defines bit masks for each optional
+// field in a structure. Clients and servers must use these masks to test
+// and/or indicate whether a given field contains a meaningful value.
+//
+// (c) Copyright 2002 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2002/09/09 RSA   First release.
+// 2003/03/03 RSA   Added fields to ensure natural byte alignment for structures.
+// 2004/09/01 RSA   Renamed modules in TYPELIB section to avoid name conflicts.
+//
+
+import "oaidl.idl";
+import "ocidl.idl";
+import "objidl.idl";
+
+//==============================================================================
+// Category ID declarations (defined as interfaces to ensure they show up in the typelib).
+
+[uuid(A0C85BB8-4161-4fd6-8655-BB584601C9E0)] interface CATID_OPCDXServer10 : IUnknown {}
+
+cpp_quote("#define CATID_OPCDXServer10 IID_CATID_OPCDXServer10")
+
+//==============================================================================
+// Structures, Typedefs and Enumerations.
+
+typedef struct tagOpcDxItemIdentifier
+{
+	LPWSTR szItemPath;
+	LPWSTR szItemName;
+	LPWSTR szVersion;
+	DWORD  dwReserved;
+}
+OpcDxItemIdentifier;
+
+typedef struct tagOpcDxIdentifiedResult
+{
+    LPWSTR  szItemPath;
+    LPWSTR  szItemName;
+    LPWSTR  szVersion;
+	HRESULT hResultCode;
+}
+OpcDxIdentifiedResult;
+
+typedef struct tagOpcDxGeneralResponse
+{
+	                   LPWSTR                 szConfigurationVersion;
+					   DWORD                  dwCount;
+	[size_is(dwCount)] OpcDxIdentifiedResult* pIdentifiedResults;
+					   DWORD                  dwReserved;
+}
+OpcDxGeneralResponse;
+
+typedef struct tagOpcDxSourceServer
+{
+    DWORD  dwMask;                                
+	LPWSTR szItemPath;
+	LPWSTR szItemName;
+	LPWSTR szVersion;
+	LPWSTR szName;
+	LPWSTR szDescription;
+	LPWSTR szServerType;
+	LPWSTR szServerURL;
+	BOOL   bDefaultSourceServerConnected;
+	DWORD  dwReserved;
+}
+OpcDxSourceServer;
+
+typedef struct tagOpcDxConnection
+{
+								 DWORD   dwMask;
+				                 LPWSTR	 szItemPath;
+				                 LPWSTR	 szItemName;
+				                 LPWSTR  szVersion;
+				                 DWORD	 dwBrowsePathCount;
+	[size_is(dwBrowsePathCount)] LPWSTR* pszBrowsePaths;
+				                 LPWSTR  szName;
+				                 LPWSTR  szDescription;
+				                 LPWSTR  szKeyword;
+				                 BOOL    bDefaultSourceItemConnected;
+				                 BOOL    bDefaultTargetItemConnected;
+				                 BOOL    bDefaultOverridden;
+				                 VARIANT vDefaultOverrideValue;
+				                 VARIANT vSubstituteValue;
+				                 BOOL    bEnableSubstituteValue;
+				                 LPWSTR  szTargetItemPath;
+				                 LPWSTR  szTargetItemName;
+				                 LPWSTR  szSourceServerName;
+				                 LPWSTR  szSourceItemPath;
+				                 LPWSTR  szSourceItemName;
+				                 DWORD   dwSourceItemQueueSize;
+				                 DWORD   dwUpdateRate;
+				                 FLOAT   fltDeadBand;
+				                 LPWSTR  szVendorData;
+}
+OpcDxConnection;
+
+//==============================================================================
+// IOPCConfiguration
+
+[
+    object,
+	uuid(C130D281-F4AA-4779-8846-C2C4CB444F2A),
+    pointer_default(unique)
+]
+interface IOPCConfiguration : IUnknown
+{ 
+    HRESULT GetServers(
+        [out]                      DWORD*                pdwCount,
+        [out, size_is(,*pdwCount)] OpcDxSourceServer**   ppServers
+    );
+
+    HRESULT AddServers(
+        [in]                       DWORD                 dwCount,
+        [in, size_is(dwCount)]     OpcDxSourceServer*    pServers,
+        [out]                      OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT ModifyServers(
+        [in]                       DWORD                 dwCount,
+        [in, size_is(dwCount)]     OpcDxSourceServer*    pServers,
+        [out]                      OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT DeleteServers(
+        [in]                       DWORD                 dwCount,
+        [in, size_is(dwCount)]     OpcDxItemIdentifier*  pServers,
+        [out]                      OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT CopyDefaultServerAttributes(
+		[in]					   BOOL                  bConfigToStatus,
+        [in]                       DWORD                 dwCount,
+        [in, size_is(dwCount)]     OpcDxItemIdentifier*  pServers,
+        [out]                      OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT QueryDXConnections(
+        [in]                         LPWSTR               szBrowsePath,
+        [in]                         DWORD                dwNoOfMasks,
+        [in, size_is(dwNoOfMasks)]   OpcDxConnection*     pDXConnectionMasks,
+		[in]						 BOOL                 bRecursive,
+        [out, size_is(,dwNoOfMasks)] HRESULT**            ppErrors,
+        [out]                        DWORD*               pdwCount,
+        [out, size_is(,*pdwCount)]   OpcDxConnection**    ppConnections
+    );
+
+    HRESULT AddDXConnections( 
+        [in]                         DWORD                 dwCount,
+        [in, size_is(dwCount)]       OpcDxConnection*      pConnections,
+        [out]                        OpcDxGeneralResponse* pResponse
+    );
+    
+    HRESULT UpdateDXConnections(
+		[in]                         LPWSTR                szBrowsePath,
+        [in]                         DWORD                 dwNoOfMasks,
+        [in, size_is(dwNoOfMasks)]   OpcDxConnection*      pDXConnectionMasks,
+		[in]						 BOOL                  bRecursive,
+		[in]                         OpcDxConnection*      pDXConnectionDefinition,
+        [out, size_is(,dwNoOfMasks)] HRESULT**             ppErrors,
+        [out]                        OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT ModifyDXConnections(
+        [in]                         DWORD                 dwCount,
+        [in, size_is(dwCount)]       OpcDxConnection*      pDXConnectionDefinitions,
+        [out]                        OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT DeleteDXConnections(
+		[in]                         LPWSTR                szBrowsePath,
+        [in]                         DWORD                 dwNoOfMasks,
+        [in, size_is(dwNoOfMasks)]   OpcDxConnection*      pDXConnectionMasks,
+		[in]						 BOOL                  bRecursive,
+        [out, size_is(,dwNoOfMasks)] HRESULT**             ppErrors,
+        [out]                        OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT CopyDXConnectionDefaultAttributes(
+		[in]					     BOOL                  bConfigToStatus,
+		[in]                         LPWSTR                szBrowsePath,
+        [in]                         DWORD                 dwNoOfMasks,
+        [in, size_is(dwNoOfMasks)]   OpcDxConnection*      pDXConnectionMasks,
+		[in]						 BOOL                  bRecursive,
+        [out, size_is(,dwNoOfMasks)] HRESULT**             ppErrors,
+        [out]                        OpcDxGeneralResponse* pResponse
+    );
+
+    HRESULT ResetConfiguration(
+        [in]  LPWSTR  szConfigurationVersion,
+        [out] LPWSTR* pszConfigurationVersion
+    );
+};
+
+//==============================================================================
+// Type Library
+
+[
+	uuid(3CA18B30-1088-47d5-8952-0B12B027ED32),
+	version(1.00),
+    helpstring("OPC Data eXchange 1.00 Type Library")
+]
+library OpcDxLib
+{
+    interface CATID_OPCDXServer10;
+    interface IOPCConfiguration;
+		
+	module OPCDX_Names
+	{
+		// category description strings.
+		const LPCWSTR OPC_CATEGORY_DESCRIPTION_DX10         = L"OPC Data Exchange Servers Version 1.0";
+
+		// common names.
+		const LPCWSTR OPCDX_NAMESPACE_V10                   = L"http://opcfoundation.org/webservices/OPCDX/10";
+		const LPCWSTR OPCDX_DATABASE_ROOT                   = L"DX";
+		const LPCWSTR OPCDX_SEPARATOR						= L"/";
+		const LPCWSTR OPCDX_ITEM_PATH                       = L"ItemPath";
+		const LPCWSTR OPCDX_ITEM_NAME                       = L"ItemName";
+		const LPCWSTR OPCDX_VERSION                         = L"Version";
+
+		// server status.
+		const LPCWSTR OPCDX_SERVER_STATUS_TYPE              = L"DXServerStatus";
+		const LPCWSTR OPCDX_SERVER_STATUS                   = L"ServerStatus";
+		const LPCWSTR OPCDX_CONFIGURATION_VERSION           = L"ConfigurationVersion";
+		const LPCWSTR OPCDX_SERVER_STATE                    = L"ServerState";
+		const LPCWSTR OPCDX_CONNECTION_COUNT                = L"DXConnectionCount";
+		const LPCWSTR OPCDX_MAX_CONNECTIONS                 = L"MaxDXConnections";
+		const LPCWSTR OPCDX_SERVER_ERROR_ID                 = L"ErrorID";
+		const LPCWSTR OPCDX_SERVER_ERROR_DIAGNOSTIC         = L"ErrorDiagnostic";
+		const LPCWSTR OPCDX_DIRTY_FLAG                      = L"DirtyFlag";
+		const LPCWSTR OPCDX_SOURCE_SERVER_TYPES             = L"SourceServerTypes";
+		const LPCWSTR OPCDX_MAX_QUEUE_SIZE                  = L"MaxQueueSize";
+
+		// connection configuration.
+		const LPCWSTR OPCDX_CONNECTIONS_ROOT                = L"DXConnectionsRoot";
+		const LPCWSTR OPCDX_CONNECTION_TYPE                 = L"DXConnection";
+		const LPCWSTR OPCDX_CONNECTION_NAME                 = L"Name";
+		const LPCWSTR OPCDX_CONNECTION_BROWSE_PATHS         = L"BrowsePath";
+		const LPCWSTR OPCDX_CONNECTION_VERSION              = L"Version";
+		const LPCWSTR OPCDX_CONNECTION_DESCRIPTION          = L"Description";
+		const LPCWSTR OPCDX_CONNECTION_KEYWORD              = L"Keyword";
+		const LPCWSTR OPCDX_DEFAULT_SOURCE_ITEM_CONNECTED   = L"DefaultSourceItemConnected";
+		const LPCWSTR OPCDX_DEFAULT_TARGET_ITEM_CONNECTED   = L"DefaultTargetItemConnected";
+		const LPCWSTR OPCDX_DEFAULT_OVERRIDDEN              = L"DefaultOverridden";
+		const LPCWSTR OPCDX_DEFAULT_OVERRIDE_VALUE          = L"DefaultOverrideValue";
+		const LPCWSTR OPCDX_ENABLE_SUBSTITUTE_VALUE         = L"EnableSubstituteValue";
+		const LPCWSTR OPCDX_SUBSTITUTE_VALUE                = L"SubstituteValue";
+		const LPCWSTR OPCDX_TARGET_ITEM_PATH                = L"TargetItemPath";
+		const LPCWSTR OPCDX_TARGET_ITEM_NAME                = L"TargetItemName";
+		const LPCWSTR OPCDX_CONNECTION_SOURCE_SERVER_NAME   = L"SourceServerName";
+		const LPCWSTR OPCDX_SOURCE_ITEM_PATH                = L"SourceItemPath";
+		const LPCWSTR OPCDX_SOURCE_ITEM_NAME                = L"SourceItemName";
+		const LPCWSTR OPCDX_SOURCE_ITEM_QUEUE_SIZE          = L"QueueSize";
+		const LPCWSTR OPCDX_UPDATE_RATE                     = L"UpdateRate";
+		const LPCWSTR OPCDX_DEADBAND                        = L"Deadband";
+		const LPCWSTR OPCDX_VENDOR_DATA                     = L"VendorData";
+	
+		// connection status.
+		const LPCWSTR OPCDX_CONNECTION_STATUS               = L"Status";
+		const LPCWSTR OPCDX_CONNECTION_STATUS_TYPE          = L"DXConnectionStatus";
+		const LPCWSTR OPCDX_CONNECTION_STATE                = L"DXConnectionState";
+		const LPCWSTR OPCDX_WRITE_VALUE                     = L"WriteValue";
+		const LPCWSTR OPCDX_WRITE_TIMESTAMP                 = L"WriteTimestamp";
+		const LPCWSTR OPCDX_WRITE_QUALITY                   = L"WriteQuality";
+		const LPCWSTR OPCDX_WRITE_ERROR_ID                  = L"WriteErrorID";
+		const LPCWSTR OPCDX_WRITE_ERROR_DIAGNOSTIC          = L"WriteErrorDiagnostic";
+		const LPCWSTR OPCDX_SOURCE_VALUE                    = L"SourceValue";
+		const LPCWSTR OPCDX_SOURCE_TIMESTAMP                = L"SourceTimestamp";
+		const LPCWSTR OPCDX_SOURCE_QUALITY                  = L"SourceQuality";
+		const LPCWSTR OPCDX_SOURCE_ERROR_ID                 = L"SourceErrorID";
+		const LPCWSTR OPCDX_SOURCE_ERROR_DIAGNOSTIC         = L"SourceErrorDiagnostic";
+		const LPCWSTR OPCDX_ACTUAL_UPDATE_RATE              = L"ActualUpdateRate";
+		const LPCWSTR OPCDX_QUEUE_HIGH_WATER_MARK           = L"QueueHighWaterMark";
+		const LPCWSTR OPCDX_QUEUE_FLUSH_COUNT               = L"QueueFlushCount";
+		const LPCWSTR OPCDX_SOURCE_ITEM_CONNECTED           = L"SourceItemConnected";
+		const LPCWSTR OPCDX_TARGET_ITEM_CONNECTED           = L"TargetItemConnected";
+		const LPCWSTR OPCDX_OVERRIDDEN                      = L"Overridden";
+		const LPCWSTR OPCDX_OVERRIDE_VALUE                  = L"OverrideValue";
+		
+		// source server configuration.
+		const LPCWSTR OPCDX_SOURCE_SERVERS_ROOT             = L"SourceServers";
+		const LPCWSTR OPCDX_SOURCE_SERVER_TYPE              = L"SourceServer";
+		const LPCWSTR OPCDX_SOURCE_SERVER_NAME              = L"Name";
+		const LPCWSTR OPCDX_SOURCE_SERVER_VERSION           = L"Version";
+		const LPCWSTR OPCDX_SOURCE_SERVER_DESCRIPTION       = L"Description";
+		const LPCWSTR OPCDX_SERVER_URL                      = L"ServerURL";
+		const LPCWSTR OPCDX_SERVER_TYPE                     = L"ServerType";
+		const LPCWSTR OPCDX_DEFAULT_SOURCE_SERVER_CONNECTED = L"DefaultSourceServerConnected";
+
+		// source server status.
+		const LPCWSTR OPCDX_SOURCE_SERVER_STATUS_TYPE       = L"DXSourceServerStatus";
+		const LPCWSTR OPCDX_SOURCE_SERVER_STATUS            = L"Status";
+		const LPCWSTR OPCDX_SERVER_CONNECT_STATUS           = L"ConnectStatus";
+		const LPCWSTR OPCDX_SOURCE_SERVER_ERROR_ID          = L"ErrorID";
+		const LPCWSTR OPCDX_SOURCE_SERVER_ERROR_DIAGNOSTIC  = L"ErrorDiagnostic";
+		const LPCWSTR OPCDX_LAST_CONNECT_TIMESTAMP          = L"LastConnectTimestamp";
+		const LPCWSTR OPCDX_LAST_CONNECT_FAIL_TIMESTAMP     = L"LastConnectFailTimestamp";
+		const LPCWSTR OPCDX_CONNECT_FAIL_COUNT              = L"ConnectFailCount";
+		const LPCWSTR OPCDX_PING_TIME                       = L"PingTime";
+		const LPCWSTR OPCDX_LAST_DATA_CHANGE_TIMESTAMP      = L"LastDataChangeTimestamp";
+		const LPCWSTR OPCDX_SOURCE_SERVER_CONNECTED         = L"SourceServerConnected";
+
+		// quality
+		const LPCWSTR OPCDX_QUALITY                         = L"DXQuality";
+		const LPCWSTR OPCDX_QUALITY_STATUS                  = L"Quality";
+		const LPCWSTR OPCDX_LIMIT_BITS                      = L"LimitBits";
+		const LPCWSTR OPCDX_VENDOR_BITS                     = L"VendorBits";
+
+		// error
+		const LPCWSTR OPCDX_ERROR                           = L"OPCError";
+		const LPCWSTR OPCDX_ERROR_ID                        = L"ID";
+		const LPCWSTR OPCDX_ERROR_TEXT                      = L"Text";
+
+		// source server url scheme names.
+		const LPCWSTR OPCDX_SOURCE_SERVER_URL_SCHEME_OPCDA  = L"opcda";
+		const LPCWSTR OPCDX_SOURCE_SERVER_URL_SCHEME_XMLDA  = L"http";
+	}
+
+	// possible quality status values.
+	module OPCDX_QualityStatusName
+	{
+		const LPCWSTR OPCDX_QUALITY_BAD                           = L"bad";
+		const LPCWSTR OPCDX_QUALITY_BAD_CONFIG_ERROR              = L"badConfigurationError";
+		const LPCWSTR OPCDX_QUALITY_BAD_NOT_CONNECTED             = L"badNotConnected";
+		const LPCWSTR OPCDX_QUALITY_BAD_DEVICE_FAILURE            = L"badDeviceFailure";
+		const LPCWSTR OPCDX_QUALITY_BAD_SENSOR_FAILURE            = L"badSensorFailure";
+		const LPCWSTR OPCDX_QUALITY_BAD_LAST_KNOWN_VALUE          = L"badLastKnownValue";
+		const LPCWSTR OPCDX_QUALITY_BAD_COMM_FAILURE              = L"badCommFailure";
+		const LPCWSTR OPCDX_QUALITY_BAD_OUT_OF_SERVICE            = L"badOutOfService";
+		const LPCWSTR OPCDX_QUALITY_UNCERTAIN                     = L"uncertain";
+		const LPCWSTR OPCDX_QUALITY_UNCERTAIN_LAST_USABLE_VALUE   = L"uncertainLastUsableValue";
+		const LPCWSTR OPCDX_QUALITY_UNCERTAIN_SENSOR_NOT_ACCURATE = L"uncertainSensorNotAccurate";
+		const LPCWSTR OPCDX_QUALITY_UNCERTAIN_EU_EXCEEDED         = L"uncertainEUExceeded";
+		const LPCWSTR OPCDX_QUALITY_UNCERTAIN_SUB_NORMAL          = L"uncertainSubNormal";
+		const LPCWSTR OPCDX_QUALITY_GOOD                          = L"good";
+		const LPCWSTR OPCDX_QUALITY_GOOD_LOCAL_OVERRIDE           = L"goodLocalOverride";
+	}
+
+	// possible limit status values.
+	module OPCDX_LimitStatusName
+	{
+		const LPCWSTR OPCDX_LIMIT_NONE     = L"none";
+		const LPCWSTR OPCDX_LIMIT_LOW      = L"low";
+		const LPCWSTR OPCDX_LIMIT_HIGH     = L"high";
+		const LPCWSTR OPCDX_LIMIT_CONSTANT = L"constant";
+	}
+
+	// possible source server interface types.
+	module OPCDX_ServerTypeName
+	{
+		const LPCWSTR OPCDX_SERVER_TYPE_COM_DA10  = L"COM-DA1.0";
+		const LPCWSTR OPCDX_SERVER_TYPE_COM_DA204 = L"COM-DA2.04";
+		const LPCWSTR OPCDX_SERVER_TYPE_COM_DA205 = L"COM-DA2.05";
+		const LPCWSTR OPCDX_SERVER_TYPE_COM_DA30  = L"COM-DA3.0";
+		const LPCWSTR OPCDX_SERVER_TYPE_XML_DA10  = L"XML-DA1.0";
+	}
+
+	// possible DX server states.
+	module OPCDX_ServerStateName
+	{
+		const LPCWSTR OPCDX_SERVER_STATE_RUNNING    = L"running";
+		const LPCWSTR OPCDX_SERVER_STATE_FAILED     = L"failed";
+		const LPCWSTR OPCDX_SERVER_STATE_NOCONFIG   = L"noConfig";
+		const LPCWSTR OPCDX_SERVER_STATE_SUSPENDED  = L"suspended";
+		const LPCWSTR OPCDX_SERVER_STATE_TEST       = L"test";
+		const LPCWSTR OPCDX_SERVER_STATE_COMM_FAULT = L"commFault";
+		const LPCWSTR OPCDX_SERVER_STATE_UNKNOWN    = L"unknown";
+	}
+	
+	// possible source server connect states.
+	module OPCDX_ConnectStatusName
+	{
+		const LPCWSTR OPCDX_CONNECT_STATUS_CONNECTED    = L"connected";
+		const LPCWSTR OPCDX_CONNECT_STATUS_DISCONNECTED = L"disconnected";
+		const LPCWSTR OPCDX_CONNECT_STATUS_CONNECTING   = L"connecting";
+		const LPCWSTR OPCDX_CONNECT_STATUS_FAILED       = L"failed";
+	} 
+
+	// possible connection states.
+	module OPCDX_ConnectionStateName
+	{		
+		const LPCWSTR OPCDX_CONNECTION_STATE_INITIALIZING                = L"initializing";
+		const LPCWSTR OPCDX_CONNECTION_STATE_OPERATIONAL                 = L"operational";
+		const LPCWSTR OPCDX_CONNECTION_STATE_DEACTIVATED                 = L"deactivated";
+		const LPCWSTR OPCDX_CONNECTION_STATE_SOURCE_SERVER_NOT_CONNECTED = L"sourceServerNotConnected";
+		const LPCWSTR OPCDX_CONNECTION_STATE_SUBSCRIPTION_FAILED         = L"subscriptionFailed";
+		const LPCWSTR OPCDX_CONNECTION_STATE_TARGET_ITEM_NOT_FOUND       = L"targetItemNotFound";
+	} 
+
+	// source server type enumeration.
+	typedef enum tagOpcDxServerType
+	{
+		OpcDxServerType_COM_DA10  = 1,
+		OpcDxServerType_COM_DA204,
+		OpcDxServerType_COM_DA205,
+		OpcDxServerType_COM_DA30,
+		OpcDxServerType_XML_DA10
+	}
+	OpcDxServerType;
+
+	// source server state enumeration - intentionally compatible with OPCSERVERSTATE.
+	typedef enum tagOpcDxServerState 
+	{ 
+		OpcDxServerState_RUNNING = 1, 
+		OpcDxServerState_FAILED, 
+		OpcDxServerState_NOCONFIG, 
+		OpcDxServerState_SUSPENDED, 
+		OpcDxServerState_TEST,
+		OpcDxServerState_COMM_FAULT,
+		OpcDxServerState_UNKNOWN
+	} 
+	OpcDxServerState;
+
+	// connection state enumeration.
+	typedef enum tagOpcDxConnectionState
+	{
+		OpcDxConnectionState_INITIALIZING = 1,
+		OpcDxConnectionState_OPERATIONAL,
+		OpcDxConnectionState_DEACTIVATED,
+		OpcDxConnectionState_SOURCE_SERVER_NOT_CONNECTED,
+		OpcDxConnectionState_SUBSCRIPTION_FAILED,
+		OpcDxConnectionState_TARGET_ITEM_NOT_FOUND
+	}
+	OpcDxConnectionState;
+
+	// source server connect status enumeration.
+	typedef enum tagOpcDxConnectStatus
+	{
+		OpcDxConnectStatus_CONNECTED = 1,
+		OpcDxConnectStatus_DISCONNECTED,
+		OpcDxConnectStatus_CONNECTING,
+		OpcDxConnectStatus_FAILED
+	}
+	OpcDxConnectStatus;
+
+	// bit masks for optional fields in source server or connection structures.
+    typedef enum tagOpcDxMask
+    {
+		OpcDxMask_None                         = 0x0,
+		OpcDxMask_ItemPath                     = 0x1,
+		OpcDxMask_ItemName                     = 0x2,
+		OpcDxMask_Version                      = 0x4,
+		OpcDxMask_BrowsePaths                  = 0x8,
+		OpcDxMask_Name                         = 0x10,
+		OpcDxMask_Description                  = 0x20,
+		OpcDxMask_Keyword                      = 0x40,
+		OpcDxMask_DefaultSourceItemConnected   = 0x80,
+		OpcDxMask_DefaultTargetItemConnected   = 0x100,
+		OpcDxMask_DefaultOverridden            = 0x200,
+		OpcDxMask_DefaultOverrideValue         = 0x400,
+		OpcDxMask_SubstituteValue              = 0x800,
+		OpcDxMask_EnableSubstituteValue        = 0x1000,
+		OpcDxMask_TargetItemPath               = 0x2000,
+		OpcDxMask_TargetItemName               = 0x4000,
+		OpcDxMask_SourceServerName             = 0x8000,
+		OpcDxMask_SourceItemPath               = 0x10000,
+		OpcDxMask_SourceItemName               = 0x20000,
+		OpcDxMask_SourceItemQueueSize          = 0x40000,
+		OpcDxMask_UpdateRate                   = 0x80000,
+		OpcDxMask_DeadBand                     = 0x100000,
+		OpcDxMask_VendorData                   = 0x200000,
+		OpcDxMask_ServerType                   = 0x400000,
+		OpcDxMask_ServerURL                    = 0x800000,
+		OpcDxMask_DefaultSourceServerConnected = 0x1000000,
+        OpcDxMask_All                          = 0x7FFFFFFF
+    }
+    OpcDxMask;
+};

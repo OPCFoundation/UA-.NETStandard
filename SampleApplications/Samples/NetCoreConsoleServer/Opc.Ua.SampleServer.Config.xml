@@ -185,7 +185,7 @@
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
-    <!-- <TraceMasks>515</TraceMasks> -->
+    <!-- <TraceMasks>513</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
     <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->

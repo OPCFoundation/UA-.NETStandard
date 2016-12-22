@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<s0:InstalledApplication
+  xmlns:s0="http://opcfoundation.org/UA/SDK/Installation.xsd"
+  xmlns:s1="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  xmlns="http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+
+  <ApplicationName>UA COM Server Wrapper</ApplicationName>
+  <ApplicationUri></ApplicationUri>
+  <ApplicationType>Server_0</ApplicationType>
+  <ConfigurationFile>Opc.Ua.ComServerWrapper.Config.xml</ConfigurationFile>
+
+  <BaseAddresses>
+    <BaseAddress>opc.tcp://localhost:48400/UA/ComServerWrapper</BaseAddress>
+    <BaseAddress>http://localhost:48401/UA/ComServerWrapper</BaseAddress>
+  </BaseAddresses>
+  
+  <s0:DeleteCertificatesOnUninstall>true</s0:DeleteCertificatesOnUninstall>
+  <s0:ConfigureFirewall>true</s0:ConfigureFirewall>
+  <s0:SetConfigurationFilePermisions>true</s0:SetConfigurationFilePermisions>
+  <s0:SetExecutableFilePermisions>true</s0:SetExecutableFilePermisions>
+  <s0:InstallAsService>true</s0:InstallAsService>
+  <s0:ServiceStartMode>Auto</s0:ServiceStartMode>
+  <s0:ServiceDescription>A UA Server which wraps OPC COM Servers (DA, AE or HDA).</s0:ServiceDescription>
+  
+  <s0:TraceConfiguration>
+    <s1:OutputFilePath>Logs\Opc.Ua.ComServerWrapper.InstallLog.txt</s1:OutputFilePath>
+    <s1:DeleteOnLoad>true</s1:DeleteOnLoad>
+    <s1:TraceMasks>2047</s1:TraceMasks>
+  </s0:TraceConfiguration>
+  
+</s0:InstalledApplication>
