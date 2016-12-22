@@ -234,9 +234,9 @@ _Pvt_Extensions
 # FAKE - F# Make
 .fake/
 
-# OPC UA Sample app certificate stores
+# OPC UA Sample app certificate stores and logs
 OPC\ Foundation/
 *.der
 *.pfx
-/UA-NetStandard.VC.db
+*.VC.db
 *.log.txt
