@@ -444,6 +444,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Maps a special folder to environment variable with folder path.
+        /// </summary>
+        private static string ReplaceSpecialFolderWithEnvVar(string input)
+        {
+            switch (input)
+            {
+                case "CommonApplicationData": return "ProgramData";
+            }
+
+            return input;
+        }
+
+        /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
@@ -483,6 +496,8 @@ namespace Opc.Ua
                 folder = input.Substring(1, index-1);
                 path = input.Substring(index+1);
             }
+
+            folder = ReplaceSpecialFolderWithEnvVar(folder);
 
             StringBuilder buffer = new StringBuilder();
 
