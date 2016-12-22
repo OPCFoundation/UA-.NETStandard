@@ -35,6 +35,7 @@ using System.ServiceProcess;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Com.Client
 {
@@ -49,41 +50,39 @@ namespace Opc.Ua.Com.Client
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            Task.Run(async () => await AsyncMain()).Wait();
+
+        }
+
+        /// <summary>
+        /// The async main entry point for the application.
+        /// </summary>
+        static async Task AsyncMain()
+        {
+
             ApplicationInstance application = new ApplicationInstance();
-            application.ApplicationName   = "UA COM Server Wrapper";
-            application.ApplicationType   = ApplicationType.Server;
+            application.ApplicationName = "UA COM Server Wrapper";
+            application.ApplicationType = ApplicationType.Server;
             application.ConfigSectionName = "Opc.Ua.ComServerWrapper";
 
             try
             {
-                // process and command line arguments.
-                if (application.ProcessCommandLine())
-                {
-                    return;
-                }
-
-                // check if running as a service.
-                if (!Environment.UserInteractive)
-                {
-                    application.StartAsService(new ComWrapperServer());
-                    return;
-                }
 
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                await application.LoadApplicationConfiguration(false);
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                await application.CheckApplicationInstanceCertificate(false, 0);
 
                 // start the server.
-                application.Start(new ComWrapperServer());
+                await application.Start(new ComWrapperServer());
 
                 // run the application interactively.
                 Application.Run(new ServerForm(application));
             }
             catch (Exception e)
             {
-                ExceptionDlg.Show(application.ApplicationName, e);
+                Utils.Trace("App {0} failed to start with exception {1}.", application.ApplicationName, e.Message);
                 return;
             }
         }

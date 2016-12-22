@@ -35,6 +35,7 @@ using System.Xml;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Client;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Com
 {
@@ -245,7 +246,7 @@ namespace Opc.Ua.Com
         /// Creates a session with the server.
         /// </summary>
         /// <param name="state">The state.</param>
-        private void OnCreateSession(object state)
+        private async void OnCreateSession(object state)
         {
             // check if nothing to do.
             lock (m_lock)
@@ -266,7 +267,7 @@ namespace Opc.Ua.Com
             // create the session.
             try
             {
-                Session session = Connect(m_clsid);
+                Session session = await Connect(m_clsid);
                 session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
 
                 lock (m_lock)
@@ -419,7 +420,7 @@ namespace Opc.Ua.Com
         /// </summary>
         /// <param name="clsid">The CLSID.</param>
         /// <returns>The UA server.</returns>
-        private Session Connect(Guid clsid)
+        private async Task<Session> Connect(Guid clsid)
         {
             // load the endpoint information.
             ConfiguredEndpoint endpoint = m_endpoint = LoadConfiguredEndpoint(clsid);
@@ -432,7 +433,7 @@ namespace Opc.Ua.Com
             // update security information.
             if (endpoint.UpdateBeforeConnect)
             {
-                endpoint.UpdateFromServer(BindingFactory.Default);
+                endpoint.UpdateFromServer();
 
                 // check if halted while waiting for a response.
                 if (!m_running)
@@ -442,7 +443,7 @@ namespace Opc.Ua.Com
             }
 
             // look up the client certificate.
-            X509Certificate2 clientCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+            X509Certificate2 clientCertificate = await m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
 
             // create a message context to use with the channel.
             ServiceMessageContext messageContext = m_configuration.CreateMessageContext();
@@ -457,7 +458,7 @@ namespace Opc.Ua.Com
 
             // create the session.
             Session session = new Session(channel, m_configuration, endpoint, clientCertificate);
-            
+
             // create a session name that is useful for debugging.
             string sessionName = Utils.Format("COM Client (Host={0}, CLSID={1})", System.Net.Dns.GetHostName(), clsid);
 

@@ -240,3 +240,7 @@ OPC\ Foundation/
 *.pfx
 *.VC.db
 *.log.txt
+
+# exclude/include generated files for OPC UA ComIOP wrapper
+!opc*_i.c
+

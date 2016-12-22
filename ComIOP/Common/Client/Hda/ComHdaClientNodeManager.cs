@@ -1263,7 +1263,7 @@ namespace Opc.Ua.Com.Client
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Com.Common.Opc.Ua.Com.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Com.Common.Opc.Ua.Com.PredefinedNodes.uanodes", Assembly.GetAssembly(this.GetType()), true);
             return predefinedNodes;
         }
 

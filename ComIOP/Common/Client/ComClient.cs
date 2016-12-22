@@ -184,11 +184,11 @@ namespace Opc.Ua.Com.Client
 
                         if (identity != null && identity.TokenType == UserTokenType.UserName)
                         {
-                            UserNameSecurityToken securityToken = identity.GetSecurityToken() as UserNameSecurityToken;
+                            UserNameIdentityToken identityToken = identity.GetIdentityToken() as UserNameIdentityToken;
 
-                            if (securityToken != null)
+                            if (identityToken != null)
                             {
-                                server.Logon(securityToken.UserName, securityToken.Password);
+                                server.Logon(identityToken.UserName, identityToken.Password.ToString());
                                 logoff = false;
                             }
                         }

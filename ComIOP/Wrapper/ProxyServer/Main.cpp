@@ -61,8 +61,9 @@ public:
 		descriptions->AddRange(s_SupportedArguments);
 		return descriptions->ToArray();
     }
-        
-	virtual bool ProcessCommand(bool silent, Dictionary<String^, String^>^ args) override
+
+#if TODO implement ProcessCommand in ApplicationInstance
+	virtual bool ProcessCommand(bool silent, Dictionary<String^, String^>^ args) override 
 	{
 		if (args->ContainsKey("/import"))
 		{
@@ -101,6 +102,7 @@ public:
 
 		return ApplicationInstance::ProcessCommand(silent, args);
 	}
+#endif
 
 private:
 
@@ -176,10 +178,14 @@ int main(array<System::String ^>^ args)
 
     try
     {	
+#if TODO implement ProcessCommandLine in ApplicationInstance
         if (application->ProcessCommandLine(true))
         {
             return 0;
         }
+#else
+        throw gcnew Exception("ProcessCommandLine is not implemented");
+#endif
     }
     catch (Exception^ e)
     {

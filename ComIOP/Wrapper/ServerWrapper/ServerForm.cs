@@ -53,7 +53,7 @@ namespace Opc.Ua.Com.Client
         public ServerForm()
         {
             InitializeComponent();
-            this.Icon = ConfigUtils.GetAppIcon();
+            this.Icon = GetAppIcon();
         }
         
         /// <summary>
@@ -62,7 +62,7 @@ namespace Opc.Ua.Com.Client
         public ServerForm(ApplicationInstance application)
         {
             InitializeComponent();
-            this.Icon = ConfigUtils.GetAppIcon();
+            this.Icon = GetAppIcon();
 
             m_application = application;
 

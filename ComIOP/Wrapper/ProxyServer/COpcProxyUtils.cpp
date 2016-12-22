@@ -32,6 +32,7 @@
 #include "COpcEnumString.h"
 #include ".\Hda\COpcHdaTime.h"
 
+
 using namespace System;
 using namespace System::Text;
 using namespace System::Runtime::InteropServices;
@@ -94,67 +95,8 @@ void COpcUaProxyUtils::TraceState(String^ source, String^ context, ... array<Obj
 // CheckApplicationInstanceCertificate
 void COpcUaProxyUtils::CheckApplicationInstanceCertificate(ApplicationConfiguration^ configuration)
 {
-    // create a default certificate id none specified.
-    CertificateIdentifier^ id = configuration->SecurityConfiguration->ApplicationCertificate;
-
-    if (id == nullptr)
-    {
-        id = gcnew CertificateIdentifier();
-        id->StoreType = Utils::DefaultStoreType;
-        id->StorePath = Utils::DefaultStorePath;
-        id->SubjectName = configuration->ApplicationName;
-    }
-
-    // check for certificate with a private key.
-    X509Certificate2^ certificate = id->Find(true);
-
-    if (certificate != nullptr)
-    {
-        return;
-    }
-
-    // construct the subject name from the 
-    List<String^>^ hostNames = gcnew List<String^>();
-    hostNames->Add(System::Net::Dns::GetHostName());
-
-	String^ commonName = Opc::Ua::Utils::Format("CN={0}", configuration->ApplicationName);
-    String^ domainName = Opc::Ua::Utils::Format("DC={0}", hostNames[0]);
-    String^ subjectName = Opc::Ua::Utils::Format("{0}, {1}", commonName, domainName);
-
-    // create a new certificate with a new public key pair.
-	certificate = CertificateFactory::CreateCertificate(
-        id->StoreType,
-        id->StorePath,
-        configuration->ApplicationUri,
-        configuration->ApplicationName,
-        subjectName,
-        hostNames,
-        1024,
-        120);
-
-    // update and save the configuration file.
-    id->Certificate = certificate;
-    configuration->SaveToFile(configuration->SourceFilePath);
-
-    // add certificate to the trusted peer store so other applications will trust it.
-	ICertificateStore^ store = configuration->SecurityConfiguration->TrustedPeerCertificates->OpenStore();
-
-    try
-    {
-        X509Certificate2^ certificate2 = store->FindByThumbprint(certificate->Thumbprint);
-
-        if (certificate2 == nullptr)
-        {
-            store->Add(certificate);
-        }
-    }
-    finally
-    {
-        store->Close();
-    }
-
-    // tell the certificate validator about the new certificate.
-    configuration->CertificateValidator->Update(configuration->SecurityConfiguration);
+    // call the synchronous version of this function in C#
+    Opc::Ua::Com::ProxyUtils::CheckApplicationInstanceCertificate(configuration);
 }
 
 static void OnCertificateValidationFailed(CertificateValidator^ sender, CertificateValidationEventArgs^ e)
@@ -176,7 +118,7 @@ bool COpcUaProxyUtils::Initialize(ApplicationConfiguration^% configuration)
 
 		if (g_hConfiguration == 0)
 		{
-			configuration = ApplicationConfiguration::Load("Opc.Ua.ComProxyServer", Opc::Ua::ApplicationType::Client);
+			configuration = Opc::Ua::Com::ProxyUtils::ApplicationConfigurationLoad("Opc.Ua.ComProxyServer", Opc::Ua::ApplicationType::Client);
 			CheckApplicationInstanceCertificate(configuration);
 			configuration->CertificateValidator->CertificateValidation += gcnew Opc::Ua::CertificateValidationEventHandler(&OnCertificateValidationFailed);
 			GCHandle hConfiguration = GCHandle::Alloc(configuration);

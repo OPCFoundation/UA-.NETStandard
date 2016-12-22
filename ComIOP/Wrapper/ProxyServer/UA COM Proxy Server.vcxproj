@@ -30,7 +30,8 @@
     <CLRSupport>true</CLRSupport>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -70,6 +71,8 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -102,6 +105,8 @@ rem echo Registered Server at "$(TargetPath)"
       <PrecompiledHeader>Create</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -120,17 +125,6 @@ rem echo Registered Server at "$(TargetPath)"
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <Reference Include="System">
-      <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.1\System.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms">
-      <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.1\System.Windows.Forms.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Xml">
-      <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.1\System.XML.dll</HintPath>
-    </Reference>
-  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Ae\COpcEnumStringWrapper.cpp" />
     <ClCompile Include="Ae\COpcUaAe2ProxyBrowser.cpp" />
@@ -208,24 +202,30 @@ rem echo Registered Server at "$(TargetPath)"
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\SampleApplications\SampleLibraries\Client\UA Client Library.csproj">
-      <Project>{42e9198c-ed2c-4bc8-b0a1-55d91d8f1e90}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\SampleApplications\SampleLibraries\Configuration\UA Configuration Library.csproj">
-      <Project>{8ab4cb8e-e216-425d-b600-350d0b6b59cd}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\SampleApplications\SampleLibraries\Server\UA Server Library.csproj">
-      <Project>{e16f908b-c338-4b0c-9e72-2adad8fb98d5}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Stack\Core\UA Core Library.csproj">
-      <Project>{7543afcb-f5af-44af-83c9-23164474c1e9}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\Common\UA COM Interop Library.csproj">
       <Project>{24d3c616-ed4c-4af9-b529-7b418ec8acc4}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Common\OPC Sample Utility Classes.vcxproj">
       <Project>{268ae545-d614-4b66-aef3-c5b85919ad9d}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Opc.Ua.Client">
+      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Configuration">
+      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Core">
+      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Server">
+      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Net" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

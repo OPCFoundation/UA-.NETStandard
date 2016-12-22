@@ -18,24 +18,28 @@
       <SubjectName>UA COM Server Wrapper</SubjectName>
     </ApplicationCertificate>
 
-    <!-- Where the trust list is stored (UA Applications) -->
-    <TrustedPeerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
-    </TrustedPeerCertificates>
-
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
 
+    <!-- Where the trust list is stored (UA Applications) -->
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
+    </TrustedPeerCertificates>
+
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
+
+    <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
+    for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
+  
   </SecurityConfiguration>
   
   <TransportConfigurations />
@@ -52,33 +56,73 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:48400/UA/ComServerWrapper</ua:String>
-      <ua:String>http://localhost:48401/UA/ComServerWrapper</ua:String>
+      <!-- <ua:String>http://localhost:48401/UA/ComServerWrapper</ua:String> -->
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
+        <SecurityLevel>4</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityLevel>1</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityLevel>5</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>3</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>6</SecurityLevel>
+      </ServerSecurityPolicy>
     </SecurityPolicies>
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
+    
+    <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
+      <!-- Allows anonymous users -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
+
+      <!-- Allows username/password -->
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
+        <!-- passwords must be encrypted - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
-    </UserTokenPolicies>
+
+      <!-- Allows user certificates -->
+      <ua:UserTokenPolicy>
+        <ua:TokenType>Certificate_2</ua:TokenType>
+        <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+     </UserTokenPolicies>
     
-    <DiagnosticsEnabled>false</DiagnosticsEnabled>
+    <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
@@ -95,8 +139,28 @@
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
     <AvailableSamplingRates />
+    
+    <RegistrationEndpoint>
+      <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+      <ua:Server>
+        <ua:ApplicationUri>opc.tcp://localhost:4840</ua:ApplicationUri>
+        <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
+        <ua:DiscoveryUrls>
+          <ua:String>opc.tcp://localhost:4840</ua:String>
+        </ua:DiscoveryUrls>
+      </ua:Server>
+      <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+      <ua:SecurityPolicyUri />
+      <ua:UserIdentityTokens />
+      <ua:SecurityLevel>1</ua:SecurityLevel>
+    </RegistrationEndpoint>
+    
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
     <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
+    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <MaxPublishRequestCount>20</MaxPublishRequestCount>
+    <MaxSubscriptionCount>100</MaxSubscriptionCount>
+    <MaxEventQueueSize>10000</MaxEventQueueSize>
   </ServerConfiguration>
 
   <Extensions>
@@ -146,7 +210,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Opc.Ua.ComServerWrapper.log.txt</OutputFilePath>
+    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Opc.Ua.ComServerWrapper.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

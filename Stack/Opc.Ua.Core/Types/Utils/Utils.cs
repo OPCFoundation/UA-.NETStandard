@@ -73,16 +73,22 @@ namespace Opc.Ua
         public const string DefaultStoreType = CertificateStoreType.Directory;
 
         /// <summary>
+        /// The path to the default certificate store.
+        /// </summary>
+        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/CertificateStores/MachineDefault";
+
+        /// <summary>
         /// The default LocalFolder.
         /// </summary>
         public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+
         #endregion
 
         #region Trace Support
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
-        #else
+#else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
@@ -442,6 +448,7 @@ namespace Opc.Ua
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
+
             // nothing to do for nulls.
             if (String.IsNullOrEmpty(input))
             {

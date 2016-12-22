@@ -19,7 +19,7 @@
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <IsWebBootstrapper>true</IsWebBootstrapper>
-    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <PublishUrl>http://localhost/Opc.Ua.ComInterop/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
@@ -62,6 +62,22 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Opc.Ua.Client, Version=1.3.340.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Configuration, Version=1.3.340.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Core, Version=1.3.340.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Server, Version=1.3.340.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Core">
@@ -170,6 +186,8 @@
     <Compile Include="Common\Specification.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Common\UserNameCreator.cs" />
+    <Compile Include="Proxy\OpcProxyUtils.cs" />
     <Compile Include="Rcw\AlarmsAndEvents.cs" />
     <Compile Include="Rcw\Common.cs" />
     <Compile Include="Rcw\Security.cs" />
@@ -218,7 +236,6 @@
   <ItemGroup>
     <Content Include="Common\BuildDesign.bat" />
     <Content Include="Common\ModelDesign.csv" />
-    <Content Include="Opc.Ua.Client.dll" />
     <EmbeddedResource Include="Common\Opc.Ua.Com.PredefinedNodes.uanodes" />
   </ItemGroup>
   <ItemGroup>
@@ -253,24 +270,6 @@
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SampleApplications\SampleLibraries\Client\UA Client Library.csproj">
-      <Project>{42e9198c-ed2c-4bc8-b0a1-55d91d8f1e90}</Project>
-      <Name>UA Client Library</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SampleApplications\SampleLibraries\Configuration\UA Configuration Library.csproj">
-      <Project>{8ab4cb8e-e216-425d-b600-350d0b6b59cd}</Project>
-      <Name>UA Configuration Library</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SampleApplications\SampleLibraries\Server\UA Server Library.csproj">
-      <Project>{e16f908b-c338-4b0c-9e72-2adad8fb98d5}</Project>
-      <Name>UA Server Library</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Stack\Core\UA Core Library.csproj">
-      <Project>{7543afcb-f5af-44af-83c9-23164474c1e9}</Project>
-      <Name>UA Core Library</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
