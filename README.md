@@ -22,13 +22,17 @@ All the tools you need for .Net Standard come with the .Net Core tools. See [her
 All required application certificates for OPC UA are created at the first start of each application in a directory store and remain in use until deleted from the store.
 
 ###Windows .Net applications
-By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the release folder where the executable is started. E.g. a debug build would start in **bin\Debug** relative to the project folder.
+By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in a root folder which is specified by the environment variable **ProgramData**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
+Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandardLibrary, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandardLibrary repository. 
 
 ###Windows UWP applications
 By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate store.
 
 ###.Net Standard console applications on Windows, Linux, iOS etc.
 The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+
+##Local discovery server
+By default all sample applications are configured to register with a local discovery server (LDS). A reference implementation of a LDS for Windows can be downloaded from [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
 
 ##How to build and run the samples in Visual Studio on Windows
 
