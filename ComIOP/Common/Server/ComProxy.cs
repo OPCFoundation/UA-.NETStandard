@@ -614,7 +614,7 @@ namespace Opc.Ua.Com.Server
             // update security information.
             if (endpoint.UpdateBeforeConnect)
             {
-                endpoint.UpdateFromServer(/* TODOBindingFactory.Default*/);
+                endpoint.UpdateFromServer();
 
                 // check if halted while waiting for a response.
                 if (!m_running)
