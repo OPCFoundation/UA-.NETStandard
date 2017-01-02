@@ -62,7 +62,7 @@ public:
 		return descriptions->ToArray();
     }
 
-#if TODO implement ProcessCommand in ApplicationInstance
+#if TODO //implement ProcessCommand in ApplicationInstance
 	virtual bool ProcessCommand(bool silent, Dictionary<String^, String^>^ args) override 
 	{
 		if (args->ContainsKey("/import"))
@@ -178,7 +178,7 @@ int main(array<System::String ^>^ args)
 
     try
     {	
-#if TODO implement ProcessCommandLine in ApplicationInstance
+#if TODO // implement ProcessCommandLine in ApplicationInstance
         if (application->ProcessCommandLine(true))
         {
             return 0;
