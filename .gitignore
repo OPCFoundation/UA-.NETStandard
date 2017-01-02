@@ -244,3 +244,5 @@ OPC\ Foundation/
 # exclude/include generated files for OPC UA ComIOP wrapper
 !opc*_i.c
 
+/ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer.h
+/ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer_i.c

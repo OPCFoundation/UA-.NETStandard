@@ -170,7 +170,6 @@ rem echo Registered Server at "$(TargetPath)"
     <ClInclude Include="Hda\COpcUaHdaProxyBrowser.h" />
     <ClInclude Include="Hda\COpcUaHdaProxyDataCallback.h" />
     <ClInclude Include="Hda\COpcUaHdaProxyServer.h" />
-    <ClInclude Include="OpcUaComProxyServer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StdAfx.h" />
   </ItemGroup>
