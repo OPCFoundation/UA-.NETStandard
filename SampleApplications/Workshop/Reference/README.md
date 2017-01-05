@@ -2,7 +2,6 @@
 
 ## Introduction
 This OPC Server is designed to be default OPC UA Server when opening the [OPC UA Compliance Test Tool](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/) and uses an address-space that matches the design of the UACTT. 
-Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 
 It is built with the Quickstart application template (OPC Server) and uses the OPC Foundation UA .NET Standard Library SDK. Therefore it supports the opc.tcp and http transports. There is a .Net 4.6 based server with UI and a console version of the server which runs on any OS supporting [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
 
@@ -42,6 +41,8 @@ Copy the certificates for testing with the UACTT to the following stores:
 
 ## UACTT Testing
 Download and install the [OPC UA Compliance Test Tool](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/). 
+
+Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 
 ### UACTT sample configuration
 A sample configuration for the UACTT Version 1.02.336.244 can be found in [UAReferenceServer.ctt.xml](UAReferenceServer.ctt.xml). The reference server is tested against the **Standard UA Server** profile. It is recommended to run the server as retail build with disabled logging, to avoid side effects due to timing artifacts when log entries are written to a disk drive. 

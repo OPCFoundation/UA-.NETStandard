@@ -1,8 +1,11 @@
 # OPC Foundation UA .Net Standard Library Aggregation Client and Server
 
 ## Introduction
-This OPC aggregation server is by default configured to aggregate the `UA Sample Server` and `UA Sample Client`. Once the `Aggregation Server` is started, the aggregated OPC UA servers can be viewed in the namespace of the `Aggregation Server` with the `Aggregation Client` or any other OPC UA client.
-They are built with the Quickstart application template (OPC Client/Server) and use the OPC Foundation UA .NET Standard Library SDK. Therefore they support the opc.tcp and http transports. There is a .Net 4.6 based aggregation server with UI and a console version of the aggregation server which runs on any supported OS for [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
+This OPC aggregation server is by default configured to aggregate the **UA Sample Server** and **UA Sample Client**. Once the **Aggregation Server** is started, the aggregated OPC UA servers can be viewed in the namespace of the **Aggregation Server** with the **Aggregation Client** or any other OPC UA client.
+
+They are built with the Quickstart application template (OPC Client/Server) and use the OPC Foundation UA .NET Standard Library SDK. Therefore they support the opc.tcp and http transports. 
+
+There is a .Net 4.6 based aggregation server with UI and a console version of the aggregation server which runs on any supported OS for [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
 
 ## How to build and run the OPC UA Aggregation Server
 

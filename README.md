@@ -18,6 +18,7 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
 <a name="certificates"/>
+
 ## Self signed certificates for the sample applications
 
 All required application certificates for OPC UA are created at the first start of each application in a directory store and remain in use until deleted from the store.
@@ -29,11 +30,11 @@ Note: Since the sample applications in the UA-.Net repository use the same stora
 ### Windows UWP applications
 By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate store.
 
-### .Net Standard console applications on Windows, Linux, iOS etc.
+### .Net Standard Console applications on Windows, Linux, iOS etc.
 The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
 
-## Local discovery server
-By default all sample applications are configured to register with a local discovery server (LDS). A reference implementation of a LDS for Windows can be downloaded from [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
+## Local Discovery Server
+By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded from [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
 
 ## How to build and run the samples in Visual Studio on Windows
 
@@ -61,13 +62,13 @@ Please follow instructions in this [article](https://docs.microsoft.com/en-us/do
 4. On first connection, or after certificates were renewed, the server may have refused the client certificate. Check the server and client folder **OPC Foundation\CertificateStores\RejectedCertificates** for rejected certificates. To approve a certificate copy it to the **OPC Foundation\CertificateStores\UA Applications** folder.
 5. Retry step 3 to connect using a secure connection.
 
-## How to build and run the OPC UA COM server wrapper
+## How to build and run the OPC UA COM Server Wrapper
 - Please refer to the OPC Foundation UA .Net Standard Library [COM Server Wrapper](ComIOP/README.md) for a detailed description how to run the OPC COM wrapper.
 
-## How to build and run the OPC UA Aggregation client and server
+## How to build and run the OPC UA Aggregation Client and Server
 - Please refer to the OPC Foundation UA .Net Standard Library [Aggregation Client and Server](SampleApplications/Workshop/Aggregation/README.md) for a detailed description how to run the aggregation client and server.
 
-## How to build and run the OPC UA Reference server with UACTT
+## How to build and run the OPC UA Reference Server with UACTT
 - Please refer to the OPC Foundation UA .Net Standard Library [Reference Server](SampleApplications/Workshop/Reference/README.md) for a detailed description how to run the reference server against the UACTT.
 
 ## How to build and run the OPC UA Web Telemetry sample
