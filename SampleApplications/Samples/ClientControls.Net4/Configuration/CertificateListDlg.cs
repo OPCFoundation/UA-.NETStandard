@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Controls
                 CertificateStoreIdentifier store = new CertificateStoreIdentifier();
                 store.StoreType = CertificateStoreCTRL.StoreType;
                 store.StorePath = CertificateStoreCTRL.StorePath;
-                Task.Run( async () => await CertificatesCTRL.Initialize(store, null)).Wait();
+                CertificatesCTRL.Initialize(store, null).Wait();
 
                 FilterBTN_Click(sender, e);
             }

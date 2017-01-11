@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Controls
 
             if (m_certificateListCtrl != null)
             {
-                Task.Run( async () => await m_certificateListCtrl.Initialize(SelectedStore, null)).Wait();
+                m_certificateListCtrl.Initialize(SelectedStore, null).Wait();
             }
         }
 

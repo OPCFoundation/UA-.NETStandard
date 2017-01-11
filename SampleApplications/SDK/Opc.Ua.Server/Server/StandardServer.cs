@@ -2245,28 +2245,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            Task t = Task.Run(async () =>
+            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName()).Result;
+
+            foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
             {
-                System.Net.IPAddress[] targetAddresses = await Utils.GetHostAddresses(Utils.GetHostName());
+                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain).Result;
 
-                foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
+                foreach (System.Net.IPAddress actualAddress in actualAddresses)
                 {
-                    System.Net.IPAddress[] actualAddresses = await Utils.GetHostAddresses(domain);
-
-                    foreach (System.Net.IPAddress actualAddress in actualAddresses)
+                    foreach (System.Net.IPAddress targetAddress in targetAddresses)
                     {
-                        foreach (System.Net.IPAddress targetAddress in targetAddresses)
+                        if (targetAddress.Equals(actualAddress))
                         {
-                            if (targetAddress.Equals(actualAddress))
-                            {
-                                e.Accept = true;
-                                return;
-                            }
+                            e.Accept = true;
+                            return;
                         }
                     }
                 }
-            });
-            t.Wait();
+            }
         }
 
         /// <summary>
@@ -2608,10 +2604,7 @@ namespace Opc.Ua.Server
                 Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration.SecurityConfiguration.TrustedPeerCertificates;
                 Configuration.SecurityConfiguration.RejectedCertificateStore = configuration.SecurityConfiguration.RejectedCertificateStore;
 
-                Task.Run(async () =>
-                {
-                    await Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration);
-                }).Wait();
+                Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration).Wait();
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration;
@@ -2907,7 +2900,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    Task.Run(async () => await RegisterWithDiscoveryServer()).Wait();
+                    RegisterWithDiscoveryServer().Wait();
                 }
 
                 lock (m_lock)

@@ -1152,18 +1152,15 @@ namespace AggregationServer
 
             try
             {
-                Task.Run(async () =>
-                    {
-                        session = await Opc.Ua.Client.Session.Create(
-                            m_configuration,
-                            m_endpoint,
-                            (context == null),
-                            sessionName,
-                            60000,
-                            userIdentity,
-                            preferredLocales);
-                    }
-                ).Wait();
+                
+                session = Opc.Ua.Client.Session.Create(
+                    m_configuration,
+                    m_endpoint,
+                    (context == null),
+                    sessionName,
+                    60000,
+                    userIdentity,
+                    preferredLocales).Result;
 
                 m_clients.Add(sessionId, session);
 

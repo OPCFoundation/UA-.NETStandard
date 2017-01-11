@@ -54,10 +54,10 @@ namespace AggregationClient
             try
             {
                 // load the application configuration.
-                Task.Run( async () => await application.LoadApplicationConfiguration(false)).Wait();
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                Task.Run( async () => await application.CheckApplicationInstanceCertificate(false, 0)).Wait();
+                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // run the application interactively.
                 Application.Run(new MainForm(application.ApplicationConfiguration));

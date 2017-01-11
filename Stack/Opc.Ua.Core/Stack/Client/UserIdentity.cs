@@ -62,9 +62,7 @@ namespace Opc.Ua
         {
             if (certificateId == null) throw new ArgumentNullException("certificateId");
 
-            Task<X509Certificate2> task = certificateId.Find();
-            task.Wait();
-            X509Certificate2 certificate = task.Result;
+            X509Certificate2 certificate = certificateId.Find().Result;
             if (certificate != null)
             {
                 Initialize(certificate);
