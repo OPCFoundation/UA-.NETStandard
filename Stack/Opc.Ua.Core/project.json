@@ -39,8 +39,10 @@
       "includeFiles": [
         "Stack/Generated/Opc.Ua.PredefinedNodes.uanodes",
         "Types/Utils/LocalizedData.txt"
-      ] 
+      ]
     }
-  }
+  },
+
+  "debugType": "portable"
 
 }

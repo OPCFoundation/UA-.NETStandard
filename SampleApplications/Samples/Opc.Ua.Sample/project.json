@@ -13,6 +13,8 @@
     "uap10.0": {}
   },
 
+  "debugType": "portable",
+
   "buildOptions": {
     "embed": {
       "includeFiles": [
