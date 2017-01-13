@@ -57,8 +57,7 @@ namespace Opc.Ua.Com
             }
 
             // check for certificate with a private key.
-            X509Certificate2 certificate = null;
-            Task.Run(async () => certificate = await id.Find(true)).Wait();
+            X509Certificate2 certificate = id.Find(true).Result;
 
             if (certificate != null)
             {
@@ -94,15 +93,11 @@ namespace Opc.Ua.Com
 
             try
             {
-                Task.Run(async () =>
+                    X509Certificate2Collection certificateCollection = store.FindByThumbprint(certificate.Thumbprint).Result;
+                    if (certificateCollection != null)
                     {
-                        X509Certificate2Collection certificateCollection = await store.FindByThumbprint(certificate.Thumbprint);
-                        if (certificateCollection != null)
-                        {
-                            await store.Add(certificateCollection[0]);
-                        }
+                        store.Add(certificateCollection[0]).Wait();
                     }
-                ).Wait();
             }
             finally
             {
@@ -120,7 +115,7 @@ namespace Opc.Ua.Com
         public static ApplicationConfiguration ApplicationConfigurationLoad(string sectionName, ApplicationType applicationType)
         {
             ApplicationConfiguration config = null;
-            Task.Run(async () => config = await ApplicationConfiguration.Load(sectionName, applicationType)).Wait();
+            config = ApplicationConfiguration.Load(sectionName, applicationType).Result;
             return config;
         }
 

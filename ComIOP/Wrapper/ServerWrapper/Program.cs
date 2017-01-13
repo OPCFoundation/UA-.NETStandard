@@ -50,8 +50,7 @@ namespace Opc.Ua.Com.Client
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Task.Run(async () => await AsyncMain()).Wait();
-
+            AsyncMain().Wait();
         }
 
         /// <summary>

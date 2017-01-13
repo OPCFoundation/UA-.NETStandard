@@ -180,13 +180,11 @@ namespace Opc.Ua
 
             try
             {
-                Task.Run(async () =>
-                {
-                    await InternalValidate(chain);
-                }).Wait();
-
                 lock (m_lock)
-                { 
+                {
+
+                    InternalValidate(chain).Wait();
+
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = certificate;
                 }

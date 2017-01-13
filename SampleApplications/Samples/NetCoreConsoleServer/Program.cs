@@ -80,8 +80,7 @@ namespace NetCoreConsoleServer
 
             try
             {
-                Task t = ConsoleSampleServer();
-                t.Wait();
+                ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press any key to exit...");
             }
             catch (Exception ex)

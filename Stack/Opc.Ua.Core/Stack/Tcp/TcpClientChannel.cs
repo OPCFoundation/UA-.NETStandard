@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
             if (url == null) throw new ArgumentNullException("url");
             if (timeout <= 0) throw new ArgumentException("Timeout must be greater than zero.", "timeout");
 
-            Task t;
+            Task task;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -127,13 +127,10 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
                 Socket = new TcpMessageSocket(this, BufferManager, Quotas.MaxBufferSize);
 
-                t = Task.Run(async () =>
-                {
-                    await Socket.BeginConnect(m_via, m_ConnectCallback, operation);
-                });
+                task = Socket.BeginConnect(m_via, m_ConnectCallback, operation);
             }
 
-            t.Wait();
+            task.Wait();
 
             return m_handshakeOperation;
         }
@@ -770,7 +767,7 @@ namespace Opc.Ua.Bindings
             {
                 Utils.Trace("Channel {0}: Scheduled Handshake Starting: TokenId={1}", ChannelId, CurrentToken.TokenId);
 
-                Task t;
+                Task task;
                 lock (DataLock)
                 {
                     // check if renewing a token.
@@ -824,12 +821,9 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
                     Socket = new TcpMessageSocket(this, BufferManager, Quotas.MaxBufferSize);
-                    t = Task.Run(async () =>
-                    {
-                        await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
-                    });
+                    task = Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
                 }
-                t.Wait();
+                task.Wait();
             }
             catch (Exception e)
             {

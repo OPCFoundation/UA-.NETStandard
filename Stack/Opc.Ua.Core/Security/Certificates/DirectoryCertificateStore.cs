@@ -620,7 +620,7 @@ namespace Opc.Ua
 
             X509Certificate2 issuer = null;
             X509Certificate2Collection certificates = null;
-            Task.Run( async () => certificates = await Enumerate()).Wait();
+            certificates = Enumerate().Result;
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))

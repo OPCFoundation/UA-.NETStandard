@@ -46,7 +46,7 @@ namespace AggregationServer
         [STAThread]
         static void Main()
         {
-            Task.Run(async () => await MyMain()).Wait();
+            MyMain().Wait();
         }
         static async Task MyMain()
         {
