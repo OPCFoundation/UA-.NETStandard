@@ -123,6 +123,7 @@ namespace Opc.Ua.Bindings
                 m_channel = new TcpClientChannel(
                     Guid.NewGuid().ToString(),
                     m_bufferManager,
+                    new TcpMessageSocketFactory(),
                     m_quotas,
                     m_settings.ClientCertificate,
                     m_settings.ServerCertificate,
@@ -367,14 +368,11 @@ namespace Opc.Ua.Bindings
             m_channel = new TcpClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
+                new TcpMessageSocketFactory(),
                 m_quotas,
                 m_settings.ClientCertificate,
                 m_settings.ServerCertificate,
                 m_settings.Description);
-
-            // begin connect operation.
-            // IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
-            // m_channel.EndConnect(result);
         }
         #endregion
 
