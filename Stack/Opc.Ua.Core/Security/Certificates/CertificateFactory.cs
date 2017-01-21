@@ -224,7 +224,7 @@ namespace Opc.Ua
 
             var nameValues = new ArrayList();
             nameValues.Add(domainNames[0]);
-            nameValues.Add(applicationName);
+            nameValues.Add(subjectName);
 
             // self signed 
             X509Name subjectDN = new X509Name(nameOids, nameValues);
@@ -480,7 +480,7 @@ namespace Opc.Ua
             // create the subject name,
             if (String.IsNullOrEmpty(subjectName))
             {
-                subjectName = Utils.Format("CN={0}/DC={1}", applicationName, domainNames[0]);
+                subjectName = applicationName;
             }
         }
         #endregion
