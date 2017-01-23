@@ -236,3 +236,6 @@ _Pvt_Extensions
 # OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der
+*.VC.db
+/ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer.h
+*.log.txt
