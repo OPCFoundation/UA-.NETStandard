@@ -240,3 +240,5 @@ OPC\ Foundation/
 *.pfx
 /UA-NetStandard.VC.db
 *.log.txt
+/ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer.h
+*.VC.db
