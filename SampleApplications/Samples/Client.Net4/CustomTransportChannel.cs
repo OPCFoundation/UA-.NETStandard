@@ -45,6 +45,13 @@ namespace Opc.Ua.Bindings.Custom
             // plug in your custom socket implementation here
             return new CustomMessageSocket(sink, bufferManager, receiveBufferSize);
         }
+
+        /// <summary>
+        /// Gets the implementation description.
+        /// </summary>
+        /// <value>The implementation string.</value>
+        public string Implementation { get { return "UA-Custom"; } }
+
     }
 
     /// <summary>

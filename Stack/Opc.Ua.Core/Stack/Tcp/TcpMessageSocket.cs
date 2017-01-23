@@ -143,6 +143,13 @@ namespace Opc.Ua.Bindings
         {
             return new TcpMessageSocket(sink, bufferManager, receiveBufferSize);
         }
+
+        /// <summary>
+        /// Gets the implementation description.
+        /// </summary>
+        /// <value>The implementation string.</value>
+        public string Implementation { get { return "UA-TCP"; } }
+
     }
 
 
@@ -705,7 +712,7 @@ namespace Opc.Ua.Bindings
             return new TcpMessageSocketAsyncEventArgs();
         }
         #endregion
-
+        #region Private Fields
         private IMessageSink m_sink;
         private BufferManager m_bufferManager;
         private int m_receiveBufferSize;
@@ -722,5 +729,6 @@ namespace Opc.Ua.Bindings
         private Socket m_socketV4;
         private Socket m_socketV6;
         private int m_socketResponses;
+        #endregion
     }
 }

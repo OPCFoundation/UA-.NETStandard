@@ -25,13 +25,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the client side of a UA TCP channel.
     /// </summary>
-    public class TcpClientChannel : TcpChannel
+    public class UaSCBinaryClientChannel : TcpChannel
     {
         #region Constructors
         /// <summary>
         /// Creates a channel for for a client.
         /// </summary>
-        public TcpClientChannel(
+        public UaSCBinaryClientChannel(
             string contextId,
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
@@ -153,7 +153,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 operation.End(Int32.MaxValue);
-                Utils.Trace("TCPCLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
+                Utils.Trace("CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
             }
             catch (Exception e)
             {
@@ -583,11 +583,15 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
 
+                string implementation = g_ImplementationString + 
+                    m_socketFactory.Implementation + " " +
+                    AssemblyVersionInfo.CurrentVersion;
+
                 // log security information.
                 if (State == TcpChannelState.Opening)
                 {
                     Opc.Ua.Security.Audit.SecureChannelCreated(
-                        g_ImplementationString,
+                        implementation,
                         this.m_url.ToString(),
                         Utils.Format("{0}", channelId),
                         this.EndpointDescription,
@@ -598,7 +602,7 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     Opc.Ua.Security.Audit.SecureChannelRenewed(
-                        g_ImplementationString,
+                        implementation,
                         Utils.Format("{0}", channelId));
                 }
 
@@ -814,7 +818,7 @@ namespace Opc.Ua.Bindings
 
                     if (Socket != null)
                     {
-                        Utils.Trace("TCPCLIENTCHANNEL SOCKET CLOSED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
+                        Utils.Trace("CLIENTCHANNEL SOCKET CLOSED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
                         Socket.Close();
                         Socket = null;
                     }
@@ -1010,7 +1014,7 @@ namespace Opc.Ua.Bindings
 
                 if (Socket != null)
                 {
-                    Utils.Trace("TCPCLIENTCHANNEL SOCKET CLOSED: {0:X8}, ChannelId={1}", Socket.Handle, channelId);
+                    Utils.Trace("CLIENTCHANNEL SOCKET CLOSED: {0:X8}, ChannelId={1}", Socket.Handle, channelId);
                     Socket.Close();
                     Socket = null;
                 }
@@ -1420,7 +1424,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_StartHandshake;
         private AsyncCallback m_HandshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private const string g_ImplementationString = "TcpClientChannel UA-TCP " + AssemblyVersionInfo.CurrentVersion;
+        private const string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + AssemblyVersionInfo.CurrentVersion;
         #endregion
     }
 }

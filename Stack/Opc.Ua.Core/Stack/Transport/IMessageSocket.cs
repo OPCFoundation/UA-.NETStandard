@@ -114,6 +114,12 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize);
 
+        /// <summary>
+        /// Gets the implementation description.
+        /// </summary>
+        /// <value>The implementation string.</value>
+        string Implementation { get; }
+
     }
 
     /// <summary>

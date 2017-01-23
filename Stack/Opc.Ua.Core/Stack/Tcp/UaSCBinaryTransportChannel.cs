@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 // create the channel.
-                m_channel = new TcpClientChannel(
+                m_channel = new UaSCBinaryClientChannel(
                     Guid.NewGuid().ToString(),
                     m_bufferManager,
                     m_messageSocketFactory,
@@ -169,7 +169,7 @@ namespace Opc.Ua.Bindings
                 // the new channel must be created first because WinSock will reuse sockets and this
                 // can result in messages sent over the old socket arriving as messages on the new socket.
                 // if this happens the new channel is shutdown because of a security violation.
-                TcpClientChannel channel = m_channel;
+                UaSCBinaryClientChannel channel = m_channel;
                 m_channel = null;
                 
                 // reconnect.
@@ -294,7 +294,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
-            TcpClientChannel channel = m_channel;
+            UaSCBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            TcpClientChannel channel = m_channel;
+            UaSCBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Bindings
         private void OpenOnDemand()
         {
             // create the channel.
-            m_channel = new TcpClientChannel(
+            m_channel = new UaSCBinaryClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
                 m_messageSocketFactory,
@@ -391,7 +391,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private TcpChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
-        private TcpClientChannel m_channel;
+        private UaSCBinaryClientChannel m_channel;
         private IMessageSocketFactory m_messageSocketFactory;
         #endregion
     }
