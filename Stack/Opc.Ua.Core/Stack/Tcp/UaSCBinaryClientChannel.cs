@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
-            TcpChannelQuotas quotas,
+            ChannelQuotas quotas,
             X509Certificate2 clientCertificate,
             X509Certificate2 serverCertificate,
             EndpointDescription endpoint)

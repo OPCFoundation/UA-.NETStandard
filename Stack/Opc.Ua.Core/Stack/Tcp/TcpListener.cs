@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
             m_configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new TcpChannelQuotas();
+            m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_configuration.MaxMessageSize;
@@ -415,7 +415,7 @@ namespace Opc.Ua.Bindings
         private EndpointConfiguration m_configuration;
 
         private BufferManager m_bufferManager;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
 

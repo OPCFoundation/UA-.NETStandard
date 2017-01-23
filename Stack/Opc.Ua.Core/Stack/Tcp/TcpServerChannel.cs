@@ -34,7 +34,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             UaTcpChannelListener listener,
             BufferManager bufferManager,
-            TcpChannelQuotas quotas,
+            ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints)
         :

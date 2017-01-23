@@ -30,7 +30,7 @@ namespace Opc.Ua.Bindings
         public TcpChannel(
             string contextId,
             BufferManager bufferManager,
-            TcpChannelQuotas quotas,
+            ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
@@ -610,7 +610,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The resource quotas for the channel.
         /// </summary>
-        protected TcpChannelQuotas Quotas
+        protected ChannelQuotas Quotas
         {
             get { return m_quotas; }
         }
@@ -749,7 +749,7 @@ namespace Opc.Ua.Bindings
         private object m_lock = new object();
         private IMessageSocket m_socket;
         private BufferManager m_bufferManager;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private int m_receiveBufferSize;
         private int m_sendBufferSize;
         private int m_maxRequestMessageSize;
