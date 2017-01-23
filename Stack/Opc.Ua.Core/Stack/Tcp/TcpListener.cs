@@ -259,7 +259,7 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber,
             uint channelId,
             X509Certificate2 clientCertificate,
-            TcpChannelToken token,
+            ChannelToken token,
             OpenSecureChannelRequest request)
         {
             TcpServerChannel channel = null;

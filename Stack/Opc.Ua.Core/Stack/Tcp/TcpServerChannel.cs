@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             X509Certificate2 clientCertificate,
-            TcpChannelToken token,
+            ChannelToken token,
             OpenSecureChannelRequest request)
         {
             if (socket == null) throw new ArgumentNullException("socket");
@@ -485,7 +485,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a fault response secured with the symmetric keys.
         /// </summary>
-        private void SendServiceFault(TcpChannelToken token, uint requestId, ServiceResult fault)
+        private void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
             Utils.Trace("Channel {0} Request {1}: SendServiceFault()", ChannelId, requestId);
 
@@ -820,7 +820,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create a new token.
-                TcpChannelToken token = CreateToken();
+                ChannelToken token = CreateToken();
 
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce();
@@ -961,7 +961,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends an OpenSecureChannel response.
         /// </summary>
-        private void SendOpenSecureChannelResponse(uint requestId, TcpChannelToken token, OpenSecureChannelRequest request)
+        private void SendOpenSecureChannelResponse(uint requestId, ChannelToken token, OpenSecureChannelRequest request)
         {
             Utils.Trace("Channel {0}: SendOpenSecureChannelResponse()", ChannelId);
 
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Bindings
         private bool ProcessCloseSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
             // validate security on the message.
-            TcpChannelToken token = null;
+            ChannelToken token = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 
@@ -1093,7 +1093,7 @@ namespace Opc.Ua.Bindings
             }
 
             // validate security on the message.
-            TcpChannelToken token = null;
+            ChannelToken token = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 

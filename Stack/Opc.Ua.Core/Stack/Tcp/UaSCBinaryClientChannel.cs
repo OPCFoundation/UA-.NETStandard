@@ -461,7 +461,7 @@ namespace Opc.Ua.Bindings
         private void SendOpenSecureChannelRequest(bool renew)
         {
             // create a new token.
-            TcpChannelToken token = CreateToken();
+            ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce();
 
             // construct the request.
@@ -778,7 +778,7 @@ namespace Opc.Ua.Bindings
                 lock (DataLock)
                 {
                     // check if renewing a token.
-                    TcpChannelToken token = state as TcpChannelToken;
+                    ChannelToken token = state as ChannelToken;
 
                     if (token == CurrentToken)
                     {
@@ -894,7 +894,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 // check for valid token.
-                TcpChannelToken token = CurrentToken;
+                ChannelToken token = CurrentToken;
 
                 if (token == null)
                 {
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Schedules the renewal of a token.
         /// </summary>
-        private void ScheduleTokenRenewal(TcpChannelToken token)
+        private void ScheduleTokenRenewal(ChannelToken token)
         {
             // can't renew if not connected.
             if (State != TcpChannelState.Open)
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Bindings
             m_waitBetweenReconnects = Timeout.Infinite;
 
             // check for valid token.
-            TcpChannelToken currentToken = CurrentToken;
+            ChannelToken currentToken = CurrentToken;
 
             if (currentToken == null)
             {
@@ -1320,7 +1320,7 @@ namespace Opc.Ua.Bindings
             //Utils.Trace("Channel {0}: ProcessResponseMessage()", ChannelId);
 
             // validate security on the message.
-            TcpChannelToken token = null;
+            ChannelToken token = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 
@@ -1415,7 +1415,7 @@ namespace Opc.Ua.Bindings
         private long m_lastRequestId;
         private Dictionary<uint, WriteOperation> m_requests;
         private WriteOperation m_handshakeOperation;
-        private TcpChannelToken m_requestedToken;
+        private ChannelToken m_requestedToken;
         private Timer m_handshakeTimer;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
