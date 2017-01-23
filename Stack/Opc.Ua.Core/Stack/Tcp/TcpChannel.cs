@@ -709,7 +709,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// A class that stores the state for a write operation.
         /// </summary>
-        protected class WriteOperation : TcpAsyncOperation<int>
+        protected class WriteOperation : ChannelAsyncOperation<int>
         {
             /// <summary>
             /// Initializes the object with a callback
