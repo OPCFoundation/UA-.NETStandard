@@ -16,85 +16,70 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-    using MessageSocketError = System.Net.Sockets.SocketError;
-
-    //
-    // Summary:
-    //     Represents an asynchronous message socket operation.
+    /// <summary>
+    /// Represents an asynchronous message socket operation.
+    /// </summary>
     public interface IMessageSocketAsyncEventArgs : IDisposable
     {
-        //
-        // Summary:
-        //     Gets the data buffer to use with an asynchronous socket method.
-        //
-        // Returns:
-        //     A System.Byte array that represents the data buffer to use with an asynchronous
-        //     socket method.
+        /// <summary>
+        /// Gets the data buffer to use with an asynchronous socket method.
+        /// </summary>
+        /// <returns>
+        /// A System.Byte array that represents the data buffer to use with an asynchronous
+        /// socket method.
+        /// </returns>
         byte[] Buffer { get; }
 
-        //
-        // Summary:
-        //     Gets or sets an array of data buffers to use with an asynchronous socket method.
-        //
-        // Returns:
-        //     An System.Collections.IList that represents an array of data buffers to use with
-        //     an asynchronous socket method.
-        //
-        // Exceptions:
-        //   T:System.ArgumentException:
-        //     There are ambiguous buffers specified on a set operation. This exception occurs
-        //     if the System.Net.Sockets.SocketAsyncEventArgs.Buffer property has been set to
-        //     a non-null value and an attempt was made to set the System.Net.Sockets.SocketAsyncEventArgs.BufferList
-        //     property to a non-null value.
+        /// <summary>
+        /// Gets or sets an array of data buffers to use with an asynchronous socket method.
+        /// </summary>
+        /// <returns>
+        /// An System.Collections.IList that represents an array of data buffers to use with
+        /// an asynchronous socket method.
+        /// </returns>
         BufferCollection BufferList { get; set; }
 
-        //
-        // Summary:
-        //     Gets the number of bytes transferred in the socket operation.
-        //
-        // Returns:
-        //     An System.Int32 that contains the number of bytes transferred in the socket operation.
+        /// <summary>
+        ///  Gets the number of bytes transferred in the socket operation.
+        /// </summary>
+        /// <returns>An System.Int32 that contains the number of bytes transferred in the socket operation.</returns>
         int BytesTransferred { get; }
 
-        //
-        // Summary:
-        //     Gets or sets the result of the asynchronous socket operation.
-        //
-        // Returns:
-        //     A System.Net.Sockets.SocketError that represents the result of the asynchronous
-        //     socket operation.
-        MessageSocketError SocketError { get; set; }
+        /// <summary>
+        /// Gets the result of the asynchronous socket operation.
+        /// </summary>
+        /// <returns>true if error, false if ok</returns>
+        bool IsSocketError { get; }
 
-        //
-        // Summary:
-        //     Gets or sets a user or application object associated with this asynchronous socket
-        //     operation.
-        //
-        // Returns:
-        //     An object that represents the user or application object associated with this
-        //     asynchronous socket operation.
+        /// <summary>
+        /// Gets the SocketError string of the asynchronous socket operation.
+        /// </summary>
+        /// <returns>the socket error string </returns>
+        string SocketErrorString { get; }
+
+        /// <summary>
+        ///  Gets or sets a user or application object associated with this asynchronous socket
+        ///  operation.
+        /// </summary>
+        /// <returns>
+        /// An object that represents the user or application object associated with this
+        /// asynchronous socket operation.
+        /// </returns>
         object UserToken { get; set; }
 
-        //
-        // Summary:
-        //     The event used to complete an asynchronous operation.
+        /// <summary>
+        /// The event used to complete an asynchronous operation.
+        /// </summary>
+        /// <returns>the message socket</returns>
         event EventHandler<IMessageSocketAsyncEventArgs> Completed;
 
-        //
-        // Summary:
-        //     Sets the data buffer to use with an asynchronous socket method.
-        //
-        // Parameters:
-        //   buffer:
-        //     The data buffer to use with an asynchronous socket method.
-        //
-        //   offset:
-        //     The offset, in bytes, in the data buffer where the operation starts.
-        //
-        //   count:
-        //     The maximum amount of data, in bytes, to send or receive in the buffer.
-        //
-
+        /// <summary>
+        /// Sets the data buffer to use with an asynchronous socket method.
+        /// </summary>
+        /// <param name="buffer">The data buffer to use with an asynchronous socket method.</param>
+        /// <param name="offset">The offset, in bytes, in the data buffer where the operation starts.</param>
+        /// <param name="count">The maximum amount of data, in bytes, to send or receive in the buffer.</param>
+        /// 
         void SetBuffer(byte[] buffer, int offset, int count);
     }
 
@@ -116,7 +101,7 @@ namespace Opc.Ua.Bindings
 
 
     /// <summary>
-    /// This is an interface to a socket which supports a factory 
+    /// This is an interface to a message socket which supports a factory 
     /// </summary>
     public interface IMessageSocketFactory
     {

@@ -14,7 +14,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using MessageSocketError = System.Net.Sockets.SocketError;
 
 namespace Opc.Ua.Bindings
 {
@@ -77,10 +76,13 @@ namespace Opc.Ua.Bindings
             m_args.SetBuffer(buffer, offset, count);
         }
 
-        public MessageSocketError SocketError
+        public bool IsSocketError
         {
-            get { return m_args.SocketError; }
-            set { m_args.SocketError = value; }
+            get { return m_args.SocketError != SocketError.Success; }
+        }
+        public string SocketErrorString
+        {
+            get { return m_args.SocketError.ToString(); }
         }
 
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
@@ -368,7 +370,7 @@ namespace Opc.Ua.Bindings
                     {
                         // I/O completed synchronously
                         callback(this, argsV6);
-                        error = argsV6.SocketError;
+                        error = argsV6.m_args.SocketError;
                     }
                 }
                 if (m_socketV4 != null && error != SocketError.Success)
@@ -378,7 +380,7 @@ namespace Opc.Ua.Bindings
                     {
                         // I/O completed synchronously
                         callback(this, argsV4);
-                        error = argsV4.SocketError;
+                        error = argsV4.m_args.SocketError;
                     }
                 }
 
@@ -693,7 +695,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new InvalidOperationException("The socket is not connected.");
             }
-
+            eventArgs.m_args.SocketError = SocketError.NotConnected;
             return m_socket.SendAsync(eventArgs.m_args);
         }
         #endregion

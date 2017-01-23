@@ -18,8 +18,6 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Bindings
 {
 
-    using MessageSocketError = System.Net.Sockets.SocketError;
-
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
@@ -402,9 +400,9 @@ namespace Opc.Ua.Bindings
                 if (!m_socket.SendAsync(args))
                 {
                     // I/O completed synchronously
-                    if ((args.SocketError != MessageSocketError.Success) || (args.BytesTransferred < buffer.Count))
+                    if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
                     {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
+                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
                     }
 
                     HandleWriteComplete(null, state, args.BytesTransferred, error);
@@ -432,14 +430,13 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                args.SocketError = MessageSocketError.NotConnected;
                 if (m_socket == null ||
                     !m_socket.SendAsync(args))
                 {
                     // I/O completed synchronously
-                    if ((args.SocketError != MessageSocketError.Success) || (args.BytesTransferred < buffers.TotalSize))
+                    if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
                     {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketError.ToString());
+                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
                     }
 
                     HandleWriteComplete(buffers, state, args.BytesTransferred, error);

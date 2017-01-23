@@ -22,8 +22,6 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Bindings
 {
 
-    using MessageSocketError = System.Net.Sockets.SocketError;
-
     /// <summary>
     /// Manages the client side of a UA TCP channel.
     /// </summary>
@@ -728,7 +726,7 @@ namespace Opc.Ua.Bindings
             // one connection attempt timed out but the other succeeded
             if (operation == null) return;
 
-            if (e.SocketError != MessageSocketError.Success)
+            if (e.IsSocketError)
             {
                 operation.Fault(StatusCodes.BadNotConnected);
                 return;
