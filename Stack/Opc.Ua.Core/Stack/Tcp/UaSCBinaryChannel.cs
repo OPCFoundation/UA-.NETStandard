@@ -21,13 +21,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
-    public partial class TcpChannel : IMessageSink, IDisposable
+    public partial class UaSCBinaryChannel : IMessageSink, IDisposable
     {
         #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-        public TcpChannel(
+        public UaSCBinaryChannel(
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
@@ -810,5 +810,5 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Used to report changes to the channel state.
     /// </summary>
-    public delegate void TcpChannelStateEventHandler(TcpChannel channel, TcpChannelState state, ServiceResult error);
+    public delegate void TcpChannelStateEventHandler(UaSCBinaryChannel channel, TcpChannelState state, ServiceResult error);
 }

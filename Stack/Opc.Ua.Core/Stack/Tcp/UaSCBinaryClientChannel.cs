@@ -25,7 +25,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the client side of a UA TCP channel.
     /// </summary>
-    public class UaSCBinaryClientChannel : TcpChannel
+    public class UaSCBinaryClientChannel : UaSCBinaryChannel
     {
         #region Constructors
         /// <summary>

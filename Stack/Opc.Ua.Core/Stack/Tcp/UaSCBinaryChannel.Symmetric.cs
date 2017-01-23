@@ -17,7 +17,7 @@ using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
 {
-    public partial class TcpChannel
+    public partial class UaSCBinaryChannel
     {
         #region Token Handling Members
         /// <summary>
@@ -238,7 +238,7 @@ namespace Opc.Ua.Bindings
         protected BufferCollection WriteSymmetricMessage(
             uint            messageType,
             uint            requestId, 
-            ChannelToken token,
+            ChannelToken    token,
             object          messageBody,
             bool            isRequest,
             out bool        limitsExceeded)
@@ -439,7 +439,7 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> ReadSymmetricMessage(
             ArraySegment<byte>  buffer,
             bool                isRequest,
-            out ChannelToken token,
+            out ChannelToken    token,
             out uint            requestId,
             out uint            sequenceNumber)
         {            
@@ -591,7 +591,7 @@ namespace Opc.Ua.Bindings
         /// Returns the symmetric signature for the data.
         /// </summary>
         protected bool Verify(
-            ChannelToken    token,
+            ChannelToken       token,
             byte[]             signature,
             ArraySegment<byte> dataToVerify,
             bool               useClientKeys)
@@ -686,7 +686,7 @@ namespace Opc.Ua.Bindings
         /// Verifies a HMAC for a message.
         /// </summary>
         private static bool SymmetricVerify(
-            ChannelToken    token, 
+            ChannelToken       token, 
             byte[]             signature,
             ArraySegment<byte> dataToVerify,
             bool               useClientKeys)
@@ -729,7 +729,7 @@ namespace Opc.Ua.Bindings
         /// Encrypts a message using a symmetric algorithm.
         /// </summary>
         private static void SymmetricEncrypt(
-            ChannelToken token, 
+            ChannelToken       token, 
             ArraySegment<byte> dataToEncrypt,
             bool               useClientKeys)
         {
