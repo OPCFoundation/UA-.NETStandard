@@ -171,11 +171,8 @@ namespace Opc.Ua.Client
                             "The client configuration does not specify an application instance certificate.");
                     }
 
-                    Task t = Task.Run( async () =>
-                    {
-                        m_instanceCertificate = await m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-                    });
-                    t.Wait();
+                    m_instanceCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
+
                 }
 
                 // check for valid certificate.
@@ -202,11 +199,7 @@ namespace Opc.Ua.Client
                 // load certificate chain
                 m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                Task t2 = Task.Run(async () =>
-                {
-                    await configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers);
-                });
-                t2.Wait();
+                configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers).Wait();
 
                 for (int i = 0; i < issuers.Count; i++)
                 {

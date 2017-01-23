@@ -130,7 +130,7 @@ namespace NetCoreConsoleClient
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(selectedEndpoint.Server, endpointConfiguration);
             endpoint.Update(selectedEndpoint);
-            var session = await Session.Create(config, endpoint, true, ".Net Core OPC UA Console Client", 60000, null, null);
+            var session = await Session.Create(config, endpoint, true, ".Net Core OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
             ReferenceDescriptionCollection references;

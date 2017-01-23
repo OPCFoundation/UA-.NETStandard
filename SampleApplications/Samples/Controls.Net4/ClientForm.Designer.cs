@@ -84,11 +84,14 @@ namespace Opc.Ua.Sample.Controls
             this.NotificationsCTRL = new Opc.Ua.Sample.Controls.NotificationMessageListCtrl();
             this.EndpointSelectorCTRL = new Opc.Ua.Client.Controls.EndpointSelectorCtrl();
             this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.DiscoveryServersOnNetworkMI = new System.Windows.Forms.ToolStripMenuItem();
             this.MainMenu.SuspendLayout();
             this.StatusStrip.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.MainPN)).BeginInit();
             this.MainPN.Panel1.SuspendLayout();
             this.MainPN.Panel2.SuspendLayout();
             this.MainPN.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.SessionsPanel)).BeginInit();
             this.SessionsPanel.Panel1.SuspendLayout();
             this.SessionsPanel.Panel2.SuspendLayout();
             this.SessionsPanel.SuspendLayout();
@@ -116,36 +119,36 @@ namespace Opc.Ua.Sample.Controls
             this.toolStripMenuItem1,
             this.FileExit});
             this.FileMI.Name = "FileMI";
-            this.FileMI.Size = new System.Drawing.Size(35, 20);
+            this.FileMI.Size = new System.Drawing.Size(37, 20);
             this.FileMI.Text = "File";
             // 
             // FileLoadMI
             // 
             this.FileLoadMI.Name = "FileLoadMI";
-            this.FileLoadMI.Size = new System.Drawing.Size(125, 22);
+            this.FileLoadMI.Size = new System.Drawing.Size(123, 22);
             this.FileLoadMI.Text = "Load...";
             // 
             // FileSaveMI
             // 
             this.FileSaveMI.Name = "FileSaveMI";
-            this.FileSaveMI.Size = new System.Drawing.Size(125, 22);
+            this.FileSaveMI.Size = new System.Drawing.Size(123, 22);
             this.FileSaveMI.Text = "Save";
             // 
             // FileSaveAsMI
             // 
             this.FileSaveAsMI.Name = "FileSaveAsMI";
-            this.FileSaveAsMI.Size = new System.Drawing.Size(125, 22);
+            this.FileSaveAsMI.Size = new System.Drawing.Size(123, 22);
             this.FileSaveAsMI.Text = "Save As...";
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(122, 6);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(120, 6);
             // 
             // FileExit
             // 
             this.FileExit.Name = "FileExit";
-            this.FileExit.Size = new System.Drawing.Size(125, 22);
+            this.FileExit.Size = new System.Drawing.Size(123, 22);
             this.FileExit.Text = "Exit";
             this.FileExit.Click += new System.EventHandler(this.FileExit_Click);
             // 
@@ -157,32 +160,32 @@ namespace Opc.Ua.Sample.Controls
             this.toolStripSeparator1,
             this.Task_TestMI});
             this.TaskMI.Name = "TaskMI";
-            this.TaskMI.Size = new System.Drawing.Size(41, 20);
+            this.TaskMI.Size = new System.Drawing.Size(42, 20);
             this.TaskMI.Text = "Task";
             // 
             // NewWindowMI
             // 
             this.NewWindowMI.Name = "NewWindowMI";
-            this.NewWindowMI.Size = new System.Drawing.Size(148, 22);
+            this.NewWindowMI.Size = new System.Drawing.Size(154, 22);
             this.NewWindowMI.Text = "New Window...";
             this.NewWindowMI.Click += new System.EventHandler(this.NewWindowMI_Click);
             // 
             // PerformanceTestMI
             // 
             this.PerformanceTestMI.Name = "PerformanceTestMI";
-            this.PerformanceTestMI.Size = new System.Drawing.Size(148, 22);
+            this.PerformanceTestMI.Size = new System.Drawing.Size(154, 22);
             this.PerformanceTestMI.Text = "Stack Test...";
             this.PerformanceTestMI.Click += new System.EventHandler(this.PerformanceTestMI_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(145, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(151, 6);
             // 
             // Task_TestMI
             // 
             this.Task_TestMI.Name = "Task_TestMI";
-            this.Task_TestMI.Size = new System.Drawing.Size(148, 22);
+            this.Task_TestMI.Size = new System.Drawing.Size(154, 22);
             this.Task_TestMI.Text = "Test 1";
             this.Task_TestMI.Click += new System.EventHandler(this.Task_TestMI_Click);
             // 
@@ -190,22 +193,23 @@ namespace Opc.Ua.Sample.Controls
             // 
             this.DiscoveyrMI.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.DiscoverServersMI,
+            this.DiscoveryServersOnNetworkMI,
             this.Discovery_RegisterMI});
             this.DiscoveyrMI.Name = "DiscoveyrMI";
-            this.DiscoveyrMI.Size = new System.Drawing.Size(66, 20);
+            this.DiscoveyrMI.Size = new System.Drawing.Size(70, 20);
             this.DiscoveyrMI.Text = "Discovery";
             // 
             // DiscoverServersMI
             // 
             this.DiscoverServersMI.Name = "DiscoverServersMI";
-            this.DiscoverServersMI.Size = new System.Drawing.Size(138, 22);
+            this.DiscoverServersMI.Size = new System.Drawing.Size(185, 22);
             this.DiscoverServersMI.Text = "Servers...";
             this.DiscoverServersMI.Click += new System.EventHandler(this.DiscoverServersMI_Click);
             // 
             // Discovery_RegisterMI
             // 
             this.Discovery_RegisterMI.Name = "Discovery_RegisterMI";
-            this.Discovery_RegisterMI.Size = new System.Drawing.Size(138, 22);
+            this.Discovery_RegisterMI.Size = new System.Drawing.Size(185, 22);
             this.Discovery_RegisterMI.Text = "Register Now";
             this.Discovery_RegisterMI.Click += new System.EventHandler(this.Discovery_RegisterMI_Click);
             // 
@@ -214,13 +218,13 @@ namespace Opc.Ua.Sample.Controls
             this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.contentsToolStripMenuItem});
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            this.helpToolStripMenuItem.Size = new System.Drawing.Size(40, 20);
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
             this.helpToolStripMenuItem.Text = "&Help";
             // 
             // contentsToolStripMenuItem
             // 
             this.contentsToolStripMenuItem.Name = "contentsToolStripMenuItem";
-            this.contentsToolStripMenuItem.Size = new System.Drawing.Size(118, 22);
+            this.contentsToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
             this.contentsToolStripMenuItem.Text = "&Contents";
             this.contentsToolStripMenuItem.Click += new System.EventHandler(this.contentsToolStripMenuItem_Click);
             // 
@@ -238,13 +242,13 @@ namespace Opc.Ua.Sample.Controls
             // ServerUrlLB
             // 
             this.ServerUrlLB.Name = "ServerUrlLB";
-            this.ServerUrlLB.Size = new System.Drawing.Size(71, 17);
+            this.ServerUrlLB.Size = new System.Drawing.Size(79, 17);
             this.ServerUrlLB.Text = "Disconnected";
             // 
             // ServerStatusLB
             // 
             this.ServerStatusLB.Name = "ServerStatusLB";
-            this.ServerStatusLB.Size = new System.Drawing.Size(51, 17);
+            this.ServerStatusLB.Size = new System.Drawing.Size(49, 17);
             this.ServerStatusLB.Text = "00:00:00";
             // 
             // MainPN
@@ -329,8 +333,8 @@ namespace Opc.Ua.Sample.Controls
             this.EndpointSelectorCTRL.SelectedEndpoint = null;
             this.EndpointSelectorCTRL.Size = new System.Drawing.Size(553, 27);
             this.EndpointSelectorCTRL.TabIndex = 2;
-            this.EndpointSelectorCTRL.EndpointsChanged += new System.EventHandler(this.EndpointSelectorCTRL_OnChange);
             this.EndpointSelectorCTRL.ConnectEndpoint += new Opc.Ua.Client.Controls.ConnectEndpointEventHandler(this.EndpointSelectorCTRL_ConnectEndpoint);
+            this.EndpointSelectorCTRL.EndpointsChanged += new System.EventHandler(this.EndpointSelectorCTRL_OnChange);
             // 
             // serverHeaderBranding1
             // 
@@ -344,6 +348,13 @@ namespace Opc.Ua.Sample.Controls
             this.serverHeaderBranding1.Padding = new System.Windows.Forms.Padding(3);
             this.serverHeaderBranding1.Size = new System.Drawing.Size(553, 90);
             this.serverHeaderBranding1.TabIndex = 9;
+            // 
+            // DiscoveryServersOnNetworkMI
+            // 
+            this.DiscoveryServersOnNetworkMI.Name = "DiscoveryServersOnNetworkMI";
+            this.DiscoveryServersOnNetworkMI.Size = new System.Drawing.Size(185, 22);
+            this.DiscoveryServersOnNetworkMI.Text = "Servers on Network...";
+            this.DiscoveryServersOnNetworkMI.Click += new System.EventHandler(this.DiscoveryServersOnNetworkMI_Click);
             // 
             // ClientForm
             // 
@@ -365,9 +376,11 @@ namespace Opc.Ua.Sample.Controls
             this.StatusStrip.PerformLayout();
             this.MainPN.Panel1.ResumeLayout(false);
             this.MainPN.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.MainPN)).EndInit();
             this.MainPN.ResumeLayout(false);
             this.SessionsPanel.Panel1.ResumeLayout(false);
             this.SessionsPanel.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.SessionsPanel)).EndInit();
             this.SessionsPanel.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -403,5 +416,6 @@ namespace Opc.Ua.Sample.Controls
         private Opc.Ua.Server.Controls.ServerHeaderBranding serverHeaderBranding1;
         private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem contentsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem DiscoveryServersOnNetworkMI;
     }
 }

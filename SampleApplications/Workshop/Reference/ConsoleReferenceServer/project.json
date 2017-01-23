@@ -1,8 +1,15 @@
 {
-    "version": "1.0.0-*",
-    "buildOptions": {
-        "emitEntryPoint": true
-    },
+  "version": "1.0.0-*",
+  "buildOptions": {
+    "emitEntryPoint": true,
+    "compile": {
+      "include": [
+        "../Server/ReferenceNodeManager.cs",
+        "../Server/ReferenceServer.cs",
+        "../Server/ReferenceServerConfiguration.cs"
+      ]
+    }
+  },
 
   "dependencies": {
     "Microsoft.NETCore.App": {
@@ -17,4 +24,5 @@
   "frameworks": {
     "netcoreapp1.0": {}
   }
+
 }

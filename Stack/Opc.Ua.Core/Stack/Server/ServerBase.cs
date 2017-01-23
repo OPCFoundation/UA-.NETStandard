@@ -1275,11 +1275,7 @@ namespace Opc.Ua
             // load the instance certificate.
             if (configuration.SecurityConfiguration.ApplicationCertificate != null)
             {
-                Task t = Task.Run(async () =>
-                {
-                    InstanceCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-                });
-                t.Wait();
+                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
             }
 
             if (InstanceCertificate == null)

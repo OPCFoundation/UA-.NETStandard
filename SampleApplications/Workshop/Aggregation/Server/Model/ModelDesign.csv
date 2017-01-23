@@ -1,0 +1,4 @@
+AggregatedServerStatusType,245,ObjectType
+AggregatedServerStatusType_EndpointUrl,246,Variable
+AggregatedServerStatusType_Status,247,Variable
+AggregatedServerStatusType_ConnectTime,248,Variable

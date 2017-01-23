@@ -1,0 +1,343 @@
+//================================================================================
+// TITLE: OpcCmd.idl
+//
+// CONTENTS:
+// 
+// The OPC Comamnds 1.00 IDL file.
+////
+// (c) Copyright 2004 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2004/03/22 RSA   First release.
+
+import "oaidl.idl";
+import "ocidl.idl";
+import "objidl.idl";
+
+//==============================================================================
+// Category ID declarations (defined as interfaces to ensure they show up in the typelib).
+
+[uuid(2D869D5C-3B05-41fb-851A-642FB2B801A0)] interface CATID_OPCCMDServer10 : IUnknown {}
+
+cpp_quote("#define CATID_OPCCMDServer10 IID_CATID_OPCCMDServer10")
+
+//==============================================================================
+// Structures, Typedefs and Enumerations.
+
+typedef struct tagOpcCmdNamespaceDefinition
+{
+	                              LPWSTR  szUri;
+	                              LPWSTR  szDescription;
+					              DWORD   dwNoOfCommandNames;
+	[size_is(dwNoOfCommandNames)] LPWSTR* pszCommandNames;
+}
+OpcCmdNamespaceDefinition;
+
+typedef enum tagOpcCmdBrowseFilter
+{
+	OpcCmdBrowseFilter_All,
+	OpcCmdBrowseFilter_Branch,
+	OpcCmdBrowseFilter_Target
+}
+OpcCmdBrowseFilter;
+
+typedef struct tagOpcCmdTargetElement
+{
+					               LPWSTR  szLabel;
+					               LPWSTR  szTargetID;
+					               BOOL    bIsTarget;
+					               BOOL    bHasChildren;
+					               DWORD   dwNoOfNamespaceUris;
+	[size_is(dwNoOfNamespaceUris)] LPWSTR* pszNamespaceUris;
+}
+OpcCmdTargetElement;
+
+typedef struct tagOpcCmdEventDefinition
+{
+    LPWSTR  szName;
+    LPWSTR  szDescription;
+	LPWSTR  szDataTypeDefinition;
+	DWORD   dwReserved;
+}
+OpcCmdEventDefinition;
+
+typedef struct tagOpcCmdStateDefinition
+{
+    LPWSTR  szName;
+    LPWSTR  szDescription;
+	LPWSTR  szDataTypeDefinition;
+	DWORD   dwReserved;
+}
+OpcCmdStateDefinition;
+
+typedef struct tagOpcCmdActionDefinition
+{
+    LPWSTR  szName;
+    LPWSTR  szDescription;
+    LPWSTR  szEventName;
+	LPWSTR  szInArguments;
+	LPWSTR  szOutArguments;
+    DWORD   dwReserved;
+}
+OpcCmdActionDefinition;
+
+typedef struct tagOpcCmdStateTransition
+{
+    LPWSTR  szTransitionID;
+    LPWSTR  szStartState;
+	LPWSTR  szEndState;
+	LPWSTR  szTriggerEvent;
+	LPWSTR  szAction;
+	DWORD   dwReserved;
+}
+OpcCmdStateTransition;
+
+typedef struct tagOpcCmdArgumentDefinition
+{
+    LPWSTR  szName;
+	VARTYPE vtValueType;
+	WORD    wReserved;
+	BOOL    bOptional;
+	LPWSTR  szDescription;
+    VARIANT vDefaultValue;
+	LPWSTR  szUnitType;
+	DWORD   dwReserved;
+    VARIANT vLowLimit;
+    VARIANT vHighLimit;
+}
+OpcCmdArgumentDefinition;
+
+typedef struct tagOpcCmdArgument
+{
+    LPWSTR  szName;
+    VARIANT vValue;
+}
+OpcCmdArgument;
+
+typedef struct tagOpcCmdCommandDescription
+{
+	                                   LPWSTR                    szDescription;
+							           BOOL                      bIsGlobal;
+							           DOUBLE                    dblExecutionTime;
+						               DWORD                     dwNoOfEventDefinitions;   
+	[size_is(dwNoOfEventDefinitions)]  OpcCmdEventDefinition*    pEventDefinitions;
+						               DWORD                     dwNoOfStateDefinitions;   
+	[size_is(dwNoOfStateDefinitions)]  OpcCmdStateDefinition*    pStateDefinitions;
+						               DWORD                     dwNoOfActionDefinitions;   
+	[size_is(dwNoOfActionDefinitions)] OpcCmdActionDefinition*   pActionDefinitions;
+						               DWORD                     dwNoOfTransitions;   
+	[size_is(dwNoOfTransitions)]       OpcCmdStateTransition*    pTransitions;
+						               DWORD                     dwNoOfInArguments;   
+	[size_is(dwNoOfInArguments)]       OpcCmdArgumentDefinition* pInArguments;
+						               DWORD                     dwNoOfOutArguments;   
+	[size_is(dwNoOfOutArguments)]      OpcCmdArgumentDefinition* pOutArguments;
+						               DWORD                     dwNoOfSupportedControls;   
+	[size_is(dwNoOfSupportedControls)] LPWSTR*                   pszSupportedControls;
+						               DWORD                     dwNoOfAndDependencies;   
+	[size_is(dwNoOfAndDependencies)]   LPWSTR*                   pszAndDependencies;
+						               DWORD                     dwNoOfOrDependencies;   
+	[size_is(dwNoOfOrDependencies)]    LPWSTR*                   pszOrDependencies;
+						               DWORD                     dwNoOfNotDependencies;   
+	[size_is(dwNoOfNotDependencies)]   LPWSTR*                   pszNotDependencies;
+}
+OpcCmdCommandDescription;
+
+typedef struct tagOpcCmdStateChangeEvent
+{
+	                              LPWSTR          szEventName;
+					              DWORD           dwReserved;
+					              FILETIME        ftEventTime;
+					              LPWSTR          szEventData;
+					              LPWSTR          szOldState;
+					              LPWSTR          szNewState;
+					              LPWSTR          szStateData;
+					              DWORD           dwNoOfInArguments;
+	[size_is(dwNoOfInArguments)]  OpcCmdArgument* pInArguments;
+					              DWORD           dwNoOfOutArguments;
+	[size_is(dwNoOfOutArguments)] OpcCmdArgument* pOutArguments;
+}
+OpcCmdStateChangeEvent;
+
+//==============================================================================
+// IOPCComandCallback
+
+[
+    object,
+	uuid(3104B527-2016-442d-9696-1275DE978778),
+    pointer_default(unique)
+]
+interface IOPCComandCallback : IUnknown
+{ 
+	HRESULT OnStateChange(
+        [in]                                   DWORD                   dwNoOfEvents,
+		[in, size_is(dwNoOfEvents)         ]   OpcCmdStateChangeEvent* pEvents,
+		[in]			                       DWORD                   dwNoOfPermittedControls,
+		[in, size_is(dwNoOfPermittedControls)] LPWSTR*                 pszPermittedControls,
+		[in]			                       BOOL                    bNoStateChange
+	);
+};
+
+//==============================================================================
+// IOPCCommandInformation
+
+[
+    object,
+	uuid(3104B525-2016-442d-9696-1275DE978778),
+    pointer_default(unique)
+]
+interface IOPCCommandInformation : IUnknown
+{ 
+	HRESULT QueryCapabilities(
+		[out] DOUBLE* pdblMaxStorageTime,
+		[out] BOOL*   pbSupportsEventFilter
+	);
+
+	HRESULT	QueryComands(
+        [out]                      DWORD*                      pdwCount,
+		[out, size_is(,*pdwCount)] OpcCmdNamespaceDefinition** ppNamespaces
+	);
+
+	HRESULT	BrowseCommandTargets(
+		[in]                       LPWSTR                szTargetID,
+		[in]                       LPWSTR                szNamespaceUri,
+		[in]                       OpcCmdBrowseFilter    eBrowseFilter,
+        [out]                      DWORD*                pdwCount,
+		[out, size_is(,*pdwCount)] OpcCmdTargetElement** ppTargets
+	);
+	
+	HRESULT	GetCommandDescription(
+		[in]  LPWSTR                    szCommandName,
+		[in]  LPWSTR                    szNamespaceUri,
+		[out] OpcCmdCommandDescription* pDescription
+	);
+};
+
+//==============================================================================
+// IOPCCommandExecution
+
+[
+    object,
+	uuid(3104B526-2016-442d-9696-1275DE978778),
+    pointer_default(unique)
+]
+interface IOPCCommandExecution : IUnknown
+{ 
+	HRESULT SyncInvoke(
+		[in]                            LPWSTR                   szCommandName,
+		[in]                            LPWSTR                   szNamespaceUri,
+		[in, unique]                    LPWSTR                   szTargetID,
+		[in]                            DWORD                    dwNoOfArguments,
+	    [in, size_is(dwNoOfArguments)]  OpcCmdArgument*          pArguments,
+		[in]                            DWORD                    dwNoOfFilters,
+	    [in, size_is(dwNoOfFilters)]    LPWSTR*                  pszFilters,
+        [out]                           DWORD*                   pdwNoOfEvents,
+		[out, size_is(,*pdwNoOfEvents)] OpcCmdStateChangeEvent** ppEvents
+	);
+
+	HRESULT AsyncInvoke(
+		[in]                            LPWSTR                   szCommandName,
+		[in]                            LPWSTR                   szNamespaceUri,
+		[in, unique]                    LPWSTR                   szTargetID,
+		[in]                            DWORD                    dwNoOfArguments,
+	    [in, size_is(dwNoOfArguments)]  OpcCmdArgument*          pArguments,
+		[in]                            DWORD                    dwNoOfFilters,
+	    [in, size_is(dwNoOfFilters)]    LPWSTR*                  pszFilters,
+		[in, unique]                    IOPCComandCallback*      ipCallback,
+		[in]                            DWORD                    dwUpdateFrequency,
+		[in]                            DWORD                    dwKeepAliveTime,
+		[out]                           LPWSTR*                  pszInvokeUUID,
+		[out]                           DWORD*                   pdwRevisedUpdateFrequency
+	);
+
+	HRESULT Connect(
+		[in]         LPWSTR              szInvokeUUID,
+		[in, unique] IOPCComandCallback* ipCallback,
+		[in]         DWORD               dwUpdateFrequency,
+		[in]         DWORD               dwKeepAliveTime,
+		[out]        DWORD*              pdwRevisedUpdateFrequency
+	);
+
+	HRESULT Disconnect(
+		[in] LPWSTR szInvokeUUID
+	);
+
+	HRESULT QueryState(
+		[in]                                       LPWSTR                   szInvokeUUID,
+		[in]                                       DWORD                    dwWaitTime,
+        [out]                                      DWORD*                   pdwNoOfEvents,
+		[out, size_is(,*pdwNoOfEvents)]            OpcCmdStateChangeEvent** ppEvents,
+		[out]			                           DWORD*                   pdwNoOfPermittedControls,
+		[out, size_is(,*pdwNoOfPermittedControls)] LPWSTR**                 ppszPermittedControls,
+		[out]			                           BOOL*                    pbNoStateChange
+	);
+
+	HRESULT Control(
+		[in] LPWSTR szInvokeUUID,
+		[in] LPWSTR szControl
+	);
+};
+
+//==============================================================================
+// Type Library
+
+[
+	uuid(3104B520-2016-442d-9696-1275DE978778),
+	version(1.00),
+    helpstring("OPC Commands 1.00 Type Library")
+]
+library OpcCmdLib
+{
+    interface CATID_OPCCMDServer10;
+    interface IOPCCommandInformation;
+    interface IOPCCommandExecution;
+    interface IOPCComandCallback;
+		
+	// constants defined in the specification.
+	module Constants
+	{
+		const LPCWSTR OPC_CATEGORY_DESCRIPTION_CMD10 = L"OPC Command Execution Servers Version 1.0";
+		const LPCWSTR OPCCMD_NAMESPACE_V10           = L"http://opcfoundation.org/webservices/OPCCMD/10";
+	}
+
+	// predefined event names.
+	module EventName
+	{
+		const LPCWSTR OPCCMD_EVENT_NAME_INVOKE    = L"Invoke";
+		const LPCWSTR OPCCMD_EVENT_NAME_FINISHED  = L"Finished";
+		const LPCWSTR OPCCMD_EVENT_NAME_ABORTED   = L"Aborted";
+		const LPCWSTR OPCCMD_EVENT_NAME_RESET     = L"Reset";
+		const LPCWSTR OPCCMD_EVENT_NAME_HALTED    = L"Halted";
+		const LPCWSTR OPCCMD_EVENT_NAME_RESUMED   = L"Resumed";
+		const LPCWSTR OPCCMD_EVENT_NAME_CANCELLED = L"Cancelled";
+	}
+
+	// predefined state names.
+	module StateName
+	{
+		const LPCWSTR OPCCMD_STATE_NAME_IDLE             = L"Idle";
+		const LPCWSTR OPCCMD_STATE_NAME_EXECUTING        = L"Executing";
+		const LPCWSTR OPCCMD_STATE_NAME_COMPLETE         = L"Complete";
+		const LPCWSTR OPCCMD_STATE_NAME_ABNORMAL_FAILURE = L"AbnormalFailure";
+		const LPCWSTR OPCCMD_STATE_NAME_HALTED           = L"Halted";
+	}
+
+	// predefined control commands.
+	module ControlCommand
+	{
+		const LPCWSTR OPCCMD_CONTROL_SUSPEND = L"Suspend";
+		const LPCWSTR OPCCMD_CONTROL_RESUME  = L"Resume";
+		const LPCWSTR OPCCMD_CONTROL_CANCEL  = L"Cancel";
+	}
+}

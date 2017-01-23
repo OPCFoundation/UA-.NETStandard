@@ -14,5 +14,7 @@
         "define": [ "NO_HTTPS" ]
       }
     }
-  }
+  },
+
+  "debugType": "portable"
 }

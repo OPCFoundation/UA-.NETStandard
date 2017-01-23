@@ -825,10 +825,13 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration configuration)
         {
             configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
-            for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+            if (configuration.ServerConfiguration != null)
             {
-                configuration.ServerConfiguration.BaseAddresses[i] = 
-                    Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+                {
+                    configuration.ServerConfiguration.BaseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                }
             }
             return configuration;
         }

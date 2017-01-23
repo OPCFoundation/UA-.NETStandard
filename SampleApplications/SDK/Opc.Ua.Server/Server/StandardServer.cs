@@ -2145,61 +2145,88 @@ namespace Opc.Ua.Server
                     foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                     {
                         RegistrationClient client = null;
+                        int i = 0;
 
-                        try
+                        while (i++ < 2)
                         {
-                            // update from the server.
-                            bool updateRequired = true;
-
-                            lock (m_registrationLock)
+                            try
                             {
-                                updateRequired = endpoint.UpdateBeforeConnect;
-                            }
+                                // update from the server.
+                                bool updateRequired = true;
 
-                            if (updateRequired)
-                            {
-                                endpoint.UpdateFromServer();
-                            }
-
-                            lock (m_registrationLock)
-                            {
-                                endpoint.UpdateBeforeConnect = false;
-                            }
-
-                            // create the client.
-                            client = RegistrationClient.Create(
-                                configuration,
-                                endpoint.Description,
-                                endpoint.Configuration,
-                                base.InstanceCertificate);
-
-                            // register the server.
-                            RequestHeader requestHeader = new RequestHeader();
-                            requestHeader.Timestamp = DateTime.UtcNow;
-
-                            client.OperationTimeout = 10000;
-                            client.RegisterServer(requestHeader, m_registrationInfo);
-                            return true;
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.Trace("Register server failed for at: {0}. Exception={1}", endpoint.EndpointUrl, e.Message);
-                        }
-                        finally
-                        {
-                            if (client != null)
-                            {
-                                try
+                                lock (m_registrationLock)
                                 {
-                                    client.Close();
+                                    updateRequired = endpoint.UpdateBeforeConnect;
                                 }
-                                catch (Exception e)
+
+                                if (updateRequired)
                                 {
-                                    Utils.Trace("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                    endpoint.UpdateFromServer();
+                                }
+
+                                lock (m_registrationLock)
+                                {
+                                    endpoint.UpdateBeforeConnect = false;
+                                }
+
+                                RequestHeader requestHeader = new RequestHeader();
+                                requestHeader.Timestamp = DateTime.UtcNow;
+
+                                // create the client.
+                                client = RegistrationClient.Create(
+                                    configuration,
+                                    endpoint.Description,
+                                    endpoint.Configuration,
+                                    base.InstanceCertificate);
+
+                                client.OperationTimeout = 10000;
+
+                                // register the server.
+                                if (m_useRegisterServer2)
+                                {
+                                    ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
+                                    StatusCodeCollection configurationResults = null;
+                                    DiagnosticInfoCollection diagnosticInfos = null;
+
+                                    client.RegisterServer2(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        discoveryConfiguration,
+                                        out configurationResults,
+                                        out diagnosticInfos);
+                                }
+                                else
+                                {
+                                    client.RegisterServer(requestHeader, m_registrationInfo);
+                                }
+
+                                return true;
+                            }
+                            catch (Exception e)
+                            {
+                                Utils.Trace("RegisterServer{0} failed for at: {1}. Exception={2}",
+                                    m_useRegisterServer2 ? "2" : "", endpoint.EndpointUrl, e.Message);
+                                m_useRegisterServer2 = !m_useRegisterServer2;
+                            }
+                            finally
+                            {
+                                if (client != null)
+                                {
+                                    try
+                                    {
+                                        client.Close();
+                                        client = null;
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Utils.Trace("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                    }
                                 }
                             }
                         }
                     }
+                    // retry to start with RegisterServer2 if both failed
+                    m_useRegisterServer2 = true;
                 }
             }
             finally
@@ -2218,28 +2245,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            Task t = Task.Run(async () =>
+            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName()).Result;
+
+            foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
             {
-                System.Net.IPAddress[] targetAddresses = await Utils.GetHostAddresses(Utils.GetHostName());
+                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain).Result;
 
-                foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
+                foreach (System.Net.IPAddress actualAddress in actualAddresses)
                 {
-                    System.Net.IPAddress[] actualAddresses = await Utils.GetHostAddresses(domain);
-
-                    foreach (System.Net.IPAddress actualAddress in actualAddresses)
+                    foreach (System.Net.IPAddress targetAddress in targetAddresses)
                     {
-                        foreach (System.Net.IPAddress targetAddress in targetAddresses)
+                        if (targetAddress.Equals(actualAddress))
                         {
-                            if (targetAddress.Equals(actualAddress))
-                            {
-                                e.Accept = true;
-                                return;
-                            }
+                            e.Accept = true;
+                            return;
                         }
                     }
                 }
-            });
-            t.Wait();
+            }
         }
 
         /// <summary>
@@ -2581,10 +2604,7 @@ namespace Opc.Ua.Server
                 Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration.SecurityConfiguration.TrustedPeerCertificates;
                 Configuration.SecurityConfiguration.RejectedCertificateStore = configuration.SecurityConfiguration.RejectedCertificateStore;
 
-                Task.Run(async () =>
-                {
-                    await Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration);
-                }).Wait();
+                Configuration.CertificateValidator.Update(Configuration.SecurityConfiguration).Wait();
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration;
@@ -2611,6 +2631,9 @@ namespace Opc.Ua.Server
                            
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
+
+                // try first RegisterServer2
+                m_useRegisterServer2 = true;
             }
         }
         
@@ -2877,7 +2900,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    Task.Run(async () => await RegisterWithDiscoveryServer()).Wait();
+                    RegisterWithDiscoveryServer().Wait();
                 }
 
                 lock (m_lock)
@@ -3066,6 +3089,7 @@ namespace Opc.Ua.Server
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
+        private bool m_useRegisterServer2;
 #endregion
     }
 }
