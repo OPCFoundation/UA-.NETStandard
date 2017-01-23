@@ -207,7 +207,7 @@ namespace Opc.Ua.Gds
                 false,
                 m_application.ApplicationName,
                 60000,
-                null,
+                new UserIdentity(new AnonymousIdentityToken()),
                 m_preferredLocales);
 
             m_endpoint = m_session.ConfiguredEndpoint;

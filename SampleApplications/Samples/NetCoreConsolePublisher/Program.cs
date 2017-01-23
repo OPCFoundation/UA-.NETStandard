@@ -225,7 +225,7 @@ namespace NetCoreConsolePublisher
                 false,
                 m_configuration.ApplicationName,
                 60000,
-                null,
+                new UserIdentity(new AnonymousIdentityToken()),
                 null);
 
             if (newSession != null)
