@@ -242,3 +242,5 @@ OPC\ Foundation/
 *.log.txt
 /ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer.h
 *.VC.db
+/Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll
+/Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
