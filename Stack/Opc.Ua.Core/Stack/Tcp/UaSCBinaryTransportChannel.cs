@@ -15,10 +15,18 @@ using System;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Wraps the TcpTransportChannel and provides an ITransportChannel implementation.
+    /// Creates a transport channel for the ITransportChannel interface.
+    /// Implements the UA-SC security and UA Binary encoding.
+    /// The socket layer requires a IMessageSocketFactory implementation.
     /// </summary>
-    public class TcpTransportChannel : ITransportChannel
+    public class UaSCBinaryTransportChannel : ITransportChannel
     {
+        #region Constructors
+        public UaSCBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
+        {
+            m_messageSocketFactory = messageSocketFactory;
+        }
+        #endregion
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -123,7 +131,7 @@ namespace Opc.Ua.Bindings
                 m_channel = new TcpClientChannel(
                     Guid.NewGuid().ToString(),
                     m_bufferManager,
-                    new TcpMessageSocketFactory(),
+                    m_messageSocketFactory,
                     m_quotas,
                     m_settings.ClientCertificate,
                     m_settings.ServerCertificate,
@@ -154,7 +162,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect()
         {
-            Utils.Trace("TcpTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            Utils.Trace("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
             lock (m_lock)
             {
@@ -368,7 +376,7 @@ namespace Opc.Ua.Bindings
             m_channel = new TcpClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
-                new TcpMessageSocketFactory(),
+                m_messageSocketFactory,
                 m_quotas,
                 m_settings.ClientCertificate,
                 m_settings.ServerCertificate,
@@ -384,6 +392,7 @@ namespace Opc.Ua.Bindings
         private TcpChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
         private TcpClientChannel m_channel;
+        private IMessageSocketFactory m_messageSocketFactory;
         #endregion
     }
 }

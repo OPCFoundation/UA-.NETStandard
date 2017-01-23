@@ -18,6 +18,32 @@ using MessageSocketError = System.Net.Sockets.SocketError;
 
 namespace Opc.Ua.Bindings
 {
+    /// <summary>
+    /// Creates a transport channel with TCP transport, UA-SC security and UA Binary encoding
+    /// </summary>
+
+    public class TcpTransportChannel : UaSCBinaryTransportChannel
+    {
+        public TcpTransportChannel() :
+            base(new TcpMessageSocketFactory())
+        {
+        }
+    }
+
+    /// <summary>
+    /// Creates a new TcpTransportChannel with ITransportChannel interface.
+    /// </summary>
+    public class TcpTransportChannelFactory : ITransportChannelFactory
+    {
+        /// <summary>
+        /// The method creates a new instance of a proxy transport channel
+        /// </summary>
+        /// <returns> the transport channel</returns>
+        public ITransportChannel Create()
+        {
+            return new TcpTransportChannel();
+        }
+    }
 
     /// <summary>
     /// Handles async event callbacks from a socket
@@ -99,7 +125,7 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
-    /// Creates a new ProxyMessageSocket with IMessageSocket interface.
+    /// Creates a new TcpMessageSocket with IMessageSocket interface.
     /// </summary>
     public class TcpMessageSocketFactory : IMessageSocketFactory
     {
