@@ -21,7 +21,7 @@ namespace Opc.Ua.Bindings
     /// Creates a transport channel with TCP transport, UA-SC security and UA Binary encoding
     /// </summary>
 
-    public class TcpTransportChannel : UaSCBinaryTransportChannel
+    public class TcpTransportChannel : UaSCUaBinaryTransportChannel
     {
         public TcpTransportChannel() :
             base(new TcpMessageSocketFactory())

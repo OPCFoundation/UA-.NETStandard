@@ -19,10 +19,10 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The socket layer requires a IMessageSocketFactory implementation.
     /// </summary>
-    public class UaSCBinaryTransportChannel : ITransportChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel
     {
         #region Constructors
-        public UaSCBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
+        public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
         {
             m_messageSocketFactory = messageSocketFactory;
         }
@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 // create the channel.
-                m_channel = new UaSCBinaryClientChannel(
+                m_channel = new UaSCUaBinaryClientChannel(
                     Guid.NewGuid().ToString(),
                     m_bufferManager,
                     m_messageSocketFactory,
@@ -169,7 +169,7 @@ namespace Opc.Ua.Bindings
                 // the new channel must be created first because WinSock will reuse sockets and this
                 // can result in messages sent over the old socket arriving as messages on the new socket.
                 // if this happens the new channel is shutdown because of a security violation.
-                UaSCBinaryClientChannel channel = m_channel;
+                UaSCUaBinaryClientChannel channel = m_channel;
                 m_channel = null;
                 
                 // reconnect.
@@ -294,7 +294,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
-            UaSCBinaryClientChannel channel = m_channel;
+            UaSCUaBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            UaSCBinaryClientChannel channel = m_channel;
+            UaSCUaBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Bindings
         private void OpenOnDemand()
         {
             // create the channel.
-            m_channel = new UaSCBinaryClientChannel(
+            m_channel = new UaSCUaBinaryClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
                 m_messageSocketFactory,
@@ -391,7 +391,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
-        private UaSCBinaryClientChannel m_channel;
+        private UaSCUaBinaryClientChannel m_channel;
         private IMessageSocketFactory m_messageSocketFactory;
         #endregion
     }

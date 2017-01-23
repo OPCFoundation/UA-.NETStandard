@@ -25,13 +25,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the client side of a UA TCP channel.
     /// </summary>
-    public class UaSCBinaryClientChannel : UaSCBinaryChannel
+    public class UaSCUaBinaryClientChannel : UaSCUaBinaryChannel
     {
         #region Constructors
         /// <summary>
         /// Creates a channel for for a client.
         /// </summary>
-        public UaSCBinaryClientChannel(
+        public UaSCUaBinaryClientChannel(
             string contextId,
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,

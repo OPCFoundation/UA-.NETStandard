@@ -21,7 +21,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
-    public partial class UaSCBinaryChannel
+    public partial class UaSCUaBinaryChannel
     {
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.

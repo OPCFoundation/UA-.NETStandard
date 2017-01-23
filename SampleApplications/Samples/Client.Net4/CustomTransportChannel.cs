@@ -23,7 +23,7 @@ namespace Opc.Ua.Bindings.Custom
         /// <returns> the transport channel</returns>
         public ITransportChannel Create()
         {
-            return new UaSCBinaryTransportChannel(new CustomMessageSocketFactory());
+            return new UaSCUaBinaryTransportChannel(new CustomMessageSocketFactory());
         }
     }
 

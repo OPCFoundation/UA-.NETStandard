@@ -17,7 +17,7 @@ using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
 {
-    public partial class UaSCBinaryChannel
+    public partial class UaSCUaBinaryChannel
     {
         #region Token Handling Members
         /// <summary>
