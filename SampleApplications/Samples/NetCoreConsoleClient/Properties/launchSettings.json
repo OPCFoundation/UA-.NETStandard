@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "NetCoreConsoleClient": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "COMPlus_ReadyToRunExcludeList": "System.Security.Cryptography.X509Certificates"
+      }
+    }
+  }
+}
