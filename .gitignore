@@ -234,15 +234,13 @@ _Pvt_Extensions
 # FAKE - F# Make
 .fake/
 
-# OPC UA Sample app certificate stores and logs
+# OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der
 *.pfx
-*.VC.db
+/UA-NetStandard.VC.db
 *.log.txt
-
-# exclude/include generated files for OPC UA ComIOP wrapper
-!opc*_i.c
-
 /ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer.h
-/ComIOP/Wrapper/ProxyServer/OpcUaComProxyServer_i.c
+*.VC.db
+/Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll
+/Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
