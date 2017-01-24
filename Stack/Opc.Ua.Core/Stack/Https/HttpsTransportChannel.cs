@@ -204,7 +204,7 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new TcpChannelQuotas();
+            m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private HttpClient m_client;
     }
 }

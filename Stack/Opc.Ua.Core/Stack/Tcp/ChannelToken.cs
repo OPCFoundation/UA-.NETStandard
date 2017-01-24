@@ -18,13 +18,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Represents a security token associate with a channel.
     /// </summary>
-    public class TcpChannelToken
+    public class ChannelToken
     {
         #region Constructors
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
-        public TcpChannelToken()
+        public ChannelToken()
         {
         }
         #endregion

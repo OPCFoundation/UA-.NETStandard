@@ -96,7 +96,8 @@ namespace NetCoreConsoleClient
                     config.SecurityConfiguration.ApplicationCertificate.StoreType,
                     config.SecurityConfiguration.ApplicationCertificate.StorePath,
                     config.ApplicationUri,
-                    config.ApplicationName
+                    config.ApplicationName,
+                    config.SecurityConfiguration.ApplicationCertificate.SubjectName
                     );
 
                 config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;

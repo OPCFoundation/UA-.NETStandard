@@ -15,10 +15,18 @@ using System;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Wraps the TcpTransportChannel and provides an ITransportChannel implementation.
+    /// Creates a transport channel for the ITransportChannel interface.
+    /// Implements the UA-SC security and UA Binary encoding.
+    /// The socket layer requires a IMessageSocketFactory implementation.
     /// </summary>
-    public class TcpTransportChannel : ITransportChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel
     {
+        #region Constructors
+        public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
+        {
+            m_messageSocketFactory = messageSocketFactory;
+        }
+        #endregion
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -120,9 +128,10 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 // create the channel.
-                m_channel = new TcpClientChannel(
+                m_channel = new UaSCUaBinaryClientChannel(
                     Guid.NewGuid().ToString(),
                     m_bufferManager,
+                    m_messageSocketFactory,
                     m_quotas,
                     m_settings.ClientCertificate,
                     m_settings.ServerCertificate,
@@ -153,14 +162,14 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect()
         {
-            Utils.Trace("TcpTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            Utils.Trace("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
             lock (m_lock)
             {
                 // the new channel must be created first because WinSock will reuse sockets and this
                 // can result in messages sent over the old socket arriving as messages on the new socket.
                 // if this happens the new channel is shutdown because of a security violation.
-                TcpClientChannel channel = m_channel;
+                UaSCUaBinaryClientChannel channel = m_channel;
                 m_channel = null;
                 
                 // reconnect.
@@ -285,7 +294,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
-            TcpClientChannel channel = m_channel;
+            UaSCUaBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -312,7 +321,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            TcpClientChannel channel = m_channel;
+            UaSCUaBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
@@ -335,7 +344,7 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new TcpChannelQuotas();
+            m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
@@ -364,17 +373,14 @@ namespace Opc.Ua.Bindings
         private void OpenOnDemand()
         {
             // create the channel.
-            m_channel = new TcpClientChannel(
+            m_channel = new UaSCUaBinaryClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
+                m_messageSocketFactory,
                 m_quotas,
                 m_settings.ClientCertificate,
                 m_settings.ServerCertificate,
                 m_settings.Description);
-
-            // begin connect operation.
-            // IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
-            // m_channel.EndConnect(result);
         }
         #endregion
 
@@ -383,9 +389,10 @@ namespace Opc.Ua.Bindings
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
-        private TcpClientChannel m_channel;
+        private UaSCUaBinaryClientChannel m_channel;
+        private IMessageSocketFactory m_messageSocketFactory;
         #endregion
     }
 }

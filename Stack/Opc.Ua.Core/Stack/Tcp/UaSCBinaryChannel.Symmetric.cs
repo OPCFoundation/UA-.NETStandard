@@ -17,13 +17,13 @@ using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
 {
-    public partial class TcpChannel
+    public partial class UaSCUaBinaryChannel
     {
         #region Token Handling Members
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected TcpChannelToken CurrentToken
+        protected ChannelToken CurrentToken
         {
             get { return m_currentToken; }
         }
@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected TcpChannelToken PreviousToken
+        protected ChannelToken PreviousToken
         {
             get { return m_previousToken; }
         }
@@ -39,7 +39,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected TcpChannelToken RenewedToken
+        protected ChannelToken RenewedToken
         {
             get { return m_renewedToken; }
         }
@@ -47,9 +47,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates a new token.
         /// </summary>
-        protected TcpChannelToken CreateToken()
+        protected ChannelToken CreateToken()
         {
-            TcpChannelToken token = new TcpChannelToken();
+            ChannelToken token = new ChannelToken();
 
             token.ChannelId = m_channelId;
             token.TokenId   = 0;
@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Activates a new token.
         /// </summary>
-        protected void ActivateToken(TcpChannelToken token)
+        protected void ActivateToken(ChannelToken token)
         {
             // compute the keys for the token.
             ComputeKeys(token);
@@ -79,7 +79,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the renewed token
         /// </summary>
-        protected void SetRenewedToken(TcpChannelToken token)
+        protected void SetRenewedToken(ChannelToken token)
         {
             m_renewedToken = token;
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Computes the keys for a token.
         /// </summary>
-        protected void ComputeKeys(TcpChannelToken token)
+        protected void ComputeKeys(ChannelToken token)
         {        
             if (SecurityMode == MessageSecurityMode.None)
             {
@@ -238,7 +238,7 @@ namespace Opc.Ua.Bindings
         protected BufferCollection WriteSymmetricMessage(
             uint            messageType,
             uint            requestId, 
-            TcpChannelToken token,
+            ChannelToken    token,
             object          messageBody,
             bool            isRequest,
             out bool        limitsExceeded)
@@ -439,7 +439,7 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> ReadSymmetricMessage(
             ArraySegment<byte>  buffer,
             bool                isRequest,
-            out TcpChannelToken token,
+            out ChannelToken    token,
             out uint            requestId,
             out uint            sequenceNumber)
         {            
@@ -475,7 +475,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check for valid token.
-            TcpChannelToken currentToken = CurrentToken;
+            ChannelToken currentToken = CurrentToken;
 
             if (currentToken == null)
             {
@@ -568,7 +568,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the symmetric signature for the data.
         /// </summary>
-        protected byte[] Sign(TcpChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
+        protected byte[] Sign(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
         {
             switch (SecurityPolicyUri)
             {
@@ -591,7 +591,7 @@ namespace Opc.Ua.Bindings
         /// Returns the symmetric signature for the data.
         /// </summary>
         protected bool Verify(
-            TcpChannelToken    token,
+            ChannelToken       token,
             byte[]             signature,
             ArraySegment<byte> dataToVerify,
             bool               useClientKeys)
@@ -621,7 +621,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Decrypts the data in a buffer using symmetric encryption.
         /// </summary>
-        protected void Encrypt(TcpChannelToken token, ArraySegment<byte> dataToEncrypt, bool useClientKeys)
+        protected void Encrypt(ChannelToken token, ArraySegment<byte> dataToEncrypt, bool useClientKeys)
         {      
             switch (SecurityPolicyUri)
             {
@@ -644,7 +644,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Decrypts the data in a buffer using symmetric encryption.
         /// </summary>
-        protected void Decrypt(TcpChannelToken token, ArraySegment<byte> dataToDecrypt, bool useClientKeys)
+        protected void Decrypt(ChannelToken token, ArraySegment<byte> dataToDecrypt, bool useClientKeys)
         {
             switch (SecurityPolicyUri)
             {
@@ -668,7 +668,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Signs the message using SHA1 HMAC
         /// </summary>
-        private static byte[] SymmetricSign(TcpChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
+        private static byte[] SymmetricSign(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
         {
             // get HMAC object.
             HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
@@ -686,7 +686,7 @@ namespace Opc.Ua.Bindings
         /// Verifies a HMAC for a message.
         /// </summary>
         private static bool SymmetricVerify(
-            TcpChannelToken    token, 
+            ChannelToken       token, 
             byte[]             signature,
             ArraySegment<byte> dataToVerify,
             bool               useClientKeys)
@@ -729,7 +729,7 @@ namespace Opc.Ua.Bindings
         /// Encrypts a message using a symmetric algorithm.
         /// </summary>
         private static void SymmetricEncrypt(
-            TcpChannelToken token, 
+            ChannelToken       token, 
             ArraySegment<byte> dataToEncrypt,
             bool               useClientKeys)
         {
@@ -760,7 +760,7 @@ namespace Opc.Ua.Bindings
         /// Decrypts a message using a symmetric algorithm.
         /// </summary>
         private static void SymmetricDecrypt(
-            TcpChannelToken token, 
+            ChannelToken token, 
             ArraySegment<byte> dataToDecrypt,
             bool               useClientKeys)
         {
@@ -790,9 +790,9 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private TcpChannelToken m_currentToken;
-        private TcpChannelToken m_previousToken;
-        private TcpChannelToken m_renewedToken;
+        private ChannelToken m_currentToken;
+        private ChannelToken m_previousToken;
+        private ChannelToken m_renewedToken;
         private int m_hmacHashSize;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;

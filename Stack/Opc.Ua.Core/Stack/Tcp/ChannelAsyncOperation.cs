@@ -20,13 +20,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Stores the results of an asynchronous operation.
     /// </summary>
-    public class TcpAsyncOperation<T> : IAsyncResult, IDisposable
+    public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable
     {
         #region Constructors
         /// <summary>
         /// Initializes the object with a callback
         /// </summary>
-        public TcpAsyncOperation(int timeout, AsyncCallback callback, object asyncState)
+        public ChannelAsyncOperation(int timeout, AsyncCallback callback, object asyncState)
         {               
             m_callback    = callback;
             m_asyncState  = asyncState;
@@ -316,7 +316,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "TcpClientChannel: Unexpected error invoking AsyncCallback.");
+                        Utils.Trace(e, "ClientChannel: Unexpected error invoking AsyncCallback.");
                     }
                 }
             }

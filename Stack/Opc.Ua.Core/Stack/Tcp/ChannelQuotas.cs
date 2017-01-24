@@ -17,13 +17,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Stores various configuration parameters used by the channel.
     /// </summary>
-    public class TcpChannelQuotas
+    public class ChannelQuotas
     {
         #region Constructors
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
-        public TcpChannelQuotas()
+        public ChannelQuotas()
         {
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;

@@ -21,7 +21,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
-    public partial class TcpChannel
+    public partial class UaSCUaBinaryChannel
     {
         #region IUaTcpSecureChannel Members
         /// <summary>
