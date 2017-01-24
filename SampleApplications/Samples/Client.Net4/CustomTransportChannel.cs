@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings.Custom
     public class CustomMessageSocketFactory : IMessageSocketFactory
     {
         /// <summary>
-        /// The method creates a new instance of a proxy message socket
+        /// The method creates a new instance of a custom message socket
         /// </summary>
         /// <returns> the message socket</returns>
         public IMessageSocket Create(

@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Creates a transport channel with TCP transport, UA-SC security and UA Binary encoding
+    /// Creates a transport channel with UA-TCP transport, UA-SC security and UA Binary encoding
     /// </summary>
 
     public class TcpTransportChannel : UaSCUaBinaryTransportChannel
@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
     public class TcpTransportChannelFactory : ITransportChannelFactory
     {
         /// <summary>
-        /// The method creates a new instance of a proxy transport channel
+        /// The method creates a new instance of a TCP transport channel
         /// </summary>
         /// <returns> the transport channel</returns>
         public ITransportChannel Create()
@@ -132,7 +132,7 @@ namespace Opc.Ua.Bindings
     public class TcpMessageSocketFactory : IMessageSocketFactory
     {
         /// <summary>
-        /// The method creates a new instance of a proxy message socket
+        /// The method creates a new instance of a UA-TCP message socket
         /// </summary>
         /// <returns> the message socket</returns>
         public IMessageSocket Create(
