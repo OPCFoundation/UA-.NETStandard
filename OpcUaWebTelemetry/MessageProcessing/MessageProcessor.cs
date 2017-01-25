@@ -62,8 +62,10 @@ namespace Microsoft.Azure.Devices.Relay.Worker
                             for (int i = 0; i < m_devices.Count; i++)
                             {
                                 // if both the ID and the URI is the same, we say it's from the same device
-                                if ((m_devices[i].getElement(0).MonitoredItem.Id == newElement.MonitoredItem.Id)
-                                    && (m_devices[i].getElement(0).MonitoredItem.Uri == newElement.MonitoredItem.Uri))
+                                if ((m_devices[i].getElement(0).MonitoredItem.Id == newElement.MonitoredItem.Id) &&
+                                    (m_devices[i].getElement(0).MonitoredItem.Uri == newElement.MonitoredItem.Uri) &&
+                                    (m_devices[i].getElement(0).HostName == newElement.HostName)
+                                    )
                                 {
                                     m_devices[i].Enqueue(newElement);
                                     elementFound = true;
