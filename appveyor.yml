@@ -1,0 +1,79 @@
+
+#---------------------------------#
+#      general configuration      #
+#---------------------------------#
+
+# version format
+version: 0.1.2.{build}-{branch}
+
+
+# branches to build
+branches:
+  # blacklist
+  except:
+    - gh-pages
+
+#---------------------------------#
+#    environment configuration    #
+#---------------------------------#
+
+# Build worker image (VM template)
+image: Visual Studio 2015
+
+# scripts that are called at very beginning, before repo cloning
+init:
+  - git config --global core.autocrlf input
+
+# clone directory
+clone_folder: c:\projects\UA-.NetStandardLibrary
+
+# set clone depth
+clone_depth: 5                      # clone entire repository history if not defined
+
+environment:
+  matrix:
+  - solution_name: UA-NetStandard.sln
+  - solution_name: "UA COM Interop.sln"
+  - solution_name: OpcUaWebTelemetry.sln
+  - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
+  - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  
+  
+# this is how to allow failing jobs in the matrix
+matrix:
+  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
+
+# scripts to run before build
+before_build:
+  - nuget restore "%solution_name%"
+
+# scripts to run *after* solution is built and *before* automatic packaging occurs (web apps, NuGet packages, Azure Cloud Services)
+before_package:
+
+# scripts to run after build
+after_build:
+
+# to run your custom scripts instead of automatic MSBuild
+build_script:
+  - msbuild "%solution_name%" /p:Configuration=Debug /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  - msbuild "%solution_name%" /p:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  
+# to disable automatic tests
+test: off
+
+#---------------------------------#
+#        global handlers          #
+#---------------------------------#
+
+# on successful build
+on_success:
+  - echo on_success
+
+# on build failure
+on_failure:
+  - echo on_failure
+
+# after build failure or success
+on_finish:
+  - echo on_finish
+
+
