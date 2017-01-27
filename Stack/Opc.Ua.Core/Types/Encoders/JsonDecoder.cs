@@ -1,25 +1,14 @@
-/* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Reciprocal Community License ("RCL") Version 1.00
- * 
- * Unless explicitly acquired and licensed from Licensor under another 
- * license, the contents of this file are subject to the Reciprocal 
- * Community License ("RCL") Version 1.00, or subsequent versions 
- * as allowed by the RCL, and You may not copy or use this file in either 
- * source code or executable form, except in compliance with the terms and 
- * conditions of the RCL.
- * 
- * All software distributed under the RCL is provided strictly on an 
- * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
- * AND LICENSOR HEREBY DISCLAIMS ALL SUCH WARRANTIES, INCLUDING WITHOUT 
- * LIMITATION, ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
- * PURPOSE, QUIET ENJOYMENT, OR NON-INFRINGEMENT. See the RCL for specific 
- * language governing rights and limitations under the RCL.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/RCL/1.00/
- * ======================================================================*/
+/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
 
 using System;
 using System.Collections.Generic;
@@ -51,6 +40,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException("context");
             Initialize();
 
+
             m_context = context;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
@@ -79,6 +69,106 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
+        /// <summary>
+        /// Decodes a session-less message from a buffer.
+        /// </summary>
+        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
+        {
+            if (buffer == null) throw new ArgumentNullException("buffer");
+            if (context == null) throw new ArgumentNullException("context");
+
+            JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
+
+            try
+            {
+                // decode the actual message.
+                SessionLessServiceMessage message = new SessionLessServiceMessage();
+
+                message.Decode(decoder);
+
+                return message.Message;
+            }
+            finally
+            {
+                decoder.Close();
+            }
+        }
+
+        /// <summary>
+        /// Decodes a message from a buffer.
+        /// </summary>
+        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, ServiceMessageContext context)
+        {
+            return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
+        }
+
+        /// <summary>
+        /// Decodes a message from a buffer.
+        /// </summary>
+        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, ServiceMessageContext context)
+        {
+            if (context == null) throw new ArgumentNullException("context");
+
+            // check that the max message size was not exceeded.
+            if (context.MaxMessageSize > 0 && context.MaxMessageSize < buffer.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    context.MaxMessageSize,
+                    buffer.Count);
+            }
+
+            JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context);
+
+            try
+            {
+                return decoder.DecodeMessage(expectedType);
+            }
+            finally
+            {
+                decoder.Close();
+            }
+        }
+
+        /// <summary>
+        /// Decodes an object from a buffer.
+        /// </summary>
+        public IEncodeable DecodeMessage(System.Type expectedType)
+        {
+            var namespaceUris = ReadStringArray("NamespaceUris");
+            var serverUris = ReadStringArray("ServerUris");
+
+            if ((namespaceUris != null && namespaceUris.Count > 0) || (serverUris != null && serverUris.Count > 0))
+            {
+                var namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? m_context.NamespaceUris : new NamespaceTable(namespaceUris);
+                var servers = (serverUris == null || serverUris.Count == 0) ? m_context.ServerUris : new StringTable(serverUris);
+
+                SetMappingTables(namespaces, servers);
+            }
+
+            // read the node id.
+            NodeId typeId = ReadNodeId("TypeId");
+
+            // convert to absolute node id.
+            ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+
+            // lookup message type.
+            Type actualType = m_context.Factory.GetSystemType(absoluteId);
+
+            if (actualType == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+            }
+
+            // read the message.
+            IEncodeable message = ReadEncodeable("Body", actualType);
+
+            // return the message.
+            return message;
+        }
+
+
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
@@ -116,7 +206,7 @@ namespace Opc.Ua
         {
             if (checkEof && m_reader.TokenType != JsonToken.EndObject)
             {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject);
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject) ;
             }
 
             m_reader.Close();
@@ -131,30 +221,30 @@ namespace Opc.Ua
                 switch (m_reader.TokenType)
                 {
                     case JsonToken.Comment:
-                    {
-                        break;
-                    }
+                        {
+                            break;
+                        }
 
                     case JsonToken.Boolean:
                     case JsonToken.Integer:
                     case JsonToken.Float:
                     case JsonToken.String:
-                    {
-                        elements.Add(m_reader.Value);
-                        break;
-                    }
+                        {
+                            elements.Add(m_reader.Value);
+                            break;
+                        }
 
                     case JsonToken.StartArray:
-                    {
-                        elements.Add(ReadArray());
-                        break;
-                    }
+                        {
+                            elements.Add(ReadArray());
+                            break;
+                        }
 
                     case JsonToken.StartObject:
-                    {
-                        elements.Add(ReadObject());
-                        break;
-                    }
+                        {
+                            elements.Add(ReadObject());
+                            break;
+                        }
                 }
             }
 
@@ -163,7 +253,7 @@ namespace Opc.Ua
 
         private Dictionary<string, object> ReadObject()
         {
-            Dictionary<string,object> fields = new Dictionary<string, object>();
+            Dictionary<string, object> fields = new Dictionary<string, object>();
 
             while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
             {
@@ -176,38 +266,38 @@ namespace Opc.Ua
                         switch (m_reader.TokenType)
                         {
                             case JsonToken.Comment:
-                            {
-                                break;
-                            }
+                                {
+                                    break;
+                                }
 
                             case JsonToken.Null:
                             case JsonToken.Date:
-                            {
-                                fields[name] = m_reader.Value;
-                                break;
-                            }
+                                {
+                                    fields[name] = m_reader.Value;
+                                    break;
+                                }
 
                             case JsonToken.Bytes:
                             case JsonToken.Boolean:
                             case JsonToken.Integer:
                             case JsonToken.Float:
                             case JsonToken.String:
-                            {
-                                fields[name] = m_reader.Value;
-                                break;
-                            }
+                                {
+                                    fields[name] = m_reader.Value;
+                                    break;
+                                }
 
                             case JsonToken.StartArray:
-                            {
-                                fields[name] = ReadArray();
-                                break;
-                            }
+                                {
+                                    fields[name] = ReadArray();
+                                    break;
+                                }
 
                             case JsonToken.StartObject:
-                            {
-                                fields[name] = ReadObject();
-                                break;
-                            }
+                                {
+                                    fields[name] = ReadObject();
+                                    break;
+                                }
                         }
                     }
                 }
@@ -321,7 +411,7 @@ namespace Opc.Ua
 
             return (bool)token;
         }
-        
+
         /// <summary>
         /// Reads a sbyte from the stream.
         /// </summary>
@@ -374,8 +464,8 @@ namespace Opc.Ua
             }
 
             return (byte)value;
-        }              
-        
+        }
+
         /// <summary>
         /// Reads a short from the stream.
         /// </summary>
@@ -402,7 +492,7 @@ namespace Opc.Ua
 
             return (short)value;
         }
-        
+
         /// <summary>
         /// Reads a ushort from the stream.
         /// </summary>
@@ -429,7 +519,7 @@ namespace Opc.Ua
 
             return (ushort)value;
         }
-        
+
         /// <summary>
         /// Reads an int from the stream.
         /// </summary>
@@ -491,7 +581,7 @@ namespace Opc.Ua
 
             return (uint)value;
         }
-        
+
         /// <summary>
         /// Reads a long from the stream.
         /// </summary>
@@ -526,7 +616,7 @@ namespace Opc.Ua
 
             return (long)value;
         }
-        
+
         /// <summary>
         /// Reads a ulong from the stream.
         /// </summary>
@@ -561,7 +651,7 @@ namespace Opc.Ua
 
             return (ulong)value;
         }
-        
+
         /// <summary>
         /// Reads a float from the stream.
         /// </summary>
@@ -603,7 +693,7 @@ namespace Opc.Ua
 
             return (float)value;
         }
-        
+
         /// <summary>
         /// Reads a double from the stream.
         /// </summary>
@@ -625,7 +715,14 @@ namespace Opc.Ua
 
                 if (text == null || !Double.TryParse(text, out number))
                 {
-                    return 0;
+                    var integer = token as long?;
+
+                    if (integer == null)
+                    {
+                        return 0;
+                    }
+
+                    return (double)integer;
                 }
 
                 return number;
@@ -633,7 +730,7 @@ namespace Opc.Ua
 
             return (double)value;
         }
-        
+
         /// <summary>
         /// Reads a string from the stream.
         /// </summary>
@@ -660,7 +757,7 @@ namespace Opc.Ua
 
             return (string)value;
         }
-        
+
         /// <summary>
         /// Reads a UTC date/time from the stream.
         /// </summary>
@@ -689,7 +786,7 @@ namespace Opc.Ua
 
             return DateTime.MinValue;
         }
-                
+
         /// <summary>
         /// Reads a GUID from the stream.
         /// </summary>
@@ -711,7 +808,7 @@ namespace Opc.Ua
 
             return new Uuid(value);
         }
-        
+
         /// <summary>
         /// Reads a byte string from the stream.
         /// </summary>
@@ -766,7 +863,6 @@ namespace Opc.Ua
             {
                 XmlDocument document = new XmlDocument();
                 document.InnerXml = new UTF8Encoding().GetString(bytes);
-
                 return document.DocumentElement;
             }
 
@@ -785,46 +881,16 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as Dictionary<string,object>;
+            var value = token as string;
 
             if (value == null)
             {
                 return null;
             }
 
-            int index = -1;
-            object uri = null;
-
-            if (value.TryGetValue("Uri", out uri))
-            {
-                index = m_context.NamespaceUris.GetIndex(uri as string);
-            }
-
-            object id;
-
-            if (!value.TryGetValue("Id", out id))
-            {
-                return null;
-            }
-
-            var nid = NodeId.Parse(id as string);
-
-            if (index > 0)
-            {
-                if (m_namespaceMappings != null && index < m_namespaceMappings.Length)
-                {
-                    index = m_namespaceMappings[index];
-                }
-            }
-
-            if (index > 0)
-            {
-                nid = new NodeId(nid.Identifier, (ushort)index);
-            }
-
-            return nid;
+            return NodeId.Parse(value);
         }
-             
+
         /// <summary>
         /// Reads an ExpandedNodeId from the stream.
         /// </summary>
@@ -837,77 +903,14 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as Dictionary<string, object>;
+            var value = token as string;
 
             if (value == null)
             {
                 return null;
             }
 
-            int index = -1;
-            string uri = null;
-            int serverIndex = -1;
-
-            object field = null;
-
-            if (!value.TryGetValue("Id", out field))
-            {
-                return null;
-            }
-
-            var nid = NodeId.Parse(field as string);
-
-            if (value.TryGetValue("ServerUri", out field))
-            {
-                serverIndex = m_context.NamespaceUris.GetIndex(field as string);
-            }
-            else if (value.TryGetValue("ServerIndex", out field))
-            {
-                var number = field as long?;
-
-                if (number != null)
-                {
-                    serverIndex = (int)number;
-                }
-            }
-
-            if (serverIndex > 0)
-            {
-                if (m_serverMappings != null && index < m_serverMappings.Length)
-                {
-                    serverIndex = m_serverMappings[serverIndex];
-                }
-            }
-
-            if (value.TryGetValue("Uri", out field))
-            {
-                uri = field as string;
-
-                if (serverIndex <= 0)
-                {
-                    index = m_context.NamespaceUris.GetIndex(uri);
-                }
-            }
-
-            if (serverIndex == 0)
-            {
-                if (index < 0)
-                {
-                    index = nid.NamespaceIndex;
-                }
-
-                if (index > 0)
-                {
-                    if (m_namespaceMappings != null && index < m_namespaceMappings.Length)
-                    {
-                        index = m_namespaceMappings[index];
-                    }
-                }
-
-                return new NodeId(nid.Identifier, (ushort)index);
-            }
-
-            return new ExpandedNodeId(nid.Identifier, 0, uri, (uint)serverIndex);
+            return ExpandedNodeId.Parse(value);
         }
 
         /// <summary>
@@ -915,28 +918,7 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode ReadStatusCode(string fieldName)
         {
-            object token = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return 0;
-            }
-
-            var value = token as string;
-
-            if (value == null)
-            {
-                return 0;
-            }
-
-            int index = value.IndexOf(':');
-
-            if (index >= 0)
-            {
-                value = value.Substring(index + 1);
-            }
-
-            return Convert.ToUInt32(value, 16);
+            return ReadUInt32(fieldName);
         }
 
         /// <summary>
@@ -958,7 +940,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            try 
+            try
             {
                 m_stack.Push(value);
 
@@ -1026,45 +1008,12 @@ namespace Opc.Ua
                 return null;
             }
 
-            int index = -1;
-            string name = null;
+            var name = ReadString("Name");
+            var namespaceIndex = ReadUInt16("Uri");
 
-            object field = null;
-
-            if (!value.TryGetValue("Name", out field))
-            {
-                return null;
-            }
-
-            name = field as string;
-
-            if (value.TryGetValue("Uri", out field))
-            {
-                index = m_context.NamespaceUris.GetIndex(field as string);
-            }
-            else if (value.TryGetValue("Index", out field))
-            {
-                var number = field as long?;
-
-                if (number != null)
-                {
-                    index = (int)number;
-                }
-            }
-
-            if (index == 0)
-            {
-                return new QualifiedName(name);
-            }
-
-            if (m_namespaceMappings != null && index < m_namespaceMappings.Length)
-            {
-                index = m_namespaceMappings[index];
-            }
-
-            return new QualifiedName(name, (ushort)index);
+            return new QualifiedName(name, namespaceIndex);
         }
-        
+
         /// <summary>
         /// Reads an LocalizedText from the stream.
         /// </summary>
@@ -1203,15 +1152,19 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                var encoding = ReadByte("Encoding");
+                BuiltInType type = (BuiltInType)ReadByte("Type");
 
-                BuiltInType type = (BuiltInType)(encoding & (byte)VariantArrayEncodingBits.TypeMask);
+                var context = m_stack.Peek() as Dictionary<string, object>;
 
-                if ((encoding & (byte)VariantArrayEncodingBits.Array) != 0)
+                if (!context.TryGetValue("Body", out token))
                 {
-                    var dimensions = ReadInt32Array("Dimensions");
+                    return Variant.Null;
+                }
 
+                if (token is Array)
+                {
                     var array = ReadVariantBody("Body", type);
+                    var dimensions = ReadInt32Array("Dimensions");
 
                     if (array.Value is Array && dimensions != null && dimensions.Count > 1)
                     {
@@ -1230,7 +1183,7 @@ namespace Opc.Ua
                 m_stack.Pop();
             }
         }
-        
+
         /// <summary>
         /// Reads an DataValue from the stream.
         /// </summary>
@@ -1270,7 +1223,48 @@ namespace Opc.Ua
 
             return dv;
         }
-        
+
+        private void EncodeAsJson(JsonTextWriter writer, object value)
+        {
+            var map = value as Dictionary<string, object>;
+
+            if (map != null)
+            {
+                EncodeAsJson(writer, map);
+                return;
+            }
+
+            var list = value as List<object>;
+
+            if (list != null)
+            {
+                writer.WriteStartArray();
+
+                foreach (var element in list)
+                {
+                    EncodeAsJson(writer, element);
+                }
+
+                writer.WriteStartArray();
+                return;
+            }
+
+            writer.WriteValue(value);
+        }
+
+        private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
+        {
+            writer.WriteStartObject();
+
+            foreach (var field in value)
+            {
+                writer.WritePropertyName(field.Key);
+                EncodeAsJson(writer, field.Value);
+            }
+
+            writer.WriteEndObject();
+        }
+
         /// <summary>
         /// Reads an extension object from the stream.
         /// </summary>
@@ -1303,39 +1297,48 @@ namespace Opc.Ua
                     Utils.Trace("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
                 }
 
+                byte encoding = ReadByte("Encoding");
+
+                if (encoding == 1)
+                {
+                    var bytes = ReadByteString("Body");
+                    return new ExtensionObject(typeId, bytes);
+                }
+
+                if (encoding == 2)
+                {
+                    var xml = ReadXmlElement("Body");
+                    return new ExtensionObject(typeId, xml);
+                }
+
                 Type systemType = m_context.Factory.GetSystemType(typeId);
 
                 if (systemType != null)
                 {
-                    var encodeable = ReadEncodeable("Object", systemType);
+                    var encodeable = ReadEncodeable("Body", systemType);
                     return new ExtensionObject(typeId, encodeable);
                 }
 
-                if (value.ContainsKey("Binary"))
+                var ostrm = new MemoryStream();
+
+                using (JsonTextWriter writer = new JsonTextWriter(new StreamWriter(ostrm)))
                 {
-                    var bytes = ReadByteString("Binary");
-                    return new ExtensionObject(typeId, bytes);
+                    EncodeAsJson(writer, token);
                 }
 
-                if (value.ContainsKey("Xml"))
-                {
-                    var xml = ReadXmlElement("Xml");
-                    return new ExtensionObject(typeId, xml);
-                }
-
-                return new ExtensionObject();
+                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {
                 m_stack.Pop();
             }
         }
-        
+
         /// <summary>
         /// Reads an encodeable object from the stream.
         /// </summary>
         public IEncodeable ReadEncodeable(
-            string      fieldName, 
+            string fieldName,
             System.Type systemType)
         {
             if (systemType == null) throw new ArgumentNullException("systemType");
@@ -1348,9 +1351,9 @@ namespace Opc.Ua
             }
 
             IEncodeable value = Activator.CreateInstance(systemType) as IEncodeable;
-            
+
             if (value == null)
-            {               
+            {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
             }
 
@@ -1367,7 +1370,7 @@ namespace Opc.Ua
 
             return value;
         }
-        
+
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
@@ -1375,35 +1378,7 @@ namespace Opc.Ua
         {
             if (enumType == null) throw new ArgumentNullException("enumType");
 
-            Enum value = (Enum)Enum.GetValues(enumType).GetValue(0);
-
-            object token = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return value;
-            }
-
-            string literal = token as string;
-
-            if (literal == null)
-            {
-                return value;
-            }
-
-            int index = literal.LastIndexOf('_');
-
-            if (index > 0)
-            {
-                int number = Convert.ToInt32(literal.Substring(index + 1), CultureInfo.InvariantCulture);
-                value = (Enum)Enum.ToObject(enumType, number);
-            }
-            else
-            {
-                value = (Enum)Enum.Parse(enumType, literal, false);
-            }
-
-            return value;
+            return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
         }
 
         private bool ReadArrayField(string fieldName, out List<object> array)
@@ -1459,7 +1434,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a sbyte array from the stream.
         /// </summary>
@@ -1519,7 +1494,7 @@ namespace Opc.Ua
 
             return values;
         }
-   
+
         /// <summary>
         /// Reads a short array from the stream.
         /// </summary>
@@ -1549,7 +1524,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a ushort array from the stream.
         /// </summary>
@@ -1579,7 +1554,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a int array from the stream.
         /// </summary>
@@ -1609,7 +1584,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a uint array from the stream.
         /// </summary>
@@ -1639,7 +1614,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a long array from the stream.
         /// </summary>
@@ -1669,7 +1644,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a ulong array from the stream.
         /// </summary>
@@ -1699,7 +1674,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a float array from the stream.
         /// </summary>
@@ -1729,7 +1704,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a double array from the stream.
         /// </summary>
@@ -1759,7 +1734,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a string array from the stream.
         /// </summary>
@@ -1789,7 +1764,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a UTC date/time array from the stream.
         /// </summary>
@@ -1819,7 +1794,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a GUID array from the stream.
         /// </summary>
@@ -1850,7 +1825,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads a byte string array from the stream.
         /// </summary>
@@ -1901,7 +1876,8 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadXmlElement(null));
+                    var element = ReadXmlElement(null);
+                    values.Add(element);
                 }
                 finally
                 {
@@ -1911,7 +1887,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads an NodeId array from the stream.
         /// </summary>
@@ -1942,7 +1918,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads an ExpandedNodeId array from the stream.
         /// </summary>
@@ -1973,7 +1949,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads an StatusCode array from the stream.
         /// </summary>
@@ -2035,7 +2011,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads an QualifiedName array from the stream.
         /// </summary>
@@ -2066,7 +2042,7 @@ namespace Opc.Ua
 
             return values;
         }
-        
+
         /// <summary>
         /// Reads an LocalizedText array from the stream.
         /// </summary>
@@ -2159,7 +2135,7 @@ namespace Opc.Ua
 
             return values;
         }
-                
+
         /// <summary>
         /// Reads an array of extension objects from the stream.
         /// </summary>
@@ -2189,7 +2165,7 @@ namespace Opc.Ua
             }
 
             return values;
-        }        
+        }
 
         /// <summary>
         /// Reads an encodeable object array from the stream.
@@ -2257,7 +2233,7 @@ namespace Opc.Ua
             return values;
         }
         #endregion
-                
+
         #region Private Methods
         #endregion
     }
