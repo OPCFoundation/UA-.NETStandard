@@ -219,6 +219,8 @@
     <None Include="Properties\PublishProfiles\OpcUaWebTelemetry - Web Deploy.pubxml" />
     <None Include="Properties\PublishProfiles\OpcUaWebTelemetry20170111055943 - Web Deploy.pubxml" />
     <None Include="Scripts\jquery-3.1.1.intellisense.js" />
+    <Content Include="Scripts\Chart.js" />
+    <Content Include="Scripts\Chart.min.js" />
     <Content Include="Scripts\jquery-3.1.1.js" />
     <Content Include="Scripts\jquery-3.1.1.min.js" />
     <Content Include="Scripts\jquery-3.1.1.slim.js" />

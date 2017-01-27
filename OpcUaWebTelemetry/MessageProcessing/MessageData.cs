@@ -34,6 +34,9 @@ namespace OpcUaWebTelemetry.JsonData
 
     public class data
     {
+        [JsonProperty("HostName")]
+        public string HostName { get; set; }
+
         [JsonProperty("MonitoredItem")]
         public MonitoredItem MonitoredItem { get; set; }
 
