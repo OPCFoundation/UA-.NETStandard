@@ -461,18 +461,8 @@ namespace Opc.Ua.Security
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
             return output.OpenStore();
         }
-
-        /// <summary>
-        /// Gets the private key file path.
-        /// </summary>
-        public async Task<string> GetPrivateKeyFilePath()
-        {
-            Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.GetPrivateKeyFilePath();
-        }
     }
-
-
+    
     /// <summary>
     /// An identifier for a certificate store.
     /// </summary>

@@ -471,31 +471,6 @@ namespace Opc.Ua
             store.Open(this.StorePath);
             return store;
         }
-
-        /// <summary>
-        /// Gets the private key file path.
-        /// </summary>
-        public async Task<string> GetPrivateKeyFilePath()
-        {
-            X509Certificate2 certificate = await Find(false);
-
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-
-            try
-            {
-                store.Open(this.StorePath);
-                return store.GetPrivateKeyFilePath(certificate.Thumbprint);
-            }
-            finally
-            {
-                store.Close();
-            }
-        }
         #endregion
 
         #region Private Methods

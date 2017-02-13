@@ -164,6 +164,7 @@ namespace Opc.Ua
 
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
+
             return Task.CompletedTask;
         }
 
@@ -287,24 +288,6 @@ namespace Opc.Ua
             }
 
             return entry.CertificateFile.FullName;
-        }
-
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
-        public string GetPrivateKeyFilePath(string thumbprint)
-        {
-            Entry entry = Find(thumbprint);
-
-            if (entry == null)
-            {
-                return null;
-            }
-
-            if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
-            {
-                return null;
-            }
-
-            return entry.PrivateKeyFile.FullName;
         }
 
         /// <summary>

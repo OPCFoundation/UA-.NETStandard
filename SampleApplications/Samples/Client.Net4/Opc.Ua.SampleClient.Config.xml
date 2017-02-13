@@ -24,14 +24,14 @@
     <ApplicationCertificate>  
       
       <!-- The type of store. -->
-      <StoreType>Directory</StoreType>
+      <StoreType>X509Store</StoreType>
       
       <!-- The location of the store. 
            Windows store must start with LocalMachine, CurrentUser or CurrentService
            The name of the store is appended.
            Note that the names used in code are difference from what appears in the control panel.
            e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <StorePath>CurrentUser\My</StorePath>
 
 
       <!-- The subject for the certificate 
@@ -59,8 +59,8 @@
          specify a different store that is used only for UA related CAs and/or they must explicitly
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\My</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- The list of trusted certificates. 
@@ -78,8 +78,8 @@
          may contained the entire certificate encoded as base64 data.
          -->
     <TrustedPeerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\My</StorePath>
     </TrustedPeerCertificates>
     
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -87,8 +87,8 @@
 
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\My</StorePath>
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
