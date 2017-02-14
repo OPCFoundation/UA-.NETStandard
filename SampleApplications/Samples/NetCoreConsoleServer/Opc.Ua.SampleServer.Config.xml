@@ -14,26 +14,26 @@
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\OPC Foundation/CertificateStores/MachineDefault</StorePath>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
       <SubjectName>UA Core Sample Server</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\OPC Foundation/CertificateStores/UA Certificate Authorities</StorePath>
+      <StorePath>CurrentUser\UA_Certificate_Authorities</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- Where the trust list is stored (UA Applications) -->
     <TrustedPeerCertificates>
       <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\OPC Foundation/CertificateStores/UA Applications</StorePath>
+      <StorePath>CurrentUser\UA_Applications</StorePath>
     </TrustedPeerCertificates>
     
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
+      <StorePath>CurrentUser\UA_RejectedCertificates</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
