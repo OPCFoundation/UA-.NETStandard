@@ -138,8 +138,9 @@ namespace Opc.Ua
             if (!m_store.Certificates.Contains(certificate))
             {
                 m_store.Add(certificate);
-            }      
-            
+                Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), m_store.Name);
+            }
+
             return Task.CompletedTask;
         }
 
