@@ -234,62 +234,6 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
-        public string GetPublicKeyFilePath(string thumbprint)
-        {
-            Entry entry = Find(thumbprint);
-
-            if (entry == null)
-            {
-                return null;
-            }
-
-            if (entry.CertificateFile == null || !entry.CertificateFile.Exists)
-            {
-                return null;
-            }
-
-            return entry.CertificateFile.FullName;
-        }
-
-        /// <summary>
-        /// Gets the CRL file paths.
-        /// </summary>
-        /// <param name="thumbprint">The certificate thumbprint.</param>
-        /// <returns></returns>
-        public string[] GetCrlFilePaths(string thumbprint)
-        {
-            List<string> filePaths = new List<string>();
-
-            Entry entry = Find(thumbprint);
-
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
-
-            foreach (FileInfo file in info.GetFiles("*.crl"))
-            {
-                X509CRL crl = null;
-
-                try
-                {
-                    crl = new X509CRL(file.FullName);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Could not parse CRL file.");
-                    continue;
-                }
-
-                if (!Utils.CompareDistinguishedName(crl.Issuer, entry.Certificate.Subject))
-                {
-                    continue;
-                }
-
-                filePaths.Add(file.FullName);
-            }
-
-            return filePaths.ToArray();
-        }
-
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>

@@ -193,7 +193,11 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the store support CRLs.
         /// </summary>
-        public bool SupportsCRLs { get { return false; } }
+        public bool SupportsCRLs
+        {
+            //TODO: Implent support for CRLs
+            get { return false; }
+        }
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
