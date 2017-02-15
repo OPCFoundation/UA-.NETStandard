@@ -720,9 +720,6 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // configure access to the executable, the configuration file and the private key. 
-            await ConfigureFileAccess(configuration);
-
             // update configuration file.
             ConfigUtils.UpdateConfigurationLocation(InstallConfig.ExecutableFile, InstallConfig.ConfigurationFile);
 
@@ -1511,124 +1508,6 @@ namespace Opc.Ua.Configuration
             catch (Exception e)
             {
                 Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
-            }
-        }
-
-        /// <summary>
-        /// Gets the access rules to use for the application.
-        /// </summary>
-        private List<ApplicationAccessRule> GetAccessRules()
-        {
-            List<ApplicationAccessRule> rules = new List<ApplicationAccessRule>();
-
-            // check for rules specified in the installer configuration.
-            bool hasAdmin = false;
-
-            if (InstallConfig.AccessRules != null)
-            {
-                for (int ii = 0; ii < InstallConfig.AccessRules.Count; ii++)
-                {
-                    ApplicationAccessRule rule = InstallConfig.AccessRules[ii];
-
-                    if (rule.Right == ApplicationAccessRight.Configure && rule.RuleType == AccessControlType.Allow)
-                    {
-                        hasAdmin = true;
-                        break;
-                    }
-                }
-
-                rules = InstallConfig.AccessRules;
-            }
-
-            // provide some default rules.
-            if (rules.Count == 0)
-            {
-                // give user run access.
-                ApplicationAccessRule rule = new ApplicationAccessRule();
-                rule.RuleType = AccessControlType.Allow;
-                rule.Right = ApplicationAccessRight.Run;
-                rule.IdentityName = WellKnownSids.Users;
-                rules.Add(rule);
-
-                // ensure service can access.
-                if (InstallConfig.InstallAsService)
-                {
-                    rule = new ApplicationAccessRule();
-                    rule.RuleType = AccessControlType.Allow;
-                    rule.Right = ApplicationAccessRight.Run;
-                    rule.IdentityName = WellKnownSids.NetworkService;
-                    rules.Add(rule);
-
-                    rule = new ApplicationAccessRule();
-                    rule.RuleType = AccessControlType.Allow;
-                    rule.Right = ApplicationAccessRight.Run;
-                    rule.IdentityName = WellKnownSids.LocalService;
-                    rules.Add(rule);
-                }               
-            }
-
-            // ensure someone can change the configuration later.
-            if (!hasAdmin)
-            {
-                ApplicationAccessRule rule = new ApplicationAccessRule();
-                rule.RuleType = AccessControlType.Allow;
-                rule.Right = ApplicationAccessRight.Configure;
-                rule.IdentityName = WellKnownSids.Administrators;
-                rules.Add(rule);
-            }
-
-            return rules;
-        }
-
-        /// <summary>
-        /// Configures access to the executable, the configuration file and the private key.
-        /// </summary>
-        private async Task ConfigureFileAccess(ApplicationConfiguration configuration)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Configuring file access.");
-
-            List<ApplicationAccessRule> rules = GetAccessRules();
-
-            // apply access rules to the excutable file.
-            try
-            {
-                if (InstallConfig.SetExecutableFilePermissions)
-                {
-                    ApplicationAccessRule.SetAccessRules(InstallConfig.ExecutableFile, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set executable file permissions.");
-            }
-
-            // apply access rules to the configuration file.
-            try
-            {
-                if (InstallConfig.SetConfigurationFilePermisions)
-                {
-                    ApplicationAccessRule.SetAccessRules(configuration.SourceFilePath, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set configuration file permissions.");
-            }
-
-            // apply access rules to the private key file.
-            try
-            {
-                X509Certificate2 certificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-
-                if (certificate != null)
-                {
-                    ICertificateStore store = configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
-                    store.SetAccessRules(certificate.Thumbprint, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set private key file permissions.");
             }
         }
         #endregion

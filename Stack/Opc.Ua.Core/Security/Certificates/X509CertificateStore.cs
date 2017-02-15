@@ -184,48 +184,12 @@ namespace Opc.Ua
             return Task.FromResult(collection);
         }
         
-        /// <summary cref="ICertificateStore.SupportsAccessControl" />
-        public bool SupportsAccessControl
-        {
-            get { return false; }
-        }
-
-        /// <summary cref="ICertificateStore.GetAccessRules()" />
-        public IList<ApplicationAccessRule> GetAccessRules()
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-        
-        /// <summary cref="ICertificateStore.SupportsCertificateAccessControl" />
-        public bool SupportsCertificateAccessControl
-        {
-            get { return false; }
-        }
-        
         /// <summary cref="ICertificateStore.SupportsPrivateKeys" />
         public bool SupportsPrivateKeys
         {
             get { return true; }
         }
         
-        /// <summary cref="ICertificateStore.GetAccessRules(string)" />
-        public IList<ApplicationAccessRule> GetAccessRules(string thumbprint)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(string, IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-
         /// <summary>
         /// Whether the store support CRLs.
         /// </summary>

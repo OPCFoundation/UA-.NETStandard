@@ -225,44 +225,6 @@ namespace Opc.Ua
             }
         }
         
-        /// <summary cref="ICertificateStore.SupportsAccessControl" />
-        public bool SupportsAccessControl
-        {
-            get { return true; }
-        }
-
-        /// <summary cref="ICertificateStore.GetAccessRules()" />
-        public IList<ApplicationAccessRule> GetAccessRules()
-        {
-            lock (m_lock)
-            {
-                return ApplicationAccessRule.GetAccessRules(m_certificateSubdir.FullName);
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            lock (m_lock)
-            {
-                ApplicationAccessRule.SetAccessRules(m_certificateSubdir.FullName, rules, replaceExisting);
-
-                if (String.Compare(m_certificateSubdir.FullName, m_privateKeySubdir.FullName, StringComparison.OrdinalIgnoreCase) != 0)
-                {
-                    ApplicationAccessRule.SetAccessRules(m_privateKeySubdir.FullName, rules, replaceExisting);
-                }
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SupportsCertificateAccessControl" />
-        public bool SupportsCertificateAccessControl
-        {
-            get
-            {
-                return true;
-            }
-        }
-        
         /// <summary cref="ICertificateStore.SupportsPrivateKeys" />
         public bool SupportsPrivateKeys
         {
@@ -326,46 +288,6 @@ namespace Opc.Ua
             }
 
             return filePaths.ToArray();
-        }
-
-        /// <summary cref="ICertificateStore.GetAccessRules(string)" />
-        public IList<ApplicationAccessRule> GetAccessRules(string thumbprint)
-        {
-            lock (m_lock)
-            {
-                Entry entry = Find(thumbprint);
-
-                if (entry == null)
-                {
-                    throw new ArgumentException("Certificate does not exist in store.");
-                }
-
-                if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
-                {
-                    throw new ArgumentException("Certificate does not have a private key in the store.");
-                }
-
-                return ApplicationAccessRule.GetAccessRules(entry.PrivateKeyFile.FullName);
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(string, IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            lock (m_lock)
-            {
-                Entry entry = Find(thumbprint);
-
-                if (entry == null)
-                {
-                    throw new ArgumentException("Certificate does not exist in store.");
-                }
-
-                if (entry.PrivateKeyFile != null && entry.PrivateKeyFile.Exists)
-                {
-                    ApplicationAccessRule.SetAccessRules(entry.PrivateKeyFile.FullName, rules, replaceExisting);
-                }
-            }
         }
 
         /// <summary>

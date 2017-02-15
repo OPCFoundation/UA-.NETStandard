@@ -61,47 +61,10 @@ namespace Opc.Ua
         /// <returns>The matching certificate</returns>
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
         
-		/// <summary>
-		/// Whether the store supports access control.
-		/// </summary>
-		bool SupportsAccessControl { get; }
-
-        /// <summary>
-        /// Returns the access rules that are currently applied to the store.
-        /// </summary>
-        /// <returns>The list of access rules.</returns>
-		IList<ApplicationAccessRule> GetAccessRules();
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the store.
-        /// </summary>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting);   
-        
-		/// <summary>
-		/// Whether the store supports access control on certificates.
-		/// </summary>
-		bool SupportsCertificateAccessControl { get; }  
 		/// Whether the store supports private keys.
 		/// </summary>
         bool SupportsPrivateKeys { get; }
-
-        /// <summary>
-        /// Returns the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The access rules.</returns>
-        IList<ApplicationAccessRule> GetAccessRules(string thumbprint);
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting);
-
+        
         /// <summary>
         /// Whether the store supports CRLs.
         /// </summary>
