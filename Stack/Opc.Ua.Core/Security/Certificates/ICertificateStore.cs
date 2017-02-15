@@ -11,16 +11,15 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-	/// <summary>
+    /// <summary>
     /// An abstract interface to certficate stores.
     /// </summary>
-	public interface ICertificateStore : IDisposable
+    public interface ICertificateStore : IDisposable
     {
         /// <summary>
         /// Opens the store at the specified location.
@@ -61,38 +60,9 @@ namespace Opc.Ua
         /// <returns>The matching certificate</returns>
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
         
-		/// Whether the store supports private keys.
-		/// </summary>
-        bool SupportsPrivateKeys { get; }
-        
-        /// <summary>
-        /// Whether the store supports CRLs.
-        /// </summary>
-        bool SupportsCRLs { get; }
-
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
-       
-        /// <summary>
-        /// Returns the CRLs in the store.
-        /// </summary>
-        List<X509CRL> EnumerateCRLs();
-
-        /// <summary>
-        /// Returns the CRLs for the issuer.
-        /// </summary>
-        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer);
-
-        /// <summary>
-        /// Adds a CRL to the store.
-        /// </summary>
-        void AddCRL(X509CRL crl);
-
-        /// <summary>
-        /// Removes a CRL from the store.
-        /// </summary>
-        bool DeleteCRL(X509CRL crl);
     };
 }

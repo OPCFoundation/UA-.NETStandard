@@ -712,65 +712,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the store supports private keys.
-        /// </summary>
-        /// <value></value>
-        public bool SupportsPrivateKeys
-        {
-            get { return false; }
-        }
-
-        /// <summary>
-        /// Returns the file containing the private key for the specified certificate.
-        /// </summary>
-        public string GetPrivateKeyFilePath(string thumbprint)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
-        public bool SupportsCRLs { get { return false; } }
-
-        /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             return StatusCodes.BadNotSupported;
-        }
-
-        /// <summary>
-        /// Returns the CRLs in the store.
-        /// </summary>
-        public List<X509CRL> EnumerateCRLs()
-        {
-            return new List<X509CRL>();
-        }
-
-        /// <summary>
-        /// Returns the CRLs for the issuer.
-        /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
-        {
-            return new List<X509CRL>();
-        }        
-        
-        /// <summary>
-        /// Adds a CRL to the store.
-        /// </summary>
-        public void AddCRL(X509CRL crl)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-
-        /// <summary>
-        /// Removes a CRL from the store.
-        /// </summary>
-        public bool DeleteCRL(X509CRL crl)
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
         #endregion
     }
