@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -189,7 +190,67 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return StatusCodes.BadNotSupported;
+            if (issuer == null)
+            {
+                throw new ArgumentNullException("issuer");
+            }
+
+            if (certificate == null)
+            {
+                throw new ArgumentNullException("certificate");
+            }
+
+            // check for CRL.
+            DirectoryInfo info = new DirectoryInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "crl");
+
+            if (info.Exists)
+            {
+                bool crlExpired = true;
+
+                foreach (FileInfo file in info.GetFiles("*.crl"))
+                {
+                    X509CRL crl = null;
+
+                    try
+                    {
+                        crl = new X509CRL(file.FullName);
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Could not parse CRL file.");
+                        continue;
+                    }
+
+                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    {
+                        continue;
+                    }
+
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (crl.IsRevoked(certificate))
+                    {
+                        return StatusCodes.BadCertificateRevoked;
+                    }
+
+                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    {
+                        crlExpired = false;
+                    }
+                }
+
+                // certificate is fine.
+                if (!crlExpired)
+                {
+                    return StatusCodes.Good;
+                }
+            }
+
+            // can't find a valid CRL.
+            return StatusCodes.BadCertificateRevocationUnknown;
         }
 
         private X509Store m_store;
