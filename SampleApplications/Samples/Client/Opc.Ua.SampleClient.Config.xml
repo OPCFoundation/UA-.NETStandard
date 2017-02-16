@@ -21,18 +21,9 @@
   <SecurityConfiguration>
     
     <!-- The location of the application instance certificate in the Windows certificate store -->
-    <ApplicationCertificate>  
-      
-      <!-- The type of store. -->
-      <StoreType>Directory</StoreType>
-      
-      <!-- The location of the store. 
-           Windows store must start with LocalMachine, CurrentUser or CurrentService
-           The name of the store is appended.
-           Note that the names used in code are difference from what appears in the control panel.
-           e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-
+    <ApplicationCertificate>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
 
       <!-- The subject for the certificate 
            Note that subject names are complex structures. The text that appears here is the CommonName component.

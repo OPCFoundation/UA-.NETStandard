@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -64,5 +65,25 @@ namespace Opc.Ua
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
+
+        /// <summary>
+        /// Returns the CRLs in the store.
+        /// </summary>
+        List<X509CRL> EnumerateCRLs();
+
+        /// <summary>
+        /// Returns the CRLs for the issuer.
+        /// </summary>
+        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer);
+
+        /// <summary>
+        /// Adds a CRL to the store.
+        /// </summary>
+        void AddCRL(X509CRL crl);
+
+        /// <summary>
+        /// Removes a CRL from the store.
+        /// </summary>
+        bool DeleteCRL(X509CRL crl);
     };
 }

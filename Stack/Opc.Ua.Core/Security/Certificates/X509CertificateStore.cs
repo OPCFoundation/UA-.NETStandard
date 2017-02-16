@@ -31,7 +31,7 @@ namespace Opc.Ua
         {
             m_store = null;
         }
-        
+
         public void Dispose()
         {
             Dispose(true);
@@ -39,7 +39,6 @@ namespace Opc.Ua
 
         protected virtual void Dispose(bool disposing)
         {
-            // clean up managed resources.
             if (disposing)
             {
                 Close();
@@ -47,12 +46,12 @@ namespace Opc.Ua
         }
 
         /// <summary cref="ICertificateStore.Open(string)" />
-		/// <remarks>
-		/// Syntax: StoreLocation\StoreName		
-		/// Examples:
-		/// LocalMachine\My
-		/// CurrentUser\Trust
-		/// </remarks>
+        /// <remarks>
+        /// Syntax: StoreLocation\StoreName		
+        /// Examples:
+        /// LocalMachine\My
+        /// CurrentUser\Trust
+        /// </remarks>
         public void Open(string path)
         {
             if (path == null) throw new ArgumentNullException("path");
@@ -101,7 +100,6 @@ namespace Opc.Ua
             m_store.Open(OpenFlags.ReadWrite);
         }
 
-        /// <summary cref="ICertificateStore.Close()" />
         public void Close()
         {
             if (m_store != null)
@@ -111,7 +109,6 @@ namespace Opc.Ua
             }
         }
 
-       /// <summary cref="ICertificateStore.Enumerate()" />
         public Task<X509Certificate2Collection> Enumerate()
         {
             if (m_store == null)
@@ -123,9 +120,9 @@ namespace Opc.Ua
 
             certificates.AddRange(m_store.Certificates);
 
-	        return Task.FromResult(certificates);
+            return Task.FromResult(certificates);
         }
-            
+
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
         public Task Add(X509Certificate2 certificate)
         {
@@ -145,7 +142,6 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
-        /// <summary cref="ICertificateStore.Delete(string)" />
         public Task<bool> Delete(string thumbprint)
         {
             if (m_store == null)
@@ -160,11 +156,10 @@ namespace Opc.Ua
                     m_store.Certificates.Remove(certificate);
                 }
             }
-        
-		    return Task.FromResult(true);
+
+            return Task.FromResult(true);
         }
-        
-        /// <summary cref="ICertificateStore.FindByThumbprint(string)" />
+
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             if (m_store == null)
@@ -181,76 +176,33 @@ namespace Opc.Ua
                     collection.Add(certificate);
                 }
             }
-                                    
+
             return Task.FromResult(collection);
         }
-        
-        /// <summary>
-        /// Checks if issuer has revoked the certificate.
-        /// </summary>
+
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            if (issuer == null)
-            {
-                throw new ArgumentNullException("issuer");
-            }
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
 
-            if (certificate == null)
-            {
-                throw new ArgumentNullException("certificate");
-            }
+        public List<X509CRL> EnumerateCRLs()
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
 
-            // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "crl");
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
 
-            if (info.Exists)
-            {
-                bool crlExpired = true;
+        public void AddCRL(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
 
-                foreach (FileInfo file in info.GetFiles("*.crl"))
-                {
-                    X509CRL crl = null;
-
-                    try
-                    {
-                        crl = new X509CRL(file.FullName);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.Trace(e, "Could not parse CRL file.");
-                        continue;
-                    }
-
-                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
-                    {
-                        continue;
-                    }
-
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (crl.IsRevoked(certificate))
-                    {
-                        return StatusCodes.BadCertificateRevoked;
-                    }
-
-                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
-                    {
-                        crlExpired = false;
-                    }
-                }
-
-                // certificate is fine.
-                if (!crlExpired)
-                {
-                    return StatusCodes.Good;
-                }
-            }
-
-            // can't find a valid CRL.
-            return StatusCodes.BadCertificateRevocationUnknown;
+        public bool DeleteCRL(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         private X509Store m_store;

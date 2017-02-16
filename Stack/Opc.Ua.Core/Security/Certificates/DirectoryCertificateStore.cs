@@ -379,9 +379,154 @@ namespace Opc.Ua
             // can't find a valid CRL.
             return StatusCodes.BadCertificateRevocationUnknown;
         }
-#endregion
 
-#region Private Methods
+        /// <summary>
+        /// Returns the CRLs in the store.
+        /// </summary>
+        public List<X509CRL> EnumerateCRLs()
+        {
+            List<X509CRL> crls = new List<X509CRL>();
+
+            // check for CRL.
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
+
+            if (info.Exists)
+            {
+                foreach (FileInfo file in info.GetFiles("*.crl"))
+                {
+                    X509CRL crl = new X509CRL(file.FullName);
+                    crls.Add(crl);
+                }
+            }
+
+            return crls;
+        }
+
+        /// <summary>
+        /// Returns the CRLs for the issuer.
+        /// </summary>
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        {
+            if (issuer == null)
+            {
+                throw new ArgumentNullException("issuer");
+            }
+
+            List<X509CRL> crls = new List<X509CRL>();
+
+            // check for CRL.
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
+
+            if (info.Exists)
+            {
+                foreach (FileInfo file in info.GetFiles("*.crl"))
+                {
+                    X509CRL crl = new X509CRL(file.FullName);
+
+                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    {
+                        continue;
+                    }
+
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    {
+                        crls.Add(crl);
+                    }
+                }
+            }
+
+            return crls;
+        }
+
+        /// <summary>
+        /// Adds a CRL to the store.
+        /// </summary>
+        public void AddCRL(X509CRL crl)
+        {
+            if (crl == null)
+            {
+                throw new ArgumentNullException("crl");
+            }
+
+            X509Certificate2 issuer = null;
+            X509Certificate2Collection certificates = null;
+            certificates = Enumerate().Result;
+            foreach (X509Certificate2 certificate in certificates)
+            {
+                if (Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
+                {
+                    if (crl.VerifySignature(certificate, false))
+                    {
+                        issuer = certificate;
+                        break;
+                    }
+                }
+            }
+
+            if (issuer == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not find issuer of the CRL.");
+            }
+
+            StringBuilder builder = new StringBuilder();
+            builder.Append(m_directory.FullName);
+
+            builder.Append(Path.DirectorySeparatorChar + "crl" + Path.DirectorySeparatorChar);
+            builder.Append(GetFileName(issuer));
+            builder.Append(".crl");
+
+            FileInfo fileInfo = new FileInfo(builder.ToString());
+
+            if (!fileInfo.Directory.Exists)
+            {
+                fileInfo.Directory.Create();
+            }
+
+            File.WriteAllBytes(fileInfo.FullName, crl.RawData);
+        }
+
+        /// <summary>
+        /// Removes a CRL from the store.
+        /// </summary>
+        public bool DeleteCRL(X509CRL crl)
+        {
+            if (crl == null)
+            {
+                throw new ArgumentNullException("crl");
+            }
+
+            string filePath = m_directory.FullName;
+            filePath += Path.DirectorySeparatorChar + "crl";
+
+            DirectoryInfo dirInfo = new DirectoryInfo(filePath);
+
+            if (dirInfo.Exists)
+            {
+                foreach (FileInfo fileInfo in dirInfo.GetFiles("*.crl"))
+                {
+                    if (fileInfo.Length == crl.RawData.Length)
+                    {
+                        byte[] bytes = File.ReadAllBytes(fileInfo.FullName);
+
+                        if (Utils.IsEqual(bytes, crl.RawData))
+                        {
+                            fileInfo.Delete();
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+        #endregion
+
+        #region Private Methods
         /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
