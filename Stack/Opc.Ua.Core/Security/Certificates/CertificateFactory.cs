@@ -310,10 +310,15 @@ namespace Opc.Ua
                 {
                     store = new X509CertificateStore();
                 }
-                else
+                else if (storeType == CertificateStoreType.Directory)
                 {
                     store = new DirectoryCertificateStore();
                 }
+                else
+                {
+                    throw new ArgumentException("Invalid store type");
+                }
+
                 store.Open(storePath);
                 store.Add(certificate);
                 store.Close();
