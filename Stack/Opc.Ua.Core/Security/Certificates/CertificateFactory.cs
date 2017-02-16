@@ -183,12 +183,6 @@ namespace Opc.Ua
             bool isCA,
             X509Certificate2 issuerCAKeyCert)
         {
-            if (!String.IsNullOrEmpty(storeType) &&
-                storeType != CertificateStoreType.Directory)
-            {
-                throw new NotSupportedException("Cannot create a certificate for a non directory store.");
-            }
-
             if (issuerCAKeyCert != null)
             {
                 if (!issuerCAKeyCert.HasPrivateKey)
@@ -312,15 +306,23 @@ namespace Opc.Ua
             if (!String.IsNullOrEmpty(storePath))
             {
                 ICertificateStore store = null;
-                if (storeType == CertificateStoreType.Directory)
+                if (storeType == CertificateStoreType.X509Store)
                 {
-                    using (store = new DirectoryCertificateStore())
-                    {
-                        store.Open(storePath);
-                        store.Add(certificate);
-                        store.Close();
-                    }
+                    store = new X509CertificateStore();
                 }
+                else if (storeType == CertificateStoreType.Directory)
+                {
+                    store = new DirectoryCertificateStore();
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid store type");
+                }
+
+                store.Open(storePath);
+                store.Add(certificate);
+                store.Close();
+                store.Dispose();
             }
 
             // note: this cert has a private key!

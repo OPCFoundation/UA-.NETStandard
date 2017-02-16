@@ -13,8 +13,8 @@
     
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
-      <StoreType>Directory</StoreType>
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
       <SubjectName>Opc.Ua.SampleServer</SubjectName>
     </ApplicationCertificate>
 

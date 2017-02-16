@@ -17,10 +17,10 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-	/// <summary>
+    /// <summary>
     /// An abstract interface to certficate stores.
     /// </summary>
-	public interface ICertificateStore : IDisposable
+    public interface ICertificateStore : IDisposable
     {
         /// <summary>
         /// Opens the store at the specified location.
@@ -61,64 +61,11 @@ namespace Opc.Ua
         /// <returns>The matching certificate</returns>
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
         
-		/// <summary>
-		/// Whether the store supports access control.
-		/// </summary>
-		bool SupportsAccessControl { get; }
-
-        /// <summary>
-        /// Returns the access rules that are currently applied to the store.
-        /// </summary>
-        /// <returns>The list of access rules.</returns>
-		IList<ApplicationAccessRule> GetAccessRules();
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the store.
-        /// </summary>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting);   
-        
-		/// <summary>
-		/// Whether the store supports access control on certificates.
-		/// </summary>
-		bool SupportsCertificateAccessControl { get; }  
-		/// Whether the store supports private keys.
-		/// </summary>
-        bool SupportsPrivateKeys { get; }
-
-        /// <summary>
-        /// Returns the file containing the private key for the specified certificate.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The full file path. Null if the certificate does not exist or the private key does not exist.</returns>
-        string GetPrivateKeyFilePath(string thumbprint);
-        
-        /// <summary>
-        /// Returns the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The access rules.</returns>
-        IList<ApplicationAccessRule> GetAccessRules(string thumbprint);
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting);
-
-        /// <summary>
-        /// Whether the store supports CRLs.
-        /// </summary>
-        bool SupportsCRLs { get; }
-
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
-       
+
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>

@@ -1921,7 +1921,7 @@ namespace Opc.Ua
         /// The type of certificate store.
         /// </summary>
         /// <value>
-        /// If the StoreName is not empty, the CertificateStoreType.Windows is returned, otherwise the StoreType is returned.
+        /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
         public string StoreType
@@ -1930,7 +1930,7 @@ namespace Opc.Ua
             {
                 if (!String.IsNullOrEmpty(m_storeName))
                 {
-                    return CertificateStoreType.Windows;
+                    return CertificateStoreType.X509Store;
                 }
 
                 return m_storeType;
@@ -1978,7 +1978,7 @@ namespace Opc.Ua
                     {
                         if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
                         {
-                            m_storeType = CertificateStoreType.Windows;
+                            m_storeType = CertificateStoreType.X509Store;
                         }
                         else
                         {
@@ -2190,7 +2190,7 @@ namespace Opc.Ua
             {
                 if (!String.IsNullOrEmpty(m_storeName))
                 {
-                    return CertificateStoreType.Windows;
+                    return CertificateStoreType.X509Store;
                 }
 
                 return m_storeType;
@@ -2234,7 +2234,7 @@ namespace Opc.Ua
                     {
                         if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
                         {
-                            m_storeType = CertificateStoreType.Windows;
+                            m_storeType = CertificateStoreType.X509Store;
                         }
                         else
                         {

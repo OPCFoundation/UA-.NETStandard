@@ -350,27 +350,6 @@ namespace Opc.Ua.Client.Controls
                 else
                 {
                     listItem.SubItems[2].Text = "No";
-
-                    if (m_storeId != null)
-                    {
-                        ICertificateStore store = m_storeId.OpenStore();
-
-                        try
-                        {
-                            if (store.GetPrivateKeyFilePath(certificate.Thumbprint) != null)
-                            {
-                                listItem.SubItems[2].Text = "Yes (No Access)";
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            listItem.SubItems[2].Text = e.Message;
-                        }
-                        finally
-                        {
-                            store.Close();
-                        }
-                    }
                 }
 
                 // look up domains.

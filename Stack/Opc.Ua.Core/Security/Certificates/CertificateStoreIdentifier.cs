@@ -98,22 +98,22 @@ namespace Opc.Ua
 
             if (storePath.StartsWith("LocalMachine\\", StringComparison.OrdinalIgnoreCase))
             {
-                return CertificateStoreType.Windows;
+                return CertificateStoreType.X509Store;
             }
 
             if (storePath.StartsWith("CurrentUser\\", StringComparison.OrdinalIgnoreCase))
             {
-                return CertificateStoreType.Windows;
+                return CertificateStoreType.X509Store;
             }
 
             if (storePath.StartsWith("User\\", StringComparison.OrdinalIgnoreCase))
             {
-                return CertificateStoreType.Windows;
+                return CertificateStoreType.X509Store;
             }
 
             if (storePath.StartsWith("Service\\", StringComparison.OrdinalIgnoreCase))
             {
-                return CertificateStoreType.Windows;
+                return CertificateStoreType.X509Store;
             }
 
             return CertificateStoreType.Directory;
@@ -133,6 +133,11 @@ namespace Opc.Ua
 
             switch (storeType)
             {
+                case CertificateStoreType.X509Store:
+                {
+                    store = new X509CertificateStore();
+                    break;
+                }
                 case CertificateStoreType.Directory:
                 {
                     store = new DirectoryCertificateStore();
@@ -175,7 +180,7 @@ namespace Opc.Ua
         /// <summary>
         /// A windows certificate store.
         /// </summary>
-        public const string Windows = "Windows";
+        public const string X509Store = "X509Store";
 
         /// <summary>
         /// A directory certificate store.

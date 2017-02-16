@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
@@ -38,12 +36,6 @@ using System.Xml;
 using System.Runtime.Serialization;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using System.ServiceProcess;
-using System.Management;
-using System.Management.Instrumentation;
-using System.Runtime.InteropServices;
-using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
