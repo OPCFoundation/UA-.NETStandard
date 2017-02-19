@@ -9,7 +9,7 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 3. X.509 certificate support for client and server authentication
 4. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
 5. UA-TCP & HTTPS transports (client and server)
-6. Folder certificate-store support
+6. Folder & OS-level (X509Store) certificate-store support
 7. Sessions (including UI support in the samples)
 8. Subscriptions (including UI support in the samples)
 9. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md), [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md) and [COM Server Wrapper](ComIOP/README.md) samples
