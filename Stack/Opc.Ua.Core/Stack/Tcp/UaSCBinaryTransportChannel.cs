@@ -19,7 +19,7 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The socket layer requires a IMessageSocketFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
         #region Constructors
         public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
@@ -46,6 +46,16 @@ namespace Opc.Ua.Bindings
                 Utils.SilentDispose(m_channel);
                 m_channel = null;
             }
+        }
+        #endregion
+
+        #region IBinaryTransportChannel Members
+        /// <summary>
+        /// Returns the channel's underlying message socket if connected / available.
+        /// </summary>
+        public IMessageSocket Socket
+        {
+            get { lock (m_lock) { return m_channel?.Socket; } }
         }
         #endregion
 
