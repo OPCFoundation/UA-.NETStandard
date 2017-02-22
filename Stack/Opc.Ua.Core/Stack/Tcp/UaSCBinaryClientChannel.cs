@@ -130,10 +130,8 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
                 Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
 
-                task = Task.Run(async () => await Socket.BeginConnect(m_via, m_ConnectCallback, operation).ConfigureAwait(false));
+                task = Socket.BeginConnect(m_via, m_ConnectCallback, operation);
             }
-
-            // task.Wait();
 
             return m_handshakeOperation;
         }
@@ -828,11 +826,8 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run( async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation).ConfigureAwait(false));
+                    task = Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
                 }
-
-                task.Wait();
-
             }
             catch (Exception e)
             {

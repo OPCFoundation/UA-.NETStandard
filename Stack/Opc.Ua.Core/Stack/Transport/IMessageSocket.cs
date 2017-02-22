@@ -168,4 +168,15 @@ namespace Opc.Ua.Bindings
         IMessageSocketAsyncEventArgs MessageSocketEventArgs();
         #endregion
     }
+
+    /// <summary>
+    /// A channel, based on an underlying message socket
+    /// </summary>
+    public interface IMessageSocketChannel
+    {
+        /// <summary>
+        /// Returns the channel's underlying message socket if connected.
+        /// </summary>
+        IMessageSocket Socket { get; }
+    }
 }
