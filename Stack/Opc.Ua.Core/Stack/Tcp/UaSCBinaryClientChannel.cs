@@ -826,7 +826,7 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation));
+                    task = Task.Run( async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation));
                 }
             }
             catch (Exception e)
