@@ -16,7 +16,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -29,20 +28,19 @@ namespace Opc.Ua
     {
         public X509CertificateStore()
         {
-            m_store = null;
+            // defaults
+            m_storeName = "My";
+            m_storeLocation = StoreLocation.CurrentUser;
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            // nothing to do
         }
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                Close();
-            }
+            // nothing to do
         }
 
         /// <summary cref="ICertificateStore.Open(string)" />
@@ -77,13 +75,12 @@ namespace Opc.Ua
 
             // extract store location.
             string storeLocation = path.Substring(0, index);
-            StoreLocation selectedLocation = StoreLocation.CurrentUser;
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
                 if (availableLocation.ToString() == storeLocation)
                 {
-                    selectedLocation = availableLocation;
+                    m_storeLocation = availableLocation;
                     found = true;
                 }
             }
@@ -95,48 +92,36 @@ namespace Opc.Ua
                     storeLocation);
             }
 
-            string storeName = path.Substring(index + 1);
-            m_store = new X509Store(storeName, selectedLocation);
-            m_store.Open(OpenFlags.ReadWrite);
+            m_storeName = path.Substring(index + 1);
         }
 
         public void Close()
         {
-            if (m_store != null)
-            {
-                m_store.Dispose();
-                m_store = null;
-            }
+            // nothing to do
         }
 
         public Task<X509Certificate2Collection> Enumerate()
         {
-            if (m_store == null)
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
-                throw new NullReferenceException("Store null. Call Open() on the store first!");
+                store.Open(OpenFlags.ReadOnly);
+                return Task.FromResult(store.Certificates);
             }
-
-            X509Certificate2Collection certificates = new X509Certificate2Collection();
-
-            certificates.AddRange(m_store.Certificates);
-
-            return Task.FromResult(certificates);
         }
 
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
         public Task Add(X509Certificate2 certificate)
         {
-            if (m_store == null)
-            {
-                throw new NullReferenceException("Store null. Call Open() on the store first!");
-            }
-
             if (certificate == null) throw new ArgumentNullException("certificate");
 
-            if (!m_store.Certificates.Contains(certificate))
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
-                m_store.Add(certificate);
-                Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), m_store.Name);
+                store.Open(OpenFlags.ReadWrite);
+                if (!store.Certificates.Contains(certificate))
+                {
+                    store.Add(certificate);
+                    Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), store.Name);
+                }
             }
 
             return Task.CompletedTask;
@@ -144,16 +129,16 @@ namespace Opc.Ua
 
         public Task<bool> Delete(string thumbprint)
         {
-            if (m_store == null)
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
-                throw new NullReferenceException("Store null. Call Open() on the store first!");
-            }
+                store.Open(OpenFlags.ReadWrite);
 
-            foreach (X509Certificate2 certificate in m_store.Certificates)
-            {
-                if (certificate.Thumbprint == thumbprint)
+                foreach (X509Certificate2 certificate in store.Certificates)
                 {
-                    m_store.Certificates.Remove(certificate);
+                    if (certificate.Thumbprint == thumbprint)
+                    {
+                        store.Certificates.Remove(certificate);
+                    }
                 }
             }
 
@@ -162,22 +147,22 @@ namespace Opc.Ua
 
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            if (m_store == null)
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
-                throw new NullReferenceException("Store null. Call Open() on the store first!");
-            }
+                store.Open(OpenFlags.ReadOnly);
 
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+                X509Certificate2Collection collection = new X509Certificate2Collection();
 
-            foreach (X509Certificate2 certificate in m_store.Certificates)
-            {
-                if (certificate.Thumbprint == thumbprint)
+                foreach (X509Certificate2 certificate in store.Certificates)
                 {
-                    collection.Add(certificate);
+                    if (certificate.Thumbprint == thumbprint)
+                    {
+                        collection.Add(certificate);
+                    }
                 }
-            }
 
-            return Task.FromResult(collection);
+                return Task.FromResult(collection);
+            }
         }
 
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
@@ -205,6 +190,7 @@ namespace Opc.Ua
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        private X509Store m_store;
+        private string m_storeName;
+        private StoreLocation m_storeLocation;
     }
 }
