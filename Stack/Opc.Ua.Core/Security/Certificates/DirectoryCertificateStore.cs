@@ -280,7 +280,7 @@ namespace Opc.Ua
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
                             (password == null) ? String.Empty : password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
                     catch (Exception)
@@ -288,7 +288,7 @@ namespace Opc.Ua
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
                             (password == null) ? String.Empty : password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
                     if (rsa != null)

@@ -344,8 +344,8 @@ namespace Opc.Ua
             int flagsRetryCounter = 0;
             X509Certificate2 certificate = null;
             X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet
             };
 
             // try some combinations of storage flags, support is platform dependent
