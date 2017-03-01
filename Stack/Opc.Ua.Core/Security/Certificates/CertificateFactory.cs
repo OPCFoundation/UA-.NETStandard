@@ -291,7 +291,7 @@ namespace Opc.Ua
             {
                 Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
                 X509CertificateEntry[] chain = new X509CertificateEntry[1];
-                string passcode = (password == null) ? "passcode" : password;
+                string passcode = "passcode";
                 chain[0] = new X509CertificateEntry(x509);
                 pkcsStore.SetKeyEntry(applicationName, new AsymmetricKeyEntry(subjectKeyPair.Private), chain);
                 pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
@@ -320,7 +320,7 @@ namespace Opc.Ua
                 }
 
                 store.Open(storePath);
-                store.Add(certificate);
+                store.Add(certificate, password);
                 store.Close();
                 store.Dispose();
             }
