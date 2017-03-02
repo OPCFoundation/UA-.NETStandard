@@ -320,7 +320,7 @@ namespace Opc.Ua
                 }
 
                 store.Open(storePath);
-                store.Add(certificate);
+                store.Add(certificate, password);
                 store.Close();
                 store.Dispose();
             }
