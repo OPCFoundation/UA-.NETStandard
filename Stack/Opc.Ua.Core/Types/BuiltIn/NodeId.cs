@@ -280,6 +280,8 @@ namespace Opc.Ua
                 SetIdentifier(IdType.Opaque, value);
                 return;
             }
+
+            throw new ArgumentException("Identifier type not supported.", "value");
         }
         #endregion
 

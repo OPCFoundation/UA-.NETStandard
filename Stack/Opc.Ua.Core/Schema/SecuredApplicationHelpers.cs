@@ -328,6 +328,7 @@ namespace Opc.Ua.Security
             profiles.Add(CreateProfile(SecurityPolicies.None));
             profiles.Add(CreateProfile(SecurityPolicies.Basic128Rsa15));
             profiles.Add(CreateProfile(SecurityPolicies.Basic256));
+            profiles.Add(CreateProfile(SecurityPolicies.Basic256Sha256));
 
             if (policies != null)
             {
@@ -404,6 +405,13 @@ namespace Opc.Ua.Security
                         policy.SecurityLevel = 2;
                         break;
                     }
+
+                    case SecurityPolicies.Basic256Sha256:
+                        {
+                            policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                            policy.SecurityLevel = 3;
+                            break;
+                        }
                 }
             }
 
@@ -453,18 +461,8 @@ namespace Opc.Ua.Security
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
             return output.OpenStore();
         }
-
-        /// <summary>
-        /// Gets the private key file path.
-        /// </summary>
-        public async Task<string> GetPrivateKeyFilePath()
-        {
-            Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.GetPrivateKeyFilePath();
-        }
     }
-
-
+    
     /// <summary>
     /// An identifier for a certificate store.
     /// </summary>

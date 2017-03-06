@@ -160,7 +160,6 @@ namespace Opc.Ua
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
             Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
-            nodeSet.Version = version;
             nodeSet.LastModified = DateTime.UtcNow;
             nodeSet.LastModifiedSpecified = true;
 
@@ -226,7 +225,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes the collection to a binary file.
+        /// Writes the collection to a binary stream. The stream is closed by this method.
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
@@ -248,6 +247,8 @@ namespace Opc.Ua
                 NodeState state = this[ii];
                 state.SaveAsBinary(context, encoder);
             }
+
+            encoder.Close();
         }
 
         /// <summary>

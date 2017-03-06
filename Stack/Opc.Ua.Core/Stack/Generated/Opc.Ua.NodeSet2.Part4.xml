@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.6674661Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -154,6 +157,18 @@
       <Field Name="DiscoveryUrls" DataType="i=12" ValueRank="1">
         <Description>The URLs for the server's discovery endpoints.</Description>
       </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="i=12189" BrowseName="ServerOnNetwork">
+    <DisplayName>ServerOnNetwork</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="ServerOnNetwork">
+      <Field Name="RecordId" DataType="i=7" />
+      <Field Name="ServerName" DataType="i=12" />
+      <Field Name="DiscoveryUrl" DataType="i=12" />
+      <Field Name="ServerCapabilities" DataType="i=12" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=311" BrowseName="ApplicationInstanceCertificate">
@@ -358,6 +373,28 @@
       </Field>
       <Field Name="IsOnline" DataType="i=1">
         <Description>If FALSE the server will save the registration information to a persistent datastore.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="i=12890" BrowseName="DiscoveryConfiguration">
+    <DisplayName>DiscoveryConfiguration</DisplayName>
+    <Description>A base type for discovery configuration information.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="i=12891" BrowseName="MdnsDiscoveryConfiguration">
+    <DisplayName>MdnsDiscoveryConfiguration</DisplayName>
+    <Description>The discovery information needed for mDNS registration.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12890</Reference>
+    </References>
+    <Definition Name="MdnsDiscoveryConfiguration" BaseType="MdnsDiscoveryConfiguration">
+      <Field Name="MdnsServerName" DataType="i=12">
+        <Description>The name for server that is broadcast via mDNS.</Description>
+      </Field>
+      <Field Name="ServerCapabilities" DataType="i=12" ValueRank="1">
+        <Description>The server capabilities that are broadcast via mDNS.</Description>
       </Field>
     </Definition>
   </UADataType>
@@ -1341,80 +1378,80 @@
   </UADataType>
   <UADataType NodeId="i=347" BrowseName="AttributeWriteMask">
     <DisplayName>AttributeWriteMask</DisplayName>
-    <Description>Define bits used to indicate which attributes are writeable.</Description>
+    <Description>Define bits used to indicate which attributes are writable.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=11882</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="AttributeWriteMask">
       <Field Name="None" Value="0">
-        <Description>No attributes are writeable.</Description>
+        <Description>No attributes are writable.</Description>
       </Field>
       <Field Name="AccessLevel" Value="1">
-        <Description>The access level attribute is writeable.</Description>
+        <Description>The access level attribute is writable.</Description>
       </Field>
       <Field Name="ArrayDimensions" Value="2">
-        <Description>The array dimensions attribute is writeable.</Description>
+        <Description>The array dimensions attribute is writable.</Description>
       </Field>
       <Field Name="BrowseName" Value="4">
-        <Description>The browse name attribute is writeable.</Description>
+        <Description>The browse name attribute is writable.</Description>
       </Field>
       <Field Name="ContainsNoLoops" Value="8">
-        <Description>The contains no loops attribute is writeable.</Description>
+        <Description>The contains no loops attribute is writable.</Description>
       </Field>
       <Field Name="DataType" Value="16">
-        <Description>The data type attribute is writeable.</Description>
+        <Description>The data type attribute is writable.</Description>
       </Field>
       <Field Name="Description" Value="32">
-        <Description>The description attribute is writeable.</Description>
+        <Description>The description attribute is writable.</Description>
       </Field>
       <Field Name="DisplayName" Value="64">
-        <Description>The display name attribute is writeable.</Description>
+        <Description>The display name attribute is writable.</Description>
       </Field>
       <Field Name="EventNotifier" Value="128">
-        <Description>The event notifier attribute is writeable.</Description>
+        <Description>The event notifier attribute is writable.</Description>
       </Field>
       <Field Name="Executable" Value="256">
-        <Description>The executable attribute is writeable.</Description>
+        <Description>The executable attribute is writable.</Description>
       </Field>
       <Field Name="Historizing" Value="512">
-        <Description>The historizing attribute is writeable.</Description>
+        <Description>The historizing attribute is writable.</Description>
       </Field>
       <Field Name="InverseName" Value="1024">
-        <Description>The inverse name attribute is writeable.</Description>
+        <Description>The inverse name attribute is writable.</Description>
       </Field>
       <Field Name="IsAbstract" Value="2048">
-        <Description>The is abstract attribute is writeable.</Description>
+        <Description>The is abstract attribute is writable.</Description>
       </Field>
       <Field Name="MinimumSamplingInterval" Value="4096">
-        <Description>The minimum sampling interval attribute is writeable.</Description>
+        <Description>The minimum sampling interval attribute is writable.</Description>
       </Field>
       <Field Name="NodeClass" Value="8192">
-        <Description>The node class attribute is writeable.</Description>
+        <Description>The node class attribute is writable.</Description>
       </Field>
       <Field Name="NodeId" Value="16384">
-        <Description>The node id attribute is writeable.</Description>
+        <Description>The node id attribute is writable.</Description>
       </Field>
       <Field Name="Symmetric" Value="32768">
-        <Description>The symmetric attribute is writeable.</Description>
+        <Description>The symmetric attribute is writable.</Description>
       </Field>
       <Field Name="UserAccessLevel" Value="65536">
-        <Description>The user access level attribute is writeable.</Description>
+        <Description>The user access level attribute is writable.</Description>
       </Field>
       <Field Name="UserExecutable" Value="131072">
-        <Description>The user executable attribute is writeable.</Description>
+        <Description>The user executable attribute is writable.</Description>
       </Field>
       <Field Name="UserWriteMask" Value="262144">
-        <Description>The user write mask attribute is writeable.</Description>
+        <Description>The user write mask attribute is writable.</Description>
       </Field>
       <Field Name="ValueRank" Value="524288">
-        <Description>The value rank attribute is writeable.</Description>
+        <Description>The value rank attribute is writable.</Description>
       </Field>
       <Field Name="WriteMask" Value="1048576">
-        <Description>The write mask attribute is writeable.</Description>
+        <Description>The write mask attribute is writable.</Description>
       </Field>
       <Field Name="ValueForVariableType" Value="2097152">
-        <Description>The value attribute is writeable.</Description>
+        <Description>The value attribute is writable.</Description>
       </Field>
     </Definition>
   </UADataType>
@@ -1442,7 +1479,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>No attributes are writeable.</Text>
+                <Text>No attributes are writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1462,7 +1499,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The access level attribute is writeable.</Text>
+                <Text>The access level attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1482,7 +1519,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The array dimensions attribute is writeable.</Text>
+                <Text>The array dimensions attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1502,7 +1539,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The browse name attribute is writeable.</Text>
+                <Text>The browse name attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1522,7 +1559,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The contains no loops attribute is writeable.</Text>
+                <Text>The contains no loops attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1542,7 +1579,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The data type attribute is writeable.</Text>
+                <Text>The data type attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1562,7 +1599,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The description attribute is writeable.</Text>
+                <Text>The description attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1582,7 +1619,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The display name attribute is writeable.</Text>
+                <Text>The display name attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1602,7 +1639,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The event notifier attribute is writeable.</Text>
+                <Text>The event notifier attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1622,7 +1659,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The executable attribute is writeable.</Text>
+                <Text>The executable attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1642,7 +1679,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The historizing attribute is writeable.</Text>
+                <Text>The historizing attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1662,7 +1699,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The inverse name attribute is writeable.</Text>
+                <Text>The inverse name attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1682,7 +1719,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The is abstract attribute is writeable.</Text>
+                <Text>The is abstract attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1702,7 +1739,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The minimum sampling interval attribute is writeable.</Text>
+                <Text>The minimum sampling interval attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1722,7 +1759,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The node class attribute is writeable.</Text>
+                <Text>The node class attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1742,7 +1779,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The node id attribute is writeable.</Text>
+                <Text>The node id attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1762,7 +1799,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The symmetric attribute is writeable.</Text>
+                <Text>The symmetric attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1782,7 +1819,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The user access level attribute is writeable.</Text>
+                <Text>The user access level attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1802,7 +1839,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The user executable attribute is writeable.</Text>
+                <Text>The user executable attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1822,7 +1859,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The user write mask attribute is writeable.</Text>
+                <Text>The user write mask attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1842,7 +1879,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The value rank attribute is writeable.</Text>
+                <Text>The value rank attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1862,7 +1899,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The write mask attribute is writeable.</Text>
+                <Text>The write mask attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1882,7 +1919,7 @@
               <Description>
                 <Locale>
                 </Locale>
-                <Text>The value attribute is writeable.</Text>
+                <Text>The value attribute is writable.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1896,6 +1933,39 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
+  </UADataType>
+  <UADataType NodeId="i=537" BrowseName="RelativePathElement">
+    <DisplayName>RelativePathElement</DisplayName>
+    <Description>An element in a relative path.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="RelativePathElement">
+      <Field Name="ReferenceTypeId" DataType="i=17">
+        <Description>The type of reference to follow.</Description>
+      </Field>
+      <Field Name="IsInverse" DataType="i=1">
+        <Description>If TRUE the reverse reference is followed.</Description>
+      </Field>
+      <Field Name="IncludeSubtypes" DataType="i=1">
+        <Description>If TRUE then subtypes of the reference type are followed.</Description>
+      </Field>
+      <Field Name="TargetName" DataType="i=20">
+        <Description>The browse name of the target.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="i=540" BrowseName="RelativePath">
+    <DisplayName>RelativePath</DisplayName>
+    <Description>A relative path constructed from reference types and browse names.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="RelativePath">
+      <Field Name="Elements" DataType="i=537" ValueRank="1">
+        <Description>A list of elements in the path.</Description>
+      </Field>
+    </Definition>
   </UADataType>
   <UADataType NodeId="i=289" BrowseName="Counter">
     <DisplayName>Counter</DisplayName>
@@ -1940,83 +2010,6 @@
       <Field Name="MaxBufferSize" DataType="i=6" />
       <Field Name="ChannelLifetime" DataType="i=6" />
       <Field Name="SecurityTokenLifetime" DataType="i=6" />
-    </Definition>
-  </UADataType>
-  <UADataType NodeId="i=334" BrowseName="ComplianceLevel">
-    <DisplayName>ComplianceLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=7599</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
-    </References>
-    <Definition Name="ComplianceLevel">
-      <Field Name="Untested" Value="0" />
-      <Field Name="Partial" Value="1" />
-      <Field Name="SelfTested" Value="2" />
-      <Field Name="Certified" Value="3" />
-    </Definition>
-  </UADataType>
-  <UAVariable NodeId="i=7599" BrowseName="EnumStrings" ParentNodeId="i=334" DataType="LocalizedText" ValueRank="1">
-    <DisplayName>EnumStrings</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=334</Reference>
-    </References>
-    <Value>
-      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Untested</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Partial</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>SelfTested</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Certified</Text>
-        </LocalizedText>
-      </ListOfLocalizedText>
-    </Value>
-  </UAVariable>
-  <UADataType NodeId="i=335" BrowseName="SupportedProfile">
-    <DisplayName>SupportedProfile</DisplayName>
-    <References>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
-    </References>
-    <Definition Name="SupportedProfile">
-      <Field Name="OrganizationUri" DataType="i=12" />
-      <Field Name="ProfileId" DataType="i=12" />
-      <Field Name="ComplianceTool" DataType="i=12" />
-      <Field Name="ComplianceDate" DataType="i=294" />
-      <Field Name="ComplianceLevel" DataType="i=334" />
-      <Field Name="UnsupportedUnitIds" DataType="i=12" ValueRank="1" />
-    </Definition>
-  </UADataType>
-  <UADataType NodeId="i=341" BrowseName="SoftwareCertificate">
-    <DisplayName>SoftwareCertificate</DisplayName>
-    <References>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
-    </References>
-    <Definition Name="SoftwareCertificate">
-      <Field Name="ProductName" DataType="i=12" />
-      <Field Name="ProductUri" DataType="i=12" />
-      <Field Name="VendorName" DataType="i=12" />
-      <Field Name="VendorProductCertificate" DataType="i=15" />
-      <Field Name="SoftwareVersion" DataType="i=12" />
-      <Field Name="BuildNumber" DataType="i=12" />
-      <Field Name="BuildDate" DataType="i=294" />
-      <Field Name="IssuedBy" DataType="i=12" />
-      <Field Name="IssueDate" DataType="i=13" />
-      <Field Name="SupportedProfiles" DataType="i=335" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=576" BrowseName="FilterOperator">
@@ -2449,6 +2442,14 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
+  <UAObject NodeId="i=12195" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12189</Reference>
+      <Reference ReferenceType="HasDescription">i=12201</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=305" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
     <References>
@@ -2470,6 +2471,22 @@
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=432</Reference>
       <Reference ReferenceType="HasDescription">i=8417</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12892" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12890</Reference>
+      <Reference ReferenceType="HasDescription">i=12894</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12893" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12891</Reference>
+      <Reference ReferenceType="HasDescription">i=12897</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
@@ -2553,27 +2570,27 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
+  <UAObject NodeId="i=538" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=537</Reference>
+      <Reference ReferenceType="HasDescription">i=12712</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=541" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=540</Reference>
+      <Reference ReferenceType="HasDescription">i=12715</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=332" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=331</Reference>
       <Reference ReferenceType="HasDescription">i=8321</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
-    </References>
-  </UAObject>
-  <UAObject NodeId="i=336" BrowseName="Default XML" SymbolicName="DefaultXml">
-    <DisplayName>Default XML</DisplayName>
-    <References>
-      <Reference ReferenceType="HasEncoding" IsForward="false">i=335</Reference>
-      <Reference ReferenceType="HasDescription">i=8324</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
-    </References>
-  </UAObject>
-  <UAObject NodeId="i=342" BrowseName="Default XML" SymbolicName="DefaultXml">
-    <DisplayName>Default XML</DisplayName>
-    <References>
-      <Reference ReferenceType="HasEncoding" IsForward="false">i=341</Reference>
-      <Reference ReferenceType="HasDescription">i=8330</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
@@ -2681,6 +2698,14 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
+  <UAObject NodeId="i=12207" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12189</Reference>
+      <Reference ReferenceType="HasDescription">i=12213</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=306" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
     <References>
@@ -2702,6 +2727,22 @@
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=432</Reference>
       <Reference ReferenceType="HasDescription">i=7782</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12900" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12890</Reference>
+      <Reference ReferenceType="HasDescription">i=12902</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12901" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12891</Reference>
+      <Reference ReferenceType="HasDescription">i=12905</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
@@ -2785,27 +2826,27 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
+  <UAObject NodeId="i=539" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=537</Reference>
+      <Reference ReferenceType="HasDescription">i=12718</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=542" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=540</Reference>
+      <Reference ReferenceType="HasDescription">i=12721</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=333" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=331</Reference>
       <Reference ReferenceType="HasDescription">i=7686</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
-    </References>
-  </UAObject>
-  <UAObject NodeId="i=337" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
-    <References>
-      <Reference ReferenceType="HasEncoding" IsForward="false">i=335</Reference>
-      <Reference ReferenceType="HasDescription">i=7689</Reference>
-      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
-    </References>
-  </UAObject>
-  <UAObject NodeId="i=343" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
-    <References>
-      <Reference ReferenceType="HasEncoding" IsForward="false">i=341</Reference>
-      <Reference ReferenceType="HasDescription">i=7695</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>

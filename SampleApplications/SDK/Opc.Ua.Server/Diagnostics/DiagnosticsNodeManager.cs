@@ -67,7 +67,6 @@ namespace Opc.Ua.Server
             m_diagnosticsEnabled = true;
             m_sampledItems = new List<MonitoredItem>();
             m_minimumSamplingInterval = 100;
-            m_securityKeyManager = new SecurityKeyManager();
         }
         #endregion
         
@@ -320,59 +319,9 @@ namespace Opc.Ua.Server
                     return activeNode;
                 }
 
-                case ObjectTypes.PublishSubscribeType:
-                {
-                    if (passiveNode is PublishSubscribeState)
-                    {
-                        break;
-                    }
-
-                    PublishSubscribeState activeNode = new PublishSubscribeState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
-
-                    activeNode.AddAmqpConnection = null;
-                    activeNode.AddUadpConnection = null;
-                    activeNode.RemoveConnection = null;
-                    activeNode.GetSecurityKeys = new GetSecurityKeysMethodState(passiveNode);
-                    activeNode.GetSecurityKeys.Create(context, passiveNode);
-                    activeNode.GetSecurityKeys.OnCall += OnGetSecurityKeys;
-
-                    // replace the node in the parent.
-                    if (passiveNode.Parent != null)
-                    {
-                        passiveNode.Parent.ReplaceChild(context, activeNode);
-                    }
-
-                    return activeNode;
-                }
             }
 
             return predefinedNode;
-        }
-
-        private ServiceResult OnGetSecurityKeys(
-           ISystemContext context,
-           MethodState method,
-           NodeId objectId,
-           string securityGroupId,
-           uint futureKeyCount,
-           ref string securityPolicyUri,
-           ref uint currentTokenId,
-           ref byte[] currentKey,
-           ref byte[][] nextKeys,
-           ref uint timeToNextKey,
-           ref uint keyLifetime)
-        {
-            return m_securityKeyManager.GetSecurityKeys(
-                context,
-                securityGroupId, 
-                futureKeyCount, 
-                ref securityPolicyUri,
-                ref currentTokenId, 
-                ref currentKey, 
-                ref nextKeys, 
-                ref timeToNextKey,
-                ref keyLifetime);
         }
 
         /// <summary>
@@ -458,7 +407,15 @@ namespace Opc.Ua.Server
 
             return false;
         }
-        
+
+        /// <summary>
+        /// Force out of band diagnostics update after a change of diagnostics variables.
+        /// </summary>
+        public void ForceDiagnosticsScan()
+        {
+            m_lastDiagnosticsScanTime = DateTime.MinValue;
+        }
+
         /// <summary>
         /// True is diagnostics are currently enabled.
         /// </summary>
@@ -466,7 +423,7 @@ namespace Opc.Ua.Server
         {
             get { return m_diagnosticsEnabled; }
         }
-        
+
         /// <summary>
         /// Sets the flag controlling whether diagnostics is enabled for the server.
         /// </summary>
@@ -511,15 +468,17 @@ namespace Opc.Ua.Server
 
                         m_subscriptions.Clear();
                     }
-
-                    // set error for main diagnostics node.
+                }
+                else
+                {
+                    // reset all diagnostics nodes.
                     if (m_serverDiagnostics != null)
                     {
                         m_serverDiagnostics.Value = null;
-                        m_serverDiagnostics.Error = StatusCodes.BadOutOfService;
-                        m_serverDiagnostics.Timestamp = DateTime.UtcNow; 
+                        m_serverDiagnostics.Error = StatusCodes.BadWaitingForInitialData;
+                        m_serverDiagnostics.Timestamp = DateTime.UtcNow;
                     }
-                                        
+
                     // get the node.
                     ServerDiagnosticsState diagnosticsNode = (ServerDiagnosticsState)FindPredefinedNode(
                         ObjectIds.Server_ServerDiagnostics,
@@ -531,31 +490,33 @@ namespace Opc.Ua.Server
                         if (diagnosticsNode.SamplingIntervalDiagnosticsArray != null)
                         {
                             diagnosticsNode.SamplingIntervalDiagnosticsArray.Value = null;
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService;
+                            diagnosticsNode.SamplingIntervalDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SamplingIntervalDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
-                        
+
                         if (diagnosticsNode.SubscriptionDiagnosticsArray != null)
                         {
                             diagnosticsNode.SubscriptionDiagnosticsArray.Value = null;
-                            diagnosticsNode.SubscriptionDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService; 
+                            diagnosticsNode.SubscriptionDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SubscriptionDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
 
                         if (diagnosticsNode.SessionsDiagnosticsSummary != null)
                         {
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Value = null;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService; 
+                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
 
                         if (diagnosticsNode.SessionsDiagnosticsSummary != null)
                         {
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Value = null;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.StatusCode = StatusCodes.BadOutOfService; 
+                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
                     }
+
+                    DoScan(true);
                 }
             }
 
@@ -949,9 +910,7 @@ namespace Opc.Ua.Server
 
                 if (isHistorical)
                 {
-                    HistoryServerCapabilitiesState capabilities = GetDefaultHistoryCapabilities();
-
-                    folder = capabilities.AggregateFunctions;
+                    folder = FindPredefinedNode(ObjectIds.HistoryServerCapabilities_AggregateFunctions, typeof(BaseObjectState));
                     
                     if (folder != null)
                     {
@@ -1487,9 +1446,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Node Access Functions
+#region Node Access Functions
 #if V1_Methods
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
@@ -1629,9 +1588,9 @@ namespace Opc.Ua.Server
             return null;
         }
 #endif
-        #endregion
+#endregion
         
-        #region SessionDiagnosticsData Class
+#region SessionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a session diagnostics structures.
         /// </summary>
@@ -1657,9 +1616,9 @@ namespace Opc.Ua.Server
             public SessionSecurityDiagnosticsValue SecurityValue;
             public NodeValueSimpleEventHandler SecurityUpdateCallback;
         }
-        #endregion
+#endregion
 
-        #region SubscriptionDiagnosticsData Class
+#region SubscriptionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a subscription diagnostics structure.
         /// </summary>
@@ -1676,31 +1635,9 @@ namespace Opc.Ua.Server
             public SubscriptionDiagnosticsValue Value;
             public NodeValueSimpleEventHandler UpdateCallback;
         }
-        #endregion
+#endregion
 
-        /// <summary>
-        /// Adds a security group.
-        /// </summary>
-        public void AddSecurityGroup(
-            string securityGroupId, 
-            string securityPolicyUri, 
-            DateTime startTime, 
-            TimeSpan lifeTime, 
-            IList<string> allowedScopes)
-        {
-            m_securityKeyManager.New(securityGroupId, securityPolicyUri, startTime, lifeTime, allowedScopes);
-        }
-
-        /// <summary>
-        /// Removes a security group.
-        /// </summary>
-        /// <param name="securityGroupId"></param>
-        public void RemoveSecurityGroup(string securityGroupId)
-        {
-            m_securityKeyManager.Delete(securityGroupId);
-        }
-
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Creates a new sampled item.
         /// </summary>
@@ -1792,9 +1729,9 @@ namespace Opc.Ua.Server
                 Utils.Trace(e, "Unexpected error during diagnostics scan.");
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
@@ -1810,7 +1747,6 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
-        private SecurityKeyManager m_securityKeyManager;
-        #endregion
+#endregion
     }
 }

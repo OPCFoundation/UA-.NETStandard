@@ -49,6 +49,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The Server object.</param>
         /// <param name="serverCertificate">The server certificate.</param>
         /// <param name="authenticationToken">The unique private identifier assigned to the Session.</param>
+        /// <param name="clientNonce">The client nonce.</param>
         /// <param name="serverNonce">The server nonce.</param>
         /// <param name="sessionName">The name assigned to the Session.</param>
         /// <param name="clientDescription">Application description for the client application.</param>
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server
             IServerInternal         server,
             X509Certificate2        serverCertificate,
             NodeId                  authenticationToken,
+            byte[]                  clientNonce,
             byte[]                  serverNonce,
             string                  sessionName, 
             ApplicationDescription  clientDescription,    
@@ -87,6 +89,7 @@ namespace Opc.Ua.Server
 
             m_server                       = server;
             m_authenticationToken          = authenticationToken;
+            m_clientNonce                  = clientNonce;
             m_serverNonce                  = serverNonce;
             m_sessionName                  = sessionName;
             m_serverCertificate            = serverCertificate;
@@ -373,6 +376,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The client Nonce associated with the session.
+        /// </summary>
+        public byte [] ClientNonce
+        {
+            get { return m_clientNonce; }
+        }
+
+        /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
         public X509Certificate2 ClientCertificate
@@ -396,13 +407,8 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
-                    //if (m_diagnostics.ClientConnectionTime.AddMilliseconds(60000) < DateTime.UtcNow)
-                    //{
-                    //    return true;
-                    //}
-
                     if (m_diagnostics.ClientLastContactTime.AddMilliseconds(m_diagnostics.ActualSessionTimeout) < DateTime.UtcNow)
                     {
                         return true;
@@ -492,7 +498,7 @@ namespace Opc.Ua.Server
                     m_localeIds = ids;
                     
                     // update diagnostics.
-                    lock (m_diagnostics)
+                    lock (DiagnosticsLock)
                     {
                         m_diagnostics.LocaleIds = new StringCollection(localeIds);
                     }
@@ -639,7 +645,7 @@ namespace Opc.Ua.Server
                 ReportAuditActivateSessionEvent(systemContext);
 
                 // update the contact time.
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
                     m_diagnostics.ClientLastContactTime = DateTime.UtcNow;
                 }
@@ -850,7 +856,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 value = Utils.Clone(m_diagnostics);
             }
@@ -866,7 +872,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 value = Utils.Clone(m_securityDiagnostics);
             }
@@ -1053,7 +1059,7 @@ namespace Opc.Ua.Server
                 m_effectiveIdentity = effectiveIdentity;
                                                                 
                 // update diagnostics.
-                lock (m_diagnostics)
+                lock (DiagnosticsLock)
                 {
                     m_securityDiagnostics.ClientUserIdOfSession   = identity.DisplayName;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
@@ -1071,7 +1077,7 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private void UpdateDiagnosticCounters(RequestType requestType, bool error, bool authorizationError)
         {
-            lock (m_diagnostics)
+            lock (DiagnosticsLock)
             {
                 if (!error)
                 {
@@ -1152,6 +1158,7 @@ namespace Opc.Ua.Server
         private X509Certificate2 m_clientCertificate;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
+        private byte[] m_clientNonce;
         private byte[] m_serverNonce;
         private string m_sessionName;
         private string m_secureChannelId;

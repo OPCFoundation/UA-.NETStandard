@@ -135,8 +135,9 @@ namespace Opc.Ua
             switch (securityPolicyUri)
             {
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
                     {
-                    encryptedData.Algorithm = SecurityAlgorithms.RsaOaep;
+                        encryptedData.Algorithm = SecurityAlgorithms.RsaOaep;
                         encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, true);
                         break;
                     }
@@ -186,8 +187,9 @@ namespace Opc.Ua
             switch (securityPolicyUri)
             {
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
                     {
-                    if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
+                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
                         {
                             return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, true);
                         }
@@ -225,7 +227,7 @@ namespace Opc.Ua
             }
 
             throw ServiceResultException.Create(
-                StatusCodes.BadSecurityChecksFailed,
+                StatusCodes.BadIdentityTokenInvalid, 
                 "Unexpected encryption algorithm : {0}",
                 dataToDecrypt.Algorithm);
         }
@@ -257,6 +259,13 @@ namespace Opc.Ua
                     {
                         signatureData.Algorithm = SecurityAlgorithms.RsaSha1;
                         signatureData.Signature = RsaUtils.RsaPkcs15Sha1_Sign(new ArraySegment<byte>(dataToSign), certificate);
+                        break;
+                    }
+
+                case SecurityPolicies.Basic256Sha256:
+                    {
+                        signatureData.Algorithm = SecurityAlgorithms.RsaSha256;
+                        signatureData.Signature = RsaUtils.RsaPkcs15Sha256_Sign(new ArraySegment<byte>(dataToSign), certificate);
                         break;
                     }
 
@@ -305,6 +314,16 @@ namespace Opc.Ua
                         if (signature.Algorithm == SecurityAlgorithms.RsaSha1)
                         {
                             return RsaUtils.RsaPkcs15Sha1_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate);
+                        }
+
+                        break;
+                    }
+
+                case SecurityPolicies.Basic256Sha256:
+                    {
+                        if (signature.Algorithm == SecurityAlgorithms.RsaSha256)
+                        {
+                            return RsaUtils.RsaPkcs15Sha256_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate);
                         }
 
                         break;

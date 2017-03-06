@@ -21,25 +21,16 @@
   <SecurityConfiguration>
     
     <!-- The location of the application instance certificate in the Windows certificate store -->
-    <ApplicationCertificate>  
-      
-      <!-- The type of store. -->
-      <StoreType>Directory</StoreType>
-      
-      <!-- The location of the store. 
-           Windows store must start with LocalMachine, CurrentUser or CurrentService
-           The name of the store is appended.
-           Note that the names used in code are difference from what appears in the control panel.
-           e.g. My == "Personal", Root == "Trusted Root Certification Authorities" -->
-      <StorePath>OPC Foundation\CertificateStores\MachineDefault</StorePath>
-
+    <ApplicationCertificate>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
 
       <!-- The subject for the certificate 
            Note that subject names are complex structures. The text that appears here is the CommonName component.
            A complete distinguished would be something like: 'CN=UA Sample Client, DC=MACHINENAME'
            The first certificate found is used if multiple certificates with the same CommonName exist. 
            The Thumbprint should be specified if the CommonName does not uniquely identify a certificate. -->
-      <SubjectName>UA Sample Client</SubjectName>
+      <SubjectName>Opc.Ua.SampleClient</SubjectName>
 
       <!-- The SHA1 thumbprint for the certificate.
            The thumbprint uniquely identifies a certificate.
@@ -60,7 +51,7 @@
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- The list of trusted certificates. 
@@ -79,7 +70,7 @@
          -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\UA Applications</StorePath>
     </TrustedPeerCertificates>
     
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -88,7 +79,7 @@
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
   
 </SecurityConfiguration>
@@ -144,7 +135,6 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
     </BaseAddresses>
 
     <!-- 
@@ -176,13 +166,19 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
+        <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityLevel>2</SecurityLevel>
+      </ServerSecurityPolicy>
+      <!--Removing no secuirty option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
-      </ServerSecurityPolicy>
+      </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -191,12 +187,17 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>4</SecurityLevel>
+        <SecurityLevel>5</SecurityLevel>
       </ServerSecurityPolicy>      
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <SecurityLevel>3</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>6</SecurityLevel>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 
@@ -218,6 +219,8 @@
         <!-- passwords must be encrypted - this specifies what algorithm to use -->
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
+
+      <!-- Allows user certificates -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
         <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
@@ -227,12 +230,12 @@
       Issued tokens are any type of WS-Security compliant token
       This is a URN assigned by OASIS to SAML Security Tokens
       tokens must be encrypted - this specifies what algorithm to use
-      -->
       <ua:UserTokenPolicy>
         <ua:TokenType>IssuedToken_3</ua:TokenType>
         <ua:IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</ua:IssuedTokenType>
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
+      -->
     </UserTokenPolicies>
     
     <!-- Whether the server updates its diagnostic information -->
@@ -404,14 +407,14 @@
   -->
   
   <TraceConfiguration>
-    <OutputFilePath>Logs\Opc.Ua.SampleClient.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalFolder%\Logs\Opc.Ua.SampleClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
-    <!-- <TraceMasks>513</TraceMasks> -->
+    <TraceMasks>513</TraceMasks>
     <!-- Show Only Security, Errors and Trace -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->
     <!-- <TraceMasks>771</TraceMasks> -->
     <!-- Show Only Security, Service Calls, Errors and Trace -->

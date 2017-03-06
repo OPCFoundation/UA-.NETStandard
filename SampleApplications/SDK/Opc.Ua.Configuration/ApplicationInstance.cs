@@ -696,8 +696,16 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // ensure the certificate is trusted.
-            await AddToTrustedStore(configuration, certificate);
+            if (certificate == null)
+            {
+                // create a new certificate.
+                certificate = await CreateApplicationInstanceCertificate(configuration, InstallConfig.MinimumKeySize, InstallConfig.LifeTimeInMonths);
+            }
+            else
+            {
+                // ensure the certificate is trusted.
+                await AddToTrustedStore(configuration, certificate);
+            }
 
             // add to discovery server.
             if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
@@ -711,9 +719,6 @@ namespace Opc.Ua.Configuration
                     Utils.Trace(e, "Could not add certificate to LDS trust list.");
                 }
             }
-
-            // configure access to the executable, the configuration file and the private key. 
-            await ConfigureFileAccess(configuration);
 
             // update configuration file.
             ConfigUtils.UpdateConfigurationLocation(InstallConfig.ExecutableFile, InstallConfig.ConfigurationFile);
@@ -813,6 +818,21 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Static Methods
+        public static ApplicationConfiguration FixupAppConfig(
+            ApplicationConfiguration configuration)
+        {
+            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
+            if (configuration.ServerConfiguration != null)
+            {
+                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+                {
+                    configuration.ServerConfiguration.BaseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                }
+            }
+            return configuration;
+        }
+
         /// <summary>
         /// Loads the configuration.
         /// </summary>
@@ -885,9 +905,9 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
             }
 
-            m_applicationConfiguration = configuration;
+            m_applicationConfiguration = FixupAppConfig(configuration);
 
-            return configuration;
+            return m_applicationConfiguration;
         }
 
         /// <summary>
@@ -969,25 +989,28 @@ namespace Opc.Ua.Configuration
                     }
                 }
             }
-                       
+
             if ((certificate == null) || !certificateValid)
             {
-                string message = Utils.Format(
-                    "There is no cert with subject {0} in the configuration." +
-                    "\r\n Please generate a cert for your application," +
-                    "\r\n for example using the provided scripts in the sample" +
-                    "\r\n application's project directory, or OpenSSL, or the" +
-                    "\r\n OPC Foundation's certificate generator." +
-                    "\r\n Then copy the new cert to this location:" +
-                    "\r\n{1}",
-                    id.SubjectName,
-                    id.StorePath);
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
-            }
+                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize);
 
-            // ensure it is trusted.
-            await AddToTrustedStore(configuration, certificate);
-            
+                if (certificate == null)
+                {
+                    string message = Utils.Format(
+                        "There is no cert with subject {0} in the configuration." +
+                        "\r\n Please generate a cert for your application,",
+                        "\r\n then copy the new cert to this location:" +
+                        "\r\n{1}",
+                        id.SubjectName,
+                        id.StorePath);
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                }
+            }
+            else
+            {
+                // ensure it is trusted.
+                await AddToTrustedStore(configuration, certificate);
+            }
 
             // add to discovery server.
             if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
@@ -1071,7 +1094,10 @@ namespace Opc.Ua.Configuration
             // check domains.
             if (configuration.ApplicationType != ApplicationType.Client)
             {
-                return await CheckDomainsInCertificate(configuration, certificate, silent);
+                if (!await CheckDomainsInCertificate(configuration, certificate, silent))
+                {
+                    return false;
+                }
             }
 
             // check uri.
@@ -1095,9 +1121,12 @@ namespace Opc.Ua.Configuration
                     return false;
                 }
             }
+            else
+            {
+                configuration.ApplicationUri = applicationUri;
+            }
 
             // update configuration.
-            configuration.ApplicationUri = applicationUri;
             configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
 
             return true;
@@ -1121,7 +1150,7 @@ namespace Opc.Ua.Configuration
             string computerName = Utils.GetHostName();
 
             // get IP addresses.
-            IPAddress[] addresses = await Utils.GetHostAddresses(computerName);
+            IPAddress[] addresses = null;
 
             for (int ii = 0; ii < serverDomainNames.Count; ii++)
             {
@@ -1139,6 +1168,12 @@ namespace Opc.Ua.Configuration
 
                     // check for aliases.
                     bool found = false;
+
+                    // get IP addresses only if necessary.
+                    if (addresses == null)
+                    {
+                        addresses = await Utils.GetHostAddresses(computerName);
+                    }
 
                     // check for ip addresses.
                     for (int jj = 0; jj < addresses.Length; jj++)
@@ -1178,7 +1213,111 @@ namespace Opc.Ua.Configuration
 
             return valid;
         }
-        
+
+        /// <summary>
+        /// Creates the application instance certificate.
+        /// </summary>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="keySize">Size of the key.</param>
+        /// <param name="lifetimeInMonths">The lifetime in months.</param>
+        /// <returns>The new certificate</returns>
+        private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
+            ApplicationConfiguration configuration,
+            ushort minimumKeySize = CertificateFactory.defaultKeySize,
+            ushort lifeTimeInMonths = CertificateFactory.defaultLifeTime
+            )
+        {
+            Utils.Trace(Utils.TraceMasks.Information, "Creating application instance certificate.");
+
+            // delete any existing certificate.
+            DeleteApplicationInstanceCertificate(configuration);
+
+            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
+
+            // get the domains from the configuration file.
+            IList<string> serverDomainNames = configuration.GetServerDomainNames();
+
+            if (serverDomainNames.Count == 0)
+            {
+                serverDomainNames.Add(Utils.GetHostName());
+            }
+
+            // ensure the certificate store directory exists.
+            if (id.StoreType == CertificateStoreType.Directory)
+            {
+                Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
+            }
+
+            X509Certificate2 certificate = CertificateFactory.CreateCertificate(
+                id.StoreType,
+                id.StorePath,
+                configuration.ApplicationUri,
+                configuration.ApplicationName,
+                id.SubjectName,
+                serverDomainNames,
+                minimumKeySize,
+                lifeTimeInMonths
+                );
+
+            id.Certificate = certificate;
+
+            await AddToTrustedStore(configuration, certificate);
+
+            await configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
+
+            Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
+
+            // reload the certificate from disk.
+            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+
+            return certificate;
+        }
+
+        /// <summary>
+        /// Deletes an existing application instance certificate.
+        /// </summary>
+        /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
+        private static async void DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
+        {
+            Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
+
+            // create a default certificate id none specified.
+            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
+
+            if (id == null)
+            {
+                return;
+            }
+
+            // delete private key.
+            X509Certificate2 certificate = await id.Find();
+
+            // delete trusted peer certificate.
+            if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+            {
+                string thumbprint = id.Thumbprint;
+
+                if (certificate != null)
+                {
+                    thumbprint = certificate.Thumbprint;
+                }
+
+                using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                {
+                    await store.Delete(thumbprint);
+                }
+            }
+
+            // delete private key.
+            if (certificate != null)
+            {
+                using (ICertificateStore store = id.OpenStore())
+                {
+                    await store.Delete(certificate.Thumbprint);
+                }
+            }
+        }
+
         /// <summary>
         /// Adds the application certificate to the discovery server trust list.
         /// </summary>
@@ -1369,124 +1508,6 @@ namespace Opc.Ua.Configuration
             catch (Exception e)
             {
                 Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
-            }
-        }
-
-        /// <summary>
-        /// Gets the access rules to use for the application.
-        /// </summary>
-        private List<ApplicationAccessRule> GetAccessRules()
-        {
-            List<ApplicationAccessRule> rules = new List<ApplicationAccessRule>();
-
-            // check for rules specified in the installer configuration.
-            bool hasAdmin = false;
-
-            if (InstallConfig.AccessRules != null)
-            {
-                for (int ii = 0; ii < InstallConfig.AccessRules.Count; ii++)
-                {
-                    ApplicationAccessRule rule = InstallConfig.AccessRules[ii];
-
-                    if (rule.Right == ApplicationAccessRight.Configure && rule.RuleType == AccessControlType.Allow)
-                    {
-                        hasAdmin = true;
-                        break;
-                    }
-                }
-
-                rules = InstallConfig.AccessRules;
-            }
-
-            // provide some default rules.
-            if (rules.Count == 0)
-            {
-                // give user run access.
-                ApplicationAccessRule rule = new ApplicationAccessRule();
-                rule.RuleType = AccessControlType.Allow;
-                rule.Right = ApplicationAccessRight.Run;
-                rule.IdentityName = WellKnownSids.Users;
-                rules.Add(rule);
-
-                // ensure service can access.
-                if (InstallConfig.InstallAsService)
-                {
-                    rule = new ApplicationAccessRule();
-                    rule.RuleType = AccessControlType.Allow;
-                    rule.Right = ApplicationAccessRight.Run;
-                    rule.IdentityName = WellKnownSids.NetworkService;
-                    rules.Add(rule);
-
-                    rule = new ApplicationAccessRule();
-                    rule.RuleType = AccessControlType.Allow;
-                    rule.Right = ApplicationAccessRight.Run;
-                    rule.IdentityName = WellKnownSids.LocalService;
-                    rules.Add(rule);
-                }               
-            }
-
-            // ensure someone can change the configuration later.
-            if (!hasAdmin)
-            {
-                ApplicationAccessRule rule = new ApplicationAccessRule();
-                rule.RuleType = AccessControlType.Allow;
-                rule.Right = ApplicationAccessRight.Configure;
-                rule.IdentityName = WellKnownSids.Administrators;
-                rules.Add(rule);
-            }
-
-            return rules;
-        }
-
-        /// <summary>
-        /// Configures access to the executable, the configuration file and the private key.
-        /// </summary>
-        private async Task ConfigureFileAccess(ApplicationConfiguration configuration)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Configuring file access.");
-
-            List<ApplicationAccessRule> rules = GetAccessRules();
-
-            // apply access rules to the excutable file.
-            try
-            {
-                if (InstallConfig.SetExecutableFilePermissions)
-                {
-                    ApplicationAccessRule.SetAccessRules(InstallConfig.ExecutableFile, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set executable file permissions.");
-            }
-
-            // apply access rules to the configuration file.
-            try
-            {
-                if (InstallConfig.SetConfigurationFilePermisions)
-                {
-                    ApplicationAccessRule.SetAccessRules(configuration.SourceFilePath, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set configuration file permissions.");
-            }
-
-            // apply access rules to the private key file.
-            try
-            {
-                X509Certificate2 certificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-
-                if (certificate != null)
-                {
-                    ICertificateStore store = configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
-                    store.SetAccessRules(certificate.Thumbprint, rules, true);
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not set private key file permissions.");
             }
         }
         #endregion

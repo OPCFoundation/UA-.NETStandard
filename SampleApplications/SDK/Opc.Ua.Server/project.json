@@ -1,18 +1,20 @@
 {
-    "version": "1.0.0-*",
+  "version": "1.0.0-*",
 
-    "dependencies": {
-        "NETStandard.Library": "1.6.0",
-        "Opc.Ua.Core": "1.0.0-*"
-    },
+  "dependencies": {
+    "NETStandard.Library": "1.6.0",
+    "Opc.Ua.Core": "1.0.0-*"
+  },
 
-    "frameworks": {
-        "net46": {},
-        "netstandard1.3": {},
-        "uap10.0": {
-            "buildOptions": {
-                "define": [ "NO_HTTPS" ]
-            }
-        }
+  "frameworks": {
+    "net46": {},
+    "netstandard1.3": {},
+    "uap10.0": {
+      "buildOptions": {
+        "define": [ "NO_HTTPS" ]
+      }
     }
+  },
+
+  "debugType": "portable"
 }

@@ -1630,6 +1630,15 @@ namespace Opc.Ua.Server
 
             if (array1 == null || array2 == null)
             {
+
+                XmlElement xmlElement1 = value1 as XmlElement;
+                XmlElement xmlElement2 = value2 as XmlElement;
+
+                if (xmlElement1 != null && xmlElement2 != null)
+                {
+                    return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml);
+                }
+
                 // nothing more to do if no deadband.
                 if (deadbandType == DeadbandType.None)
                 {

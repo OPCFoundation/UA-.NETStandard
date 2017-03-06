@@ -22,7 +22,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
-    public partial class UaTcpChannelListener : IDisposable, ITransportListener
+    public partial class UaTcpChannelListener : ITransportListener
     {
         #region Constructors
         /// <summary>
@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) 
+            if (disposing)
             {
                 lock (m_lock)
                 {
@@ -62,7 +62,7 @@ namespace Opc.Ua.Bindings
                         {
                             // ignore errors.
                         }
-                        
+
                         m_listeningSocket = null;
                     }
 
@@ -83,7 +83,7 @@ namespace Opc.Ua.Bindings
                     if (m_simulator != null)
                     {
                         Utils.SilentDispose(m_simulator);
-                        m_simulator = null; 
+                        m_simulator = null;
                     }
 
                     foreach (TcpServerChannel channel in m_channels.Values)
@@ -94,7 +94,7 @@ namespace Opc.Ua.Bindings
             }
         }
         #endregion
-        
+
         #region ITransportListener Members
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
             m_configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new TcpChannelQuotas();
+            m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_configuration.MaxMessageSize;
@@ -183,7 +183,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create IPv4 socket.
-                try                    
+                try
                 {
                     IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -202,7 +202,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create IPv6 socket
-                try                    
+                try
                 {
                     IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
                     m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -254,14 +254,14 @@ namespace Opc.Ua.Bindings
         /// Binds a new socket to an existing channel.
         /// </summary>
         internal bool ReconnectToExistingChannel(
-            TcpMessageSocket         socket, 
-            uint                     requestId,
-            uint                     sequenceNumber,
-            uint                     channelId,
-            X509Certificate2         clientCertificate, 
-            TcpChannelToken          token,
+            IMessageSocket socket,
+            uint requestId,
+            uint sequenceNumber,
+            uint channelId,
+            X509Certificate2 clientCertificate,
+            ChannelToken token,
             OpenSecureChannelRequest request)
-        {            
+        {
             TcpServerChannel channel = null;
 
             lock (m_lock)
@@ -271,8 +271,9 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel referenced in the OpenSecureChannel request.");
                 }
             }
-                       
+
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            Utils.Trace("Channel {0} reconnected", channelId);
             return true;
         }
 
@@ -289,7 +290,7 @@ namespace Opc.Ua.Bindings
             Utils.Trace("Channel {0} closed", channelId);
         }
         #endregion
-        
+
         #region Socket Event Handler
         /// <summary>
         /// Handles a new connection.
@@ -304,7 +305,7 @@ namespace Opc.Ua.Bindings
 
                 if (listeningSocket == null)
                 {
-                    Utils.Trace("OnAccept: Listensocket was null." );
+                    Utils.Trace("OnAccept: Listensocket was null.");
                     e.Dispose();
                     return;
                 }
@@ -343,7 +344,7 @@ namespace Opc.Ua.Bindings
                 e.Dispose();
 
                 if (e.SocketError != SocketError.OperationAborted)
-                { 
+                {
                     // go back and wait for the next connection.
                     try
                     {
@@ -359,9 +360,9 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-#endregion
-                
-#region Private Methods
+        #endregion
+
+        #region Private Methods
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
@@ -403,9 +404,9 @@ namespace Opc.Ua.Bindings
                 Utils.Trace(e, "TCPLISTENER - Unexpected error sending result.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
 
         private string m_listenerId;
@@ -414,7 +415,7 @@ namespace Opc.Ua.Bindings
         private EndpointConfiguration m_configuration;
 
         private BufferManager m_bufferManager;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
 
@@ -422,10 +423,10 @@ namespace Opc.Ua.Bindings
 
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
-        private Dictionary<uint,TcpServerChannel> m_channels;
+        private Dictionary<uint, TcpServerChannel> m_channels;
 
         private Timer m_simulator;
         private ITransportListenerCallback m_callback;
-#endregion
-    }    
+        #endregion
+    }
 }

@@ -87,15 +87,13 @@ namespace Opc.Ua
             if (channel == null)
             {
                 Uri endpointUrl = new Uri(description.EndpointUrl);
-                RegistrationChannel wcfXmlChannel = new RegistrationChannel();
+                channel = new RegistrationChannel();
 
                 TransportChannelSettings settings = new TransportChannelSettings();
                 settings.Configuration = endpointConfiguration;
                 settings.Description = description;
                 settings.ClientCertificate = clientCertificate;
-                wcfXmlChannel.Initialize(endpointUrl, settings);
-                
-                channel = wcfXmlChannel;
+                channel.Initialize(endpointUrl, settings);
             }
 
             return channel;

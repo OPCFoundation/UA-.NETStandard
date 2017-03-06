@@ -63,11 +63,11 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public partial class UaHttpsChannelListener : IDisposable, ITransportListener
+    public partial class UaHttpsChannelListener : ITransportListener
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="UaTcpChannelListener"/> class.
+        /// Initializes a new instance of the <see cref="UaHttpsChannelListener"/> class.
         /// </summary>
         public UaHttpsChannelListener()
         {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Bindings
             m_configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new TcpChannelQuotas();
+            m_quotas = new ChannelQuotas();
 
             m_quotas.MaxBufferSize = m_configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = m_configuration.MaxMessageSize;
@@ -173,7 +173,7 @@ namespace Opc.Ua.Bindings
         public void Start()
         {
             Startup.Listener = this;
-           
+
             m_host = new WebHostBuilder();
 
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
@@ -222,7 +222,7 @@ namespace Opc.Ua.Bindings
                     await context.Response.WriteAsync(string.Empty);
                     return;
                 }
-                
+
                 byte[] buffer = new byte[(int)context.Request.ContentLength];
                 lock (m_lock)
                 {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Bindings
                     task.Wait();
                 }
 
-                IServiceRequest input = (IServiceRequest) BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+                IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
 
                 // extract the JWT token from the HTTP headers.
                 if (input.RequestHeader == null)
@@ -271,7 +271,7 @@ namespace Opc.Ua.Bindings
                     null);
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
-                                
+
                 byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
@@ -296,7 +296,7 @@ namespace Opc.Ua.Bindings
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
         private EndpointConfiguration m_configuration;
-        private TcpChannelQuotas m_quotas;
+        private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
         private WebHostBuilder m_host;
         private X509Certificate2 m_serverCert;

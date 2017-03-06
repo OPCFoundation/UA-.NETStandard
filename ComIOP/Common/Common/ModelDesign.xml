@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://opcfoundation.org/UA/SDK/COMInterop"
+  TargetNamespace="http://opcfoundation.org/UA/SDK/COMInterop"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="OpcUaCom" Prefix="Opc.Ua.Com">http://opcfoundation.org/UA/SDK/COMInterop</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="ComServerStatusType">
+    <opc:Children>
+      <opc:Property SymbolicName="ServerUrl" DataType="ua:String" />
+      <opc:Property SymbolicName="VendorInfo" DataType="ua:String" />
+      <opc:Property SymbolicName="SoftwareVersion" DataType="ua:String" />
+      <opc:Property SymbolicName="ServerState" DataType="ua:String" />
+      <opc:Property SymbolicName="CurrentTime" DataType="ua:DateTime" />
+      <opc:Property SymbolicName="StartTime" DataType="ua:DateTime" />
+      <opc:Property SymbolicName="LastUpdateTime" DataType="ua:DateTime" />
+    </opc:Children>
+  </opc:ObjectType>
+
+</opc:ModelDesign>

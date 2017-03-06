@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.7254694Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -600,7 +603,7 @@
     <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
     <References>
       <Reference ReferenceType="i=53" IsForward="false">i=2410</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2391</Reference>
     </References>
   </UAMethod>
@@ -609,7 +612,7 @@
     <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
     <References>
       <Reference ReferenceType="i=53" IsForward="false">i=2416</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2391</Reference>
     </References>
   </UAMethod>
@@ -618,7 +621,7 @@
     <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
     <References>
       <Reference ReferenceType="i=53" IsForward="false">i=2418</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2391</Reference>
     </References>
   </UAMethod>
@@ -629,7 +632,7 @@
       <Reference ReferenceType="i=53" IsForward="false">i=2412</Reference>
       <Reference ReferenceType="i=53" IsForward="false">i=2420</Reference>
       <Reference ReferenceType="i=53" IsForward="false">i=2424</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2391</Reference>
     </References>
   </UAMethod>
@@ -638,7 +641,7 @@
     <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
     <References>
       <Reference ReferenceType="i=53" IsForward="false">i=2408</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2391</Reference>
     </References>
   </UAMethod>

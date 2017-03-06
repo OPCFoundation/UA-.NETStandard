@@ -103,9 +103,6 @@
     <Content Include="libuv.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Opc.Ua.Core.Types.Utils.LocalizedData.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -151,19 +148,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.manifest" />
-    <Content Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.Boiler.Boiler.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.TestData.TestData.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <None Include="CreateCert.cmd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
@@ -174,7 +158,8 @@
   </Target>
   -->
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(ProjectDir)OPC Foundation\*.*" "$(TargetDir)OPC Foundation" /I/E/R/Y</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
     <PreBuildEvent>
     </PreBuildEvent>
   </PropertyGroup>

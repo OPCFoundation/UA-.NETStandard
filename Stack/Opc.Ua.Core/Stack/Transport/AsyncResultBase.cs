@@ -224,11 +224,28 @@ namespace Opc.Ua
                         }
                     }
                 }
+
+                // release the wait event.
+                if (m_waitHandle != null)
+                {
+                    try
+                    {
+                        m_waitHandle.Dispose();
+                        m_waitHandle = null;
+                    }
+                    catch (Exception)
+                    {
+                        // ignore 
+                    }
+                }
             }
 
             return true;
         }
 
+        /// <summary>
+        /// Called to reset the wait handle.
+        /// </summary>
         public void Reset()
         {
             lock (m_lock)

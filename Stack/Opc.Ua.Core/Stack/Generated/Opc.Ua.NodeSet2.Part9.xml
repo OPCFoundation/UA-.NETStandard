@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="1.02" LastModified="2013-04-02T18:03:26.7194691Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -134,6 +137,7 @@
       <Reference ReferenceType="HasComponent">i=9027</Reference>
       <Reference ReferenceType="HasComponent">i=9029</Reference>
       <Reference ReferenceType="HasComponent">i=3875</Reference>
+      <Reference ReferenceType="HasComponent">i=12912</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
     </References>
   </UAObjectType>
@@ -184,6 +188,8 @@
       <Reference ReferenceType="HasProperty">i=9015</Reference>
       <Reference ReferenceType="HasProperty">i=9016</Reference>
       <Reference ReferenceType="HasProperty">i=9017</Reference>
+      <Reference ReferenceType="HasProperty">i=9018</Reference>
+      <Reference ReferenceType="HasProperty">i=9019</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2782</Reference>
@@ -220,6 +226,34 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=9011</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=9018" BrowseName="TrueState" ParentNodeId="i=9011" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9011</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Enabled</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9019" BrowseName="FalseState" ParentNodeId="i=9011" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9011</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Disabled</Text>
+      </LocalizedText>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="i=9020" BrowseName="Quality" ParentNodeId="i=2782" DataType="StatusCode">
     <DisplayName>Quality</DisplayName>
@@ -398,6 +432,67 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
+  <UAMethod NodeId="i=12912" BrowseName="ConditionRefresh2" ParentNodeId="i=2782">
+    <DisplayName>ConditionRefresh2</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=12913</Reference>
+      <Reference ReferenceType="i=3065">i=2787</Reference>
+      <Reference ReferenceType="i=3065">i=2788</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2782</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=12913" BrowseName="InputArguments" ParentNodeId="i=12912" DataType="i=296" ValueRank="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=12912</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>SubscriptionId</Name>
+              <DataType>
+                <Identifier>i=288</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the suscription to refresh.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>MonitoredItemId</Name>
+              <DataType>
+                <Identifier>i=288</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the monitored item to refresh.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
   <UAObjectType NodeId="i=2830" BrowseName="DialogConditionType">
     <DisplayName>DialogConditionType</DisplayName>
     <References>
@@ -436,6 +531,8 @@
     <References>
       <Reference ReferenceType="HasProperty">i=9056</Reference>
       <Reference ReferenceType="HasProperty">i=9060</Reference>
+      <Reference ReferenceType="HasProperty">i=9062</Reference>
+      <Reference ReferenceType="HasProperty">i=9063</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9035</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -457,6 +554,34 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=9055</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=9062" BrowseName="TrueState" ParentNodeId="i=9055" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9055</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Active</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9063" BrowseName="FalseState" ParentNodeId="i=9055" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9055</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Inactive</Text>
+      </LocalizedText>
+    </Value>
   </UAVariable>
   <UAVariable NodeId="i=2831" BrowseName="Prompt" ParentNodeId="i=2830" DataType="LocalizedText">
     <DisplayName>Prompt</DisplayName>
@@ -582,6 +707,8 @@
     <References>
       <Reference ReferenceType="HasProperty">i=9094</Reference>
       <Reference ReferenceType="HasProperty">i=9098</Reference>
+      <Reference ReferenceType="HasProperty">i=9100</Reference>
+      <Reference ReferenceType="HasProperty">i=9101</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9073</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -604,11 +731,41 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=9093</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=9100" BrowseName="TrueState" ParentNodeId="i=9093" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9093</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Acknowledged</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9101" BrowseName="FalseState" ParentNodeId="i=9093" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9093</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Unacknowledged</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariable NodeId="i=9102" BrowseName="ConfirmedState" ParentNodeId="i=2881" DataType="LocalizedText">
     <DisplayName>ConfirmedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=9103</Reference>
       <Reference ReferenceType="HasProperty">i=9107</Reference>
+      <Reference ReferenceType="HasProperty">i=9109</Reference>
+      <Reference ReferenceType="HasProperty">i=9110</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9073</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -630,6 +787,34 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=9102</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=9109" BrowseName="TrueState" ParentNodeId="i=9102" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9102</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Confirmed</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9110" BrowseName="FalseState" ParentNodeId="i=9102" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9102</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Unconfirmed</Text>
+      </LocalizedText>
+    </Value>
   </UAVariable>
   <UAMethod NodeId="i=9111" BrowseName="Acknowledge" ParentNodeId="i=2881">
     <DisplayName>Acknowledge</DisplayName>
@@ -793,6 +978,8 @@
       <Reference ReferenceType="HasProperty">i=9164</Reference>
       <Reference ReferenceType="HasProperty">i=9165</Reference>
       <Reference ReferenceType="HasProperty">i=9166</Reference>
+      <Reference ReferenceType="HasProperty">i=9167</Reference>
+      <Reference ReferenceType="HasProperty">i=9168</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9118</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -831,6 +1018,34 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=9160</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=9167" BrowseName="TrueState" ParentNodeId="i=9160" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9160</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Active</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9168" BrowseName="FalseState" ParentNodeId="i=9160" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9160</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Inactive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariable NodeId="i=11120" BrowseName="InputNode" ParentNodeId="i=2915" DataType="NodeId">
     <DisplayName>InputNode</DisplayName>
     <References>
@@ -844,6 +1059,8 @@
     <References>
       <Reference ReferenceType="HasProperty">i=9170</Reference>
       <Reference ReferenceType="HasProperty">i=9174</Reference>
+      <Reference ReferenceType="HasProperty">i=9176</Reference>
+      <Reference ReferenceType="HasProperty">i=9177</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9118</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -865,6 +1082,34 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=9169</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=9176" BrowseName="TrueState" ParentNodeId="i=9169" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9169</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Suppressed</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=9177" BrowseName="FalseState" ParentNodeId="i=9169" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=9169</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>Unsuppressed</Text>
+      </LocalizedText>
+    </Value>
   </UAVariable>
   <UAObject NodeId="i=9178" BrowseName="ShelvingState" ParentNodeId="i=2915">
     <DisplayName>ShelvingState</DisplayName>
@@ -1592,6 +1837,8 @@
     <References>
       <Reference ReferenceType="HasProperty">i=10021</Reference>
       <Reference ReferenceType="HasProperty">i=10025</Reference>
+      <Reference ReferenceType="HasProperty">i=10027</Reference>
+      <Reference ReferenceType="HasProperty">i=10028</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9963</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1614,11 +1861,41 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=10020</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=10027" BrowseName="TrueState" ParentNodeId="i=10020" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10020</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>HighHighInactive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=10028" BrowseName="FalseState" ParentNodeId="i=10020" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10020</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>HighHighInactive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariable NodeId="i=10029" BrowseName="HighState" ParentNodeId="i=9906" DataType="LocalizedText">
     <DisplayName>HighState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=10030</Reference>
       <Reference ReferenceType="HasProperty">i=10034</Reference>
+      <Reference ReferenceType="HasProperty">i=10036</Reference>
+      <Reference ReferenceType="HasProperty">i=10037</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9963</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1641,11 +1918,41 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=10029</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=10036" BrowseName="TrueState" ParentNodeId="i=10029" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10029</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>HighActive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=10037" BrowseName="FalseState" ParentNodeId="i=10029" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10029</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>HighInactive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariable NodeId="i=10038" BrowseName="LowState" ParentNodeId="i=9906" DataType="LocalizedText">
     <DisplayName>LowState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=10039</Reference>
       <Reference ReferenceType="HasProperty">i=10043</Reference>
+      <Reference ReferenceType="HasProperty">i=10045</Reference>
+      <Reference ReferenceType="HasProperty">i=10046</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9963</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1668,11 +1975,41 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=10038</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=10045" BrowseName="TrueState" ParentNodeId="i=10038" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10038</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>LowActive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=10046" BrowseName="FalseState" ParentNodeId="i=10038" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10038</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>LowInactive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariable NodeId="i=10047" BrowseName="LowLowState" ParentNodeId="i=9906" DataType="LocalizedText">
     <DisplayName>LowLowState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=10048</Reference>
       <Reference ReferenceType="HasProperty">i=10052</Reference>
+      <Reference ReferenceType="HasProperty">i=10054</Reference>
+      <Reference ReferenceType="HasProperty">i=10055</Reference>
       <Reference ReferenceType="i=9004" IsForward="false">i=9963</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1694,6 +2031,34 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=10047</Reference>
     </References>
+  </UAVariable>
+  <UAVariable NodeId="i=10054" BrowseName="TrueState" ParentNodeId="i=10047" DataType="LocalizedText">
+    <DisplayName>TrueState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10047</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>LowLowActive</Text>
+      </LocalizedText>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=10055" BrowseName="FalseState" ParentNodeId="i=10047" DataType="LocalizedText">
+    <DisplayName>FalseState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=10047</Reference>
+    </References>
+    <Value>
+      <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Locale>en</Locale>
+        <Text>LowLowInactive</Text>
+      </LocalizedText>
+    </Value>
   </UAVariable>
   <UAObjectType NodeId="i=10060" BrowseName="NonExclusiveLevelAlarmType">
     <DisplayName>NonExclusiveLevelAlarmType</DisplayName>
@@ -1776,6 +2141,48 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=10637</Reference>
     </References>
   </UAObjectType>
+  <UAObjectType NodeId="i=13225" BrowseName="CertificateExpirationAlarmType">
+    <DisplayName>CertificateExpirationAlarmType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=13325</Reference>
+      <Reference ReferenceType="HasProperty">i=14900</Reference>
+      <Reference ReferenceType="HasProperty">i=13326</Reference>
+      <Reference ReferenceType="HasProperty">i=13327</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=11753</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=13325" BrowseName="ExpirationDate" ParentNodeId="i=13225" DataType="DateTime">
+    <DisplayName>ExpirationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=13225</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=14900" BrowseName="ExpirationLimit" ParentNodeId="i=13225" DataType="i=290">
+    <DisplayName>ExpirationLimit</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=13225</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=13326" BrowseName="CertificateType" ParentNodeId="i=13225" DataType="NodeId">
+    <DisplayName>CertificateType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=13225</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=13327" BrowseName="Certificate" ParentNodeId="i=13225" DataType="ByteString">
+    <DisplayName>Certificate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=13225</Reference>
+    </References>
+  </UAVariable>
   <UAObjectType NodeId="i=10751" BrowseName="TripAlarmType">
     <DisplayName>TripAlarmType</DisplayName>
     <References>

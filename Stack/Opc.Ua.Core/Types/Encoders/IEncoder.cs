@@ -32,6 +32,13 @@ namespace Opc.Ua
         ServiceMessageContext Context { get; }
 
         /// <summary>
+        /// Sets the mapping tables to use during decoding.
+        /// </summary>
+        /// <param name="namespaceUris">The namespace uris.</param>
+        /// <param name="serverUris">The server uris.</param>
+        void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         void PushNamespace(string namespaceUri);

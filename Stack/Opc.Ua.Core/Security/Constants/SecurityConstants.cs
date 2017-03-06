@@ -13,48 +13,6 @@
 namespace Opc.Ua
 {    
     /// <summary>
-    /// Constants that identify certificate store locations.
-    /// </summary>
-    public static class StoreLocations
-    {
-        /// <summary>
-        /// The store assigned to the current user.
-        /// </summary>
-        public const string CurrentUser = "CurrentUser";
-
-        /// <summary>
-        /// The store assigned to the local machine.
-        /// </summary>
-        public const string LocalMachine = "LocalMachine";
-    }
-        
-    /// <summary>
-    /// Constants that identify certificate store names.
-    /// </summary>
-    public static class StoreNames
-    {
-        /// <summary>
-        /// The store used for personal certificates.
-        /// </summary>
-        public const string Personal = "My";
-
-        /// <summary>
-        /// The store used for UA application certificates.
-        /// </summary>
-        public const string Applications = "UA Applications";
-
-        /// <summary>
-        /// The store used for UA certificate authorities certificates.
-        /// </summary>
-        public const string CertificateAuthorities = "UA Certificate Authorities";
-
-        /// <summary>
-        /// The store used for trusted root certificate authorities.
-        /// </summary>
-        public const string Root = "Root";
-    }
-
-    /// <summary>
     /// Defines constants for key security policies.
     /// </summary>
     public static class SecurityAlgorithms
@@ -77,7 +35,7 @@ namespace Opc.Ua
         /// <summary>
         /// The RSA-SHA256 algorithm used to create asymmetric key signatures.
         /// </summary>
-        public const string RsaSha256 = "RsaSha256Signature";
+        public const string RsaSha256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
         
         /// <summary>
         /// The SHA1 algorithm used to create message digests.

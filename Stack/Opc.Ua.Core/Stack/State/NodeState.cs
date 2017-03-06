@@ -488,6 +488,8 @@ namespace Opc.Ua
             Save(context, encoder, attributesToSave);
             SaveReferences(context, encoder);
             SaveChildren(context, encoder);
+
+            encoder.Close();
         }
 
         /// <summary>

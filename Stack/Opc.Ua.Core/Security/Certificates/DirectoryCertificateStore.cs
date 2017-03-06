@@ -72,7 +72,7 @@ namespace Opc.Ua
         /// <value>
         ///   <c>true</c> if [no private keys]; otherwise, <c>false</c>.
         /// </value>
-        public bool NoPrivateKeys { get; set; }
+        private bool NoPrivateKeys { get; set; }
         #endregion
 
         #region ICertificateStore Members
@@ -164,6 +164,7 @@ namespace Opc.Ua
 
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
+
             return Task.CompletedTask;
         }
 
@@ -224,167 +225,6 @@ namespace Opc.Ua
             }
         }
         
-        /// <summary cref="ICertificateStore.SupportsAccessControl" />
-        public bool SupportsAccessControl
-        {
-            get { return true; }
-        }
-
-        /// <summary cref="ICertificateStore.GetAccessRules()" />
-        public IList<ApplicationAccessRule> GetAccessRules()
-        {
-            lock (m_lock)
-            {
-                return ApplicationAccessRule.GetAccessRules(m_certificateSubdir.FullName);
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            lock (m_lock)
-            {
-                ApplicationAccessRule.SetAccessRules(m_certificateSubdir.FullName, rules, replaceExisting);
-
-                if (String.Compare(m_certificateSubdir.FullName, m_privateKeySubdir.FullName, StringComparison.OrdinalIgnoreCase) != 0)
-                {
-                    ApplicationAccessRule.SetAccessRules(m_privateKeySubdir.FullName, rules, replaceExisting);
-                }
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SupportsCertificateAccessControl" />
-        public bool SupportsCertificateAccessControl
-        {
-            get
-            {
-                return true;
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SupportsPrivateKeys" />
-        public bool SupportsPrivateKeys
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
-        public string GetPublicKeyFilePath(string thumbprint)
-        {
-            Entry entry = Find(thumbprint);
-
-            if (entry == null)
-            {
-                return null;
-            }
-
-            if (entry.CertificateFile == null || !entry.CertificateFile.Exists)
-            {
-                return null;
-            }
-
-            return entry.CertificateFile.FullName;
-        }
-
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
-        public string GetPrivateKeyFilePath(string thumbprint)
-        {
-            Entry entry = Find(thumbprint);
-
-            if (entry == null)
-            {
-                return null;
-            }
-
-            if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
-            {
-                return null;
-            }
-
-            return entry.PrivateKeyFile.FullName;
-        }
-
-        /// <summary>
-        /// Gets the CRL file paths.
-        /// </summary>
-        /// <param name="thumbprint">The certificate thumbprint.</param>
-        /// <returns></returns>
-        public string[] GetCrlFilePaths(string thumbprint)
-        {
-            List<string> filePaths = new List<string>();
-
-            Entry entry = Find(thumbprint);
-
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
-
-            foreach (FileInfo file in info.GetFiles("*.crl"))
-            {
-                X509CRL crl = null;
-
-                try
-                {
-                    crl = new X509CRL(file.FullName);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Could not parse CRL file.");
-                    continue;
-                }
-
-                if (!Utils.CompareDistinguishedName(crl.Issuer, entry.Certificate.Subject))
-                {
-                    continue;
-                }
-
-                filePaths.Add(file.FullName);
-            }
-
-            return filePaths.ToArray();
-        }
-
-        /// <summary cref="ICertificateStore.GetAccessRules(string)" />
-        public IList<ApplicationAccessRule> GetAccessRules(string thumbprint)
-        {
-            lock (m_lock)
-            {
-                Entry entry = Find(thumbprint);
-
-                if (entry == null)
-                {
-                    throw new ArgumentException("Certificate does not exist in store.");
-                }
-
-                if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
-                {
-                    throw new ArgumentException("Certificate does not have a private key in the store.");
-                }
-
-                return ApplicationAccessRule.GetAccessRules(entry.PrivateKeyFile.FullName);
-            }
-        }
-        
-        /// <summary cref="ICertificateStore.SetAccessRules(string, IList{ApplicationAccessRule},bool)" />
-        public void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            lock (m_lock)
-            {
-                Entry entry = Find(thumbprint);
-
-                if (entry == null)
-                {
-                    throw new ArgumentException("Certificate does not exist in store.");
-                }
-
-                if (entry.PrivateKeyFile != null && entry.PrivateKeyFile.Exists)
-                {
-                    ApplicationAccessRule.SetAccessRules(entry.PrivateKeyFile.FullName, rules, replaceExisting);
-                }
-            }
-        }
-
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
@@ -471,11 +311,6 @@ namespace Opc.Ua
 
             return null;
         }
-
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
-        public bool SupportsCRLs { get { return true; } }
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
@@ -611,7 +446,7 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
-        public async void AddCRL(X509CRL crl)
+        public void AddCRL(X509CRL crl)
         {
             if (crl == null)
             {
@@ -619,7 +454,8 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await Enumerate();
+            X509Certificate2Collection certificates = null;
+            certificates = Enumerate().Result;
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
@@ -639,7 +475,7 @@ namespace Opc.Ua
 
             StringBuilder builder = new StringBuilder();
             builder.Append(m_directory.FullName);
-            
+
             builder.Append(Path.DirectorySeparatorChar + "crl" + Path.DirectorySeparatorChar);
             builder.Append(GetFileName(issuer));
             builder.Append(".crl");
@@ -688,9 +524,9 @@ namespace Opc.Ua
 
             return false;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
@@ -722,7 +558,8 @@ namespace Opc.Ua
                 }
 
                 // check if cache is still good.
-                if (m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck && (NoPrivateKeys || this.m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
+                if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) && 
+                    (NoPrivateKeys || !m_privateKeySubdir.Exists || m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
                     return m_certificates;
                 }

@@ -26,8 +26,24 @@
 <div id="alert">
 </div>
 
+<div class="container centered">
+    <div style="float: left;" id="graph" class="graphContainer">
+        <br />
+        @*<canvas id="device"></canvas>*@
+        <canvas id="device" width="10" height="10"></canvas>
+        <br />
+    </div>
+
+    <div style="float: left;" id="label">
+        <br />
+        <br />
+        <ul id="text"/>
+    </div>
+</div>
+
 @section scripts {
     <script src="~/signalr/hubs"></script>
+    <script src='~/Scripts/Chart.min.js'></script>
     <script>
         var telemetry = $.connection.telemetryHub;
         
@@ -43,6 +59,7 @@
             }
         });
 
+        var myLineChart = null;
         var indexGlobal = 0;
         $("#device").html("");
 
@@ -68,19 +85,44 @@
                 $.each(m_devices, function (index, data) {
                     //Create new row for each record
                     var row = $("<tr></tr>").appendTo(table);
-                    $("<td></td>").appendTo(row);
-                    $("<td>" + "<button class=delbtn + >delete</button>" + "</td>").appendTo(row);
-                    $("<td></td>").text(data[data.length - 1].MonitoredItem.Id).appendTo(row);
-                    var img = loadLogo(data[data.length - 1].MonitoredItem.Uri);
-                    if (img != null) {
-                        $("<td>" + img + "</td>").appendTo(row);
+                    if (Number(data[data.length - 1].Value.Value)) {
+                        $("<td>" + "<button class=graphbtn + >graph</button>" + "</td>").appendTo(row);
                     }
                     else {
-                        $("<td></td>").text(data[data.length - 1].MonitoredItem.Uri).appendTo(row);
+                    $("<td></td>").appendTo(row);
                     }
+                    $("<td>" + "<button class=delbtn + >delete</button>" + "</td>").appendTo(row);
+                    $("<td></td>").text(data[data.length - 1].MonitoredItem.Id).appendTo(row);
+                    var img = loadLogo(data[data.length - 1].HostName);
+                    if (img == null) {
+                        img = loadLogo(data[data.length - 1].MonitoredItem.Uri);
+                    }
+                    if (img != null) {
+                        $("<td>" + data[data.length - 1].HostName + img + "</td>").appendTo(row);
+                    }
+                    else {
+                        $("<td></td>").text(data[data.length - 1].HostName).appendTo(row);
+                    }
+                    if (Number(data[data.length - 1].Value.Value)) {
+                        var theNumber = Number(data[data.length - 1].Value.Value);
+                        $("<td></td>").text(theNumber.toFixed(2).toString()).appendTo(row);
+                    }
+                    else {
                     $("<td></td>").text(data[data.length - 1].Value.Value).appendTo(row);
-                    $("<td></td>").text(data[data.length - 1].Value.SourceTimestamp).appendTo(row);
+                    }
+                    $("<td></td>").text(data[data.length - 1].Value.ServerTimestamp).appendTo(row);
                 });
+
+                // update the graph with new data
+                if (myLineChart != null) {
+                    for (var i = 0; i < 10; i++) {
+                        myLineChart.scale.xLabels[i] = m_devices[indexGlobal][i].Value.ServerTimestamp;
+                        myLineChart.datasets[0].points[i].value = m_devices[indexGlobal][i].Value.Value;
+                    }
+                    myLineChart.update();
+
+                    $("#text").text(m_devices[indexGlobal][0].MonitoredItem.Id);
+                }
 
                 $('button.delbtn').click(function () {
                     var row = $(this).closest('tr');
@@ -89,11 +131,53 @@
                         row.remove();
                     });
 
-                    var rowIndex = $(this).closest('tr')[0].sectionRowIndex;
+                    var rowIndex = $(this).closest('tr')[0].rowIndex;
                     var url = '@Url.Action("Delete", "Home", new {value = "replaceToken"}, null)';
                     location.href = url.replace("replaceToken", rowIndex.toString());
                 });
 
+                $('button.graphbtn').click(function () {
+                    if (myLineChart != null) {
+                        myLineChart.destroy();
+                    }
+
+                    var rowIndex = $(this).closest('tr')[0].rowIndex;
+                    indexGlobal = rowIndex - 1;
+                    drawGraph(rowIndex);
+                });
+
+                function drawGraph(rowIndex) {
+                    var index = rowIndex - 1;
+                    var deviceData = {
+                        labels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                        datasets: [
+                            {
+                                fillColor: "rgba(172,194,132,0.4)",
+                                strokeColor: "#ACC26D",
+                                pointColor: "#fff",
+                                pointStrokeColor: "#9DB86D",
+                                data: [m_devices[index][0].Value.Value, m_devices[index][1].Value.Value, m_devices[index][2].Value.Value, m_devices[index][3].Value.Value, m_devices[index][4].Value.Value,
+                                      m_devices[index][5].Value.Value, m_devices[index][6].Value.Value, m_devices[index][7].Value.Value, m_devices[index][8].Value.Value, m_devices[index][9].Value.Value]
+                            }
+                        ]
+                    }
+                    var device = document.getElementById('device').getContext('2d');
+                    device.canvas.width = 600;
+                    device.canvas.height = 400;
+
+                    Chart.defaults.global.responsive = true;
+                    Chart.defaults.global.animation = false;
+                    Chart.defaults.global.scaleBeginAtZero = false;
+
+                    myLineChart = new Chart(device).Line(deviceData);
+                }
+
+                function updateGraph(index) {
+                    for (var i = 0; i < 10; i++) {
+                        myLineChart.datasets[0].data[i] = m_devices[index - 1][i].Value.Value;
+                    }
+                    myLineChart.update();
+                }
             }
 
             // Start/update the connection

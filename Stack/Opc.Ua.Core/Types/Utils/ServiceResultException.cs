@@ -142,7 +142,8 @@ namespace Opc.Ua
 				m_status = new ServiceResult(StatusCodes.Bad);
             }
 
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
+            // avoid false warnings in the log file when closing the channel.
+            if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) && (status == null || (status != null && status.Code != StatusCodes.BadSecureChannelClosed)))
             {
                 Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
             }

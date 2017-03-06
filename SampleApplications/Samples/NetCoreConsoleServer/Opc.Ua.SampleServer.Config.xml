@@ -4,8 +4,8 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
   schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
-  <ApplicationName>Opc.Ua.SampleServer</ApplicationName>
-  <ApplicationUri>urn:localhost:OPCFoundation:SampleServer</ApplicationUri>
+  <ApplicationName>UA Core Sample Server</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleServer</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/SampleServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
 
@@ -13,9 +13,9 @@
     
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
-      <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
-      <SubjectName>UA Sample Server</SubjectName>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
+      <SubjectName>UA Core Sample Server</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -38,12 +38,11 @@
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
-    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
   
   </SecurityConfiguration>
 
-
-  <TransportConfigurations></TransportConfigurations>
+  <TransportConfigurations/>
   
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -83,19 +82,19 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
+        <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
+      <!--Removing no secuirty option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
-      </ServerSecurityPolicy>
-      <!--
+      </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -104,9 +103,18 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>4</SecurityLevel>
+        <SecurityLevel>5</SecurityLevel>
       </ServerSecurityPolicy>
-      -->
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>3</SecurityLevel>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityLevel>6</SecurityLevel>
+      </ServerSecurityPolicy>
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
@@ -172,12 +180,12 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>./Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>513</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
     <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->
@@ -185,7 +193,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
 
   <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->

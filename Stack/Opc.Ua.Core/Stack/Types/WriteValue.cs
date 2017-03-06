@@ -102,7 +102,7 @@ namespace Opc.Ua
                 // check that the number of elements to write matches the index range.
                 if (range.End >= 0 && (range.End - range.Begin != array.Length-1))
                 {
-                    return StatusCodes.BadIndexRangeInvalid;
+                    return StatusCodes.BadIndexRangeNoData;
                 }
 
                 // check for single element.

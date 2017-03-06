@@ -36,6 +36,7 @@ using System.Windows.Forms;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -158,7 +159,7 @@ namespace Opc.Ua.Client.Controls
                 CertificateStoreIdentifier store = new CertificateStoreIdentifier();
                 store.StoreType = CertificateStoreCTRL.StoreType;
                 store.StorePath = CertificateStoreCTRL.StorePath;
-                CertificatesCTRL.Initialize(store, null);
+                CertificatesCTRL.Initialize(store, null).Wait();
 
                 FilterBTN_Click(sender, e);
             }

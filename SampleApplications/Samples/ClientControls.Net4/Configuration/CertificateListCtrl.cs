@@ -39,6 +39,7 @@ using System.Xml;
 using System.IO;
 using System.Runtime.Serialization;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -203,7 +204,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Displays the applications in the control.
         /// </summary>
-        internal async void Initialize(CertificateStoreIdentifier id, IList<string> thumbprints)
+        internal async Task Initialize(CertificateStoreIdentifier id, IList<string> thumbprints)
         {
             ItemsLV.Items.Clear();
 
@@ -214,7 +215,7 @@ namespace Opc.Ua.Client.Controls
             {
                 Instructions = "No certificates are in the store.";
                 AdjustColumns();
-                return;
+                return ;
             }
 
             try
@@ -349,27 +350,6 @@ namespace Opc.Ua.Client.Controls
                 else
                 {
                     listItem.SubItems[2].Text = "No";
-
-                    if (m_storeId != null)
-                    {
-                        ICertificateStore store = m_storeId.OpenStore();
-
-                        try
-                        {
-                            if (store.GetPrivateKeyFilePath(certificate.Thumbprint) != null)
-                            {
-                                listItem.SubItems[2].Text = "Yes (No Access)";
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            listItem.SubItems[2].Text = e.Message;
-                        }
-                        finally
-                        {
-                            store.Close();
-                        }
-                    }
                 }
 
                 // look up domains.
@@ -519,7 +499,7 @@ namespace Opc.Ua.Client.Controls
             catch (Exception exception)
             {
                 GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
-                Initialize(m_storeId, m_thumbprints);
+                await Initialize(m_storeId, m_thumbprints);
             }
         }
 

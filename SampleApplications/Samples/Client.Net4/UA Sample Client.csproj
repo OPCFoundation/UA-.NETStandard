@@ -101,6 +101,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CustomTransportChannel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -124,9 +125,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <Content Include="libuv.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Core.Types.Utils.LocalizedData.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Opc.Ua.SampleClient.Config.xml">
@@ -193,23 +191,6 @@
   <ItemGroup>
     <Content Include="app.manifest" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.Boiler.Boiler.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Opc.Ua.Sample.TestData.TestData.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="CreateCert.cmd" />
-  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
@@ -219,7 +200,8 @@
   </Target>
   -->
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(ProjectDir)OPC Foundation\*.*" "$(TargetDir)OPC Foundation" /I/E/R/Y</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
     <PreBuildEvent>
     </PreBuildEvent>
   </PropertyGroup>

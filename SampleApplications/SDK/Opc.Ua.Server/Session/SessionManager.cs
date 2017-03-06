@@ -101,7 +101,6 @@ namespace Opc.Ua.Server
                 }
 
                 m_shutdownEvent.Set();
-                m_shutdownEvent.Dispose();
             }
         }
         #endregion
@@ -175,6 +174,17 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
+                // check for same Nonce in another session
+                if (clientNonce != null)
+                {
+                    foreach (Session sessionIterator in m_sessions.Values)
+                    {
+                        if (Utils.CompareNonce(sessionIterator.ClientNonce, clientNonce))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                        }
+                    }
+                }
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
 
@@ -189,7 +199,7 @@ namespace Opc.Ua.Server
                 // must assign a hard-to-guess id if not secured.
                 if (authenticationToken == null)
                 {
-                    byte [] token = Utils.CreateNonce("SessionManager", 32);
+                    byte [] token = Utils.Nonce.CreateNonce("SessionManager", 32);
                     authenticationToken = new NodeId(token);
                 }
                 
@@ -205,7 +215,7 @@ namespace Opc.Ua.Server
                 }
                 
                 // create server nonce.
-                serverNonce = Utils.CreateNonce("CreateSession", (uint) m_minNonceLength);
+                serverNonce = Utils.Nonce.CreateNonce("CreateSession", (uint) m_minNonceLength);
 
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
@@ -219,6 +229,7 @@ namespace Opc.Ua.Server
                     m_server,
                     serverCertificate,
                     authenticationToken,
+                    clientNonce,
                     serverNonce,
                     sessionName,
                     clientDescription,
@@ -271,7 +282,7 @@ namespace Opc.Ua.Server
                 }
                 
                 // create new server nonce.
-                serverNonce = Utils.CreateNonce("ActivateSession", (uint)m_minNonceLength);
+                serverNonce = Utils.Nonce.CreateNonce("ActivateSession", (uint)m_minNonceLength);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(
@@ -392,14 +403,22 @@ namespace Opc.Ua.Server
             {            
                 // raise session related event.
                 RaiseSessionEvent(session, SessionEventReason.Closing);
-                
+
+                // remember activation
+                bool activated = session.Activated;
+
                 // close the session.
                 session.Close();
 
                 // update diagnostics.
-                lock (m_server.DiagnosticsLock)
+                lock (m_server.DiagnosticsWriteLock)
                 {
                     m_server.ServerDiagnostics.CurrentSessionCount--;
+                }
+
+                if (!activated)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
             }
 
@@ -483,6 +502,7 @@ namespace Opc.Ua.Server
             IServerInternal           server,
             X509Certificate2          serverCertificate,
             NodeId                    sessionCookie,
+            byte[]                    clientNonce,
             byte[]                    serverNonce,
             string                    sessionName, 
             ApplicationDescription    clientDescription,
@@ -498,6 +518,7 @@ namespace Opc.Ua.Server
                 m_server,
                 serverCertificate,
                 sessionCookie,
+                clientNonce,
                 serverNonce,
                 sessionName,
                 clientDescription,
@@ -570,7 +591,7 @@ namespace Opc.Ua.Server
                         if (sessions[ii].HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsLock)
+                            lock (m_server.DiagnosticsWriteLock)
                             {
                                 m_server.ServerDiagnostics.SessionTimeoutCount++;
                             }

@@ -196,7 +196,7 @@ namespace Opc.Ua.Server
             if (locale == null) throw new ArgumentNullException("locale");
             if (text == null) throw new ArgumentNullException("text");
 
-            CultureInfo culture = CultureInfo.CurrentCulture;
+            CultureInfo culture = new CultureInfo(locale);
             
             if (culture.IsNeutralCulture)
             {
@@ -218,7 +218,7 @@ namespace Opc.Ua.Server
             if (locale == null) throw new ArgumentNullException("locale");
             if (translations == null) throw new ArgumentNullException("translations");
 
-            CultureInfo culture = CultureInfo.CurrentCulture;
+            CultureInfo culture = new CultureInfo(locale);
             
             if (culture.IsNeutralCulture)
             {
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            culture = CultureInfo.CurrentCulture;
+                            culture = new CultureInfo(info.Locale);
                         }
                         catch
                         {
@@ -430,7 +430,7 @@ namespace Opc.Ua.Server
 
                 // add table.
                 TranslationTable table = new TranslationTable();
-                table.Locale = CultureInfo.CurrentCulture;
+                table.Locale = new CultureInfo(locale);
                 m_translationTables.Add(table);
 
                 return table;
