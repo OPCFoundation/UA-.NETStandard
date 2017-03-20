@@ -44,6 +44,6 @@ The server is now running, connecting to the aggregated servers and waiting for 
 1. Open the solution **UA Aggregation.sln** with VisualStudio.
 2. Choose the project **Aggregation Client** in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
-4. Press `Connect` to connect to the **Aggregration Server**.
-5. Browse the aggregation server and access the **UA Sample Client** or the **UA Sample Server** in the namespace of the **Aggregration Server**.
+4. Press `Connect` to connect to the **Aggregation Server**.
+5. Browse the aggregation server and access the **UA Sample Client** or the **UA Sample Server** in the namespace of the **Aggregation Server**.
 
