@@ -38,7 +38,10 @@ By default all sample applications are configured to register with a Local Disco
 
 ## How to build and run the samples in Visual Studio on Windows
 
-1. Open the solution UA-NetStandard.sln with VisualStudio.
+1. If you are using Visual Studio 2015, open the UA-NetStandard.sln solution file.  
+
+> If you installed Visual Studio 2017 on your machine, open the UA-NetStandard_2017.sln solution file. Note that at this point UWP and .net 4 samples can only be built using Visual Studio 2015. .net Standard Samples can be built with both version.
+
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
  
