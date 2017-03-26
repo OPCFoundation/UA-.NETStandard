@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Core</id>
-    <version>0.1.6</version>
+    <version>0.2.3</version>
     <title>OPC UA .Net Standard Library Core Stack</title>
     <description>This package contains the OPC UA Core Stack reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>

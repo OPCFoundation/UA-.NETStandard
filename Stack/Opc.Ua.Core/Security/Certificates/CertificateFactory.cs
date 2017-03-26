@@ -320,7 +320,7 @@ namespace Opc.Ua
                 }
 
                 store.Open(storePath);
-                store.Add(certificate);
+                store.Add(certificate, password);
                 store.Close();
                 store.Dispose();
             }
@@ -343,9 +343,11 @@ namespace Opc.Ua
             Exception ex = null;
             int flagsRetryCounter = 0;
             X509Certificate2 certificate = null;
+
+            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
             X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
             };
 
             // try some combinations of storage flags, support is platform dependent

@@ -2889,6 +2889,12 @@ namespace Opc.Ua
         /// </summary>
         public static bool CompareDistinguishedName(X509Certificate2 certificate, List<string> parsedName)
         {
+            // can't compare if the number of fields is 0.
+            if (parsedName.Count == 0)
+            {
+                return false;
+            }
+            
             // parse the names.
             List<string> certificateName = ParseDistinguishedName(certificate.Subject);
 

@@ -639,7 +639,7 @@ namespace Opc.Ua
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public async Task Add(X509Certificate2 certificate)
+        public async Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException("certificate");
 

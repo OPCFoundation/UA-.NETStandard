@@ -126,7 +126,7 @@ namespace Opc.Ua
         }
 
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
-        public Task Add(X509Certificate2 certificate)
+        public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException("certificate");
          
@@ -144,7 +144,8 @@ namespace Opc.Ua
 
                 if (certificate.HasPrivateKey)
                 {
-                    data = certificate.Export(X509ContentType.Pkcs12, String.Empty);
+                    string passcode = (password == null) ? String.Empty : password;
+                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
                 {
@@ -280,7 +281,7 @@ namespace Opc.Ua
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
                             (password == null) ? String.Empty : password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
                     catch (Exception)
@@ -288,7 +289,7 @@ namespace Opc.Ua
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
                             (password == null) ? String.Empty : password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
                     if (rsa != null)
