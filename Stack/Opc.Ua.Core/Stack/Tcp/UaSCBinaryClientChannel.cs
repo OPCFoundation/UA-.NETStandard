@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResult error = ReadErrorMessageBody(decoder);
 
-                Utils.Trace((int)TraceMasks.Error, "Channel {0}: ProcessErrorMessage({1})", ChannelId, error);
+                Utils.Trace((int)Utils.TraceMasks.Error, "Channel {0}: ProcessErrorMessage({1})", ChannelId, error);
 
                 // check if a handshake is in progress
                 if (m_handshakeOperation != null)
