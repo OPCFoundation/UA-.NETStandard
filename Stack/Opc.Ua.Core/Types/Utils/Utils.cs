@@ -906,7 +906,42 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        
+
+        /// <summary>
+        /// Replaces the cert subject name DC=localhost with the current host name.
+        /// </summary>
+        public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
+        {
+            // ignore nulls.
+            if (String.IsNullOrEmpty(subjectName))
+            {
+                return subjectName;
+            }
+
+            // IPv6 address needs a surrounding [] 
+            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            {
+                hostname = "[" + hostname + "]";
+            }
+
+            // check if the string DC=localhost is specified.
+            int index = subjectName.IndexOf("DC=localhost", StringComparison.OrdinalIgnoreCase);
+
+            if (index == -1)
+            {
+                return subjectName;
+            }
+
+            // construct new uri.
+            StringBuilder buffer = new StringBuilder();
+
+            buffer.Append(subjectName.Substring(0, index + 3));
+            buffer.Append((hostname == null) ? GetHostName() : hostname);
+            buffer.Append(subjectName.Substring(index + "DC=localhost".Length));
+
+            return buffer.ToString();
+        }
+
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
@@ -2393,11 +2428,11 @@ namespace Opc.Ua
             if (a == null || b == null) return false;
             if (a.Length != b.Length) return false;
 
+            byte result = 0;
             for (int i = 0; i < a.Length; i++)
-                if (a[i] != b[i])
-                    return false;
+                result |= (byte) (a[i] ^ b[i]);
 
-            return true;
+            return result == 0;
         }
 
         public class Nonce
@@ -2904,7 +2939,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            // compare each.
+            // sort to ensure similar entries are compared
+            parsedName.Sort(StringComparer.OrdinalIgnoreCase);
+            certificateName.Sort(StringComparer.OrdinalIgnoreCase);
+
+            // compare each entry
             for (int ii = 0; ii < parsedName.Count; ii++)
             {
                 if (String.Compare(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase) != 0)

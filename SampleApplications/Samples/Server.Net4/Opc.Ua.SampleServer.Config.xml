@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
       <StorePath>CurrentUser\UA_MachineDefault</StorePath>
-      <SubjectName>UA Sample Server</SubjectName>
+      <SubjectName>CN=UA Sample Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -86,7 +86,7 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
-      <!--Removing no secuirty option from the configuration as this is a security risk
+      <!--Removing no security option from the configuration as this is a security risk
         <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>

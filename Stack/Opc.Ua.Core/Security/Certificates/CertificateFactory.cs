@@ -12,9 +12,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Collections;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using Org.BouncyCastle.Crypto;
@@ -27,7 +28,6 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
-using System.Security.Cryptography;
 
 namespace Opc.Ua
 {
@@ -42,7 +42,7 @@ namespace Opc.Ua
         /// </summary>
         public const ushort defaultKeySize = 2048;
         public const ushort defaultHashSize = 256;
-        public const ushort defaultLifeTime = 120;
+        public const ushort defaultLifeTime = 12;
         #endregion
         #region Public Methods
         /// <summary>
@@ -57,7 +57,6 @@ namespace Opc.Ua
             {
                 return Load(new X509Certificate2(encodedData), false);
             }
-
             return new X509Certificate2(encodedData);
         }
 
@@ -65,7 +64,7 @@ namespace Opc.Ua
         /// Loads the cached version of a certificate.
         /// </summary>
         /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key conatiner is created for a certificate that must be deleted by calling Cleanup.</param>
+        /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
         /// This function is necessary because all private keys used for cryptography operations must be in a key conatiner. 
@@ -143,7 +142,7 @@ namespace Opc.Ua
                 subjectName,
                 serverDomainNames,
                 keySize,
-                DateTime.UtcNow,
+                DateTime.Now,
                 lifetimeInMonths,
                 hashSizeInBits,
                 false,
@@ -194,7 +193,7 @@ namespace Opc.Ua
             }
 
             // set default values.
-            SetSuitableDefaults(
+            X509Name subjectDN = SetSuitableDefaults(
                 ref applicationUri,
                 ref applicationName,
                 ref subjectName,
@@ -211,17 +210,7 @@ namespace Opc.Ua
             BigInteger serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
             cg.SetSerialNumber(serialNumber);
 
-            // build name attributes
-            var nameOids = new ArrayList();
-            nameOids.Add(X509Name.DC);
-            nameOids.Add(X509Name.CN);
-
-            var nameValues = new ArrayList();
-            nameValues.Add(domainNames[0]);
-            nameValues.Add(subjectName);
-
             // self signed 
-            X509Name subjectDN = new X509Name(nameOids, nameValues);
             X509Name issuerDN = subjectDN;
             cg.SetIssuerDN(issuerDN);
             cg.SetSubjectDN(subjectDN);
@@ -291,7 +280,7 @@ namespace Opc.Ua
             {
                 Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
                 X509CertificateEntry[] chain = new X509CertificateEntry[1];
-                string passcode = "passcode";
+                string passcode = Guid.NewGuid().ToString();
                 chain[0] = new X509CertificateEntry(x509);
                 pkcsStore.SetKeyEntry(applicationName, new AsymmetricKeyEntry(subjectKeyPair.Private), chain);
                 pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
@@ -358,8 +347,8 @@ namespace Opc.Ua
                 {
                     // merge first cert with private key into X509Certificate2
                     certificate = new X509Certificate2(
-                        rawData, 
-                        (password == null) ? String.Empty : password, 
+                        rawData,
+                        (password == null) ? String.Empty : password,
                         storageFlags[flagsRetryCounter]);
                     // can we really access the private key?
                     using (RSA rsa = certificate.GetRSAPrivateKey()) { }
@@ -379,12 +368,12 @@ namespace Opc.Ua
 
             return certificate;
         }
-        #endregion
-        #region Private Methods
+#endregion
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
-        private static void SetSuitableDefaults(
+        private static X509Name SetSuitableDefaults(
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
@@ -437,6 +426,11 @@ namespace Opc.Ua
                 }
             }
 
+            if (String.IsNullOrEmpty(applicationName))
+            {
+                throw new ArgumentNullException("applicationName", "Must specify a applicationName or a subjectName.");
+            }
+
             // remove special characters from name.
             StringBuilder buffer = new StringBuilder();
 
@@ -484,10 +478,32 @@ namespace Opc.Ua
             // create the subject name,
             if (String.IsNullOrEmpty(subjectName))
             {
-                subjectName = applicationName;
+                subjectName = Utils.Format("CN={0}", applicationName);
             }
+
+            if (!subjectName.Contains("CN="))
+            {
+                subjectName = Utils.Format("CN={0}", subjectName);
+            }
+
+            if (domainNames != null && domainNames.Count > 0)
+            {
+                if (!subjectName.Contains("DC="))
+                {
+                    subjectName += Utils.Format(", DC={0}", domainNames[0]);
+                }
+                else
+                {
+                    subjectName = Utils.ReplaceDCLocalhost(subjectName, domainNames[0]);
+                }
+            }
+
+            // Convert a few known entries named different in .Net and Bouncy Castle
+            subjectName = subjectName.Replace("S=", "ST=");
+
+            return new X509Name( true, subjectName);
         }
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
