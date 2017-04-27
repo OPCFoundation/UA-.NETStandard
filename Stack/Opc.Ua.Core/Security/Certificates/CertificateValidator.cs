@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Selectors;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -30,6 +31,8 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
+            m_disallowSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
+            m_minimumCertificateKeySize = CertificateFactory.defaultKeySize;
         }
         #endregion
 
@@ -138,6 +141,8 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
+                m_disallowSHA1SignedCertificates = configuration.DisallowSHA1SignedCertificates;
+                m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
             if (configuration.ApplicationCertificate != null)
@@ -651,6 +656,20 @@ namespace Opc.Ua
                 }
             }
 
+            // check if minimum requirements are met
+            if (m_disallowSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "SHA1 signed certificates are not trusted");
+            }
+
+            using (RSA rsa = certificate.GetRSAPublicKey())
+            {
+                if (m_minimumCertificateKeySize < rsa.KeySize)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Certificate doesn't meet minimum key length requirement");
+                }
+            }
+
             CertificateIdentifier trustedCertificate = await GetTrustedCertificate(certificate);
 
             // get the issuers (checks the revocation lists if using directory stores).
@@ -873,6 +892,18 @@ namespace Opc.Ua
 
             return null;
         }
+        /// <summary>
+        /// Returns if a certificate is signed with a SHA1 algorithm.
+        /// </summary>
+        private static bool IsSHA1SignatureAlgorithm(Oid oid)
+        {
+            return oid.Value == "1.3.14.3.2.29" ||     // sha1RSA
+                oid.Value == "1.2.840.10040.4.3" ||    // sha1DSA
+                oid.Value == "1.2.840.10045.4.1" ||    // sha1ECDSA
+                oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
+                oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
+                oid.Value == "1.3.14.3.2.27";          // dsaSHA1
+        }
         #endregion
 
         #region WcfValidatorWrapper Class
@@ -906,6 +937,8 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private X509Certificate2 m_applicationCertificate;
+        private bool m_disallowSHA1SignedCertificates;
+        private ushort m_minimumCertificateKeySize;
         #endregion
     }
 

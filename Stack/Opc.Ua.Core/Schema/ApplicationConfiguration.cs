@@ -877,8 +877,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public bool DisallowSHA1SignedCertificates
         {
-            get { return m_autoAcceptUntrustedCertificates; }
-            set { m_autoAcceptUntrustedCertificates = value; }
+            get { return m_disallowSHA1SignedCertificates; }
+            set { m_disallowSHA1SignedCertificates = value; }
         }
 
         /// <summary>
