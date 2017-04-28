@@ -28,16 +28,6 @@ namespace Opc.Ua
         public const string BaseUri = "http://opcfoundation.org/UA/SecurityPolicy#";
 
         /// <summary>
-        /// The default security mode, by default the most secure mode.
-        /// </summary>
-        public const MessageSecurityMode DefaultMode = MessageSecurityMode.SignAndEncrypt;
-
-        /// <summary>
-        /// The default URI for a policy, by default the most secure transport.
-        /// </summary>
-        public const string DefaultPolicy = Basic256Sha256;
-
-        /// <summary>
         /// The URI for a policy that uses no security.
         /// </summary>
         public const string None = BaseUri + "None";

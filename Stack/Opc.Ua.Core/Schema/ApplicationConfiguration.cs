@@ -626,8 +626,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_securityMode = SecurityPolicies.DefaultMode;
-            m_securityPolicyUri = SecurityPolicies.DefaultPolicy;
+            m_securityMode = MessageSecurityMode.SignAndEncrypt;
+            m_securityPolicyUri = SecurityPolicies.Basic256Sha256;
             m_securityLevel = 0;
         }
 
