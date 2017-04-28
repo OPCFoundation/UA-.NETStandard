@@ -2437,19 +2437,16 @@ namespace Opc.Ua
 
         public class Nonce
         {
-            private static int m_calls = 0;
+            static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
             public static byte[] CreateNonce(string secret, uint length)
             {
-                // This function should rather use a crypthographic random number generator
-                // once available in .Net Standard library
-                string label = DateTime.UtcNow.Ticks.ToString();
-                // ensure every Nonce is different, even when the ticks didn't change since the last call
-                m_calls++;
-                return PSHA1(new UTF8Encoding().GetBytes(secret), label, BitConverter.GetBytes(m_calls), 0, (int)length);
+                byte[] randomBytes = new byte[length];
+                m_rng.GetBytes(randomBytes);
+                return randomBytes;
             }
         }
 
