@@ -2007,7 +2007,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Utils.Nonce.CreateNonce("Session", length);
+            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
             byte[] serverNonce = new byte[0];

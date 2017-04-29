@@ -2442,7 +2442,7 @@ namespace Opc.Ua
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
-            public static byte[] CreateNonce(string secret, uint length)
+            public static byte[] CreateNonce(uint length)
             {
                 byte[] randomBytes = new byte[length];
                 m_rng.GetBytes(randomBytes);
