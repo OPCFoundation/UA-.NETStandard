@@ -342,7 +342,15 @@ namespace Opc.Ua
         {
             Trace((int)TraceMasks.Information, format, args);
         }
-        
+
+        /// <summary>
+        /// Writes an informational message to the trace log.
+        /// </summary>
+        public static void TraceDebug(string format, params object[] args)
+        {
+            Trace((int)TraceMasks.OperationDetail, format, args);
+        }
+
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
@@ -431,9 +439,9 @@ namespace Opc.Ua
 
             TraceWriteLine(message.ToString(), null);
         }
-        #endregion
+#endregion
 
-        #region File Access
+#region File Access
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
