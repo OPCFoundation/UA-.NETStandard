@@ -40,6 +40,11 @@
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
   
+    <!-- WARNING: SHA1 signed certficates are by default disabled and should be phased out. 
+    Setting is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
+    <DisallowSHA1SignedCertificates>false</DisallowSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
@@ -161,8 +166,28 @@
         <Count>20</Count>
       </SamplingRateGroup>
     </AvailableSamplingRates>
+
+    <RegistrationEndpoint>
+      <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+      <ua:Server>
+        <ua:ApplicationUri>opc.tcp://localhost:4840</ua:ApplicationUri>
+        <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
+        <ua:DiscoveryUrls>
+          <ua:String>opc.tcp://localhost:4840</ua:String>
+        </ua:DiscoveryUrls>
+      </ua:Server>
+      <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+      <ua:SecurityPolicyUri />
+      <ua:UserIdentityTokens />
+      <ua:SecurityLevel>1</ua:SecurityLevel>
+    </RegistrationEndpoint>
+
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>Quickstarts.ReferenceServer.nodes.xml</NodeManagerSaveFile>
+    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <MaxPublishRequestCount>20</MaxPublishRequestCount>
+    <MaxSubscriptionCount>100</MaxSubscriptionCount>
+    <MaxEventQueueSize>10000</MaxEventQueueSize>
   </ServerConfiguration>
 
   <Extensions>

@@ -2900,7 +2900,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    RegisterWithDiscoveryServer().GetAwaiter();
+                    RegisterWithDiscoveryServer().Wait();
                 }
 
                 lock (m_lock)
