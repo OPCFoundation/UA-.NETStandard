@@ -187,7 +187,7 @@ public class CertificateFactory
             subjectName,
             serverDomainNames,
             keySize,
-            DateTime.Now,
+            DateTime.UtcNow - TimeSpan.FromDays(1),
             lifetimeInMonths,
             hashSizeInBits,
             false,

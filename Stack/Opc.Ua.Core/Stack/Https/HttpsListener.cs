@@ -174,6 +174,7 @@ namespace Opc.Ua.Bindings
         public void Start()
         {
             Startup.Listener = this;
+            m_host = new WebHostBuilder();
 
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
@@ -181,7 +182,6 @@ namespace Opc.Ua.Bindings
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
 
-            m_host = new WebHostBuilder();
             m_host.UseKestrel(options =>
             {
                 options.NoDelay = true;
@@ -189,6 +189,7 @@ namespace Opc.Ua.Bindings
             });
             m_host.UseContentRoot(Directory.GetCurrentDirectory());
             m_host.UseStartup<Startup>();
+            m_host.Build();
             m_host.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
         }
 

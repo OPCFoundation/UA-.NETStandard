@@ -346,6 +346,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
+        [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
             Trace((int)TraceMasks.OperationDetail, format, args);
