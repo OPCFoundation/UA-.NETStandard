@@ -178,7 +178,9 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-    <Content Include="App.ico" />
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="InstallConfig.xml" />
     <Content Include="libuv.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

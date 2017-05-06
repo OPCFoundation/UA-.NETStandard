@@ -170,7 +170,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="App.ico" />
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <None Include="Images\media_play_green.png" />
     <None Include="Images\media_stop_red.png" />
     <None Include="Images\sign_warning.png" />
