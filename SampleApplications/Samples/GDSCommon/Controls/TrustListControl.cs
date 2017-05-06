@@ -81,12 +81,9 @@ namespace Opc.Ua.Gds
                     {
                         List<X509CRL> crls = new List<X509CRL>();
 
-                        if (store.SupportsCRLs)
+                        foreach (X509CRL crl in store.EnumerateCRLs(certificate))
                         {
-                            foreach (X509CRL crl in store.EnumerateCRLs(certificate))
-                            {
-                                crls.Add(crl);
-                            }
+                            crls.Add(crl);
                         }
 
                         AddCertificate(certificate, Status.Trusted, crls);
@@ -108,14 +105,11 @@ namespace Opc.Ua.Gds
                         {
                             List<X509CRL> crls = new List<X509CRL>();
 
-                            if (store.SupportsCRLs)
+                            foreach (X509CRL crl in store.EnumerateCRLs(certificate))
                             {
-                                foreach (X509CRL crl in store.EnumerateCRLs(certificate))
-                                {
-                                    crls.Add(crl);
-                                }
+                                crls.Add(crl);
                             }
-
+                            
                             AddCertificate(certificate, Status.Issuer, crls);
                         }
                     }

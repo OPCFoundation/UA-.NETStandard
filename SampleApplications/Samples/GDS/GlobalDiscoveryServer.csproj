@@ -158,7 +158,6 @@
   <ItemGroup>
     <Compile Include="ApplicationsDatabase.cs" />
     <Compile Include="AuthorizationService.cs" />
-    <Compile Include="Model\Opc.Ua.Gds.Classes.cs" />
     <Compile Include="RoleBasedIdentity.cs" />
     <Compile Include="GlobalDiscoveryServerConfiguration.cs" />
     <Compile Include="ApplicationsNodeManager.cs" />
@@ -184,7 +183,6 @@
     <Content Include="libuv.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Model\Opc.Ua.Gds.PredefinedNodes.xml" />
     <Content Include="Opc.Ua.GlobalDiscoveryServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
@@ -217,6 +215,10 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
       <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\GDSCommon\GlobalDiscoveryLibrary.csproj">
+      <Project>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</Project>
+      <Name>GlobalDiscoveryLibrary</Name>
     </ProjectReference>
     <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>

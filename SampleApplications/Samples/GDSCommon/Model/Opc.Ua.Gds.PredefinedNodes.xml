@@ -3,6 +3,331 @@
   <uax:NamespaceUris>
     <uax:NamespaceUri>http://opcfoundation.org/UA/GDS/</uax:NamespaceUri>
   </uax:NamespaceUris>
+  <OPCUAGDSNamespaceMetadata xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=721</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>http://opcfoundation.org/UA/GDS/</uax:Name>
+    </uax:BrowseName>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=11616</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>721</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=35</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=11715</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <NamespaceUri>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=722</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>NamespaceUri</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>The URI of the namespace.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>722</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>http://opcfoundation.org/UA/GDS/</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </NamespaceUri>
+    <NamespaceVersion>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=723</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>NamespaceVersion</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>The human readable string representing version of the namespace.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>723</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>1.04</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </NamespaceVersion>
+    <NamespacePublicationDate>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=724</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>NamespacePublicationDate</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>The publication date for the namespace.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>724</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>2016-12-31</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=13</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </NamespacePublicationDate>
+    <IsNamespaceSubset>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=725</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>IsNamespaceSubset</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>If TRUE then the server only supports a subset of the namespace.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>725</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:Boolean>false</uax:Boolean>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </IsNamespaceSubset>
+    <StaticNodeIdTypes>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=726</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>StaticNodeIdTypes</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>A list of IdTypes for nodes which are the same in every server that exposes them.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>726</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=256</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </StaticNodeIdTypes>
+    <StaticNumericNodeIdRange>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=727</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>StaticNumericNodeIdRange</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>A list of ranges for numeric node ids which are the same in every server that exposes them.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>727</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:ListOfString>
+            <uax:String>1:65535</uax:String>
+          </uax:ListOfString>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=291</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </StaticNumericNodeIdRange>
+    <StaticStringNodeIdPattern>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=728</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>StaticStringNodeIdPattern</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>A regular expression which matches string node ids are the same in every server that exposes them.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>728</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String></uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </StaticStringNodeIdPattern>
+    <DefaultRolePermissions>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=862</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>DefaultRolePermissions</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>862</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=96</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </DefaultRolePermissions>
+    <DefaultUserRolePermissions>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=863</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>DefaultUserRolePermissions</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>863</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=96</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </DefaultUserRolePermissions>
+    <DefaultAccessRestrictions>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=864</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>DefaultAccessRestrictions</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>864</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=5</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </DefaultAccessRestrictions>
+  </OPCUAGDSNamespaceMetadata>
   <ApplicationRecordDataType xmlns="http://opcfoundation.org/UA/GDS/">
     <uax:NodeClass>DataType_64</uax:NodeClass>
     <uax:NodeId>
@@ -8051,27 +8376,24 @@ Zy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M
 U2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB
 LyINCiAgeG1sbnM6dG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTLyINCiAgRGVm
 YXVsdEJ5dGVPcmRlcj0iTGl0dGxlRW5kaWFuIg0KICBUYXJnZXROYW1lc3BhY2U9Imh0dHA6Ly9v
-cGNmb3VuZGF0aW9uLm9yZy9VQS9HRFMvIg0KPg0KICA8IS0tIFRoaXMgRmlsZSB3YXMgZ2VuZXJh
-dGVkIG9uIDIwMTUtMDUtMjQgYW5kIHN1cHBvcnRzIHRoZSBzcGVjaWZpY2F0aW9ucyBzdXBwb3J0
-ZWQgYnkgdmVyc2lvbiAxLjEuMzM1LjEgb2YgdGhlIE9QQyBVQSBkZWxpdmVyYWJsZXMuIC0tPg0K
-ICA8b3BjOkltcG9ydCBOYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8iIExv
-Y2F0aW9uPSJPcGMuVWEuQmluYXJ5U2NoZW1hLmJzZCIvPg0KDQogIDxvcGM6U3RydWN0dXJlZFR5
-cGUgTmFtZT0iQXBwbGljYXRpb25SZWNvcmREYXRhVHlwZSIgQmFzZVR5cGU9InVhOkV4dGVuc2lv
-bk9iamVjdCI+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJBcHBsaWNhdGlvbklkIiBUeXBlTmFtZT0i
-dWE6Tm9kZUlkIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iQXBwbGljYXRpb25VcmkiIFR5cGVO
-YW1lPSJvcGM6U3RyaW5nIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iQXBwbGljYXRpb25UeXBl
-IiBUeXBlTmFtZT0idWE6QXBwbGljYXRpb25UeXBlIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0i
-Tm9PZkFwcGxpY2F0aW9uTmFtZXMiIFR5cGVOYW1lPSJvcGM6SW50MzIiIC8+DQogICAgPG9wYzpG
-aWVsZCBOYW1lPSJBcHBsaWNhdGlvbk5hbWVzIiBUeXBlTmFtZT0idWE6TG9jYWxpemVkVGV4dCIg
-TGVuZ3RoRmllbGQ9Ik5vT2ZBcHBsaWNhdGlvbk5hbWVzIiAvPg0KICAgIDxvcGM6RmllbGQgTmFt
-ZT0iUHJvZHVjdFVyaSIgVHlwZU5hbWU9Im9wYzpTdHJpbmciIC8+DQogICAgPG9wYzpGaWVsZCBO
-YW1lPSJOb09mRGlzY292ZXJ5VXJscyIgVHlwZU5hbWU9Im9wYzpJbnQzMiIgLz4NCiAgICA8b3Bj
-OkZpZWxkIE5hbWU9IkRpc2NvdmVyeVVybHMiIFR5cGVOYW1lPSJvcGM6U3RyaW5nIiBMZW5ndGhG
-aWVsZD0iTm9PZkRpc2NvdmVyeVVybHMiIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJOb09mU2Vy
-dmVyQ2FwYWJpbGl0aWVzIiBUeXBlTmFtZT0ib3BjOkludDMyIiAvPg0KICAgIDxvcGM6RmllbGQg
-TmFtZT0iU2VydmVyQ2FwYWJpbGl0aWVzIiBUeXBlTmFtZT0ib3BjOlN0cmluZyIgTGVuZ3RoRmll
-bGQ9Ik5vT2ZTZXJ2ZXJDYXBhYmlsaXRpZXMiIC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0K
-DQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:ByteString>
+cGNmb3VuZGF0aW9uLm9yZy9VQS9HRFMvIg0KPg0KICA8b3BjOkltcG9ydCBOYW1lc3BhY2U9Imh0
+dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8iIExvY2F0aW9uPSJPcGMuVWEuQmluYXJ5U2NoZW1h
+LmJzZCIvPg0KDQogIDxvcGM6U3RydWN0dXJlZFR5cGUgTmFtZT0iQXBwbGljYXRpb25SZWNvcmRE
+YXRhVHlwZSIgQmFzZVR5cGU9InVhOkV4dGVuc2lvbk9iamVjdCI+DQogICAgPG9wYzpGaWVsZCBO
+YW1lPSJBcHBsaWNhdGlvbklkIiBUeXBlTmFtZT0idWE6Tm9kZUlkIiAvPg0KICAgIDxvcGM6Rmll
+bGQgTmFtZT0iQXBwbGljYXRpb25VcmkiIFR5cGVOYW1lPSJvcGM6U3RyaW5nIiAvPg0KICAgIDxv
+cGM6RmllbGQgTmFtZT0iQXBwbGljYXRpb25UeXBlIiBUeXBlTmFtZT0idWE6QXBwbGljYXRpb25U
+eXBlIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iTm9PZkFwcGxpY2F0aW9uTmFtZXMiIFR5cGVO
+YW1lPSJvcGM6SW50MzIiIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJBcHBsaWNhdGlvbk5hbWVz
+IiBUeXBlTmFtZT0idWE6TG9jYWxpemVkVGV4dCIgTGVuZ3RoRmllbGQ9Ik5vT2ZBcHBsaWNhdGlv
+bk5hbWVzIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iUHJvZHVjdFVyaSIgVHlwZU5hbWU9Im9w
+YzpTdHJpbmciIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJOb09mRGlzY292ZXJ5VXJscyIgVHlw
+ZU5hbWU9Im9wYzpJbnQzMiIgLz4NCiAgICA8b3BjOkZpZWxkIE5hbWU9IkRpc2NvdmVyeVVybHMi
+IFR5cGVOYW1lPSJvcGM6U3RyaW5nIiBMZW5ndGhGaWVsZD0iTm9PZkRpc2NvdmVyeVVybHMiIC8+
+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJOb09mU2VydmVyQ2FwYWJpbGl0aWVzIiBUeXBlTmFtZT0i
+b3BjOkludDMyIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iU2VydmVyQ2FwYWJpbGl0aWVzIiBU
+eXBlTmFtZT0ib3BjOlN0cmluZyIgTGVuZ3RoRmllbGQ9Ik5vT2ZTZXJ2ZXJDYXBhYmlsaXRpZXMi
+IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:ByteString>
       </uax:Value>
     </uax:Value>
     <uax:DataType>

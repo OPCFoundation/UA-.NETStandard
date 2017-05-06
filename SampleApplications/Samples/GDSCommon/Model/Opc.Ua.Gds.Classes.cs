@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,11 +29,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
+using System.Xml;
+using System.Runtime.Serialization;
+using Opc.Ua;
 
 namespace Opc.Ua.Gds
 {
     #region FindApplicationsMethodState Class
-#if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
+    #if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
     /// <summary>
     /// Stores an instance of the FindApplicationsMethodType Method.
     /// </summary>
@@ -831,6 +835,15 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1291,6 +1304,15 @@ namespace Opc.Ua.Gds
         {
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
         }
 
         /// <summary>
@@ -2196,6 +2218,15 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -2730,6 +2761,15 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -2953,6 +2993,15 @@ namespace Opc.Ua.Gds
         {
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
         }
 
         /// <summary>

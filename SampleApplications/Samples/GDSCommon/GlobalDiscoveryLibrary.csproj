@@ -298,6 +298,9 @@
       <DependentUpon>gdsdb.edmx</DependentUpon>
     </Compile>
     <Compile Include="GlobalDiscoveryServer.cs" />
+    <Compile Include="Model\Opc.Ua.Gds.Classes.cs" />
+    <Compile Include="Model\Opc.Ua.Gds.Constants.cs" />
+    <Compile Include="Model\Opc.Ua.Gds.DataTypes.cs" />
     <Compile Include="OAuth2Client.cs" />
     <Compile Include="RegisteredApplication.cs">
       <DependentUpon>RegisteredApplication.xsd</DependentUpon>

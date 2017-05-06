@@ -1423,7 +1423,7 @@ namespace Opc.Ua
             ushort lifetimeInYears)
         {
             X509Certificate2 certificate = await CreateCertificate(
-                CertificateStoreType.Windows,
+                CertificateStoreType.X509Store,
                 storeLocation.ToString() + "\\" + storeName,
                 applicationUri,
                 applicationName,

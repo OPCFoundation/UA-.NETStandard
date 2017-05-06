@@ -105,7 +105,7 @@ namespace Opc.Ua.GdsClient
 
                                 CertificateIdentifier id = new CertificateIdentifier()
                                 {
-                                    StoreType = CertificateStoreType.Windows,
+                                    StoreType = CertificateStoreType.X509Store,
                                     StorePath = "LocalMachine\\My",
                                     SubjectName = "CN=" + url.DnsSafeHost
                                 };

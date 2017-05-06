@@ -1186,7 +1186,7 @@ namespace Opc.Ua.GdsServer
                 return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
             }
 
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.ApplicationCertificatesStorePath))
+            using (DirectoryCertificateStore store = (DirectoryCertificateStore) CertificateStoreIdentifier.OpenStore(m_configuration.ApplicationCertificatesStorePath))
             {
                 byte[] privateKey = null;
                 var privateKeyPath = store.GetPrivateKeyFilePath(newCertificate.Thumbprint);
