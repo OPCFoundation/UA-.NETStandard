@@ -896,7 +896,6 @@ namespace Opc.Ua
         private Dictionary<ExpandedNodeId,ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private int m_firstRequestReceived;
         private const string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + AssemblyVersionInfo.CurrentVersion;
         #endregion
     }

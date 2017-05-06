@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -471,31 +470,6 @@ namespace Opc.Ua
             store.Open(this.StorePath);
             return store;
         }
-
-        /// <summary>
-        /// Gets the private key file path.
-        /// </summary>
-        public async Task<string> GetPrivateKeyFilePath()
-        {
-            X509Certificate2 certificate = await Find(false);
-
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(this.StoreType);
-
-            try
-            {
-                store.Open(this.StorePath);
-                return store.GetPrivateKeyFilePath(certificate.Thumbprint);
-            }
-            finally
-            {
-                store.Close();
-            }
-        }
         #endregion
 
         #region Private Methods
@@ -665,7 +639,7 @@ namespace Opc.Ua
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public async Task Add(X509Certificate2 certificate)
+        public async Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException("certificate");
 
@@ -738,96 +712,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the store supports access control.
-        /// </summary>
-        public bool SupportsAccessControl
-        {
-            get { return false; }
-        }
-
-        /// <summary>
-        /// Returns the access rules that are currently applied to the store.
-        /// </summary>
-        /// <returns>The list of access rules.</returns>
-        public IList<ApplicationAccessRule> GetAccessRules()
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the store.
-        /// </summary>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        public void SetAccessRules(IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Whether the store supports access control on certificates.
-        /// </summary>
-        public bool SupportsCertificateAccessControl
-        {
-            get { return false; }
-        }
-        /// <summary>
-        /// Whether the store supports private keys.
-        /// </summary>
-        /// <value></value>
-        public bool SupportsPrivateKeys
-        {
-            get { return false; }
-        }
-
-        /// <summary>
-        /// Returns the file containing the private key for the specified certificate.
-        /// </summary>
-        public string GetPrivateKeyFilePath(string thumbprint)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Returns the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <returns>The access rules.</returns>
-        public IList<ApplicationAccessRule> GetAccessRules(string thumbprint)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Sets the access rules that are currently applied to the certficate's private key.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="rules">The rules.</param>
-        /// <param name="replaceExisting">if set to <c>true</c> the existing access rules are replaced.</param>
-        public void SetAccessRules(string thumbprint, IList<ApplicationAccessRule> rules, bool replaceExisting)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
-        public bool SupportsCRLs { get { return false; } }
-
-        /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             return StatusCodes.BadNotSupported;
         }
-
+        
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
         public List<X509CRL> EnumerateCRLs()
         {
-            return new List<X509CRL>();
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <summary>
@@ -835,9 +732,9 @@ namespace Opc.Ua
         /// </summary>
         public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
         {
-            return new List<X509CRL>();
-        }        
-        
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
+
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>

@@ -13,8 +13,8 @@
     
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
-      <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
       <SubjectName>UA Core Sample Server</SubjectName>
     </ApplicationCertificate>
 
@@ -42,8 +42,7 @@
   
   </SecurityConfiguration>
 
-
-  <TransportConfigurations></TransportConfigurations>
+  <TransportConfigurations/>
   
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -90,11 +89,12 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
+      <!--Removing no secuirty option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
-      </ServerSecurityPolicy>
+      </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -193,7 +193,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
 
   <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->

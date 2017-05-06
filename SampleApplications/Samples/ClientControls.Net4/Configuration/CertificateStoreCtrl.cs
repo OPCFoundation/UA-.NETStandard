@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Controls
             InitializeComponent();
 
             StoreTypeCB.Items.Add(CertificateStoreType.Directory);
-            StoreTypeCB.Items.Add(CertificateStoreType.Windows);
+            StoreTypeCB.Items.Add(CertificateStoreType.X509Store);
             StoreTypeCB.SelectedIndex = 0;
         }
         #endregion
@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.Controls
                 stores.Add(Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "CertificateStores" + Path.DirectorySeparatorChar + "RejectedCertificates");
             }
 
-            if (CertificateStoreType.Windows == storeType)
+            if (CertificateStoreType.X509Store == storeType)
             {
                 stores.Add("LocalMachine\\My");
                 stores.Add("LocalMachine\\UA Applications");
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client.Controls
                     storePath = dialog.SelectedPath;
                 }
 
-                if (storeType == CertificateStoreType.Windows)
+                if (storeType == CertificateStoreType.X509Store)
                 {
                     CertificateStoreIdentifier store = new CertificateStoreTreeDlg().ShowDialog(null);
 

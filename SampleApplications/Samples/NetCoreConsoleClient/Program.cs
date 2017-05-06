@@ -57,8 +57,8 @@ namespace NetCoreConsoleClient
                 {
                     ApplicationCertificate = new CertificateIdentifier
                     {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/MachineDefault",
+                        StoreType = "X509Store",
+                        StorePath = "CurrentUser\\UA_MachineDefault",
                         SubjectName = "UA Core Sample Client"
                     },
                     TrustedPeerCertificates = new CertificateTrustList

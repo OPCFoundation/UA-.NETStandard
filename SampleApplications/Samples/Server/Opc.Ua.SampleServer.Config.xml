@@ -13,8 +13,8 @@
     
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
-      <StoreType>Directory</StoreType>
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
       <SubjectName>Opc.Ua.SampleServer</SubjectName>
     </ApplicationCertificate>
 
@@ -85,11 +85,12 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
         <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
+      <!--Removing no secuirty option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
         <SecurityLevel>0</SecurityLevel>
-      </ServerSecurityPolicy>
+      </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
