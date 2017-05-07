@@ -4349,14 +4349,3 @@ namespace Opc.Ua
         }
     }
 }
-
-namespace Opc.Ua.Configuration
-{
-    /// <summary>
-    /// Dummmy class designed to prevent compile errors.
-    /// </summary>
-    [Obsolete("Class moved to Opc.Ua namespace.")]
-    public class CertificateFactory : Opc.Ua.CertificateFactory
-    {
-    }
-}
