@@ -540,8 +540,12 @@ namespace Opc.Ua.Bindings
                 BufferManager.UnlockBuffer(m_receiveBuffer);
             }
 
+            Utils.TraceDebug("Bytes read: {0}", bytesRead);
+
             if (bytesRead == 0)
             {
+                // Remote end has closed the connection
+
                 // free the empty receive buffer.
                 if (m_receiveBuffer != null)
                 {
@@ -549,10 +553,8 @@ namespace Opc.Ua.Bindings
                     m_receiveBuffer = null;
                 }
 
-                return ServiceResult.Good;
+                return ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection");
             }
-
-            // Utils.Trace("Bytes read: {0}", bytesRead);
 
             m_bytesReceived += bytesRead;
 

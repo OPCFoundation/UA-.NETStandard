@@ -19,7 +19,7 @@
   <ItemGroup>
     <Compile Include="..\Server\AggregationNodeManager.cs;..\Server\AggregationServer.cs;..\Server\AggregationServerConfiguration.cs;..\Server\AggregatedTypeCache.cs;..\Server\NamespaceMapper.cs;..\Server\Browser.cs;..\Server\Model\AggregationModel.Classes.cs;..\Server\Model\AggregationModel.Constants.cs;..\Server\Model\AggregationModel.DataTypes.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
     <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes">
-      <Link>AggregationServer/Model/AggregationModel.PredefinedNodes.uanodes</Link>
+      <Link>AggregationServer\Model\AggregationModel.PredefinedNodes.uanodes</Link>
     </EmbeddedResource>
   </ItemGroup>
 

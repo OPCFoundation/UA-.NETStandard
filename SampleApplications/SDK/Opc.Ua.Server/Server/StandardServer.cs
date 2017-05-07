@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Server
                 }
                 */
                 
-                Utils.Trace("PUBLISH #{0} RECIEVED. TIME={1:hh:hh:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
+                Utils.Trace("PUBLISH #{0} RECIEVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
                 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -2699,11 +2699,11 @@ namespace Opc.Ua.Server
             // create HTTPS host.
 #if !NO_HTTPS
             endpointsForHost = CreateHttpsServiceHost(
-            hosts,
-            configuration,
-            configuration.ServerConfiguration.BaseAddresses,
-            serverDescription,
-            configuration.ServerConfiguration.SecurityPolicies);
+                hosts,
+                configuration,
+                configuration.ServerConfiguration.BaseAddresses,
+                serverDescription,
+                configuration.ServerConfiguration.SecurityPolicies);
 
             endpoints.AddRange(endpointsForHost);
 #endif
