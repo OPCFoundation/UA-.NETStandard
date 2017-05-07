@@ -342,7 +342,16 @@ namespace Opc.Ua
         {
             Trace((int)TraceMasks.Information, format, args);
         }
-        
+
+        /// <summary>
+        /// Writes an informational message to the trace log.
+        /// </summary>
+        [Conditional("DEBUG")]
+        public static void TraceDebug(string format, params object[] args)
+        {
+            Trace((int)TraceMasks.OperationDetail, format, args);
+        }
+
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
@@ -431,9 +440,9 @@ namespace Opc.Ua
 
             TraceWriteLine(message.ToString(), null);
         }
-        #endregion
+#endregion
 
-        #region File Access
+#region File Access
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
@@ -906,7 +915,42 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        
+
+        /// <summary>
+        /// Replaces the cert subject name DC=localhost with the current host name.
+        /// </summary>
+        public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
+        {
+            // ignore nulls.
+            if (String.IsNullOrEmpty(subjectName))
+            {
+                return subjectName;
+            }
+
+            // IPv6 address needs a surrounding [] 
+            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            {
+                hostname = "[" + hostname + "]";
+            }
+
+            // check if the string DC=localhost is specified.
+            int index = subjectName.IndexOf("DC=localhost", StringComparison.OrdinalIgnoreCase);
+
+            if (index == -1)
+            {
+                return subjectName;
+            }
+
+            // construct new uri.
+            StringBuilder buffer = new StringBuilder();
+
+            buffer.Append(subjectName.Substring(0, index + 3));
+            buffer.Append((hostname == null) ? GetHostName() : hostname);
+            buffer.Append(subjectName.Substring(index + "DC=localhost".Length));
+
+            return buffer.ToString();
+        }
+
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
@@ -2393,28 +2437,25 @@ namespace Opc.Ua
             if (a == null || b == null) return false;
             if (a.Length != b.Length) return false;
 
+            byte result = 0;
             for (int i = 0; i < a.Length; i++)
-                if (a[i] != b[i])
-                    return false;
+                result |= (byte) (a[i] ^ b[i]);
 
-            return true;
+            return result == 0;
         }
 
         public class Nonce
         {
-            private static int m_calls = 0;
+            static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
-            public static byte[] CreateNonce(string secret, uint length)
+            public static byte[] CreateNonce(uint length)
             {
-                // This function should rather use a crypthographic random number generator
-                // once available in .Net Standard library
-                string label = DateTime.UtcNow.Ticks.ToString();
-                // ensure every Nonce is different, even when the ticks didn't change since the last call
-                m_calls++;
-                return PSHA1(new UTF8Encoding().GetBytes(secret), label, BitConverter.GetBytes(m_calls), 0, (int)length);
+                byte[] randomBytes = new byte[length];
+                m_rng.GetBytes(randomBytes);
+                return randomBytes;
             }
         }
 
@@ -2904,7 +2945,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            // compare each.
+            // sort to ensure similar entries are compared
+            parsedName.Sort(StringComparer.OrdinalIgnoreCase);
+            certificateName.Sort(StringComparer.OrdinalIgnoreCase);
+
+            // compare each entry
             for (int ii = 0; ii < parsedName.Count; ii++)
             {
                 if (String.Compare(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase) != 0)

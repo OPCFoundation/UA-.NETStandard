@@ -679,35 +679,35 @@ namespace Opc.Ua.Bindings
                 // process a response.
                 if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                 {
-                    //Utils.Trace("Channel {0}: ProcessResponseMessage", ChannelId);
+                    Utils.TraceDebug("Channel {0}: ProcessResponseMessage", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
                 // check for acknowledge.
                 else if (messageType == TcpMessageType.Acknowledge)
                 {
-                    //Utils.Trace("Channel {0}: ProcessAcknowledgeMessage", ChannelId);
+                    Utils.TraceDebug("Channel {0}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
                 }
 
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
                 {
-                    //Utils.Trace("Channel {0}: ProcessErrorMessage", ChannelId);
+                    Utils.TraceDebug("Channel {0}: ProcessErrorMessage", ChannelId);
                     return ProcessErrorMessage(messageType, messageChunk);
                 }
 
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
-                    //Utils.Trace("Channel {0}: ProcessOpenSecureChannelResponse", ChannelId);
+                    Utils.TraceDebug("Channel {0}: ProcessOpenSecureChannelResponse", ChannelId);
                     return ProcessOpenSecureChannelResponse(messageType, messageChunk);
                 }
 
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                 {
-                    //Utils.Trace("Channel {0}: ProcessResponseMessage (close)", ChannelId);
+                    Utils.TraceDebug("Channel {0}: ProcessResponseMessage (close)", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
@@ -1230,8 +1230,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool ProcessErrorMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            Utils.Trace("Channel {0}: ProcessErrorMessage()", ChannelId);
-
             // read request buffer sizes.            
             MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
             BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
@@ -1241,6 +1239,8 @@ namespace Opc.Ua.Bindings
             try
             {
                 ServiceResult error = ReadErrorMessageBody(decoder);
+
+                Utils.Trace((int)Utils.TraceMasks.Error, "Channel {0}: ProcessErrorMessage({1})", ChannelId, error);
 
                 // check if a handshake is in progress
                 if (m_handshakeOperation != null)

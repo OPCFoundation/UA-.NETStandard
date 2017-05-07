@@ -127,6 +127,8 @@ namespace Opc.Ua.Client
 
                     // notify the caller.
                     m_callback(this, null);
+
+                    return;
                 }
             }
             catch (Exception exception)

@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
-      <SubjectName>Quickstart Reference Server</SubjectName>
+      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -39,7 +39,12 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-  
+    
+    <!-- WARNING: SHA1 signed certficates are by default disabled and should be phased out. 
+    Setting is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
+    <DisallowSHA1SignedCertificates>false</DisallowSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>

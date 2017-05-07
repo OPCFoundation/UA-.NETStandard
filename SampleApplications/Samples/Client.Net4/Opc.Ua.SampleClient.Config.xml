@@ -26,11 +26,13 @@
       <StorePath>CurrentUser\UA_MachineDefault</StorePath>
 
       <!-- The subject for the certificate 
-           Note that subject names are complex structures. The text that appears here is the CommonName component.
-           A complete distinguished would be something like: 'CN=UA Sample Client, DC=MACHINENAME'
-           The first certificate found is used if multiple certificates with the same CommonName exist. 
-           The Thumbprint should be specified if the CommonName does not uniquely identify a certificate. -->
-      <SubjectName>UA Sample Client</SubjectName>
+           Note that subject names are complex structures. Only text that appears here is treated as the CommonName component.
+           The first certificate found is used if multiple certificates with the same CommonName and a matching hostname exist.
+           Also a complete distinguished name can be specified here: 'CN=UA Sample Client, DC=localhost'.
+           In this case the first certificate matching the complete distinguished name is used. localhost is replaced with the hostname.
+           If no certificate is found, a new self signed application certificate is created.
+           The Thumbprint should be specified if the CN or DN does not uniquely identify a certificate. -->
+      <SubjectName>CN=UA Sample Client, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
 
       <!-- The SHA1 thumbprint for the certificate.
            The thumbprint uniquely identifies a certificate.

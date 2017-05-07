@@ -229,7 +229,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.Trace("{0}: Channel {1} - Duplicate sequence number: {2} <= {3}", context, this.ChannelId, sequenceNumber, m_remoteSequenceNumber);
+            Utils.Trace((int)Utils.TraceMasks.Error, "{0}: Channel {1} - Duplicate sequence number: {2} <= {3}", context, this.ChannelId, sequenceNumber, m_remoteSequenceNumber);
             return false;
         }
 
@@ -284,7 +284,7 @@ namespace Opc.Ua.Bindings
                 {
                     uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
 
-                    //Utils.Trace("{1} Message Received: {0} bytes", message.Count, messageType);
+                    Utils.TraceDebug("{1} Message Received: {0} bytes", message.Count, messageType);
 
                     if (!HandleIncomingMessage(messageType, message))
                     {
@@ -364,6 +364,8 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
+                    Utils.TraceDebug("Bytes written: {0}", e.BytesTransferred);
+
                     if (e.BytesTransferred == 0)
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
@@ -509,8 +511,6 @@ namespace Opc.Ua.Bindings
                 reason = new UTF8Encoding().GetString(reasonBytes, 0, reasonLength);
             }
 
-            // Utils.Trace("Channel {0}: Read = {1}", ChannelId, reason);
-
             return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
         }
 
@@ -555,7 +555,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageType & 0x000000FF));
             buffer[offset++] = (byte)((messageType & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageType & 0x00FF0000) >> 16);
-            buffer[offset++] = (byte)((messageType & 0xFF000000) >> 24);
+            buffer[offset  ] = (byte)((messageType & 0xFF000000) >> 24);
         }
 
         /// <summary>
@@ -573,7 +573,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
-            buffer[offset++] = (byte)((messageSize & 0xFF000000) >> 24);
+            buffer[offset  ] = (byte)((messageSize & 0xFF000000) >> 24);
         }
         #endregion
 
