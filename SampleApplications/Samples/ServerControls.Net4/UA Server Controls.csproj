@@ -110,12 +110,6 @@
     <Compile Include="ServerForm.Designer.cs">
       <DependentUpon>ServerForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ServerHeaderBranding.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ServerHeaderBranding.Designer.cs">
-      <DependentUpon>ServerHeaderBranding.cs</DependentUpon>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -131,10 +125,6 @@
       <DependentUpon>ServerForm.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="ServerHeaderBranding.resx">
-      <DependentUpon>ServerHeaderBranding.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
@@ -147,6 +137,12 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Controls.Net4\UA Sample Controls.csproj">
+      <Project>{92AE819B-4938-4502-AC32-67063F9893CD}</Project>
+      <Name>UA Sample Controls</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

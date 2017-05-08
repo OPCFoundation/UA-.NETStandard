@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Server.Controls;
+
 namespace Opc.Ua.Server.Controls
 {
     partial class ServerForm 
