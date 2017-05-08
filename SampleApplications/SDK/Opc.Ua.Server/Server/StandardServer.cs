@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Server
                 }
                 */
                 
-                Utils.Trace("PUBLISH #{0} RECIEVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
+                Utils.Trace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
                 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -2830,9 +2830,9 @@ namespace Opc.Ua.Server
                         {
                             endpoint = new EndpointDescription();
                             endpoint.EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost");
-                            endpoint.SecurityLevel = 0;
+                            endpoint.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
                             endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                            endpoint.SecurityPolicyUri = SecurityPolicies.Basic128Rsa15;
+                            endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
                         }
 

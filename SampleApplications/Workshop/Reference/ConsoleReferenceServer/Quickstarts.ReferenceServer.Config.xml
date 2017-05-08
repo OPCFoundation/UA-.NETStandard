@@ -40,9 +40,9 @@
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
     
-    <!-- WARNING: SHA1 signed certficates are by default disabled and should be phased out. 
-    Setting is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
-    <DisallowSHA1SignedCertificates>false</DisallowSHA1SignedCertificates>
+    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
+    The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
+    <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
 
   </SecurityConfiguration>
@@ -66,38 +66,31 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
-        <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>1</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>5</SecurityLevel>
       </ServerSecurityPolicy>
 <!--  CTT 1.02.334 does not support Sha256
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-        <SecurityLevel>6</SecurityLevel>
       </ServerSecurityPolicy>
 -->      
     </SecurityPolicies>
@@ -179,7 +172,6 @@
       <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
-      <ua:SecurityLevel>1</ua:SecurityLevel>
     </RegistrationEndpoint>
 
     <MaxRegistrationInterval>0</MaxRegistrationInterval>

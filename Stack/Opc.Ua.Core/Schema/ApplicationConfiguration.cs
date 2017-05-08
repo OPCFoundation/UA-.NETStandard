@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -628,7 +627,6 @@ namespace Opc.Ua
         {
             m_securityMode = MessageSecurityMode.SignAndEncrypt;
             m_securityPolicyUri = SecurityPolicies.Basic256Sha256;
-            m_securityLevel = 0;
         }
 
         /// <summary>
@@ -643,6 +641,74 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// Calculates the security level, given the security mode and policy
+        /// Invalid and none is discouraged
+        /// Just signing is always weaker than any use of encryption
+        /// </summary>
+        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
+        {
+            if ((mode == MessageSecurityMode.Invalid) || (mode == MessageSecurityMode.None))
+            {
+                return 0;
+            }
+
+            switch (policyUri)
+            {
+                case SecurityPolicies.None:
+                {
+                    return 0;
+                }
+
+                case SecurityPolicies.Basic128Rsa15:
+                {
+                    if (mode == MessageSecurityMode.Sign)
+                    {
+                        return 1;
+                    }
+                    if (mode == MessageSecurityMode.SignAndEncrypt)
+                    {
+                        return 4;
+                    }
+
+                    return 0;
+                }
+
+                case SecurityPolicies.Basic256:
+                {
+                    if (mode == MessageSecurityMode.Sign)
+                    {
+                        return 2;
+                    }
+                    if (mode == MessageSecurityMode.SignAndEncrypt)
+                    {
+                        return 5;
+                    }
+
+                    return 0;
+                }
+
+                case SecurityPolicies.Basic256Sha256:
+                {
+                    if (mode == MessageSecurityMode.Sign)
+                    {
+                        return 3;
+                    }
+                    if (mode == MessageSecurityMode.SignAndEncrypt)
+                    {
+                        return 6;
+                    }
+
+                    return 0;
+                }
+
+                default:
+                {
+                    return 0;
+                }
+            }
+        }
+        
         /// <summary>
         /// Specifies whether the messages are signed and encrypted or simply signed
         /// </summary>
@@ -664,28 +730,11 @@ namespace Opc.Ua
             get { return m_securityPolicyUri; }
             set { m_securityPolicyUri = value; }
         }
-
-        /// <summary>
-        /// A relative estimate of the security offered by the policy.
-        /// </summary>
-        /// <value>The security level.</value>
-        /// <remarks>
-        /// This parameter allows servers to rank there policies from weakest to strongest.
-        /// A value of 0 indicates the policy is not recommended.
-        /// By default, clients should use policies with highest value.
-        /// </remarks>
-        [DataMember(IsRequired = false, Order = 3)]
-        public byte SecurityLevel
-        {
-            get { return m_securityLevel; }
-            set { m_securityLevel = value; }
-        }
         #endregion
 
         #region Private Members
         private MessageSecurityMode m_securityMode;
         private string m_securityPolicyUri;
-        private byte m_securityLevel;
         #endregion
     }
     #endregion
@@ -744,7 +793,7 @@ namespace Opc.Ua
             m_trustedPeerCertificates = new CertificateTrustList();
             m_nonceLength = 32;
             m_autoAcceptUntrustedCertificates = false;
-            m_disallowSHA1SignedCertificates = true;
+            m_rejectSHA1SignedCertificates = true;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
         }
 
@@ -875,10 +924,10 @@ namespace Opc.Ua
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public bool DisallowSHA1SignedCertificates
+        public bool RejectSHA1SignedCertificates
         {
-            get { return m_disallowSHA1SignedCertificates; }
-            set { m_disallowSHA1SignedCertificates = value; }
+            get { return m_rejectSHA1SignedCertificates; }
+            set { m_rejectSHA1SignedCertificates = value; }
         }
 
         /// <summary>
@@ -904,7 +953,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private bool m_autoAcceptUntrustedCertificates;
         private string m_userRoleDirectory;
-        private bool m_disallowSHA1SignedCertificates;
+        private bool m_rejectSHA1SignedCertificates;
         private ushort m_minCertificateKeySize;
         #endregion
     }

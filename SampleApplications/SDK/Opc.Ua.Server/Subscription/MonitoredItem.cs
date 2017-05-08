@@ -935,7 +935,7 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = true;
             }
 
-            // save last value recieved.
+            // save last value received.
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;

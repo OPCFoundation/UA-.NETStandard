@@ -31,7 +31,7 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
-            m_disallowSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
+            m_rejectSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
             m_minimumCertificateKeySize = CertificateFactory.defaultKeySize;
         }
         #endregion
@@ -141,7 +141,7 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
-                m_disallowSHA1SignedCertificates = configuration.DisallowSHA1SignedCertificates;
+                m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
                 m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
@@ -661,7 +661,7 @@ namespace Opc.Ua
             }
 
             // check if minimum requirements are met
-            if (m_disallowSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
+            if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "SHA1 signed certificates are not trusted");
             }
@@ -941,7 +941,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private X509Certificate2 m_applicationCertificate;
-        private bool m_disallowSHA1SignedCertificates;
+        private bool m_rejectSHA1SignedCertificates;
         private ushort m_minimumCertificateKeySize;
         #endregion
     }

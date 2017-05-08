@@ -61,37 +61,30 @@
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>4</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>2</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
-        <SecurityLevel>0</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-        <SecurityLevel>1</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-        <SecurityLevel>5</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-        <SecurityLevel>3</SecurityLevel>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-        <SecurityLevel>6</SecurityLevel>
       </ServerSecurityPolicy>
     </SecurityPolicies>
     
@@ -172,7 +165,6 @@
       <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
-      <ua:SecurityLevel>1</ua:SecurityLevel>
     </RegistrationEndpoint>
 
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
@@ -214,7 +206,6 @@
                 </UserTokenPolicy>
               </UserIdentityTokens>
               <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-              <SecurityLevel>0</SecurityLevel>
             </ua:Endpoint>
             <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
             <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -236,7 +227,6 @@
                 </UserTokenPolicy>
               </UserIdentityTokens>
               <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-              <SecurityLevel>0</SecurityLevel>
             </ua:Endpoint>
             <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
             <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>

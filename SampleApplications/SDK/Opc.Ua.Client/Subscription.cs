@@ -1574,7 +1574,7 @@ namespace Opc.Ua.Client
                 Task.Run(() =>
                 {
                     Interlocked.Increment(ref m_outstandingMessageWorkers);
-                    OnMessageRecieved(null);
+                    OnMessageReceived(null);
                 });
             }
 
@@ -1595,7 +1595,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the incoming messages.
         /// </summary>
-        private void OnMessageRecieved(object state)
+        private void OnMessageReceived(object state)
         {
             try
             {
