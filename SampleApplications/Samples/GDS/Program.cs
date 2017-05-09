@@ -62,13 +62,6 @@ namespace Opc.Ua.GdsServer
                 Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
                 task2.Wait();
 
-                // add handler.
-                application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
-
-                // start authorization service.
-                var aus = new Opc.Ua.AuthorizationService.AuthorizationService();
-                aus.Start(application);
-
                 // start the server.
                 var server = new GlobalDiscoveryServerServer();
                 Task task3 = application.Start(server);
@@ -81,15 +74,6 @@ namespace Opc.Ua.GdsServer
             {
                 MessageBox.Show("Exception: " + e.Message, application.ApplicationName);
                 return;
-            }
-        }
-
-        static void CertificateValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
-        {
-            // automatically accept all untrusted certficates.
-            if (e.Error.Code == StatusCodes.BadCertificateUntrusted)
-            {
-                e.Accept = true;
             }
         }
     }
