@@ -30,16 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Diagnostics;
-using System.Xml;
 using System.IO;
-using System.Threading;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
 using Opc.Ua.Gds;
 using Opc.Ua.Server;
 using System.Threading.Tasks;
+using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.GdsServer
 {
@@ -230,19 +227,25 @@ namespace Opc.Ua.GdsServer
 
                 if (certificateGroup != null)
                 {
-                    var x509 = new X509Certificate2(certificate);
-
                     try
                     {
-                        CertificateAuthority.RevokeCertificate(
-                            certificateGroup.DefaultTrustList + "\\trusted",
-                            x509,
-                            certificateGroup.PrivateKeyFilePath,
-                            null);
+                        X509CrlParser parser = new X509CrlParser();
+                        X509Crl crl = null; //TODO: parser.ReadCrl();
+
+                        Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(certificate);
+                        if (!crl.IsRevoked(bccert))
+                        {
+                            //TODO:
+                            //RevokeCertificate(
+                            //    certificateGroup.DefaultTrustList + "\\trusted",
+                            //    x509,
+                            //    certificateGroup.PrivateKeyFilePath,
+                            //    null);
+                        }
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error revoking certificate. {0} for Authority={1}", x509.Subject, certificateGroup.Id);
+                        Utils.Trace(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
                     }
                 }
             }
@@ -297,10 +300,7 @@ namespace Opc.Ua.GdsServer
 
             if (certificateGroup == null)
             {
-                DateTime now = DateTime.Now;
-                now = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-1);
-
-                var newCertificate = await CertificateAuthority.CreateCertificate(
+                X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.AuthoritiesStorePath,
                     null,
@@ -309,12 +309,10 @@ namespace Opc.Ua.GdsServer
                     sn,
                     null,
                     2048,
-                    now,
+                    DateTime.UtcNow.AddDays(-1),
                     60,
                     256,
                     true,
-                    false,
-                    null,
                     null);
 
                 using (DirectoryCertificateStore store = (DirectoryCertificateStore)CertificateStoreIdentifier.OpenStore(m_configuration.AuthoritiesStorePath))
@@ -353,24 +351,22 @@ namespace Opc.Ua.GdsServer
 
                 try
                 {
-                    revokedCertificate = await CertificateAuthority.CreateCertificate(
-                     CertificateStoreType.Directory,
-                     m_configuration.ApplicationCertificatesStorePath,
-                     null,
-                     null,
-                     null,
-                     "CN=Need a Certificate in the CRL",
-                     null,
-                     1024,
-                     now,
-                     60,
-                     256,
-                     false,
-                     false,
-                     certificateGroup.PrivateKeyFilePath,
-                     null);
+                    revokedCertificate = CertificateFactory.CreateCertificate(
+                        CertificateStoreType.Directory,
+                        m_configuration.ApplicationCertificatesStorePath,
+                        null,
+                        null,
+                        null,
+                        "CN=Need a Certificate in the CRL",
+                        null,
+                        1024,
+                        DateTime.Now.AddDays(-1).ToUniversalTime(),
+                        60,
+                        256,
+                        false,
+                        new X509Certificate2(certificateGroup.PrivateKeyFilePath));
 
-                    CertificateAuthority.RevokeCertificate(m_configuration.AuthoritiesStorePath, revokedCertificate, certificateGroup.PrivateKeyFilePath, null);
+                    //TODO: RevokeCertificate(m_configuration.AuthoritiesStorePath, revokedCertificate, certificateGroup.PrivateKeyFilePath);
                 }
                 finally
                 {
@@ -1153,10 +1149,7 @@ namespace Opc.Ua.GdsServer
 
             try
             {
-                DateTime now = DateTime.UtcNow;
-                now = new DateTime(now.Year, now.Month, now.Day).AddDays(-1);
-
-                Task<X509Certificate2> task = CertificateAuthority.CreateCertificate(
+               newCertificate = CertificateFactory.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.ApplicationCertificatesStorePath,
                     privateKeyPassword,
@@ -1165,15 +1158,11 @@ namespace Opc.Ua.GdsServer
                     subjectName,
                     domainNames,
                     (certificateGroup.Configuration.DefaultCertificateKeySize != 0) ? certificateGroup.Configuration.DefaultCertificateKeySize : (ushort)1024,
-                    now,
+                    DateTime.UtcNow.AddDays(-1),
                     (certificateGroup.Configuration.DefaultCertificateLifetime != 0) ? certificateGroup.Configuration.DefaultCertificateLifetime : (ushort)60,
                     256,
                     false,
-                    (privateKeyFormat == "PEM"),
-                    certificateGroup.PrivateKeyFilePath,
-                    null);
-                task.Wait();
-                newCertificate = task.Result;
+                    new X509Certificate2(certificateGroup.PrivateKeyFilePath));
             }
             catch (Exception e)
             {
