@@ -364,7 +364,7 @@ namespace Opc.Ua.GdsServer
                         60,
                         256,
                         false,
-                        new X509Certificate2(certificateGroup.PrivateKeyFilePath));
+                        new X509Certificate2(certificateGroup.PrivateKeyFilePath, string.Empty, X509KeyStorageFlags.Exportable));
 
                     //TODO: RevokeCertificate(m_configuration.AuthoritiesStorePath, revokedCertificate, certificateGroup.PrivateKeyFilePath);
                 }
@@ -1162,7 +1162,7 @@ namespace Opc.Ua.GdsServer
                     (certificateGroup.Configuration.DefaultCertificateLifetime != 0) ? certificateGroup.Configuration.DefaultCertificateLifetime : (ushort)60,
                     256,
                     false,
-                    new X509Certificate2(certificateGroup.PrivateKeyFilePath));
+                    new X509Certificate2(certificateGroup.PrivateKeyFilePath, string.Empty, X509KeyStorageFlags.Exportable));
             }
             catch (Exception e)
             {
