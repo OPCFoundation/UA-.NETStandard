@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.GdsServer
 {
     using System;
     using System.Collections.Generic;

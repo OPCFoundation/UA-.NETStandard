@@ -7,24 +7,17 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.GdsServer
 {
     using System;
     using System.Collections.Generic;
     
-    public partial class CertificateStore
+    public partial class ServerEndpoint
     {
-        public CertificateStore()
-        {
-            this.HttpsApplications = new HashSet<Application>();
-            this.Applications = new HashSet<Application>();
-        }
-    
         public int ID { get; set; }
-        public string Path { get; set; }
-        public string AuthorityId { get; set; }
+        public int ApplicationId { get; set; }
+        public string DiscoveryUrl { get; set; }
     
-        public virtual ICollection<Application> HttpsApplications { get; set; }
-        public virtual ICollection<Application> Applications { get; set; }
+        public virtual Application Application { get; set; }
     }
 }

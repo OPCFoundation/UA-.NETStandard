@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds
             OkButton.Enabled = Uri.IsWellFormedUriString(ServerUrlTextBox.Text.Trim(), UriKind.Absolute);
         }
 
-        private async void OkButton_Click(object sender, EventArgs e)
+        private void OkButton_Click(object sender, EventArgs e)
         {
             try
             {
@@ -61,8 +61,6 @@ namespace Opc.Ua.Gds
                 try
                 {
                     Cursor = Cursors.WaitCursor;
-
-                    m_gds.AdminCredentials = await OAuth2Client.GetIdentityToken(m_gds.Application.ApplicationConfiguration, url);
                     m_gds.Connect(url);
                 }
                 finally

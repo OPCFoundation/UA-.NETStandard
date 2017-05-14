@@ -35,8 +35,6 @@ namespace Opc.Ua.GdsClient
        
             m_server = new PushConfigurationServer(m_application);
 
-            m_server.AdminCredentialsRequired += Server_AdminCredentialsRequired;
-
             m_server.KeepAlive += Server_KeepAlive;
             m_server.ServerStatusChanged += Server_StatusNotification;
             m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
@@ -102,19 +100,6 @@ namespace Opc.Ua.GdsClient
                 {
                     ServerStatusPanel.Initialize(null);
                 }
-            }
-        }
-
-        private async void Server_AdminCredentialsRequired(object sender, AdminCredentialsRequiredEventArgs e)
-        {
-            try
-            {
-                e.Credentials = await OAuth2Client.GetIdentityToken(m_gds.Application.ApplicationConfiguration, m_gds.EndpointUrl);
-                e.CacheCredentials = true;
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(Text + ": " + exception.Message);
             }
         }
 

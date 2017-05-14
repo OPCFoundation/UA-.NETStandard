@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds
 {
     partial class SetTypeDlg
     {

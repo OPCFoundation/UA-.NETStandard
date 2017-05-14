@@ -7,16 +7,20 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.GdsServer
 {
     using System;
     using System.Collections.Generic;
     
-    public partial class ServerEndpoint
+    public partial class CertificateRequest
     {
         public int ID { get; set; }
+        public System.Guid RequestId { get; set; }
         public int ApplicationId { get; set; }
-        public string DiscoveryUrl { get; set; }
+        public int State { get; set; }
+        public byte[] Certificate { get; set; }
+        public byte[] PrivateKey { get; set; }
+        public string AuthorityId { get; set; }
     
         public virtual Application Application { get; set; }
     }

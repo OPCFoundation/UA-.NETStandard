@@ -44,8 +44,8 @@ namespace Opc.Ua.GdsServer
         static void Main()
         {
             // Initialize the user interface.
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
@@ -68,7 +68,7 @@ namespace Opc.Ua.GdsServer
                 task3.Wait();
 
                 // run the application interactively.
-                Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));
+                System.Windows.Forms.Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));
             }
             catch (Exception e)
             {

@@ -11,6 +11,7 @@ namespace Opc.Ua.Gds
 {
     using System.Data.Entity;
     using System.Data.Entity.Infrastructure;
+    using Opc.Ua.GdsServer;
 
     public partial class gdsdbEntities : DbContext
     {

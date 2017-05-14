@@ -33,7 +33,7 @@ using System.Windows.Forms;
 using System.Text;
 using Opc.Ua;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds
 {
     /// <summary>
     /// Prompts the user to select an area to use as an event filter.
@@ -179,13 +179,6 @@ namespace Opc.Ua.GdsClient
                 m_result.TypeInfo = new TypeInfo(m_typeInfo.BuiltInType, valueRank);
                 m_result.ArrayDimensions = dimensions.ToArray();
                 m_result.UseDefaultOnError = ErrorHandlingCB.SelectedIndex == 0;
-
-                /*
-                if (m_typeInfo.BuiltInType == BuiltInType.ExtensionObject)
-                {
-                    m_result.DataTypeId = StructureTypeBTN.SelectedNode;
-                }
-                */
 
                 DialogResult = DialogResult.OK;
             }
