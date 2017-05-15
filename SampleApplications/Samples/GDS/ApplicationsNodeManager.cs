@@ -1248,6 +1248,33 @@ namespace Opc.Ua.GdsServer
                 DateTime now = DateTime.UtcNow;
                 now = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-1);
 
+                /// <summary>
+                /// Signs an existing certificate by the CA.
+                /// </summary>
+                /// <param name="requestPath">The path to the certificate signing request.</param>
+                /// <param name="commonName">Name of the common.</param>
+                /// <param name="applicationUri">The application uri. Replaces whatever is in the existing certificate.</param>
+                /// <param name="domainNames">The domain names. Replaces whatever is in the existing certificate.</param>
+                /// <param name="issuerKeyFilePath">The path to the CA private key.</param>
+                /// <param name="issuerKeyFilePassword">The password for the CA private key.</param>
+                /// <param name="startTime">The begining of the validity period for the certificate.</param>
+                /// <param name="lifetimeInMonths">The lifetime in months.</param>
+                /// <param name="hashSizeInBits">The hash size in bits.</param>
+                /// <param name="outputStore">The location for the new certificate.</param>
+                /// <returns>
+                /// The path to the new certificate.
+                /// </returns>
+                /// <exception cref="System.IO.FileNotFoundException">Public key file not found
+                /// or
+                /// Issuer key file not found
+                /// or
+                /// Output store not found</exception>
+                /// <exception cref="ServiceResultException">Input file was not processed properly.
+                /// or
+                /// Invalid response produced by the CertificateGenerator.</exception>
+                /// 
+                //TODO:
+                /*
                 var newCertificate = CertificateAuthority.Sign(
                     Utils.ToHexString(certificateRequest),
                     application.ApplicationNames[0].Text,
@@ -1259,8 +1286,10 @@ namespace Opc.Ua.GdsServer
                     (certificateGroup.Configuration.DefaultCertificateLifetime != 0) ? certificateGroup.Configuration.DefaultCertificateLifetime : (ushort)60,
                     256,
                     m_configuration.ApplicationCertificatesStorePath);
+                */
 
-                var bytes = Utils.FromHexString(newCertificate);
+                //var bytes = Utils.FromHexString(newCertificate);
+                var bytes = Utils.FromHexString("newCertificate"); //TODO!
                 certificate = Utils.ParseCertificateBlob(bytes);
             }
             catch (Exception e)

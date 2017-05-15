@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
+    <Compile Include="CertificateAuthority.cs" />
     <Compile Include="Controls\ApplicationCertificateControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -188,6 +189,7 @@
       <DependentUpon>RegisteredApplication.xsd</DependentUpon>
     </Compile>
     <Compile Include="RegisteredApplicationExtensions.cs" />
+    <Compile Include="ServerCapabilities.cs" />
     <EmbeddedResource Include="Controls\ApplicationCertificateControl.resx">
       <DependentUpon>ApplicationCertificateControl.cs</DependentUpon>
     </EmbeddedResource>

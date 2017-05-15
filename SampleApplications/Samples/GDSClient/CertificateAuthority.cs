@@ -47,46 +47,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Signs an existing certificate by the CA.
-        /// </summary>
-        /// <param name="requestPath">The path to the certificate signing request.</param>
-        /// <param name="commonName">Name of the common.</param>
-        /// <param name="applicationUri">The application uri. Replaces whatever is in the existing certificate.</param>
-        /// <param name="domainNames">The domain names. Replaces whatever is in the existing certificate.</param>
-        /// <param name="issuerKeyFilePath">The path to the CA private key.</param>
-        /// <param name="issuerKeyFilePassword">The password for the CA private key.</param>
-        /// <param name="startTime">The begining of the validity period for the certificate.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
-        /// <param name="hashSizeInBits">The hash size in bits.</param>
-        /// <param name="outputStore">The location for the new certificate.</param>
-        /// <returns>
-        /// The path to the new certificate.
-        /// </returns>
-        /// <exception cref="System.IO.FileNotFoundException">Public key file not found
-        /// or
-        /// Issuer key file not found
-        /// or
-        /// Output store not found</exception>
-        /// <exception cref="ServiceResultException">Input file was not processed properly.
-        /// or
-        /// Invalid response produced by the CertificateGenerator.</exception>
-        public static string Sign(
-            string requestPath,
-            string commonName,
-            string applicationUri,
-            IList<string> domainNames,
-            string issuerKeyFilePath,
-            string issuerKeyFilePassword,
-            DateTime startTime,
-            ushort lifetimeInMonths,
-            ushort hashSizeInBits,
-            string outputStore)
-        {
-            //TODO
-            return string.Empty;
-        }
-
-        /// <summary>
         /// Creates a certificate signing request.
         /// </summary>
         /// <param name="certificate">The certificate to go with the private key.</param>

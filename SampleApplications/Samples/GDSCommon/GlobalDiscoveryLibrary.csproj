@@ -87,13 +87,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CertificateAuthority.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Classes.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Constants.cs" />
     <Compile Include="Model\Opc.Ua.Gds.DataTypes.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServerCapabilities.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
