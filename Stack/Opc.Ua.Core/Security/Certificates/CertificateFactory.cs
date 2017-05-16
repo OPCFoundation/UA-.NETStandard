@@ -28,6 +28,7 @@ using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Opc.Ua
 {
@@ -233,8 +234,6 @@ public class CertificateFactory
             {
                 throw new NotSupportedException("Cannot sign with a CA certificate without a private key.");
             }
-
-            throw new NotSupportedException("Signing with an issuer CA certificate is currently unsupported.");
         }
 
         // set default values.
@@ -317,9 +316,32 @@ public class CertificateFactory
             }
 
             // sign certificate
-            ISignatureFactory signatureFactory =
+            Org.BouncyCastle.X509.X509Certificate x509 = null;
+            if (issuerCAKeyCert != null)
+            {
+                RSA rsa = issuerCAKeyCert.GetRSAPrivateKey();
+                RSAParameters rsaParams = rsa.ExportParameters(true);
+                RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                    new BigInteger(1, rsaParams.Modulus),
+                    new BigInteger(1, rsaParams.Exponent),
+                    new BigInteger(1, rsaParams.D),
+                    new BigInteger(1, rsaParams.P),
+                    new BigInteger(1, rsaParams.Q),
+                    new BigInteger(1, rsaParams.DP),
+                    new BigInteger(1, rsaParams.DQ),
+                    new BigInteger(1, rsaParams.InverseQ));
+                rsa.Dispose();
+
+                ISignatureFactory signatureFactory =
+                    new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", keyParams, random);
+                x509 = cg.Generate(signatureFactory);
+            }
+            else
+            {
+                ISignatureFactory signatureFactory =
                 new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
-            Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
+                x509 = cg.Generate(signatureFactory);
+            }
 
             // create pkcs12 store for cert and private key
             X509Certificate2 certificate = null;

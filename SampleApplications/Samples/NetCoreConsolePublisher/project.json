@@ -1,0 +1,21 @@
+{
+    "version": "1.0.0-*",
+    "buildOptions": {
+        "emitEntryPoint": true
+    },
+
+  "dependencies": {
+    "AMQPNetLite": "1.2.1",
+    "Microsoft.NETCore.App": {
+      "type": "platform",
+      "version": "1.0.0"
+    },
+    "Opc.Ua.Client": "1.0.0-*",
+    "Opc.Ua.Configuration": "1.0.0-*",
+    "Opc.Ua.Core": "1.0.0-*",
+    "Opc.Ua.Sample": "1.0.0-*"  },
+ 
+  "frameworks": {
+    "netcoreapp1.0": {}
+  }
+}
