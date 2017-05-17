@@ -28,6 +28,7 @@ using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Opc.Ua
 {
@@ -233,8 +234,6 @@ public class CertificateFactory
             {
                 throw new NotSupportedException("Cannot sign with a CA certificate without a private key.");
             }
-
-            throw new NotSupportedException("Signing with an issuer CA certificate is currently unsupported.");
         }
 
         // set default values.
@@ -257,8 +256,17 @@ public class CertificateFactory
             BigInteger serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
             cg.SetSerialNumber(serialNumber);
 
-            // self signed 
-            X509Name issuerDN = subjectDN;
+            X509Name issuerDN = null;
+            if (issuerCAKeyCert != null)
+            {
+                issuerDN = new X509Name(true, issuerCAKeyCert.Subject.Replace("S=", "ST="));
+            }
+            else
+            {
+                // self signed 
+                issuerDN = subjectDN;
+            }
+
             cg.SetIssuerDN(issuerDN);
             cg.SetSubjectDN(subjectDN);
 
@@ -317,8 +325,32 @@ public class CertificateFactory
             }
 
             // sign certificate
+            AsymmetricKeyParameter privateKey = null;
+            if (issuerCAKeyCert != null)
+            {
+                using (RSA rsa = issuerCAKeyCert.GetRSAPrivateKey())
+                {
+                    RSAParameters rsaParams = rsa.ExportParameters(true);
+                    RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                        new BigInteger(1, rsaParams.Modulus),
+                        new BigInteger(1, rsaParams.Exponent),
+                        new BigInteger(1, rsaParams.D),
+                        new BigInteger(1, rsaParams.P),
+                        new BigInteger(1, rsaParams.Q),
+                        new BigInteger(1, rsaParams.DP),
+                        new BigInteger(1, rsaParams.DQ),
+                        new BigInteger(1, rsaParams.InverseQ));
+                    privateKey = keyParams;
+                }
+            }
+            else
+            {
+                privateKey = subjectKeyPair.Private;
+            }
+
             ISignatureFactory signatureFactory =
-                new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
+                        new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", privateKey, random);
+
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
             // create pkcs12 store for cert and private key

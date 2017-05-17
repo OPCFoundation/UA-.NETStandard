@@ -225,7 +225,43 @@ namespace Opc.Ua
                 return Task.FromResult(certificates);
             }
         }
-        
+
+        /// <summary cref="ICertificateStore.GetPublicKeyFilePath" />
+        public string GetPublicKeyFilePath(string thumbprint)
+        {
+            Entry entry = Find(thumbprint);
+
+            if (entry == null)
+            {
+                return null;
+            }
+
+            if (entry.CertificateFile == null || !entry.CertificateFile.Exists)
+            {
+                return null;
+            }
+
+            return entry.CertificateFile.FullName;
+        }
+
+        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
+        public string GetPrivateKeyFilePath(string thumbprint)
+        {
+            Entry entry = Find(thumbprint);
+
+            if (entry == null)
+            {
+                return null;
+            }
+
+            if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
+            {
+                return null;
+            }
+
+            return entry.PrivateKeyFile.FullName;
+        }
+
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
