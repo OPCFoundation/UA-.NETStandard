@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Server.Controls;
+
 namespace AggregationClient
 {
     partial class MainForm
@@ -76,7 +78,7 @@ namespace AggregationClient
             this.SubscribeMI = new System.Windows.Forms.ToolStripMenuItem();
             this.CallMI = new System.Windows.Forms.ToolStripMenuItem();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
-            this.clientHeaderBranding1 = new Opc.Ua.Server.Controls.ClientHeaderBranding();
+            this.clientHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
             this.MenuBar.SuspendLayout();
             this.MainPN.SuspendLayout();
             this.BrowseMenu.SuspendLayout();
@@ -295,6 +297,6 @@ namespace AggregationClient
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem Server_ChangeUserOrLocaleMI;
         private System.Windows.Forms.ToolStripMenuItem CallMI;
-        private Opc.Ua.Server.Controls.ClientHeaderBranding clientHeaderBranding1;
+        private ServerHeaderBranding clientHeaderBranding1;
     }
 }

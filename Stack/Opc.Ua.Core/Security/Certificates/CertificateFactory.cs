@@ -256,8 +256,17 @@ public class CertificateFactory
             BigInteger serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
             cg.SetSerialNumber(serialNumber);
 
-            // self signed 
-            X509Name issuerDN = subjectDN;
+            X509Name issuerDN = null;
+            if (issuerCAKeyCert != null)
+            {
+                issuerDN = new X509Name(true, issuerCAKeyCert.Subject.Replace("S=", "ST="));
+            }
+            else
+            {
+                // self signed 
+                issuerDN = subjectDN;
+            }
+
             cg.SetIssuerDN(issuerDN);
             cg.SetSubjectDN(subjectDN);
 
@@ -316,32 +325,33 @@ public class CertificateFactory
             }
 
             // sign certificate
-            Org.BouncyCastle.X509.X509Certificate x509 = null;
+            AsymmetricKeyParameter privateKey = null;
             if (issuerCAKeyCert != null)
             {
-                RSA rsa = issuerCAKeyCert.GetRSAPrivateKey();
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
-                rsa.Dispose();
-
-                ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", keyParams, random);
-                x509 = cg.Generate(signatureFactory);
+                using (RSA rsa = issuerCAKeyCert.GetRSAPrivateKey())
+                {
+                    RSAParameters rsaParams = rsa.ExportParameters(true);
+                    RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                        new BigInteger(1, rsaParams.Modulus),
+                        new BigInteger(1, rsaParams.Exponent),
+                        new BigInteger(1, rsaParams.D),
+                        new BigInteger(1, rsaParams.P),
+                        new BigInteger(1, rsaParams.Q),
+                        new BigInteger(1, rsaParams.DP),
+                        new BigInteger(1, rsaParams.DQ),
+                        new BigInteger(1, rsaParams.InverseQ));
+                    privateKey = keyParams;
+                }
             }
             else
             {
-                ISignatureFactory signatureFactory =
-                new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
-                x509 = cg.Generate(signatureFactory);
+                privateKey = subjectKeyPair.Private;
             }
+
+            ISignatureFactory signatureFactory =
+                        new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", privateKey, random);
+
+            Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
             // create pkcs12 store for cert and private key
             X509Certificate2 certificate = null;
