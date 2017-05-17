@@ -226,7 +226,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
+        /// <summary cref="ICertificateStore.GetPublicKeyFilePath" />
         public string GetPublicKeyFilePath(string thumbprint)
         {
             Entry entry = Find(thumbprint);

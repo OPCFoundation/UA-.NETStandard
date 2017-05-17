@@ -319,27 +319,30 @@ public class CertificateFactory
             Org.BouncyCastle.X509.X509Certificate x509 = null;
             if (issuerCAKeyCert != null)
             {
-                RSA rsa = issuerCAKeyCert.GetRSAPrivateKey();
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
-                rsa.Dispose();
+                using (RSA rsa = issuerCAKeyCert.GetRSAPrivateKey())
+                {
+                    RSAParameters rsaParams = rsa.ExportParameters(true);
+                    RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                        new BigInteger(1, rsaParams.Modulus),
+                        new BigInteger(1, rsaParams.Exponent),
+                        new BigInteger(1, rsaParams.D),
+                        new BigInteger(1, rsaParams.P),
+                        new BigInteger(1, rsaParams.Q),
+                        new BigInteger(1, rsaParams.DP),
+                        new BigInteger(1, rsaParams.DQ),
+                        new BigInteger(1, rsaParams.InverseQ));
 
-                ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", keyParams, random);
-                x509 = cg.Generate(signatureFactory);
+                    ISignatureFactory signatureFactory =
+                        new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", keyParams, random);
+
+                    x509 = cg.Generate(signatureFactory);
+                }
             }
             else
             {
                 ISignatureFactory signatureFactory =
-                new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
+                    new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", subjectKeyPair.Private, random);
+
                 x509 = cg.Generate(signatureFactory);
             }
 
