@@ -21,9 +21,24 @@
  * http://opcfoundation.org/License/RCL/1.00/
  * ======================================================================*/
 
+using Org.BouncyCastle.Asn1.Pkcs;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Operators;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace Opc.Ua
 {
@@ -64,14 +79,64 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             byte[] privateKey,
             bool isPEMKey,
-            string password,
-            string subjectName,
-            string applicationUri,
-            IList<string> domainNames,
             ushort hashSizeInBits)
         {
-            //TODO
-            return null;
+            using (var cfrg = new CertificateFactoryRandomGenerator())
+            {
+                SecureRandom random = new SecureRandom(cfrg);
+               
+                AsymmetricKeyParameter signingKey = null;
+                if (isPEMKey)
+                {
+                    TextReader textReader = new StringReader(new string(Encoding.ASCII.GetChars(privateKey)));
+                    PemReader pemReader = new PemReader(textReader);
+                    AsymmetricCipherKeyPair keys = (AsymmetricCipherKeyPair)pemReader.ReadObject();
+                    signingKey = keys.Private;
+                }
+                else
+                {
+                    // PFX
+                    signingKey = PrivateKeyFactory.CreateKey(privateKey);
+
+                    X509Certificate2 temp = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
+                    using (RSA rsa = temp.GetRSAPrivateKey())
+                    {
+                        RSAParameters rsaParams = rsa.ExportParameters(true);
+                        RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                            new BigInteger(1, rsaParams.Modulus),
+                            new BigInteger(1, rsaParams.Exponent),
+                            new BigInteger(1, rsaParams.D),
+                            new BigInteger(1, rsaParams.P),
+                            new BigInteger(1, rsaParams.Q),
+                            new BigInteger(1, rsaParams.DP),
+                            new BigInteger(1, rsaParams.DQ),
+                            new BigInteger(1, rsaParams.InverseQ));
+                        signingKey = keyParams;
+                    }
+                }
+
+                RsaKeyParameters publicKey = null;
+                using (RSA rsa = certificate.GetRSAPublicKey())
+                {
+                    RSAParameters rsaParams = rsa.ExportParameters(false);
+                    publicKey = new RsaKeyParameters(
+                        false,
+                        new BigInteger(1, rsaParams.Modulus),
+                        new BigInteger(1, rsaParams.Exponent));
+                }
+
+                ISignatureFactory signatureFactory =
+                new Asn1SignatureFactory((hashSizeInBits < 256) ? "SHA1WITHRSA" : "SHA256WITHRSA", signingKey, random);
+
+                Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
+                    signatureFactory,
+                    new X509Name(true, certificate.Subject.Replace("S=", "ST=")),
+                    publicKey,
+                    null,
+                    signingKey);
+
+                return pkcs10CertificationRequest.GetEncoded();
+            }
         }
     }
 }

@@ -26,10 +26,6 @@ namespace Opc.Ua.GdsClient
         private PushConfigurationServer m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
-        private string m_certificatePassword;
-
-        [DefaultValue(false)]
-        public bool RequestNewPrivateKey { get; set; }
 
         public async void Initialize(
             GlobalDiscoveryClientConfiguration configuration,
@@ -43,7 +39,6 @@ namespace Opc.Ua.GdsClient
             m_server = server;
             m_application = application;
             m_certificate = null;
-            m_certificatePassword = null;
 
             CertificateRequestTimer.Enabled = false;
             RequestProgressLabel.Visible = false;
@@ -331,7 +326,7 @@ namespace Opc.Ua.GdsClient
                 {
                     byte[] nonce = new byte[32];
                     System.Security.Cryptography.RandomNumberGenerator.Create().GetBytes(nonce);
-                    certificateRequest = m_server.CreateCertificateRequest(null, null, null, false, nonce);
+                    certificateRequest = m_server.CreateCertificateRequest(null, null, null, false, nonce, m_application.ServerUrl);
                     newPrivateKeyRequired = false;
 
                     if (m_server.Endpoint != null && m_server.Endpoint.Description.ServerCertificate != null)
@@ -340,10 +335,8 @@ namespace Opc.Ua.GdsClient
                     }
                 }
 
-                if (newPrivateKeyRequired || RequestNewPrivateKey || m_certificate == null)
+                if (newPrivateKeyRequired || m_certificate == null)
                 {
-                    m_certificatePassword = null; // Guid.NewGuid().ToString();
-
                     string privateKeyFormat = GetPrivateKeyFormat();
                     string[] domainNames = GetDomainNames();
                     string subjectName = GetSubjectName(domainNames);
@@ -355,7 +348,7 @@ namespace Opc.Ua.GdsClient
                         subjectName,
                         domainNames,
                         privateKeyFormat,
-                        m_certificatePassword);
+                        null);
                 }
                 else
                 {
@@ -383,10 +376,6 @@ namespace Opc.Ua.GdsClient
                             certificate,
                             privateKey,
                             isPemKey,
-                            null,
-                            null,
-                            null,
-                            null,
                             256);
                     }
 
@@ -543,7 +532,7 @@ namespace Opc.Ua.GdsClient
                 {
                     if (privateKey != null && privateKey.Length > 0)
                     {
-                        var x509 = new X509Certificate2(privateKey, m_certificatePassword, X509KeyStorageFlags.Exportable);
+                        var x509 = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
                         privateKey = x509.Export(X509ContentType.Pfx);
                     }
 

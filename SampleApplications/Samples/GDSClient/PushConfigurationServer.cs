@@ -481,11 +481,11 @@ namespace Opc.Ua.Gds
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <returns></returns>
-        public byte[] CreateCertificateRequest(NodeId certificateGroupId, NodeId certificateTypeId, string subjectName, bool regeneratePrivateKey, byte[] nonce)
+        public byte[] CreateCertificateRequest(NodeId certificateGroupId, NodeId certificateTypeId, string subjectName, bool regeneratePrivateKey, byte[] nonce, string url)
         {
             if (!IsConnected)
             {
-                Connect();
+                Connect(url);
             }
 
             IUserIdentity oldUser = ElevatePermissions();
