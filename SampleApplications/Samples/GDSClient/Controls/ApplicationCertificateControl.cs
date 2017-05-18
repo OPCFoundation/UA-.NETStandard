@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Client;
 using Opc.Ua.Gds;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.GdsClient
 {
@@ -23,20 +24,17 @@ namespace Opc.Ua.GdsClient
 
         private GlobalDiscoveryClientConfiguration m_configuration;
         private GlobalDiscoveryServer m_gds;
-        private PushConfigurationServer m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
 
         public async void Initialize(
             GlobalDiscoveryClientConfiguration configuration,
             GlobalDiscoveryServer gds,
-            PushConfigurationServer server,
             RegisteredApplication application,
             bool isHttps)
         {
             m_configuration = configuration;
             m_gds = gds;
-            m_server = server;
             m_application = application;
             m_certificate = null;
 
@@ -50,11 +48,7 @@ namespace Opc.Ua.GdsClient
 
             if (!isHttps)
             {
-                if (server.Endpoint != null && server.Endpoint.Description.ServerCertificate != null)
-                {
-                    certificate = new X509Certificate2(server.Endpoint.Description.ServerCertificate);
-                }
-                else if (application != null)
+                if (application != null)
                 {
                     if (!String.IsNullOrEmpty(application.CertificatePublicKeyPath))
                     {
@@ -144,21 +138,9 @@ namespace Opc.Ua.GdsClient
         {
             string privateKeyFormat = "PFX";
 
-            if (m_application.RegistrationType != RegistrationType.ServerPush)
+            if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
             {
-                if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
-                {
-                    if (m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        privateKeyFormat = "PEM";
-                    }
-                }
-            }
-            else
-            {
-                string[] privateKeyFormats = m_server.GetSupportedKeyFormats();
-
-                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+                if (m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
                     privateKeyFormat = "PEM";
                 }
@@ -205,12 +187,6 @@ namespace Opc.Ua.GdsClient
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                return domainNames.ToArray();
-            }
-
-            if (m_server != null && m_server.Endpoint != null)
-            {
-                domainNames.Add(m_server.Endpoint.EndpointUrl.DnsSafeHost);
                 return domainNames.ToArray();
             }
 
@@ -297,40 +273,20 @@ namespace Opc.Ua.GdsClient
             try
             {
                 NodeId requestId = null;
-
-                bool newPrivateKeyRequired = false;
-
-                if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
-                {
-                    string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
-                    newPrivateKeyRequired = path == null;
-                }
-                else if (!String.IsNullOrEmpty(m_application.CertificateStorePath))
+                
+                if (!string.IsNullOrEmpty(m_application.CertificateStorePath))
                 {
                     CertificateIdentifier id = new CertificateIdentifier();
-
                     id.StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath);
                     id.StorePath = m_application.CertificateStorePath;
                     id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName());
 
-                    newPrivateKeyRequired = id.Find(true) == null;
-                }
-                else if (!String.IsNullOrEmpty(m_application.ServerUrl))
-                {
-                    newPrivateKeyRequired = true;
+                    Task<X509Certificate2> t = id.Find(true);
+                    t.Wait();
+                    m_certificate = t.Result;
                 }
 
-                byte[] nonce = new byte[32];
-                System.Security.Cryptography.RandomNumberGenerator.Create().GetBytes(nonce);
-                byte[] certificateRequest = m_server.CreateCertificateRequest(null, null, null, false, nonce, m_application.ServerUrl);
-                newPrivateKeyRequired = false;
-
-                if (m_server.Endpoint != null && m_server.Endpoint.Description.ServerCertificate != null)
-                {
-                    m_certificate = new X509Certificate2(m_server.Endpoint.Description.ServerCertificate);
-                }
-  
-                if (newPrivateKeyRequired || m_certificate == null)
+                if (m_certificate == null)
                 {
                     string privateKeyFormat = GetPrivateKeyFormat();
                     string[] domainNames = GetDomainNames();
@@ -347,32 +303,27 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-                    if (certificateRequest == null)
+                    byte[] privateKey = null;
+                    bool isPemKey = false;
+
+                    if (!m_certificate.HasPrivateKey)
                     {
-                        var certificate = m_certificate;
-                        byte[] privateKey = null;
-                        bool isPemKey = false;
-
-                        if (!certificate.HasPrivateKey)
+                        if (!string.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
                         {
-                            if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
+                            string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
+                            if (path != null)
                             {
-                                string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
-
-                                if (path != null)
-                                {
-                                    privateKey = File.ReadAllBytes(path);
-                                    isPemKey = path.EndsWith("PEM", StringComparison.OrdinalIgnoreCase);
-                                }
+                                privateKey = File.ReadAllBytes(path);
+                                isPemKey = path.EndsWith("PEM", StringComparison.OrdinalIgnoreCase);
                             }
                         }
-
-                        certificateRequest = CertificateAuthority.CreateRequest(
-                            certificate,
-                            privateKey,
-                            isPemKey,
-                            256);
                     }
+
+                    byte[] certificateRequest = CertificateAuthority.CreateRequest(
+                        m_certificate,
+                        privateKey,
+                        isPemKey,
+                        256);
 
                     requestId = m_gds.StartSigningRequest(m_application.ApplicationId, null, null, certificateRequest);
                 }
@@ -411,141 +362,116 @@ namespace Opc.Ua.GdsClient
                 CertificateRequestTimer.Enabled = false;
                 RequestProgressLabel.Visible = false;
 
-                if (m_application.RegistrationType != RegistrationType.ServerPush)
+                // save public key.
+                if (!String.IsNullOrEmpty(m_application.CertificatePublicKeyPath))
                 {
-                    // save public key.
-                    if (!String.IsNullOrEmpty(m_application.CertificatePublicKeyPath))
-                    {
-                        string file = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, true);
-                        File.WriteAllBytes(file, certificate);
-                    }
+                    string file = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, true);
+                    File.WriteAllBytes(file, certificate);
+                }
 
-                    // check if the private was re-used.
-                    if (privateKey == null || privateKey.Length == 0)
+                // check if the private was re-used.
+                if (privateKey == null || privateKey.Length == 0)
+                {
+                    if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
                     {
-                        if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
-                        {
-                            string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
+                        string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
 
-                            if (path != null)
-                            {
-                                if (!m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    var x509 = new X509Certificate2(certificate);
-                                    var oldPfx = new X509Certificate2(path, (string)null, X509KeyStorageFlags.Exportable);
-                                    var newPfx = CertificateAuthority.Replace(x509, oldPfx);
-                                    var bytes = newPfx.Export(X509ContentType.Pfx);
-                                    File.WriteAllBytes(path, bytes);
-                                }
-                            }
-                        }
-                        else
+                        if (path != null)
                         {
-                            if (!String.IsNullOrEmpty(m_application.CertificateStorePath) && !String.IsNullOrEmpty(m_application.CertificateSubjectName))
+                            if (!m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                             {
                                 var x509 = new X509Certificate2(certificate);
-
-                                var cid = new CertificateIdentifier()
-                                {
-                                    StorePath = m_application.CertificateStorePath,
-                                    SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName())
-                                };
-
-                                var oldPfx = await cid.Find(true);
-
-                                if (oldPfx != null)
-                                {
-                                    var newPfx = CertificateAuthority.Replace(x509, oldPfx);
-
-                                    using (var store = CertificateStoreIdentifier.OpenStore(m_application.CertificateStorePath))
-                                    {
-                                        await store.Delete(oldPfx.Thumbprint);
-                                        await store.Add(newPfx);
-                                    }
-                                }
+                                var oldPfx = new X509Certificate2(path, (string)null, X509KeyStorageFlags.Exportable);
+                                var newPfx = CertificateAuthority.Replace(x509, oldPfx);
+                                var bytes = newPfx.Export(X509ContentType.Pfx);
+                                File.WriteAllBytes(path, bytes);
                             }
                         }
                     }
-
-                    // save private key.
                     else
                     {
-                        if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
+                        if (!String.IsNullOrEmpty(m_application.CertificateStorePath) && !String.IsNullOrEmpty(m_application.CertificateSubjectName))
                         {
-                            string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
+                            var x509 = new X509Certificate2(certificate);
 
-                            if (path != null)
+                            var cid = new CertificateIdentifier()
                             {
-                                File.WriteAllBytes(path, privateKey);
-                            }
-                        }
-                        else
-                        {
-                            if (!String.IsNullOrEmpty(m_application.CertificateStorePath) && !String.IsNullOrEmpty(m_application.CertificateSubjectName))
-                            {
-                                var cid = new CertificateIdentifier()
-                                {
-                                    StorePath = m_application.CertificateStorePath,
-                                    SubjectName = m_application.CertificateSubjectName
-                                };
+                                StorePath = m_application.CertificateStorePath,
+                                SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName())
+                            };
 
-                                var oldCertificate = await cid.Find();
+                            var oldPfx = await cid.Find(true);
+
+                            if (oldPfx != null)
+                            {
+                                var newPfx = CertificateAuthority.Replace(x509, oldPfx);
 
                                 using (var store = CertificateStoreIdentifier.OpenStore(m_application.CertificateStorePath))
                                 {
-                                    if (oldCertificate != null)
-                                    {
-                                        await store.Delete(oldCertificate.Thumbprint);
-                                    }
-
-                                    var x509 = new X509Certificate2(privateKey, new System.Security.SecureString(), X509KeyStorageFlags.Exportable);
-                                    x509 = CertificateFactory.Load(x509, true);
-                                    await store.Add(x509);
-                                }
-                            }
-                        }
-                    }
-
-                    // update trust list.
-                    if (!String.IsNullOrEmpty(m_application.TrustListStorePath))
-                    {
-                        using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_application.TrustListStorePath))
-                        {
-                            foreach (var issuerCertificate in issuerCertificates)
-                            {
-                                var x509 = new X509Certificate2(issuerCertificate);
-
-                                if (store.FindByThumbprint(x509.Thumbprint) == null)
-                                {
-                                    await store.Add(new X509Certificate2(issuerCertificate));
+                                    await store.Delete(oldPfx.Thumbprint);
+                                    await store.Add(newPfx);
                                 }
                             }
                         }
                     }
                 }
+
+                // save private key.
                 else
                 {
-                    if (privateKey != null && privateKey.Length > 0)
+                    if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
                     {
-                        var x509 = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
-                        privateKey = x509.Export(X509ContentType.Pfx);
+                        string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
+
+                        if (path != null)
+                        {
+                            File.WriteAllBytes(path, privateKey);
+                        }
                     }
-
-                    bool applyChanges = m_server.UpdateCertificate(null, null, certificate, GetPrivateKeyFormat(), privateKey, issuerCertificates);
-
-                    if (applyChanges)
+                    else
                     {
-                        MessageBox.Show(
-                            Parent,
-                            "The certificate was updated, however, the apply changes command must be sent before the server will use the new certificate.",
-                            Parent.Text,
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
+                        if (!String.IsNullOrEmpty(m_application.CertificateStorePath) && !String.IsNullOrEmpty(m_application.CertificateSubjectName))
+                        {
+                            var cid = new CertificateIdentifier()
+                            {
+                                StorePath = m_application.CertificateStorePath,
+                                SubjectName = m_application.CertificateSubjectName
+                            };
 
-                        ApplyChangesButton.Enabled = true;
+                            var oldCertificate = await cid.Find();
+
+                            using (var store = CertificateStoreIdentifier.OpenStore(m_application.CertificateStorePath))
+                            {
+                                if (oldCertificate != null)
+                                {
+                                    await store.Delete(oldCertificate.Thumbprint);
+                                }
+
+                                var x509 = new X509Certificate2(privateKey, new System.Security.SecureString(), X509KeyStorageFlags.Exportable);
+                                x509 = CertificateFactory.Load(x509, true);
+                                await store.Add(x509);
+                            }
+                        }
                     }
                 }
 
+                // update trust list.
+                if (!String.IsNullOrEmpty(m_application.TrustListStorePath))
+                {
+                    using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_application.TrustListStorePath))
+                    {
+                        foreach (var issuerCertificate in issuerCertificates)
+                        {
+                            var x509 = new X509Certificate2(issuerCertificate);
+
+                            if (store.FindByThumbprint(x509.Thumbprint) == null)
+                            {
+                                await store.Add(new X509Certificate2(issuerCertificate));
+                            }
+                        }
+                    }
+                }
+                        
                 m_certificate = new X509Certificate2(certificate);
                 CertificateControl.ShowValue(null, "Application Certificate", new CertificateWrapper() { Certificate = m_certificate }, true);
             }
@@ -562,33 +488,7 @@ namespace Opc.Ua.GdsClient
                 CertificateRequestTimer.Enabled = false;
             }
         }
-
-        private void ApplyChangesButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                m_server.ApplyChanges();
-            }
-            catch (Exception exception)
-            {
-                var se = exception as ServiceResultException;
-
-                if (se == null || se.StatusCode != StatusCodes.BadServerHalted)
-                {
-                    MessageBox.Show(Parent.Text + ": " + exception.Message);
-                }
-            }
-
-            try
-            {
-                m_server.Disconnect();
-            }
-            catch (Exception)
-            {
-                // ignore.
-            }
-        }
-
+               
         private void Button_MouseEnter(object sender, EventArgs e)
         {
             ((Control)sender).BackColor = Color.CornflowerBlue;

@@ -188,7 +188,6 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PushConfigurationServer.cs" />
     <Compile Include="RegisteredApplication.cs">
       <DependentUpon>RegisteredApplication.xsd</DependentUpon>
     </Compile>

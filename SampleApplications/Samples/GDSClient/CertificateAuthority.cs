@@ -95,10 +95,17 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    // PFX
-                    signingKey = PrivateKeyFactory.CreateKey(privateKey);
-
-                    X509Certificate2 temp = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
+                    X509Certificate2 temp = null;
+                    if (signingKey == null)
+                    {
+                        // try to get signing/private key from certificate passed in
+                        temp = certificate;
+                    }
+                    else
+                    {
+                        // PFX
+                        temp = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
+                    }
                     using (RSA rsa = temp.GetRSAPrivateKey())
                     {
                         RSAParameters rsaParams = rsa.ExportParameters(true);

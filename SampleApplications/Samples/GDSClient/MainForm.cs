@@ -33,12 +33,6 @@ namespace Opc.Ua.GdsClient
             m_gds = new GlobalDiscoveryServer(m_application);
             m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
        
-            m_server = new PushConfigurationServer(m_application);
-
-            m_server.KeepAlive += Server_KeepAlive;
-            m_server.ServerStatusChanged += Server_StatusNotification;
-            m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
-
             RegistrationPanel.Initialize(m_gds, null, m_configuration);
 
             m_application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
@@ -70,7 +64,6 @@ namespace Opc.Ua.GdsClient
         private UserIdentity m_identity;
         private GlobalDiscoveryServer m_gds;
         private LocalDiscoveryServer m_lds;
-        private PushConfigurationServer m_server;
         private RegisteredApplication m_registeredApplication;
         private GlobalDiscoveryClientConfiguration m_configuration;
         private bool m_gdsConfigured;
@@ -86,21 +79,6 @@ namespace Opc.Ua.GdsClient
             TrustList,
             HttpsTrustList,
             Discovery
-        }
-
-        private void Server_ConnectionStatusChanged(object sender, EventArgs e)
-        {
-            if (Object.ReferenceEquals(sender, m_server))
-            {
-                if (m_server.IsConnected)
-                {
-                    ServerStatusPanel.Initialize(m_server);
-                }
-                else
-                {
-                    ServerStatusPanel.Initialize(null);
-                }
-            }
         }
 
         private void ShowPanel(Panel panel)
@@ -168,19 +146,17 @@ namespace Opc.Ua.GdsClient
 
         private void SetServer(EndpointDescription endpoint)
         {
-            DisconnectButton_Click(this, null);
-
             if (endpoint != null)
             {
                 var ce = new ConfiguredEndpointCollection().Add(endpoint);
                 ServerUrlTextBox.Text = ce.ToString();
-                ServerUrlTextBox.Tag = m_server.Endpoint = ce;
+                ServerUrlTextBox.Tag = ce;
                 UpdateStatus(true, DateTime.UtcNow, "Disconnected {0}", ce);
             }
             else
             {
                 ServerUrlTextBox.Text = "";
-                ServerUrlTextBox.Tag = m_server.Endpoint = null;
+                ServerUrlTextBox.Tag = null;
                 UpdateStatus(true, DateTime.MinValue, "---");
             }
 
@@ -199,35 +175,6 @@ namespace Opc.Ua.GdsClient
                     RegistrationPanel.Initialize(m_gds, endpoint, m_configuration);
                     return;
                 }
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(Text + ": " + exception.Message);
-            }
-        }
-
-        private void ConnectButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                ConfiguredEndpoint endpoint = (ConfiguredEndpoint)ServerUrlTextBox.Tag;
-
-                if (endpoint == null)
-                {
-                    return;
-                }
-
-                if (endpoint.Description.Server.ApplicationUri == endpoint.Description.EndpointUrl)
-                {
-                    m_server.Connect(endpoint.Description.EndpointUrl);
-                }
-                else
-                {
-                    m_server.Connect(endpoint);
-                }
-
-                ServerStatusPanel.Initialize(m_server);
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
             }
             catch (Exception exception)
             {
@@ -277,39 +224,7 @@ namespace Opc.Ua.GdsClient
                 MessageBox.Show(Text + ": " + exception.Message);
             }
         }
-
-        private void Server_KeepAlive(Session session, KeepAliveEventArgs e)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(new KeepAliveEventHandler(Server_KeepAlive), session, e);
-                return;
-            }
-
-            try
-            {
-                // check for events from discarded sessions.
-                if (!Object.ReferenceEquals(session, m_server.Session))
-                {
-                    return;
-                }
-
-                // start reconnect sequence on communication error.
-                if (ServiceResult.IsBad(e.Status))
-                {
-                    UpdateStatus(true, e.CurrentTime, "Communication Error ({0})", e.Status);
-                    return;
-                }
-
-                // update status.
-                UpdateStatus(false, e.CurrentTime, "Connected {0}", session.ConfiguredEndpoint);
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(Text + ": " + exception.Message);
-            }
-        }
-
+        
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
             if (error)
@@ -325,23 +240,6 @@ namespace Opc.Ua.GdsClient
             ServerStatusLabel.ForeColor = (error) ? Color.Red : Color.Empty;
             ServerStatusTime.Text = (time != DateTime.MinValue) ? time.ToLocalTime().ToString("hh:mm:ss") : "---";
             ServerStatusTime.ForeColor = (error) ? Color.Red : Color.Empty;
-        }
-
-        private void DisconnectButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (m_server.IsConnected)
-                {
-                    m_server.Disconnect();
-                    UpdateStatus(true, DateTime.UtcNow, "Disconnected {0}", m_server.Endpoint);
-                    ServerStatusPanel.Initialize(null);
-                }
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(Text + ": " + exception.Message);
-            }
         }
 
         private void RegistrationButton_Click(object sender, EventArgs e)
@@ -381,7 +279,7 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_registeredApplication, false);
                 ShowPanel(Panel.Certificate);
             }
             catch (Exception exception)
@@ -394,7 +292,7 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, true);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_registeredApplication, true);
                 ShowPanel(Panel.HttpsCertificate);
             }
             catch (Exception exception)
@@ -407,7 +305,7 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                TrustListPanel.Initialize(m_gds, m_server, m_registeredApplication, false);
+                TrustListPanel.Initialize(m_gds, m_registeredApplication, false);
                 ShowPanel(Panel.TrustList);
             }
             catch (Exception exception)
@@ -420,7 +318,7 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                TrustListPanel.Initialize(m_gds, m_server, m_registeredApplication, true);
+                TrustListPanel.Initialize(m_gds, m_registeredApplication, true);
                 ShowPanel(Panel.HttpsTrustList);
             }
             catch (Exception exception)
@@ -485,8 +383,8 @@ namespace Opc.Ua.GdsClient
                 HttpsCertificateButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.GetHttpsDomainName()));
                 HttpsTrustListButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.HttpsTrustListStorePath));
 
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
-                TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
+                CertificatePanel.Initialize(m_configuration, m_gds, e.Application, false);
+                TrustListPanel.Initialize(m_gds, e.Application, false);
             }
             catch (Exception exception)
             {

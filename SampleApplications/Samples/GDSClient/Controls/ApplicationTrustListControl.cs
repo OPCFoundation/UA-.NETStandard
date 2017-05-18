@@ -22,15 +22,13 @@ namespace Opc.Ua.GdsClient
         }
 
         private GlobalDiscoveryServer m_gds;
-        private PushConfigurationServer m_server;
         private RegisteredApplication m_application;
         private string m_trustListStorePath;
         private string m_issuerListStorePath;
 
-        public void Initialize(GlobalDiscoveryServer gds, PushConfigurationServer server, RegisteredApplication application, bool isHttps)
+        public void Initialize(GlobalDiscoveryServer gds, RegisteredApplication application, bool isHttps)
         {
             m_gds = gds;
-            m_server = server;
             m_application = application;
 
             // display local trust list.
@@ -51,15 +49,7 @@ namespace Opc.Ua.GdsClient
             {
                 if (m_application != null)
                 {
-                    if (m_application.RegistrationType == RegistrationType.ServerPush)
-                    {
-                        var trustList = m_server.ReadTrustList();
-                        CertificateStoreControl.Initialize(trustList);
-                    }
-                    else
-                    {
-                        CertificateStoreControl.Initialize(m_trustListStorePath, m_issuerListStorePath, null);
-                    }
+                    CertificateStoreControl.Initialize(m_trustListStorePath, m_issuerListStorePath, null);
                 }
                 else
                 {
@@ -242,38 +232,6 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void PushToServerButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (m_application != null)
-                {
-                    if (m_application.RegistrationType == RegistrationType.ServerPush)
-                    {
-                        var trustList = CertificateStoreControl.GetTrustLists();
-
-                        bool applyChanges = m_server.UpdateTrustList(trustList);
-
-                        if (applyChanges)
-                        {
-                            MessageBox.Show(
-                                Parent,
-                                "The trust list was updated, however, the apply changes command must be sent before the server will use the new trust list.",
-                                Parent.Text,
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-
-                            ApplyChangesButton.Enabled = true;
-                        }
-                    }
-                }
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
-            }
-        }
-
         private void Button_MouseEnter(object sender, EventArgs e)
         {
             ((Control)sender).BackColor = Color.CornflowerBlue;
@@ -282,32 +240,6 @@ namespace Opc.Ua.GdsClient
         private void Button_MouseLeave(object sender, EventArgs e)
         {
             ((Control)sender).BackColor = Color.MidnightBlue;
-        }
-
-        private void ApplyChangesButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                m_server.ApplyChanges();
-            }
-            catch (Exception exception)
-            {
-                var se = exception as ServiceResultException;
-
-                if (se == null || se.StatusCode != StatusCodes.BadServerHalted)
-                {
-                    MessageBox.Show(Parent.Text + ": " + exception.Message);
-                }
-            }
-
-            try
-            {
-                m_server.Disconnect();
-            }
-            catch (Exception)
-            {
-                // ignore.
-            }
         }
     }
 }

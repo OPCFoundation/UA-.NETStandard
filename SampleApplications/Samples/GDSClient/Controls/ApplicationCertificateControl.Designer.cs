@@ -114,7 +114,6 @@
             this.ApplyChangesButton.TabIndex = 4;
             this.ApplyChangesButton.Text = "Apply Changes";
             this.ApplyChangesButton.UseVisualStyleBackColor = false;
-            this.ApplyChangesButton.Click += new System.EventHandler(this.ApplyChangesButton_Click);
             this.ApplyChangesButton.MouseEnter += new System.EventHandler(this.Button_MouseEnter);
             this.ApplyChangesButton.MouseLeave += new System.EventHandler(this.Button_MouseLeave);
             // 

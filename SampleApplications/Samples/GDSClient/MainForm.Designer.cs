@@ -259,7 +259,6 @@
             this.ConnectButton.Size = new System.Drawing.Size(32, 32);
             this.ConnectButton.TabIndex = 1;
             this.ConnectButton.UseVisualStyleBackColor = false;
-            this.ConnectButton.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
             // DiscnnectButton
             // 
@@ -275,7 +274,6 @@
             this.DiscnnectButton.Size = new System.Drawing.Size(32, 32);
             this.DiscnnectButton.TabIndex = 2;
             this.DiscnnectButton.UseVisualStyleBackColor = false;
-            this.DiscnnectButton.Click += new System.EventHandler(this.DisconnectButton_Click);
             // 
             // DiscoveryPanel
             // 
