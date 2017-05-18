@@ -320,21 +320,16 @@ namespace Opc.Ua.GdsClient
                     newPrivateKeyRequired = true;
                 }
 
-                byte[] certificateRequest = null;
+                byte[] nonce = new byte[32];
+                System.Security.Cryptography.RandomNumberGenerator.Create().GetBytes(nonce);
+                byte[] certificateRequest = m_server.CreateCertificateRequest(null, null, null, false, nonce, m_application.ServerUrl);
+                newPrivateKeyRequired = false;
 
-                if (m_application.RegistrationType == RegistrationType.ServerPush)
+                if (m_server.Endpoint != null && m_server.Endpoint.Description.ServerCertificate != null)
                 {
-                    byte[] nonce = new byte[32];
-                    System.Security.Cryptography.RandomNumberGenerator.Create().GetBytes(nonce);
-                    certificateRequest = m_server.CreateCertificateRequest(null, null, null, false, nonce, m_application.ServerUrl);
-                    newPrivateKeyRequired = false;
-
-                    if (m_server.Endpoint != null && m_server.Endpoint.Description.ServerCertificate != null)
-                    {
-                        m_certificate = new X509Certificate2(m_server.Endpoint.Description.ServerCertificate);
-                    }
+                    m_certificate = new X509Certificate2(m_server.Endpoint.Description.ServerCertificate);
                 }
-
+  
                 if (newPrivateKeyRequired || m_certificate == null)
                 {
                     string privateKeyFormat = GetPrivateKeyFormat();

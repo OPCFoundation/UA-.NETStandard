@@ -575,43 +575,44 @@ namespace Opc.Ua.Gds
         {
             IUserIdentity oldUser = m_session.Identity;
 
-            if (m_adminCredentials == null || !Object.ReferenceEquals(m_session.Identity, m_adminCredentials))
-            {
-                IUserIdentity newCredentials = null;
+            //TODO
+            //if (m_adminCredentials == null || !Object.ReferenceEquals(m_session.Identity, m_adminCredentials))
+            //{
+            //    IUserIdentity newCredentials = null;
 
-                if (m_adminCredentials == null)
-                {
-                    var handle = AdminCredentialsRequired;
+            //    if (m_adminCredentials == null)
+            //    {
+            //        var handle = AdminCredentialsRequired;
 
-                    if (handle == null)
-                    {
-                        throw new InvalidOperationException("The operation requires administrator credentials.");
-                    }
+            //        if (handle == null)
+            //        {
+            //            throw new InvalidOperationException("The operation requires administrator credentials.");
+            //        }
 
-                    var args = new AdminCredentialsRequiredEventArgs();
-                    handle(this, args);
-                    newCredentials = args.Credentials;
+            //        var args = new AdminCredentialsRequiredEventArgs();
+            //        handle(this, args);
+            //        newCredentials = args.Credentials;
 
-                    if (args.CacheCredentials)
-                    {
-                        m_adminCredentials = args.Credentials;
-                    }
-                }
-                else
-                {
-                    newCredentials = m_adminCredentials;
-                }
+            //        if (args.CacheCredentials)
+            //        {
+            //            m_adminCredentials = args.Credentials;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        newCredentials = m_adminCredentials;
+            //    }
 
-                try
-                {
-                    m_session.UpdateSession(newCredentials, m_preferredLocales);
-                }
-                catch (Exception)
-                {
-                    m_adminCredentials = null;
-                    throw;
-                }
-            }
+            //    try
+            //    {
+            //        m_session.UpdateSession(newCredentials, m_preferredLocales);
+            //    }
+            //    catch (Exception)
+            //    {
+            //        m_adminCredentials = null;
+            //        throw;
+            //    }
+            //}
 
             return oldUser;
         }
