@@ -280,9 +280,6 @@
     <None Include="Images\error.png" />
     <None Include="Images\nav_plain_green.png" />
     <None Include="Images\environment_view.png" />
-    <Content Include="ManuallySpecifiedEndpoints.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Opc.Ua.GdsClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>

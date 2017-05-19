@@ -30,7 +30,7 @@ namespace Opc.Ua.GdsClient
 
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
-            m_gds = new GlobalDiscoveryServer(m_application);
+            m_gds = new GlobalDiscoveryServer(m_application, m_configuration);
             m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
        
             RegistrationPanel.Initialize(m_gds, null, m_configuration);
@@ -46,20 +46,10 @@ namespace Opc.Ua.GdsClient
             HttpsCertificateButton.Visible = false;
             TrustListButton.Enabled = false;
             HttpsTrustListButton.Visible = false;
-
-            try
-            {
-                m_endpoints = ConfiguredEndpointCollection.Load("ManuallySpecifiedEndpoints.xml");
-            }
-            catch (Exception)
-            {
-                m_endpoints = new ConfiguredEndpointCollection();
-                m_endpoints.Save("ManuallySpecifiedEndpoints.xml");
-            }
         }
 
         private ApplicationInstance m_application;
-        private ConfiguredEndpointCollection m_endpoints;
+        private ConfiguredEndpointCollection m_endpoints = null;
         private QueryServersFilter m_filters;
         private UserIdentity m_identity;
         private GlobalDiscoveryServer m_gds;

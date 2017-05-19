@@ -19,7 +19,6 @@ namespace Opc.Ua.Gds
             m_gds = gds;
 
             ServersListBox.Items.Clear();
-            ServersListBox.Items.Add("opc.tcp://198.101.219.116:58810/GlobalDiscoveryServer");
 
             foreach (var serverUrl in serverUrls)
             {

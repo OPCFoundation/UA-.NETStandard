@@ -7,6 +7,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Gds;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;
+using Opc.Ua.GdsClient;
 
 namespace Opc.Ua.Gds
 {
@@ -20,10 +21,10 @@ namespace Opc.Ua.Gds
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServer"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public GlobalDiscoveryServer(ApplicationInstance application)
+        public GlobalDiscoveryServer(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
         {
             m_application = application;
-            m_endpointUrl = "opc.tcp://localhost:58810/GlobalDiscoveryServer";
+            m_endpointUrl = config.GlobalDiscoveryServerUrl;
             m_adminCredentials = new UserIdentity("appadmin", "demo");
         }
         #endregion
@@ -110,8 +111,6 @@ namespace Opc.Ua.Gds
                 {
                     lds = new LocalDiscoveryServer(this.Application.ApplicationConfiguration);
                 }
-
-                // gdsUrls.Add("opc.tcp://bronze-b:58810/GlobalDiscoveryServer");
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
 
