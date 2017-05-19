@@ -38,7 +38,14 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception e)
             {
-                MessageBox.Show(application.ApplicationName + ": " + e.Message);
+                if (e.InnerException != null)
+                {
+                    MessageBox.Show(e.Message + "\r\n" + e.InnerException.Message);
+                }
+                else
+                {
+                    MessageBox.Show(e.Message);
+                }
             }
         }
     }

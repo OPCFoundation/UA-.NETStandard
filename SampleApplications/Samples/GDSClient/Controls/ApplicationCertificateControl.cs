@@ -1,15 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Linq;
 using System.Text;
 using System.IO;
 using System.Windows.Forms;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Client;
 using Opc.Ua.Gds;
 using System.Threading.Tasks;
 
@@ -435,7 +430,8 @@ namespace Opc.Ua.GdsClient
                             var cid = new CertificateIdentifier()
                             {
                                 StorePath = m_application.CertificateStorePath,
-                                SubjectName = m_application.CertificateSubjectName
+                                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath),
+                                SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName())
                             };
 
                             var oldCertificate = await cid.Find();

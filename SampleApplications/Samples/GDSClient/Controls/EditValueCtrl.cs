@@ -513,7 +513,7 @@ namespace Opc.Ua.Gds
             }
             
             AccessInfo info = new AccessInfo();
-            info.Value = Clone(value);
+            info.Value = value;
             info.TypeInfo = expectedType;
 
             if (value == null && info.TypeInfo.ValueRank < 0)
@@ -1138,16 +1138,11 @@ namespace Opc.Ua.Gds
                 return;
             }
 
-            if (info.TypeInfo.BuiltInType == BuiltInType.ByteString && info.TypeInfo.ValueRank == ValueRanks.Scalar)
+            if (info.TypeInfo.BuiltInType == BuiltInType.ExtensionObject && info.TypeInfo.ValueRank == ValueRanks.Scalar)
             {
-                if (info.Name != null && info.Name.Contains("Certificate") && info.Value is byte[])
+                if (info.Name != null && info.Name.Contains("Certificate"))
                 {
-                    X509Certificate2 certificate = new X509Certificate2((byte[])info.Value);
-
-                    if (certificate != null)
-                    {
-                        info.WrappedValue = new CertificateWrapper() { Certificate = certificate };
-                    }
+                    info.WrappedValue = info.Value;
                 }
             }
         }
