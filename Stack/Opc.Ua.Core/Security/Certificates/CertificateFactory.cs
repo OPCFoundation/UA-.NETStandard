@@ -226,7 +226,8 @@ public class CertificateFactory
         ushort lifetimeInMonths,
         ushort hashSizeInBits,
         bool isCA,
-        X509Certificate2 issuerCAKeyCert)
+        X509Certificate2 issuerCAKeyCert,
+        byte[] publicKey = null)
     {
         if (issuerCAKeyCert != null)
         {
@@ -280,7 +281,16 @@ public class CertificateFactory
             var keyPairGenerator = new RsaKeyPairGenerator();
             keyPairGenerator.Init(keyGenerationParameters);
             subjectKeyPair = keyPairGenerator.GenerateKeyPair();
-            cg.SetPublicKey(subjectKeyPair.Public);
+
+            if (publicKey == null)
+            {
+                cg.SetPublicKey(subjectKeyPair.Public);
+            }
+            else
+            {
+                AsymmetricKeyParameter subjectKey = PublicKeyFactory.CreateKey(publicKey);
+                cg.SetPublicKey(subjectKey);
+            }
 
             // add extensions
             // Subject key identifier
