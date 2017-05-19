@@ -253,30 +253,12 @@ namespace Opc.Ua.Gds
             string productUri,
             IList<string> serverCapabilities)
         {
-            return new ServerOnNetworkCollection(new ServerEnumerator(
-                this, 
-                maxRecordsToReturn, 
-                applicationName, 
-                applicationUri,
-                productUri, 
-                serverCapabilities));
-        }
-
-        #region Query Server Helpers
-        internal ServerOnNetwork[] QueryServers(
-            ref DateTime lastResetTime,
-            ref uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            IList<string> serverCapabilities)
-        {
             if (!IsConnected)
             {
                 Connect(null);
             }
 
+            uint startingRecordId = 0;
             var outputArguments = m_session.Call(
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryServers, m_session.NamespaceUris),
@@ -289,157 +271,14 @@ namespace Opc.Ua.Gds
 
             ServerOnNetwork[] servers = null;
 
-            if (outputArguments.Count > 0)
-            {
-                if (lastResetTime != DateTime.MinValue && lastResetTime < (DateTime)outputArguments[0])
-                {
-                    throw new InvalidOperationException("Enumeration cannot continue because the Server has reset its index.");
-                }
-
-                lastResetTime = (DateTime)outputArguments[0];
-            }
-
             if (outputArguments.Count > 1)
             {
                 servers = (ServerOnNetwork[])ExtensionObject.ToArray(outputArguments[1] as ExtensionObject[], typeof(ServerOnNetwork));
             }
 
-            if (servers != null && servers.Length > 0)
-            {
-                startingRecordId = servers[servers.Length - 1].RecordId + 1;
-            }
-
             return servers;
         }
-
-        #region ServerEnumerator Class
-        internal class ServerEnumerator : IEnumerator<ServerOnNetwork>
-        {
-            internal ServerEnumerator(
-                GlobalDiscoveryServer gds,
-                uint maxRecordsToReturn,
-                string applicationName,
-                string applicationUri,
-                string productUri,
-                IList<string> serverCapabilities)
-            {
-                m_gds = gds;
-                m_maxRecordsToReturn = maxRecordsToReturn;
-                m_applicationName = applicationName;
-                m_applicationUri = applicationUri;
-                m_productUri = productUri;
-                m_serverCapabilities = serverCapabilities;
-                m_lastResetTime = DateTime.MinValue;
-            }
-
-            #region IEnumerator<ServerOnNetwork> Members
-            public ServerOnNetwork Current
-            {
-                get
-                {
-                    if (m_servers != null && m_index >= 0 && m_index < m_servers.Count)
-                    {
-                        return m_servers[m_index];
-                    }
-
-                    return null;
-                }
-            }
-
-            public void Dispose()
-            {
-                // nothing to do.
-            }
-
-            object System.Collections.IEnumerator.Current
-            {
-                get 
-                {
-                    return this.Current;
-                }
-            }
-
-            public bool MoveNext()
-            {
-                m_index++;
-
-                if (m_servers != null && m_index >= 0 && m_index < m_servers.Count)
-                {
-                    return true;
-                }
-
-                var servers = m_gds.QueryServers(
-                    ref m_lastResetTime,
-                    ref m_startingRecordId,
-                    m_maxRecordsToReturn,
-                    m_applicationName,
-                    m_applicationUri,
-                    m_productUri,
-                    m_serverCapabilities);
-
-                if (servers != null)
-                {
-                    if (m_servers == null)
-                    {
-                        m_index = 0;
-                        m_servers = new List<ServerOnNetwork>();
-                    }
-
-                    m_servers.AddRange(servers);
-
-                    if (m_index < m_servers.Count)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            public void Reset()
-            {
-                m_index = 0;
-            }
-            #endregion
-
-            #region Private Fields
-            private GlobalDiscoveryServer m_gds;
-            private uint m_maxRecordsToReturn;
-            private string m_applicationName;
-            private string m_applicationUri;
-            private string m_productUri;
-            private IList<string> m_serverCapabilities;
-            private uint m_startingRecordId;
-            private DateTime m_lastResetTime;
-            private List<ServerOnNetwork> m_servers;
-            private int m_index;
-            #endregion
-        }
-        #endregion
-
-        #region ServerOnNetworkCollection Class
-        internal class ServerOnNetworkCollection : IEnumerable<ServerOnNetwork>
-        {
-            public ServerOnNetworkCollection(ServerEnumerator enumerator)
-            {
-                m_enumerator = enumerator;
-            }
-
-            public IEnumerator<ServerOnNetwork> GetEnumerator()
-            {
-                return m_enumerator;
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-            {
-                return m_enumerator;
-            }
-
-            private ServerEnumerator m_enumerator;
-        }
-        #endregion
-        #endregion
-
+        
         /// <summary>
         /// Get the application record.
         /// </summary>
