@@ -364,22 +364,21 @@ namespace Opc.Ua.GdsClient
                     File.WriteAllBytes(file, certificate);
                 }
 
-                // check if the private was re-used.
+                // check if we used a CSR without requested a new private key
                 if (privateKey == null || privateKey.Length == 0)
                 {
+                    // CSR was used
                     if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
                     {
                         string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
-
                         if (path != null)
                         {
                             if (!m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                             {
-                                var x509 = new X509Certificate2(certificate);
-                                var oldPfx = new X509Certificate2(path, (string)null, X509KeyStorageFlags.Exportable);
-                                var newPfx = CertificateAuthority.Replace(x509, oldPfx);
-                                var bytes = newPfx.Export(X509ContentType.Pfx);
-                                File.WriteAllBytes(path, bytes);
+                                X509Certificate2 newCert = new X509Certificate2(certificate);
+                                X509Certificate2 originalPrivateKey = new X509Certificate2(path, string.Empty, X509KeyStorageFlags.Exportable);
+                                X509Certificate2 combinedCert = CertificateAuthority.Combine(newCert, originalPrivateKey);
+                                File.WriteAllBytes(path, combinedCert.Export(X509ContentType.Pfx));
                             }
                         }
                     }
@@ -387,33 +386,31 @@ namespace Opc.Ua.GdsClient
                     {
                         if (!String.IsNullOrEmpty(m_application.CertificateStorePath) && !String.IsNullOrEmpty(m_application.CertificateSubjectName))
                         {
-                            var x509 = new X509Certificate2(certificate);
+                            X509Certificate2 newCert = new X509Certificate2(certificate);
 
-                            var cid = new CertificateIdentifier()
+                            CertificateIdentifier cid = new CertificateIdentifier()
                             {
                                 StorePath = m_application.CertificateStorePath,
                                 SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName())
                             };
 
-                            var oldPfx = await cid.Find(true);
-
-                            if (oldPfx != null)
+                            X509Certificate2 originalPrivateKey = await cid.Find(true);
+                            if (originalPrivateKey != null)
                             {
-                                var newPfx = CertificateAuthority.Replace(x509, oldPfx);
+                                X509Certificate2 combinedCert = CertificateAuthority.Combine(newCert, originalPrivateKey);
 
                                 using (var store = CertificateStoreIdentifier.OpenStore(m_application.CertificateStorePath))
                                 {
-                                    await store.Delete(oldPfx.Thumbprint);
-                                    await store.Add(newPfx);
+                                    await store.Delete(originalPrivateKey.Thumbprint);
+                                    await store.Add(combinedCert);
                                 }
                             }
                         }
                     }
                 }
-
-                // save private key.
                 else
                 {
+                    // CSR was not used and we received a new private key
                     if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
                     {
                         string path = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, true, true);
