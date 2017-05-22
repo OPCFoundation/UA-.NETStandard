@@ -318,7 +318,8 @@ namespace Opc.Ua.GdsClient
                         foreach (byte[] issuerCertificate in issuerCertificates)
                         {
                             X509Certificate2 x509 = new X509Certificate2(issuerCertificate);
-                            if (store.FindByThumbprint(x509.Thumbprint) == null)
+                            X509Certificate2Collection certs = await store.FindByThumbprint(x509.Thumbprint);
+                            if (certs.Count == 0)
                             {
                                 await store.Add(new X509Certificate2(issuerCertificate));
                             }

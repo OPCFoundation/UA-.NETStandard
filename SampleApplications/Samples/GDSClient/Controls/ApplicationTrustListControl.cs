@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.IO;
 using System.Windows.Forms;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Client;
 using Opc.Ua.Gds;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.GdsClient
 {
@@ -173,7 +167,10 @@ namespace Opc.Ua.GdsClient
                             {
                                 var x509 = new X509Certificate2(certificate);
 
-                                if (store.FindByThumbprint(x509.Thumbprint) == null)
+                                Task<X509Certificate2Collection> t = store.FindByThumbprint(x509.Thumbprint);
+                                t.Wait();
+                                X509Certificate2Collection certs = t.Result;
+                                if (certs.Count == 0)
                                 {
                                     store.Add(x509);
                                 }
@@ -200,7 +197,10 @@ namespace Opc.Ua.GdsClient
                             {
                                 var x509 = new X509Certificate2(certificate);
 
-                                if (store.FindByThumbprint(x509.Thumbprint) == null)
+                                Task<X509Certificate2Collection> t = store.FindByThumbprint(x509.Thumbprint);
+                                t.Wait();
+                                X509Certificate2Collection certs = t.Result;
+                                if (certs.Count == 0)
                                 {
                                     store.Add(x509);
                                 }
