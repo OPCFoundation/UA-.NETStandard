@@ -24,6 +24,7 @@ namespace Opc.Ua.Gds
         public GlobalDiscoveryServer(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
         {
             m_application = application;
+            m_application.ApplicationName = "GDS Client";
             m_endpointUrl = config.GlobalDiscoveryServerUrl;
             m_adminCredentials = new UserIdentity("appadmin", "demo");
         }
@@ -173,7 +174,7 @@ namespace Opc.Ua.Gds
             m_session = await Session.Create(
                 m_application.ApplicationConfiguration,
                 endpoint,
-                true,
+                false,
                 false,
                 m_application.ApplicationName,
                 60000,

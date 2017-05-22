@@ -26,14 +26,13 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
-using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 
 namespace Opc.Ua
 {
@@ -71,17 +70,18 @@ namespace Opc.Ua
                 }
 
                 // create pkcs12 store for cert and private key
-                using (MemoryStream pfxData = new MemoryStream(publicKeyCertificate.Export(X509ContentType.Pkcs12)))
+                using (MemoryStream pfxData = new MemoryStream())
                 {
                     Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
-                    pkcsStore.Load(pfxData, null);
-                    X509CertificateEntry[] chain = new X509CertificateEntry[1];
-                    string passcode = Guid.NewGuid().ToString();
-                    chain[0] = pkcsStore.GetCertificate("alias");
-                    pkcsStore.SetKeyEntry(publicKeyCertificate.Subject, new AsymmetricKeyEntry(privateKey), chain);
-                    pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
-                    // merge into X509Certificate2
+                    Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(publicKeyCertificate.RawData);
+                    X509CertificateEntry[] chain = new X509CertificateEntry[1];
+                    chain[0] = new X509CertificateEntry(x509);
+                    pkcsStore.SetKeyEntry(publicKeyCertificate.FriendlyName, new AsymmetricKeyEntry(privateKey), chain);
+
+                    string passcode = Guid.NewGuid().ToString();
+                    pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
+                                       
                     return CertificateFactory.CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
                 }
             }
@@ -90,64 +90,31 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate signing request.
         /// </summary>
-        /// <param name="certificate">The certificate to go with the private key.</param>
-        /// <param name="privateKey">The private key used to sign the request.</param>
-        /// <param name="isPEMKey">TRUE if the private key is in PEM format; FALSE otherwise.</param>
-        /// <param name="password">The password for the private key.</param>
-        /// <param name="subjectName">Subject name for the new certificate.</param>
-        /// <param name="applicationUri">The application uri. Replaces whatever is in the existing certificate.</param>
-        /// <param name="domainNames">The domain names. Replaces whatever is in the existing certificate.</param>
-        /// <param name="hashSizeInBits">The hash size in bits.</param>
-        /// <returns>
-        /// The certificate signing request.
-        /// </returns>
         public static byte[] CreateRequest(
             X509Certificate2 certificate,
-            byte[] privateKey,
-            bool isPEMKey,
             ushort hashSizeInBits)
         {
             using (var cfrg = new CertificateFactoryRandomGenerator())
             {
                 SecureRandom random = new SecureRandom(cfrg);
-               
+                
+                // try to get signing/private key from certificate passed in
                 AsymmetricKeyParameter signingKey = null;
-                if (isPEMKey)
+                using (RSA rsa = certificate.GetRSAPrivateKey())
                 {
-                    TextReader textReader = new StringReader(new string(Encoding.ASCII.GetChars(privateKey)));
-                    PemReader pemReader = new PemReader(textReader);
-                    AsymmetricCipherKeyPair keys = (AsymmetricCipherKeyPair)pemReader.ReadObject();
-                    signingKey = keys.Private;
+                    RSAParameters rsaParams = rsa.ExportParameters(true);
+                    RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                        new BigInteger(1, rsaParams.Modulus),
+                        new BigInteger(1, rsaParams.Exponent),
+                        new BigInteger(1, rsaParams.D),
+                        new BigInteger(1, rsaParams.P),
+                        new BigInteger(1, rsaParams.Q),
+                        new BigInteger(1, rsaParams.DP),
+                        new BigInteger(1, rsaParams.DQ),
+                        new BigInteger(1, rsaParams.InverseQ));
+                    signingKey = keyParams;
                 }
-                else
-                {
-                    X509Certificate2 temp = null;
-                    if (signingKey == null)
-                    {
-                        // try to get signing/private key from certificate passed in
-                        temp = certificate;
-                    }
-                    else
-                    {
-                        // PFX
-                        temp = new X509Certificate2(privateKey, string.Empty, X509KeyStorageFlags.Exportable);
-                    }
-                    using (RSA rsa = temp.GetRSAPrivateKey())
-                    {
-                        RSAParameters rsaParams = rsa.ExportParameters(true);
-                        RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-                            new BigInteger(1, rsaParams.Modulus),
-                            new BigInteger(1, rsaParams.Exponent),
-                            new BigInteger(1, rsaParams.D),
-                            new BigInteger(1, rsaParams.P),
-                            new BigInteger(1, rsaParams.Q),
-                            new BigInteger(1, rsaParams.DP),
-                            new BigInteger(1, rsaParams.DQ),
-                            new BigInteger(1, rsaParams.InverseQ));
-                        signingKey = keyParams;
-                    }
-                }
-
+                
                 RsaKeyParameters publicKey = null;
                 using (RSA rsa = certificate.GetRSAPublicKey())
                 {
