@@ -28,10 +28,9 @@
  * ======================================================================*/
 
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Sample
 {
@@ -47,10 +46,8 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The URL of the server.
         /// </summary>
-        public const string DefaultServerUrl = "http://localhost:6000/UA/SampleClient";
         // public const string DefaultServerUrl = "opc.tcp://localhost:21381/UA/MatrikonOpcUaWrapper";
-        // public const string DefaultServerUrl = "opc.tcp://localhost:51210/UA/SampleServer";
-        // public const string DefaultServerUrl = "http://localhost:5000/UA/SampleServer";
+        public const string DefaultServerUrl = "opc.tcp://localhost:51210/UA/SampleServer";
         
         /// <summary>
         /// The variables to read.
@@ -64,75 +61,33 @@ namespace Opc.Ua.Sample
             // VariableBrowsePaths.Add("/7:MatrikonOpc Sim Server/7:Simulation Items/7:Bucket Brigade/7:Int1");
             // VariableBrowsePaths.Add("/7:MatrikonOPC Sim Server/7:Simulation Items/7:Bucket Brigade/7:Int2");
 
+            ApplicationInstance application = new ApplicationInstance();
+            application.ApplicationName = "UA History Client";
+            application.ApplicationType = ApplicationType.Client;
+            application.ConfigSectionName = "Opc.Ua.SampleClient";
 
             try
             {
-                // create the configuration.     
-                Task<ApplicationConfiguration> t = Helpers.CreateClientConfiguration();
-                t.Wait();
-                ApplicationConfiguration configuration = t.Result;
+                application.LoadApplicationConfiguration(false).Wait();
 
-                // create the endpoint description.
-                Task<EndpointDescription> t2 = Helpers.CreateEndpointDescription();
-                t2.Wait();
-                EndpointDescription endpointDescription = t2.Result;
-
-                // create the endpoint configuration (use the application configuration to provide default values).
-                EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
-
-                // the default timeout for a requests sent using the channel.
-                endpointConfiguration.OperationTimeout = 600000;
-
-                // use the pure XML encoding on the wire.
-                endpointConfiguration.UseBinaryEncoding = true;
-
-                // create the endpoint.
-                ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
-
-                // create the binding factory.
-                ServiceMessageContext messageContext = configuration.CreateMessageContext();
-
-                // update endpoint description using the discovery endpoint.
-                if (endpoint.UpdateBeforeConnect)
+                // check the application certificate.
+                bool certOK = application.CheckApplicationInstanceCertificate(false, 0).Result;
+                if (!certOK)
                 {
-                    endpoint.UpdateFromServer();
-
-                    Console.WriteLine("Updated endpoint description for url: {0}", endpointDescription.EndpointUrl);
-
-                    endpointDescription = endpoint.Description;
-                    endpointConfiguration = endpoint.Configuration;
+                    throw new Exception("Application instance certificate invalid!");
                 }
 
-                Task<X509Certificate2> t3 = configuration.SecurityConfiguration.ApplicationCertificate.Find();
-                t3.Wait();
-                X509Certificate2 clientCertificate = t3.Result;
-
-                // set up a callback to handle certificate validation errors.
-                configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
-
-                // Initialize the channel which will be created with the server.
-                ITransportChannel channel = SessionChannel.Create(
-                    configuration,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    messageContext);
+                application.ApplicationConfiguration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                
+                // get list of cached endpoints.
+                ConfiguredEndpointCollection endpoints = application.ApplicationConfiguration.LoadCachedEndpoints(true);
+                endpoints.DiscoveryUrls = application.ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls;
 
                 // Wrap the channel with the session object.
                 // This call will fail if the server does not trust the client certificate.
-                Session session = new Session(channel, configuration, endpoint, null);
-
+                Session session = Session.Create(application.ApplicationConfiguration, endpoints[1], true, "MySession", 60000, null, null).Result;
                 session.ReturnDiagnostics = DiagnosticsMasks.All;
-
-                // register keep alive callback.
-                // session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
-
-                // passing null for the user identity will create an anonymous session.
-                UserIdentity identity = null; // new UserIdentity("iamuser", "password");        
-
-                // create the session. This actually connects to the server.
-                session.Open("My Session Name", identity);
-
+                
                 //Read some history values:
                 string str = "";
                 do
@@ -327,14 +282,6 @@ namespace Opc.Ua.Sample
         {
             e.Accept = true;
             Console.WriteLine("WARNING: Accepting Untrusted Certificate: {0}", e.Certificate.Subject);
-        }
-
-        /// <summary>
-        /// Raised when a keep alive response is returned from the server.
-        /// </summary>
-        static void Session_KeepAlive(Session session, KeepAliveEventArgs e)
-        {
-            Console.WriteLine("===>>> Session KeepAlive: {0} ServerTime: {1:HH:MM:ss}", e.CurrentState, e.CurrentTime.ToLocalTime());
         }
 
         private static Queue<DataValue> m_publishes = new Queue<DataValue>();
