@@ -55,11 +55,6 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
-        /// Raised when admin credentials are required.
-        /// </summary>
-        public event AdminCredentialsRequiredEventHandler AdminCredentialsRequired;
-
-        /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
         /// <value>
