@@ -227,7 +227,7 @@ namespace Opc.Ua.Sample
                 {
                     ServiceResult error = new ServiceResult(
                         results[ii].StatusCode,
-                        diagnosticInfos[ii],
+                        diagnosticInfos.Count > ii ? diagnosticInfos[ii] : null,
                         responseHeader.StringTable);
 
                     Console.WriteLine("Path '{0}' is not valid. Error = {1}", relativePaths[ii], error);
