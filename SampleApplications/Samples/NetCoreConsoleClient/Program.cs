@@ -28,7 +28,7 @@ namespace NetCoreConsoleClient
             if (args.Length == 0)
             {
                 // use OPC UA .Net Sample server 
-                endpointURL = "opc.tcp://" + Utils.GetHostName() + ":51210/UA/SampleServer";
+                endpointURL = "opc.tcp://" + Utils.GetHostName() + ":4840/UA/SampleServer";
             }
             else
             {
