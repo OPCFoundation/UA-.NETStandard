@@ -54,7 +54,7 @@
   
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
+      <ua:String>opc.tcp://localhost:4840/UA/SampleServer</ua:String>
     </BaseAddresses>
 
     <!-- 
