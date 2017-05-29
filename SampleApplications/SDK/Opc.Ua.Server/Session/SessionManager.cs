@@ -404,6 +404,7 @@ namespace Opc.Ua.Server
 
                 // remember activation
                 bool activated = session.Activated;
+                bool validated = session.ValidatedBeforeActivate;
 
                 // close the session.
                 session.Close();
@@ -412,11 +413,6 @@ namespace Opc.Ua.Server
                 lock (m_server.DiagnosticsWriteLock)
                 {
                     m_server.ServerDiagnostics.CurrentSessionCount--;
-                }
-
-                if (!activated)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
             }
 

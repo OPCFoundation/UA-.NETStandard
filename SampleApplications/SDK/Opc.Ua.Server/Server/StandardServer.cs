@@ -673,11 +673,6 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                if (e.StatusCode == StatusCodes.BadSessionNotActivated)
-                {
-                    return CreateResponse(requestHeader, e);
-                }
-
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
