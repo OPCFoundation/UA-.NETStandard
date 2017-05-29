@@ -402,10 +402,6 @@ namespace Opc.Ua.Server
                 // raise session related event.
                 RaiseSessionEvent(session, SessionEventReason.Closing);
 
-                // remember activation
-                bool activated = session.Activated;
-                bool validated = session.ValidatedBeforeActivate;
-
                 // close the session.
                 session.Close();
 
