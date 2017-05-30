@@ -1,0 +1,92 @@
+//==============================================================================
+// TITLE: OpcSec.idl
+//
+// CONTENTS:
+// 
+// Interface declarations for the OPC Security specifications.
+//
+// (c) Copyright 1999-2003 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2000/08/03 DJ    Finalized for spec release 1.00
+// 2003/01/06 RSA   Fixed formatting to comply with coding guidelines.
+//
+
+import "oaidl.idl";
+
+//==============================================================================
+// IOPCSecurityNT
+
+[
+	object,
+	uuid(7AA83A01-6C77-11d3-84F9-00008630A38B),
+	pointer_default(unique)
+]
+interface IOPCSecurityNT : IUnknown
+{
+	HRESULT IsAvailableNT(
+		[out] BOOL* pbAvailable
+	);
+
+	HRESULT QueryMinImpersonationLevel(
+		[out] DWORD* pdwMinImpLevel
+	);
+
+	HRESULT ChangeUser(
+		void
+	);
+};
+
+//==============================================================================
+// IOPCSecurityPrivate
+
+[
+    object,
+    uuid(7AA83A02-6C77-11d3-84F9-00008630A38B),
+    pointer_default(unique)
+]
+interface IOPCSecurityPrivate : IUnknown
+{
+    HRESULT IsAvailablePriv(
+		[out] BOOL* pbAvailable
+	);
+
+    HRESULT Logon(
+		[in, string] LPCWSTR szUserID, 
+		[in, string] LPCWSTR szPassword
+	);
+
+    HRESULT Logoff(
+		void
+	);
+};
+
+//==============================================================================
+// Type Library
+
+[
+    uuid(7AA83AFF-6C77-11d3-84F9-00008630A38B),
+    version(1.00),
+    helpstring("OPC Security 1.00 Type Library")
+]
+library OPCSEC
+{
+    importlib("stdole32.tlb");
+    importlib("stdole2.tlb");
+
+    interface IOPCSecurityNT;
+    interface IOPCSecurityPrivate;
+};
+

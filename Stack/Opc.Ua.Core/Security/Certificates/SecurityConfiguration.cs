@@ -47,8 +47,12 @@ namespace Opc.Ua
             {
                 RejectedCertificateStore = new CertificateStoreIdentifier();
                 RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-                RejectedCertificateStore.StorePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "Rejected";
-            }             
+                RejectedCertificateStore.StorePath = Utils.DefaultLocalFolder + Path.DirectorySeparatorChar + "Rejected";
+            }
+
+            // replace subjectName DC=localhost with DC=hostname
+            ApplicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(ApplicationCertificate.SubjectName);
+
         }
 
         /// <summary>

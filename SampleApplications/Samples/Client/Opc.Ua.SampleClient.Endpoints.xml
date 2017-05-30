@@ -31,7 +31,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -62,7 +61,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -93,7 +91,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -124,7 +121,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -155,7 +151,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -186,7 +181,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>
@@ -217,7 +211,6 @@
           </UserTokenPolicy>
         </UserIdentityTokens>
         <TransportProfileUri>http://opcfoundation.org/UA/profiles/transport/wsxmlorbinary</TransportProfileUri>
-        <SecurityLevel>0</SecurityLevel>
       </ua:Endpoint>
       <ua:UpdateBeforeConnect>true</ua:UpdateBeforeConnect>
       <ua:SelectedUserTokenPolicy>0</ua:SelectedUserTokenPolicy>

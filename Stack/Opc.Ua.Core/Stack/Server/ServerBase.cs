@@ -685,7 +685,7 @@ namespace Opc.Ua
 
                     description.SecurityMode = policy.SecurityMode;
                     description.SecurityPolicyUri = policy.SecurityPolicyUri;
-                    description.SecurityLevel = policy.SecurityLevel;
+                    description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
                     description.UserIdentityTokens = GetUserTokenPolicies( configuration, description );
                     description.TransportProfileUri = Profiles.UaTcpTransport;
 
@@ -799,7 +799,7 @@ namespace Opc.Ua
                 {
                     // can only support one policy with HTTPS so pick the best one.
                     ServerSecurityPolicy bestPolicy = null;
-
+                    byte bestLevel = 0;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         if (bestPolicy == null)
@@ -808,10 +808,11 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        if (bestPolicy.SecurityLevel < policy.SecurityLevel)
+                        byte securityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        if (bestLevel < securityLevel)
                         {
                             bestPolicy = policy;
-                            continue;
+                            bestLevel = securityLevel;
                         }
                     }
                 
@@ -827,7 +828,7 @@ namespace Opc.Ua
 
                     description.SecurityMode = bestPolicy.SecurityMode;
                     description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
-                    description.SecurityLevel = bestPolicy.SecurityLevel;
+                    description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
                     description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
                     description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
@@ -1275,11 +1276,7 @@ namespace Opc.Ua
             // load the instance certificate.
             if (configuration.SecurityConfiguration.ApplicationCertificate != null)
             {
-                Task t = Task.Run(async () =>
-                {
-                    InstanceCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-                });
-                t.Wait();
+                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
             }
 
             if (InstanceCertificate == null)

@@ -261,14 +261,16 @@ namespace Opc.Ua.Client.Controls
         {       
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not validated: {0}\r\n\r\n", e.Error.StatusCode);
+            buffer.AppendFormat("Certificate could not be validated: {0}\r\n\r\n", e.Error.StatusCode);
             buffer.AppendFormat("Subject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer)?"Self-signed":e.Certificate.Issuer);
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
             buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
-            
-            buffer.AppendFormat("Accept anyways?");
+            buffer.AppendFormat("The security certificate was not issued by a trusted certificate authority. ");
+            buffer.AppendFormat("Security certificate problems may indicate an attempt to intercept any data you send ");
+            buffer.AppendFormat("to a server or to allow an untrusted client to connect to your server.");
+            buffer.AppendFormat("\r\n\r\nAccept anyway?");
 
             if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {

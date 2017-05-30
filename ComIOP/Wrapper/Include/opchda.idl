@@ -1,0 +1,881 @@
+//==============================================================================
+// TITLE: opchda.idl
+//
+// CONTENTS:
+// 
+// Interface declarations for the OPC Historial Data Access specifications.
+//
+// (c) Copyright 1999-2003 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2001/01/26 OPC   Made revisions for version 1.1
+// 2003/01/06 RSA   Fixed formatting to comply with coding guidelines.
+//
+     
+import "oaidl.idl";
+
+//==============================================================================
+// Category ID declarations (defined as interfaces to ensure they show up in the typelib).
+
+[uuid(7DE5B060-E089-11d2-A5E6-000086339399)] interface CATID_OPCHDAServer10 : IUnknown {}
+
+cpp_quote("#define CATID_OPCHDAServer10 IID_CATID_OPCHDAServer10")
+
+//==============================================================================
+// Structures, Typedefs and Enumerations.
+
+typedef enum tagOPCHDA_SERVERSTATUS 
+{ 
+    OPCHDA_UP =1,
+	OPCHDA_DOWN,
+	OPCHDA_INDETERMINATE 
+} 
+OPCHDA_SERVERSTATUS;
+
+typedef enum tagOPCHDA_BROWSEDIRECTION 
+{
+	OPCHDA_BROWSE_UP =1,
+	OPCHDA_BROWSE_DOWN,
+	OPCHDA_BROWSE_DIRECT
+} 
+OPCHDA_BROWSEDIRECTION;
+
+typedef enum tagOPCHDA_BROWSETYPE 
+{
+	OPCHDA_BRANCH =1,
+	OPCHDA_LEAF,
+	OPCHDA_FLAT,
+	OPCHDA_ITEMS
+} 
+OPCHDA_BROWSETYPE;
+
+typedef enum tagOPCHDA_ANNOTATIONCAPABILITIES 
+{  
+	OPCHDA_READANNOTATIONCAP   = 0x01,
+	OPCHDA_INSERTANNOTATIONCAP = 0x02 
+} 
+OPCHDA_ANNOTATIONCAPABILITIES;
+
+
+typedef enum tagOPCHDA_UPDATECAPABILITIES 
+{
+	OPCHDA_INSERTCAP        = 0x01,
+	OPCHDA_REPLACECAP       = 0x02,
+	OPCHDA_INSERTREPLACECAP = 0x04,
+	OPCHDA_DELETERAWCAP     = 0x08,
+	OPCHDA_DELETEATTIMECAP  = 0x10
+} 
+OPCHDA_UPDATECAPABILITIES;
+
+typedef enum tagOPCHDA_OPERATORCODES 
+{
+	OPCHDA_EQUAL =1,
+	OPCHDA_LESS,
+	OPCHDA_LESSEQUAL,
+	OPCHDA_GREATER,
+	OPCHDA_GREATEREQUAL,
+	OPCHDA_NOTEQUAL
+} 
+OPCHDA_OPERATORCODES;
+
+typedef enum tagOPCHDA_EDITTYPE 
+{
+	OPCHDA_INSERT = 1,
+	OPCHDA_REPLACE,
+	OPCHDA_INSERTREPLACE,
+	OPCHDA_DELETE
+} 
+OPCHDA_EDITTYPE;
+
+typedef enum tagOPCHDA_AGGREGATE 
+{
+	OPCHDA_NOAGGREGATE = 0,
+	OPCHDA_INTERPOLATIVE,
+	OPCHDA_TOTAL,
+	OPCHDA_AVERAGE,
+	OPCHDA_TIMEAVERAGE,
+	OPCHDA_COUNT,
+	OPCHDA_STDEV,
+	OPCHDA_MINIMUMACTUALTIME,
+	OPCHDA_MINIMUM,
+	OPCHDA_MAXIMUMACTUALTIME,
+	OPCHDA_MAXIMUM,
+	OPCHDA_START,
+	OPCHDA_END,
+	OPCHDA_DELTA,
+	OPCHDA_REGSLOPE,
+	OPCHDA_REGCONST,
+	OPCHDA_REGDEV,
+	OPCHDA_VARIANCE,
+	OPCHDA_RANGE,
+	OPCHDA_DURATIONGOOD,
+	OPCHDA_DURATIONBAD,
+	OPCHDA_PERCENTGOOD,
+	OPCHDA_PERCENTBAD,
+	OPCHDA_WORSTQUALITY,
+	OPCHDA_ANNOTATIONS
+} 
+OPCHDA_AGGREGATE;
+
+typedef DWORD OPCHANDLE;
+
+typedef struct tagOPCHDA_ANNOTATION 
+{
+									OPCHANDLE hClient;
+								    DWORD	  dwNumValues;
+	[size_is (dwNumValues)]		    FILETIME* ftTimeStamps;
+	[size_is (dwNumValues), string]	LPWSTR*   szAnnotation;
+	[size_is (dwNumValues)]		    FILETIME* ftAnnotationTime;
+	[size_is (dwNumValues), string]	LPWSTR*   szUser;
+} 
+OPCHDA_ANNOTATION;
+
+typedef struct tagOPCHDA_MODIFIEDITEM 
+{
+					   OPCHANDLE		hClient;
+					   DWORD			dwCount;
+	[size_is(dwCount)] FILETIME*        pftTimeStamps;
+	[size_is(dwCount)] DWORD*           pdwQualities;
+	[size_is(dwCount)] VARIANT*         pvDataValues;
+	[size_is(dwCount)] FILETIME*        pftModificationTime;
+	[size_is(dwCount)] OPCHDA_EDITTYPE* pEditType;
+	[size_is(dwCount)] LPWSTR*          szUser;
+} 
+OPCHDA_MODIFIEDITEM;
+
+typedef struct tagOPCHDA_ATTRIBUTE
+{
+							OPCHANDLE hClient;
+							DWORD	  dwNumValues;
+							DWORD	  dwAttributeID;
+	[size_is (dwNumValues)] FILETIME* ftTimeStamps;
+	[size_is (dwNumValues)] VARIANT*  vAttributeValues;
+} 
+OPCHDA_ATTRIBUTE;
+
+typedef struct tagOPCHDA_TIME 
+{
+	         BOOL	  bString;
+	[string] LPWSTR	  szTime;
+	         FILETIME ftTime;
+} 
+OPCHDA_TIME;
+
+typedef struct tagOPCHDA_ITEM
+{
+					   OPCHANDLE hClient;
+					   DWORD 	 haAggregate;
+					   DWORD	 dwCount;
+	[size_is(dwCount)] FILETIME* pftTimeStamps;
+	[size_is(dwCount)] DWORD*    pdwQualities;
+	[size_is(dwCount)] VARIANT*  pvDataValues;
+} 
+OPCHDA_ITEM;
+
+//==============================================================================
+// IOPCHDA_Browser
+
+[
+  object,
+  uuid(1F1217B1-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_Browser : IUnknown
+{
+	HRESULT GetEnum(
+		[in]  OPCHDA_BROWSETYPE	dwBrowseType,
+		[out] LPENUMSTRING*     ppIEnumString
+	);
+
+	HRESULT ChangeBrowsePosition(
+		[in] 		 OPCHDA_BROWSEDIRECTION	dwBrowseDirection,
+		[in, string] LPCWSTR				szString
+	);
+
+	HRESULT GetItemID(
+		[in, string]  LPCWSTR szNode,
+		[out, string] LPWSTR* pszItemID
+	);
+
+
+	HRESULT GetBranchPosition(
+		[out, string] LPWSTR* pszBranchPos
+	);
+}
+
+//==============================================================================
+// IOPCHDA_Server
+
+[
+  object,
+  uuid(1F1217B0-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_Server : IUnknown
+{
+	HRESULT GetItemAttributes( 
+		[out]							  DWORD*    pdwCount,
+		[out, size_is(,*pdwCount)]		  DWORD**   ppdwAttrID,
+		[out, size_is(,*pdwCount),string] LPWSTR**  ppszAttrName,
+		[out, size_is(,*pdwCount),string] LPWSTR**  ppszAttrDesc,
+		[out, size_is(,*pdwCount)]		  VARTYPE** ppvtAttrDataType
+	);
+
+	HRESULT GetAggregates(
+		[out] 								DWORD*  pdwCount,
+		[out, size_is(,*pdwCount)]			DWORD** ppdwAggrID,
+		[out, size_is(,*pdwCount), string] LPWSTR** ppszAggrName,
+		[out, size_is(,*pdwCount), string] LPWSTR** ppszAggrDesc
+	);
+
+	HRESULT GetHistorianStatus(
+		[out] 		  OPCHDA_SERVERSTATUS* pwStatus,
+		[out] 		  FILETIME**           pftCurrentTime,
+		[out] 		  FILETIME**           pftStartTime,
+		[out] 		  WORD*                pwMajorVersion,
+		[out] 		  WORD*                pwMinorVersion,
+		[out] 		  WORD*                pwBuildNumber,
+		[out] 		  DWORD*               pdwMaxReturnValues,
+		[out, string] LPWSTR*              ppszStatusString,
+		[out, string] LPWSTR*              ppszVendorInfo
+	);
+
+	HRESULT GetItemHandles(
+		[in]					 DWORD		 dwCount,
+		[in, size_is(dwCount)]	 LPWSTR*     pszItemID,
+		[in, size_is(dwCount)]	 OPCHANDLE*  phClient,
+		[out, size_is(,dwCount)] OPCHANDLE** pphServer,
+		[out, size_is(,dwCount)] HRESULT**   ppErrors
+	);
+
+	HRESULT ReleaseItemHandles(
+		[in]					 DWORD		dwCount,
+		[in, size_is(dwCount)]	 OPCHANDLE* phServer,
+		[out, size_is(,dwCount)] HRESULT**  ppErrors
+	);
+
+	HRESULT ValidateItemIDs(
+		[in] 					 DWORD	   dwCount,
+		[in, size_is(dwCount)]	 LPWSTR*   pszItemID,
+		[out, size_is(,dwCount)] HRESULT** ppErrors
+	);
+
+	HRESULT CreateBrowse(
+		[in]					 DWORD				   dwCount,
+		[in, size_is(dwCount)] 	 DWORD*                pdwAttrID,
+		[in, size_is(dwCount)] 	 OPCHDA_OPERATORCODES* pOperator,
+		[in, size_is(dwCount)] 	 VARIANT*              vFilter,
+		[out]					 IOPCHDA_Browser**     pphBrowser,
+		[out, size_is(,dwCount)] HRESULT**             ppErrors
+	);
+}
+
+//==============================================================================
+// IOPCHDA_SyncRead
+
+[
+  object,
+  uuid(1F1217B2-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_SyncRead: IUnknown
+{
+	HRESULT ReadRaw(
+		[in, out]                   OPCHDA_TIME*  htStartTime,
+		[in, out]                   OPCHDA_TIME*  htEndTime,
+		[in]                        DWORD	      dwNumValues,
+		[in]                        BOOL	      bBounds,
+		[in]                        DWORD	      dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*    phServer, 
+		[out, size_is(,dwNumItems)] OPCHDA_ITEM** ppItemValues,
+		[out, size_is(,dwNumItems)] HRESULT**     ppErrors
+	);
+
+	HRESULT ReadProcessed(
+		[in, out]                   OPCHDA_TIME*  htStartTime,
+		[in, out]                   OPCHDA_TIME*  htEndTime,
+		[in]                        FILETIME      ftResampleInterval,
+		[in]                        DWORD         dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*    phServer, 
+		[in, size_is(dwNumItems)]   DWORD*        haAggregate, 
+		[out, size_is(,dwNumItems)] OPCHDA_ITEM** ppItemValues,
+		[out, size_is(,dwNumItems)] HRESULT**     ppErrors
+	);
+
+	HRESULT ReadAtTime(
+		[in]                           DWORD         dwNumTimeStamps,
+		[in, size_is(dwNumTimeStamps)] FILETIME*     ftTimeStamps,
+		[in]                           DWORD         dwNumItems,
+		[in, size_is(dwNumItems)]      OPCHANDLE*    phServer, 
+		[out, size_is(,dwNumItems)]    OPCHDA_ITEM** ppItemValues,
+		[out, size_is(,dwNumItems)]    HRESULT**     ppErrors
+	);
+
+	HRESULT ReadModified(
+		[in, out]                   OPCHDA_TIME*          htStartTime,
+		[in, out]                   OPCHDA_TIME*          htEndTime,
+		[in]                        DWORD                 dwNumValues,
+		[in]                        DWORD                 dwNumItems,
+		[in, size_is(dwNumItems)]	OPCHANDLE*            phServer, 
+		[out, size_is(,dwNumItems)] OPCHDA_MODIFIEDITEM** ppItemValues,
+		[out, size_is(,dwNumItems)] HRESULT**             ppErrors
+	);
+
+	HRESULT ReadAttribute(
+		[in, out]                        OPCHDA_TIME*       htStartTime,
+		[in, out]                        OPCHDA_TIME*       htEndTime,
+		[in]                             OPCHANDLE          hServer, 
+		[in]                             DWORD              dwNumAttributes,
+		[in, size_is(dwNumAttributes)]	 DWORD*             pdwAttributeIDs, 
+		[out, size_is(,dwNumAttributes)] OPCHDA_ATTRIBUTE** ppAttributeValues,
+		[out, size_is(,dwNumAttributes)] HRESULT**          ppErrors
+	);
+}
+
+//==============================================================================
+// IOPCHDA_SyncUpdate
+
+[
+  object,
+  uuid(1F1217B3-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_SyncUpdate : IUnknown
+{
+	HRESULT QueryCapabilities(
+		[out] OPCHDA_UPDATECAPABILITIES* pCapabilities
+	);
+
+	HRESULT Insert(
+		[in]                        DWORD      dwNumItems, 
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer, 
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT Replace(
+		[in]                        DWORD      dwNumItems, 
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer, 
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT InsertReplace(
+		[in]                        DWORD      dwNumItems, 
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer, 
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT DeleteRaw(
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT DeleteAtTime(
+		[in]                        DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer,
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+}
+
+//==============================================================================
+// IOPCHDA_SyncAnnotations
+
+[
+  object,
+  uuid(1F1217B4-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_SyncAnnotations : IUnknown
+{
+	HRESULT QueryCapabilities(
+		[out] OPCHDA_ANNOTATIONCAPABILITIES* pCapabilities
+	);
+
+	HRESULT Read(
+		[in, out]					OPCHDA_TIME*        htStartTime,
+		[in, out]					OPCHDA_TIME*        htEndTime,
+		[in]                        DWORD	            dwNumItems,
+		[in, size_is(dwNumItems)]	OPCHANDLE*          phServer, 
+		[out, size_is(,dwNumItems)] OPCHDA_ANNOTATION** ppAnnotationValues,
+		[out, size_is(,dwNumItems)] HRESULT**           ppErrors
+	);
+
+	HRESULT Insert(
+		[in]                        DWORD              dwNumItems, 
+		[in, size_is(dwNumItems)]   OPCHANDLE*         phServer, 
+		[in, size_is(dwNumItems)]   FILETIME*          ftTimeStamps,
+		[in, size_is(dwNumItems)]   OPCHDA_ANNOTATION* pAnnotationValues,
+		[out, size_is(,dwNumItems)] HRESULT**          ppErrors
+	);
+}
+
+//==============================================================================
+// IOPCHDA_AsyncRead
+
+[
+  object,
+  uuid(1F1217B5-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_AsyncRead : IUnknown
+{
+	HRESULT ReadRaw(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumValues,
+		[in]                        BOOL         bBounds,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT AdviseRaw(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in]                        FILETIME     ftUpdateInterval,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT ReadProcessed(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        FILETIME     ftResampleInterval,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[in, size_is(dwNumItems)]   DWORD*       haAggregate,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT AdviseProcessed(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in]                        FILETIME     ftResampleInterval,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[in, size_is(dwNumItems)]   DWORD*       haAggregate,
+		[in]                        DWORD        dwNumIntervals,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT ReadAtTime(
+		[in]                           DWORD      dwTransactionID,
+		[in]                           DWORD      dwNumTimeStamps,
+		[in, size_is(dwNumTimeStamps)] FILETIME*  ftTimeStamps,
+		[in]                           DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]      OPCHANDLE* phServer, 
+		[out]                          DWORD*     pdwCancelID,
+		[out, size_is(,dwNumItems)]    HRESULT**  ppErrors
+	);
+
+	HRESULT ReadModified(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumValues,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer, 
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT ReadAttribute(
+		[in]                             DWORD        dwTransactionID,
+		[in, out]                        OPCHDA_TIME* htStartTime,
+		[in, out]                        OPCHDA_TIME* htEndTime,
+		[in]                             OPCHANDLE    hServer, 
+		[in]                             DWORD        dwNumAttributes,
+		[in, size_is(dwNumAttributes)]   DWORD*       dwAttributeIDs, 
+		[out]                            DWORD*       pdwCancelID,
+		[out, size_is(,dwNumAttributes)] HRESULT**    ppErrors
+	);
+
+	HRESULT Cancel(
+		[in] DWORD dwCancelID
+	);
+}
+
+//==============================================================================
+// IOPCHDA_AsyncUpdate
+
+[
+  object,
+  uuid(1F1217B6-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_AsyncUpdate : IUnknown
+{
+	HRESULT QueryCapabilities(
+		[out] OPCHDA_UPDATECAPABILITIES* pCapabilities
+	);
+
+	HRESULT Insert(
+		[in]                        DWORD      dwTransactionID,
+		[in]                        DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer,
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out]                       DWORD*     pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT Replace(
+		[in]                        DWORD      dwTransactionID,
+		[in]                        DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer,
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out]                       DWORD*     pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT InsertReplace(
+		[in]                        DWORD      dwTransactionID,
+		[in]                        DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE* phServer,
+		[in, size_is(dwNumItems)]   FILETIME*  ftTimeStamps,
+		[in, size_is(dwNumItems)]   VARIANT*   vDataValues,
+		[in, size_is(dwNumItems)]   DWORD*     pdwQualities,
+		[out]                       DWORD*     pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT DeleteRaw(
+		[in]                        DWORD        dwTransactionID,
+		[in,out]                    OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is (dwNumItems)]  OPCHANDLE*   phServer,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT DeleteAtTime(
+		[in]                        DWORD      dwTransactionID,
+		[in]                        DWORD      dwNumItems,
+		[in, size_is(dwNumItems)]	OPCHANDLE* phServer,
+		[in, size_is(dwNumItems)]	FILETIME*  ftTimeStamps,
+		[out]                       DWORD*     pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**  ppErrors
+	);
+
+	HRESULT Cancel(
+		[in] DWORD dwCancelID
+	);
+}
+
+//==============================================================================
+// IOPCHDA_AsyncAnnotations
+
+[
+  object,
+  uuid(1F1217B7-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_AsyncAnnotations: IUnknown
+{
+	HRESULT QueryCapabilities(
+		[out] OPCHDA_ANNOTATIONCAPABILITIES* pCapabilities
+	);
+
+	HRESULT Read(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer, 
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT Insert(
+		[in]                        DWORD              dwTransactionID,
+		[in]                        DWORD              dwNumItems, 
+		[in, size_is(dwNumItems)]	OPCHANDLE*         phServer, 
+		[in, size_is(dwNumItems)]	FILETIME*          ftTimeStamps,
+		[in, size_is(dwNumItems)]	OPCHDA_ANNOTATION* pAnnotationValues,
+		[out]                       DWORD*             pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**          ppErrors
+	);
+
+	HRESULT Cancel(
+		[in] DWORD dwCancelID
+	);
+}
+
+//==============================================================================
+// IOPCHDA_Playback
+
+[
+  object,
+  uuid(1F1217B8-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_Playback : IUnknown
+{
+	HRESULT ReadRawWithUpdate(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        DWORD        dwNumValues,
+		[in]                        FILETIME     ftUpdateDuration,
+		[in]                        FILETIME     ftUpdateInterval,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT ReadProcessedWithUpdate(
+		[in]                        DWORD        dwTransactionID,
+		[in, out]                   OPCHDA_TIME* htStartTime,
+		[in, out]                   OPCHDA_TIME* htEndTime,
+		[in]                        FILETIME     ftResampleInterval,
+		[in]                        DWORD        dwNumIntervals,
+		[in]                        FILETIME     ftUpdateInterval,
+		[in]                        DWORD        dwNumItems,
+		[in, size_is(dwNumItems)]   OPCHANDLE*   phServer,
+		[in, size_is(dwNumItems)]   DWORD*       haAggregate,
+		[out]                       DWORD*       pdwCancelID,
+		[out, size_is(,dwNumItems)] HRESULT**    ppErrors
+	);
+
+	HRESULT Cancel(
+		[in] DWORD dwCancelID
+	);
+}
+
+//==============================================================================
+// IOPCHDA_DataCallback
+
+[
+  object,
+  uuid(1F1217B9-DEE0-11d2-A5E5-000086339399),
+  pointer_default(unique)
+]
+interface IOPCHDA_DataCallback : IUnknown
+{
+	HRESULT OnDataChange(
+		[in]                      DWORD		   dwTransactionID, 
+		[in]                      HRESULT	   hrStatus,
+		[in]                      DWORD		   dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_ITEM* pItemValues,
+		[in, size_is(dwNumItems)] HRESULT*     phrErrors
+	);
+
+	HRESULT OnReadComplete(
+		[in]                      DWORD		   dwTransactionID, 
+		[in]                      HRESULT	   hrStatus,
+		[in]                      DWORD		   dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_ITEM* pItemValues,
+		[in, size_is(dwNumItems)] HRESULT*     phrErrors
+	);
+
+	HRESULT OnReadModifiedComplete(
+		[in]                      DWORD                dwTransactionID, 
+		[in]                      HRESULT		       hrStatus,
+		[in]                      DWORD		           dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_MODIFIEDITEM* pItemValues,
+		[in, size_is(dwNumItems)] HRESULT*             phrErrors
+	);
+
+	HRESULT OnReadAttributeComplete(
+		[in]                      DWORD		        dwTransactionID, 
+		[in]                      HRESULT		    hrStatus,
+		[in]                      OPCHANDLE	        hClient, 
+		[in]                      DWORD	   	        dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_ATTRIBUTE* pAttributeValues,
+		[in, size_is(dwNumItems)] HRESULT*          phrErrors
+	);
+
+	HRESULT OnReadAnnotations(
+		[in]                      DWORD				 dwTransactionID, 
+		[in]                      HRESULT			 hrStatus,
+		[in]                      DWORD				 dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_ANNOTATION* pAnnotationValues,
+		[in, size_is(dwNumItems)] HRESULT*           phrErrors
+	);
+
+	HRESULT OnInsertAnnotations (
+		[in]                   DWORD	  dwTransactionID, 
+		[in]                   HRESULT	  hrStatus,
+		[in]                   DWORD	  dwCount, 
+		[in, size_is(dwCount)] OPCHANDLE* phClients, 
+		[in, size_is(dwCount)] HRESULT*   phrErrors
+	);
+
+	HRESULT OnPlayback (
+		[in]                      DWORD			dwTransactionID, 
+		[in]                      HRESULT		hrStatus,
+		[in]                      DWORD			dwNumItems, 
+		[in, size_is(dwNumItems)] OPCHDA_ITEM** ppItemValues,
+		[in, size_is(dwNumItems)] HRESULT*      phrErrors
+	);
+
+	HRESULT OnUpdateComplete (
+		[in]                   DWORD	  dwTransactionID, 
+		[in]                   HRESULT	  hrStatus,
+		[in]                   DWORD	  dwCount, 
+		[in, size_is(dwCount)] OPCHANDLE* phClients, 
+		[in, size_is(dwCount)] HRESULT*   phrErrors
+	);
+
+	HRESULT OnCancelComplete(
+		[in] DWORD dwCancelID 
+	);
+}
+
+//==============================================================================
+// Type Library
+
+[
+    uuid(1F1217BA-DEE0-11d2-A5E5-000086339399),
+    version(1.10),
+    helpstring("OPC Historial Data Access 1.10 Type Library")
+]
+library OPCHDA
+{
+    importlib("stdole32.tlb");
+    importlib("stdole2.tlb");
+
+	//==========================================================================
+    // Category IDs
+
+    interface CATID_OPCHDAServer10;
+
+	//==========================================================================
+    // Constants
+
+	module OPCHDA_Constants
+	{
+		// category description.
+		const LPCWSTR OPC_CATEGORY_DESCRIPTION_HDA10 = L"OPC History Data Access Servers Version 1.0";
+
+		// attribute ids.
+		const DWORD OPCHDA_DATA_TYPE		  =	0x01;
+		const DWORD OPCHDA_DESCRIPTION		  = 0x02;
+		const DWORD OPCHDA_ENG_UNITS		  = 0x03;
+		const DWORD OPCHDA_STEPPED		      = 0x04;
+		const DWORD OPCHDA_ARCHIVING	      =	0x05;
+		const DWORD OPCHDA_DERIVE_EQUATION    = 0x06;
+		const DWORD OPCHDA_NODE_NAME		  = 0x07;
+		const DWORD OPCHDA_PROCESS_NAME	      = 0x08;
+		const DWORD OPCHDA_SOURCE_NAME	      = 0x09;
+		const DWORD OPCHDA_SOURCE_TYPE	      = 0x0a;
+		const DWORD OPCHDA_NORMAL_MAXIMUM     = 0x0b;
+		const DWORD OPCHDA_NORMAL_MINIMUM	  = 0x0c;
+		const DWORD OPCHDA_ITEMID			  = 0x0d;
+		const DWORD OPCHDA_MAX_TIME_INT	 	  = 0x0e;
+		const DWORD OPCHDA_MIN_TIME_INT		  = 0x0f;
+		const DWORD OPCHDA_EXCEPTION_DEV	  = 0x10;
+		const DWORD OPCHDA_EXCEPTION_DEV_TYPE = 0x11;
+		const DWORD OPCHDA_HIGH_ENTRY_LIMIT	  = 0x12;
+		const DWORD OPCHDA_LOW_ENTRY_LIMIT	  = 0x13;
+
+		// attribute names.
+		const LPCWSTR OPCHDA_ATTRNAME_DATA_TYPE		     = L"Data Type";
+		const LPCWSTR OPCHDA_ATTRNAME_DESCRIPTION        = L"Description";
+		const LPCWSTR OPCHDA_ATTRNAME_ENG_UNITS		     = L"Eng Units";
+		const LPCWSTR OPCHDA_ATTRNAME_STEPPED		     = L"Stepped";
+		const LPCWSTR OPCHDA_ATTRNAME_ARCHIVING	         = L"Archiving";
+		const LPCWSTR OPCHDA_ATTRNAME_DERIVE_EQUATION    = L"Derive Equation";
+		const LPCWSTR OPCHDA_ATTRNAME_NODE_NAME		     = L"Node Name";
+		const LPCWSTR OPCHDA_ATTRNAME_PROCESS_NAME	     = L"Process Name";
+		const LPCWSTR OPCHDA_ATTRNAME_SOURCE_NAME	     = L"Source Name";
+		const LPCWSTR OPCHDA_ATTRNAME_SOURCE_TYPE	     = L"Source Type";
+		const LPCWSTR OPCHDA_ATTRNAME_NORMAL_MAXIMUM     = L"Normal Maximum";
+		const LPCWSTR OPCHDA_ATTRNAME_NORMAL_MINIMUM	 = L"Normal Minimum";
+		const LPCWSTR OPCHDA_ATTRNAME_ITEMID			 = L"ItemID";
+		const LPCWSTR OPCHDA_ATTRNAME_MAX_TIME_INT	 	 = L"Max Time Interval";
+		const LPCWSTR OPCHDA_ATTRNAME_MIN_TIME_INT		 = L"Min Time Interval";
+		const LPCWSTR OPCHDA_ATTRNAME_EXCEPTION_DEV	     = L"Exception Deviation";
+		const LPCWSTR OPCHDA_ATTRNAME_EXCEPTION_DEV_TYPE = L"Exception Dev Type";
+		const LPCWSTR OPCHDA_ATTRNAME_HIGH_ENTRY_LIMIT	 = L"High Entry Limit";
+		const LPCWSTR OPCHDA_ATTRNAME_LOW_ENTRY_LIMIT	 = L"Low Entry Limit";
+
+		// aggregate names.
+		const LPCWSTR OPCHDA_AGGRNAME_INTERPOLATIVE	    = L"Interpolative";
+		const LPCWSTR OPCHDA_AGGRNAME_TOTAL	            = L"Total";
+		const LPCWSTR OPCHDA_AGGRNAME_AVERAGE	        = L"Average";
+		const LPCWSTR OPCHDA_AGGRNAME_TIMEAVERAGE	    = L"Time Average";
+		const LPCWSTR OPCHDA_AGGRNAME_COUNT	            = L"Count";
+		const LPCWSTR OPCHDA_AGGRNAME_STDEV	            = L"Standard Deviation";
+		const LPCWSTR OPCHDA_AGGRNAME_MINIMUMACTUALTIME = L"Minimum Actual Time";
+		const LPCWSTR OPCHDA_AGGRNAME_MINIMUM	        = L"Minimum";
+		const LPCWSTR OPCHDA_AGGRNAME_MAXIMUMACTUALTIME	= L"Maximum Actual Time";
+		const LPCWSTR OPCHDA_AGGRNAME_MAXIMUM	        = L"Maximum";
+		const LPCWSTR OPCHDA_AGGRNAME_START	            = L"Start";
+		const LPCWSTR OPCHDA_AGGRNAME_END               = L"End";
+		const LPCWSTR OPCHDA_AGGRNAME_DELTA	            = L"Delta";
+		const LPCWSTR OPCHDA_AGGRNAME_REGSLOPE	        = L"Regression Line Slope";
+		const LPCWSTR OPCHDA_AGGRNAME_REGCONST	        = L"Regression Line Constant";
+		const LPCWSTR OPCHDA_AGGRNAME_REGDEV            = L"Regression Line Error";
+		const LPCWSTR OPCHDA_AGGRNAME_VARIANCE	        = L"Variance";
+		const LPCWSTR OPCHDA_AGGRNAME_RANGE	            = L"Range";
+		const LPCWSTR OPCHDA_AGGRNAME_DURATIONGOOD	    = L"Duration Good";
+		const LPCWSTR OPCHDA_AGGRNAME_DURATIONBAD	    = L"Duration Bad";
+		const LPCWSTR OPCHDA_AGGRNAME_PERCENTGOOD	    = L"Percent Good";
+		const LPCWSTR OPCHDA_AGGRNAME_PERCENTBAD	    = L"Percent Bad";
+		const LPCWSTR OPCHDA_AGGRNAME_WORSTQUALITY	    = L"Worst Quality";
+		const LPCWSTR OPCHDA_AGGRNAME_ANNOTATIONS	    = L"Annotations";
+
+		// OPCHDA_QUALITY -- these are the high-order 16 bits, OPC DA Quality occupies low-order 16 bits.
+		const DWORD OPCHDA_EXTRADATA		  = 0x00010000;
+		const DWORD OPCHDA_INTERPOLATED	      = 0x00020000;
+		const DWORD OPCHDA_RAW			      = 0x00040000;
+		const DWORD OPCHDA_CALCULATED	      = 0x00080000;
+		const DWORD OPCHDA_NOBOUND		      = 0x00100000;
+		const DWORD OPCHDA_NODATA			  = 0x00200000;
+		const DWORD OPCHDA_DATALOST		      = 0x00400000;
+		const DWORD OPCHDA_CONVERSION		  = 0x00800000;
+		const DWORD OPCHDA_PARTIAL            = 0x01000000;
+	}
+
+	//==========================================================================
+    // Synchronous Interfaces
+
+    interface IOPCHDA_Server;
+    interface IOPCHDA_Browser;
+    interface IOPCHDA_SyncRead;
+    interface IOPCHDA_SyncUpdate;
+    interface IOPCHDA_SyncAnnotations;
+    interface IOPCHDA_AsyncRead;
+    interface IOPCHDA_AsyncUpdate;
+    interface IOPCHDA_AsyncAnnotations;
+    interface IOPCHDA_Playback;
+    interface IOPCHDA_DataCallback;
+};
+

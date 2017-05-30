@@ -80,8 +80,7 @@ namespace NetCoreConsoleServer
 
             try
             {
-                Task t = ConsoleSampleServer();
-                t.Wait();
+                ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press any key to exit...");
             }
             catch (Exception ex)
@@ -124,7 +123,7 @@ namespace NetCoreConsoleServer
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
 
-            application.ApplicationName = "UA Sample Server";
+            application.ApplicationName = "UA Core Sample Server";
             application.ApplicationType = ApplicationType.Server;
             application.ConfigSectionName = "Opc.Ua.SampleServer";
 

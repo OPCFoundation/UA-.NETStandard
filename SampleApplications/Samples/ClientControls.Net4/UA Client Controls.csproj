@@ -93,14 +93,6 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Drawing" />
-    <Reference Include="System.IO.FileSystem, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.IO.FileSystem.4.0.1\lib\net46\System.IO.FileSystem.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.IO.FileSystem.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.IO.FileSystem.Primitives.4.0.1\lib\net46\System.IO.FileSystem.Primitives.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System.Runtime.Serialization">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
@@ -388,6 +380,18 @@
     <Compile Include="Common\Client\WriteRequestListViewCtrl.Designer.cs">
       <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
+    </Compile>
     <Compile Include="Common\SelectHostCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -673,12 +677,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="ClientHeaderBranding.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ClientHeaderBranding.Designer.cs">
-      <DependentUpon>ClientHeaderBranding.cs</DependentUpon>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Browse\BrowseTreeCtrl.resx">
@@ -840,6 +838,12 @@
     <EmbeddedResource Include="Common\Client\WriteRequestListViewCtrl.resx">
       <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListCtrl.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListDlg.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Common\SelectHostCtrl.resx">
       <DependentUpon>SelectHostCtrl.cs</DependentUpon>
@@ -1021,10 +1025,6 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="ClientHeaderBranding.resx">
-      <DependentUpon>ClientHeaderBranding.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Images\" />
@@ -1043,7 +1043,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,0 +1,381 @@
+//==============================================================================
+// TITLE: opcbc.idl
+//
+// CONTENTS:
+// 
+// Interface declarations for the OPC Batch specifications.
+//
+// (c) Copyright 1999-2003 The OPC Foundation
+// ALL RIGHTS RESERVED.
+//
+// DISCLAIMER:
+//  This code is provided by the OPC Foundation solely to assist in 
+//  understanding and use of the appropriate OPC Specification(s) and may be 
+//  used as set forth in the License Grant section of the OPC Specification.
+//  This code is provided as-is and without warranty or support of any sort
+//  and is subject to the Warranty and Liability Disclaimers which appear
+//  in the printed OPC Specification.
+//
+// MODIFICATION LOG:
+//
+// Date       By    Notes
+// ---------- ---   -----
+// 2000/11/02 OPC   Made revisions for version 2.0.
+// 2003/01/06 RSA   Fixed formatting to comply with coding guidelines.
+// 2004/09/01 RSA   Renamed modules in TYPELIB section to avoid name conflicts.
+//
+
+import "oaidl.idl";
+
+//==============================================================================
+// Category ID declarations (defined as interfaces to ensure they show up in the typelib).
+
+[uuid(A8080DA0-E23E-11D2-AFA7-00C04F539421)] interface CATID_OPCBatchServer10 : IUnknown {}
+[uuid(843DE67B-B0C9-11d4-A0B7-000102A980B1)] interface CATID_OPCBatchServer20 : IUnknown {}
+
+cpp_quote("#define CATID_OPCBatchServer10 IID_CATID_OPCBatchServer10")
+cpp_quote("#define CATID_OPCBatchServer20 IID_CATID_OPCBatchServer20")
+
+//==============================================================================
+// Structures, Typedefs and Enumerations.
+
+typedef struct tagOPCBATCHSUMMARY 
+{
+  [string] LPWSTR   szID;
+  [string] LPWSTR   szDescription;
+  [string] LPWSTR   szOPCItemID;
+  [string] LPWSTR   szMasterRecipeID;
+           FLOAT    fBatchSize;
+  [string] LPWSTR   szEU;
+  [string] LPWSTR   szExecutionState;
+  [string] LPWSTR   szExecutionMode;
+           FILETIME ftActualStartTime;
+           FILETIME ftActualEndTime;
+} 
+OPCBATCHSUMMARY;
+
+typedef struct tagOPCBATCHSUMMARYFILTER
+{
+  [string] LPWSTR   szID;
+  [string] LPWSTR   szDescription;
+  [string] LPWSTR   szOPCItemID;
+  [string] LPWSTR   szMasterRecipeID;
+           FLOAT    fMinBatchSize;
+           FLOAT    fMaxBatchSize;
+  [string] LPWSTR   szEU;
+  [string] LPWSTR   szExecutionState;
+  [string] LPWSTR   szExecutionMode;
+           FILETIME ftMinStartTime;
+           FILETIME ftMaxStartTime;
+           FILETIME ftMinEndTime;
+           FILETIME ftMaxEndTime;
+}
+OPCBATCHSUMMARYFILTER;
+
+//==============================================================================
+// IOPCBatchServer
+
+[
+	uuid("8BB4ED50-B314-11d3-B3EA-00C04F8ECEAA"),
+	pointer_default(unique)
+]
+interface IOPCBatchServer : IUnknown
+{
+	HRESULT GetDelimiter(
+		[out, string] LPWSTR* pszDelimiter
+	);
+
+	HRESULT CreateEnumerator(
+		[in]                REFIID     riid,
+		[out, iid_is(riid)] LPUNKNOWN* ppUnk
+	);
+};
+
+//==============================================================================
+// IOPCBatchServer2
+
+[
+	uuid("895A78CF-B0C5-11d4-A0B7-000102A980B1"),
+	pointer_default(unique)
+]
+interface IOPCBatchServer2 : IUnknown
+{
+	HRESULT CreateFilteredEnumerator(
+		[in]                REFIID                 riid,
+		[in, ptr]           OPCBATCHSUMMARYFILTER* pFilter,
+		[in, string]        LPCWSTR                szModel,
+		[out, iid_is(riid)] LPUNKNOWN*             ppUnk
+	);
+};
+
+//==============================================================================
+// IEnumOPCBatchSummary
+
+[
+	uuid("a8080da2-e23e-11d2-afa7-00c04f539421"),
+	pointer_default(unique)
+]
+interface IEnumOPCBatchSummary : IUnknown
+{
+	HRESULT Next(
+		[in]                           ULONG              celt,
+		[out, size_is(,*pceltFetched)] OPCBATCHSUMMARY** ppSummaryArray,
+		[out]                          ULONG*            pceltFetched
+	);
+
+	HRESULT Skip(
+		[in] ULONG celt
+	);
+
+	HRESULT Reset(
+		void
+	);
+
+	HRESULT Clone(
+		[out] IEnumOPCBatchSummary** ppEnumBatchSummary
+	);
+
+	HRESULT Count(
+		[out] ULONG* pcelt
+	);
+};
+
+//==============================================================================
+// IOPCEnumerationSets
+
+[
+	uuid("a8080da3-e23e-11d2-afa7-00c04f539421"),
+	pointer_default(unique)
+]
+interface IOPCEnumerationSets : IUnknown
+{
+	HRESULT QueryEnumerationSets(
+		[out]                               DWORD*   pdwCount,
+		[out, size_is(,*pdwCount)]          DWORD**  ppdwEnumSetId,
+		[out, string, size_is(,*pdwCount)]  LPWSTR** ppszEnumSetName
+	);
+
+	HRESULT QueryEnumeration(
+		[in]          DWORD   dwEnumSetId,
+		[in]          DWORD   dwEnumValue,
+		[out, string] LPWSTR* pszEnumName
+	);
+
+	HRESULT QueryEnumerationList(
+		[in]                                DWORD    dwEnumSetId,
+		[out]                               DWORD*   pdwCount,
+		[out, size_is(,*pdwCount)]          DWORD**  ppdwEnumValue,
+		[out, string, size_is(,*pdwCount)]  LPWSTR** ppszEnumName
+	);  
+}
+
+//==============================================================================
+// Type Library
+
+[
+	uuid("a8080da4-e23e-11d2-afa7-00c04f539421"),
+	version(2.00),
+	helpstring("OPC Batch Custom 2.00 Type Library")
+]
+library OPC_BATCH
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+    
+	//==========================================================================
+    // Category IDs
+
+    interface CATID_OPCBatchServer10;
+    interface CATID_OPCBatchServer20;
+
+    //==========================================================================
+    // Constants
+
+	module OPCBC_Constants
+	{
+		// category description strings.
+		const LPCWSTR OPC_CATEGORY_DESCRIPTION_BATCH10 = L"OPC Batch Server Version 1.0";
+		const LPCWSTR OPC_CATEGORY_DESCRIPTION_BATCH20 = L"OPC Batch Server Version 2.0";
+	}
+    
+	//==========================================================================
+    // Enumeration Sets
+
+	module OPCBC_EnumSets
+	{
+		// Custom Enumeration Set IDs start at 100.
+		// 
+		// Custom Enumeration Values for any of the defined Enumeration sets may be appended.  
+		// These custom enumeration values start at 100.
+		//
+		// The enumeration values and corresponding localized string representation 
+		// are returned via the IOPCEnumerationSets interface methods.
+
+		// OPC Batch Enumeration Sets
+		const DWORD OPCB_ENUM_PHYS                 = 0;
+		const DWORD OPCB_ENUM_PROC                 = 1;
+		const DWORD OPCB_ENUM_STATE                = 2;
+		const DWORD OPCB_ENUM_MODE                 = 3;
+		const DWORD OPCB_ENUM_PARAM                = 4;
+		const DWORD OPCB_ENUM_MR_PROC              = 5;
+		const DWORD OPCB_ENUM_RE_USE               = 6;
+
+		// OPC Batch Physical Model Level Enumeration
+		const DWORD OPCB_PHYS_ENTERPRISE           = 0;
+		const DWORD OPCB_PHYS_SITE                 = 1;
+		const DWORD OPCB_PHYS_AREA                 = 2;
+		const DWORD OPCB_PHYS_PROCESSCELL          = 3;
+		const DWORD OPCB_PHYS_UNIT                 = 4;
+		const DWORD OPCB_PHYS_EQUIPMENTMODULE      = 5;
+		const DWORD OPCB_PHYS_CONTROLMODULE        = 6;
+		const DWORD OPCB_PHYS_EPE                  = 7;
+
+		// OPC Batch Procedural Model Level Enumeration
+		const DWORD OPCB_PROC_PROCEDURE            = 0;
+		const DWORD OPCB_PROC_UNITPROCEDURE        = 1;
+		const DWORD OPCB_PROC_OPERATION            = 2;
+		const DWORD OPCB_PROC_PHASE                = 3;
+		const DWORD OPCB_PROC_PARAMETER_COLLECTION = 4;
+		const DWORD OPCB_PROC_PARAMETER            = 5;
+		const DWORD OPCB_PROC_RESULT_COLLECTION    = 6;
+		const DWORD OPCB_PROC_RESULT               = 7;
+		const DWORD OPCB_PROC_BATCH                = 8;
+		const DWORD OPCB_PROC_CAMPAIGN             = 9;
+
+		// OPC Batch IEC 61512-1State Index Enumeration
+		const DWORD OPCB_STATE_IDLE                = 0;
+		const DWORD OPCB_STATE_RUNNING             = 1;
+		const DWORD OPCB_STATE_COMPLETE            = 2;
+		const DWORD OPCB_STATE_PAUSING             = 3;
+		const DWORD OPCB_STATE_PAUSED              = 4;
+		const DWORD OPCB_STATE_HOLDING             = 5;
+		const DWORD OPCB_STATE_HELD                = 6;
+		const DWORD OPCB_STATE_RESTARTING          = 7;
+		const DWORD OPCB_STATE_STOPPING            = 8;
+		const DWORD OPCB_STATE_STOPPED             = 9;
+		const DWORD OPCB_STATE_ABORTING            = 10;
+		const DWORD OPCB_STATE_ABORTED             = 11;
+		const DWORD OPCB_STATE_UNKNOWN             = 12;
+
+		// OPC Batch IEC 61512-1Mode Index Enumeration
+		const DWORD OPCB_MODE_AUTOMATIC            = 0;
+		const DWORD OPCB_MODE_SEMIAUTOMATIC        = 1;
+		const DWORD OPCB_MODE_MANUAL               = 2;
+		const DWORD OPCB_MODE_UNKNOWN              = 3;
+
+		// OPC Batch Parameter Type Enumeration
+		const DWORD OPCB_PARAM_PROCESSINPUT        = 0;
+		const DWORD OPCB_PARAM_PROCESSPARAMETER    = 1;
+		const DWORD OPCB_PARAM_PROCESSOUTPUT       = 2;
+
+		// OPC Batch Master Recipe Procedure Enumeration
+		const DWORD OPCB_MR_PROC_PROCEDURE         = 0;
+		const DWORD OPCB_MR_PROC_UNITPROCEDURE     = 1;
+		const DWORD OPCB_MR_PROC_OPERATION         = 2;
+		const DWORD OPCB_MR_PROC_PHASE             = 3;
+		const DWORD OPCB_MR_PARAMETER_COLLECTION   = 4;
+		const DWORD OPCB_MR_PARAMETER              = 5;
+		const DWORD OPCB_MR_RESULT_COLLECTION      = 6;
+		const DWORD OPCB_MR_RESULT                 = 7;
+		      
+		// OPC Batch Recipe Element Use Enumeration
+		const DWORD OPCB_RE_USE_INVALID            = 0;
+		const DWORD OPCB_RE_USE_LINKED             = 1;
+		const DWORD OPCB_RE_USE_EMBEDDED           = 2;
+		const DWORD OPCB_RE_USE_COPIED             = 3;
+	}
+
+	//==========================================================================
+    // Properties
+
+	module OPCBC_Properties
+	{
+		const DWORD OPCB_PROPERTY_ID                                = 400;
+		const DWORD OPCB_PROPERTY_VALUE                             = 401;
+		const DWORD OPCB_PROPERTY_RIGHTS                            = 402;
+		const DWORD OPCB_PROPERTY_EU                                = 403;
+		const DWORD OPCB_PROPERTY_DESC                              = 404;
+		const DWORD OPCB_PROPERTY_HIGH_VALUE_LIMIT                  = 405;
+		const DWORD OPCB_PROPERTY_LOW_VALUE_LIMIT                   = 406;
+		const DWORD OPCB_PROPERTY_TIME_ZONE                         = 407;
+		const DWORD OPCB_PROPERTY_CONDITION_STATUS                  = 408;
+		const DWORD OPCB_PROPERTY_PHYSICAL_MODEL_LEVEL              = 409;
+		const DWORD OPCB_PROPERTY_BATCH_MODEL_LEVEL                 = 410;
+		const DWORD OPCB_PROPERTY_RELATED_BATCH_IDS                 = 411;
+		const DWORD OPCB_PROPERTY_VERSION                           = 412;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_CLASS                   = 413;
+		const DWORD OPCB_PROPERTY_LOCATION                          = 414;
+		const DWORD OPCB_PROPERTY_MAXIMUM_USER_COUNT                = 415;
+		const DWORD OPCB_PROPERTY_CURRENT_USER_COUNT                = 416;
+		const DWORD OPCB_PROPERTY_CURRENT_USER_LIST                 = 417;
+		const DWORD OPCB_PROPERTY_ALLOCATED_EQUIPMENT_LIST          = 418;
+		const DWORD OPCB_PROPERTY_REQUESTER_LIST                    = 419;
+		const DWORD OPCB_PROPERTY_REQUESTED_LIST                    = 420;
+		const DWORD OPCB_PROPERTY_SHARED_BY_LIST                    = 421;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_STATE                   = 422;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_MODE                    = 423;
+		const DWORD OPCB_PROPERTY_UPSTREAM_EQUIPMENT_LIST           = 424;
+		const DWORD OPCB_PROPERTY_DOWNSTREAM_EQUIPMENT_LIST         = 425;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_PROCEDURAL_ELEMENT_LIST = 426;
+		const DWORD OPCB_PROPERTY_CURRENT_PROCEDURE_LIST            = 427;
+		const DWORD OPCB_PROPERTY_TRAIN_LIST                        = 428;
+		const DWORD OPCB_PROPERTY_DEVICE_DATA_SOURCE                = 429;
+		const DWORD OPCB_PROPERTY_DEVICE_DATA_SERVER                = 430;
+		const DWORD OPCB_PROPERTY_CAMPAIGN_ID                       = 431;
+		const DWORD OPCB_PROPERTY_LOT_ID_LIST                       = 432;
+		const DWORD OPCB_PROPERTY_CONTROL_RECIPE_ID                 = 433;
+		const DWORD OPCB_PROPERTY_CONTROL_RECIPE_VERSION            = 434;
+		const DWORD OPCB_PROPERTY_MASTER_RECIPE_ID                  = 435;
+		const DWORD OPCB_PROPERTY_MASTER_RECIPE_VERSION             = 436;
+		const DWORD OPCB_PROPERTY_PRODUCT_ID                        = 437;
+		const DWORD OPCB_PROPERTY_GRADE                             = 438;
+		const DWORD OPCB_PROPERTY_BATCH_SIZE                        = 439;
+		const DWORD OPCB_PROPERTY_PRIORITY                          = 440;
+		const DWORD OPCB_PROPERTY_EXECUTION_STATE                   = 441;
+		const DWORD OPCB_PROPERTY_IEC61512_1_STATE                  = 442;
+		const DWORD OPCB_PROPERTY_EXECUTION_MODE                    = 443;
+		const DWORD OPCB_PROPERTY_IEC61512_1_MODE                   = 444;
+		const DWORD OPCB_PROPERTY_SCHEDULED_START_TIME              = 445;
+		const DWORD OPCB_PROPERTY_ACTUAL_START_TIME                 = 446;
+		const DWORD OPCB_PROPERTY_ESTIMATED_END_TIME                = 447;
+		const DWORD OPCB_PROPERTY_ACTUAL_END_TIME                   = 448;
+		const DWORD OPCB_PROPERTY_PHYSICAL_MODEL_REFERENCE          = 449;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_PROCEDURAL_ELEMENT      = 450;
+		const DWORD OPCB_PROPERTY_PARAMETER_COUNT                   = 451;
+		const DWORD OPCB_PROPERTY_PARAMETER_TYPE                    = 452;
+		const DWORD OPCB_PROPERTY_VALID_VALUES                      = 453;
+		const DWORD OPCB_PROPERTY_SCALING_RULE                      = 454;
+		const DWORD OPCB_PROPERTY_EXPRESSION_RULE                   = 455;
+		const DWORD OPCB_PROPERTY_RESULT_COUNT                      = 456;
+		const DWORD OPCB_PROPERTY_ENUMERATION_SET_ID                = 457;
+		const DWORD OPCB_PROPERTY_MASTER_RECIPE_MODEL_LEVEL		    = 458;
+		const DWORD OPCB_PROPERTY_PROCEDURE_LOGIC				    = 459;
+		const DWORD OPCB_PROPERTY_PROCEDURE_LOGIC_SCHEMA		    = 460;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_CANDIDATE_LIST		    = 461;
+		const DWORD OPCB_PROPERTY_EQUIPMENT_CLASS_CANDIDATE_LIST    = 462;
+		const DWORD OPCB_PROPERTY_VERSION_DATE					    = 463;
+		const DWORD OPCB_PROPERTY_APPROVAL_DATE					    = 464;
+		const DWORD OPCB_PROPERTY_EFFECTIVE_DATE					= 465;
+		const DWORD OPCB_PROPERTY_EXPIRATION_DATE					= 466;
+		const DWORD OPCB_PROPERTY_AUTHOR							= 467;
+		const DWORD OPCB_PROPERTY_APPROVED_BY						= 468;
+		const DWORD OPCB_PROPERTY_USAGE_CONSTRAINT					= 469;
+		const DWORD OPCB_PROPERTY_RECIPE_STATUS					    = 470;
+		const DWORD OPCB_PROPERTY_RE_USE							= 471;
+		const DWORD OPCB_PROPERTY_DERIVED_RE						= 472;
+		const DWORD OPCB_PROPERTY_DERIVED_VERSION					= 473;
+		const DWORD OPCB_PROPERTY_SCALABLE							= 474;
+		const DWORD OPCB_PROPERTY_EXPECTED_DURATION				    = 475;
+		const DWORD OPCB_PROPERTY_ACTUAL_DURATION				  	= 476;
+		const DWORD OPCB_PROPERTY_TRAIN_LIST2						= 477;
+		const DWORD OPCB_PROPERTY_TRAIN_LIST2_SCHEMA				= 478;
+	}
+	
+	//==========================================================================
+    // Synchronous Interfaces
+
+	interface IOPCBatchServer;
+	interface IOPCBatchServer2;
+	interface IEnumOPCBatchSummary;
+	interface IOPCEnumerationSets;
+};

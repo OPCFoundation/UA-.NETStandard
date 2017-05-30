@@ -108,7 +108,6 @@
     <Content Include="Quickstarts.ReferenceClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="CreateCert.cmd" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -135,6 +134,10 @@
     <ProjectReference Include="..\..\..\Samples\ClientControls.Net4\UA Client Controls.csproj">
       <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
       <Name>UA Client Controls</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Samples\Controls.Net4\UA Sample Controls.csproj">
+      <Project>{92ae819b-4938-4502-ac32-67063f9893cd}</Project>
+      <Name>UA Sample Controls</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

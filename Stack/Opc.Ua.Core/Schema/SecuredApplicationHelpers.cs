@@ -375,6 +375,7 @@ namespace Opc.Ua.Security
 
         /// <summary>
         /// Creates a new policy object.
+        /// Always uses sign and encrypt for all security policies except none
         /// </summary>
         private static ServerSecurityPolicy CreatePolicy(string profileUri)
         {
@@ -388,30 +389,26 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.None:
                     {
                         policy.SecurityMode = MessageSecurityMode.None;
-                        policy.SecurityLevel = 0;
                         break;
                     }
 
                     case SecurityPolicies.Basic128Rsa15:
                     {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        policy.SecurityLevel = 1;
                         break;
                     }
 
                     case SecurityPolicies.Basic256:
                     {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        policy.SecurityLevel = 2;
                         break;
                     }
 
                     case SecurityPolicies.Basic256Sha256:
-                        {
-                            policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                            policy.SecurityLevel = 3;
-                            break;
-                        }
+                    {
+                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                        break;
+                    }
                 }
             }
 
@@ -461,18 +458,8 @@ namespace Opc.Ua.Security
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
             return output.OpenStore();
         }
-
-        /// <summary>
-        /// Gets the private key file path.
-        /// </summary>
-        public async Task<string> GetPrivateKeyFilePath()
-        {
-            Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.GetPrivateKeyFilePath();
-        }
     }
-
-
+    
     /// <summary>
     /// An identifier for a certificate store.
     /// </summary>

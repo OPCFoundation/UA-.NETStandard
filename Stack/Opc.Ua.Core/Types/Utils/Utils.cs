@@ -26,6 +26,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -70,13 +71,24 @@ namespace Opc.Ua
         /// The default certificate store's type.
         /// </summary>
         public const string DefaultStoreType = CertificateStoreType.Directory;
+
+        /// <summary>
+        /// The path to the default certificate store.
+        /// </summary>
+        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/CertificateStores/MachineDefault";
+
+        /// <summary>
+        /// The default LocalFolder.
+        /// </summary>
+        public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+
         #endregion
-                
+
         #region Trace Support
-        #if DEBUG
+#if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
-        #else
+#else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
         #endif
@@ -330,7 +342,16 @@ namespace Opc.Ua
         {
             Trace((int)TraceMasks.Information, format, args);
         }
-        
+
+        /// <summary>
+        /// Writes an informational message to the trace log.
+        /// </summary>
+        [Conditional("DEBUG")]
+        public static void TraceDebug(string format, params object[] args)
+        {
+            Trace((int)TraceMasks.OperationDetail, format, args);
+        }
+
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
@@ -419,14 +440,37 @@ namespace Opc.Ua
 
             TraceWriteLine(message.ToString(), null);
         }
-        #endregion
+#endregion
 
-        #region File Access
+#region File Access
+        /// <summary>
+        /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
+        /// </summary>
+        public static bool IsPathRooted(string path)
+        {
+            // allow for local file locations
+            return Path.IsPathRooted(path) || path[0] == '.';
+        }
+
+        /// <summary>
+        /// Maps a special folder to environment variable with folder path.
+        /// </summary>
+        private static string ReplaceSpecialFolderWithEnvVar(string input)
+        {
+            switch (input)
+            {
+                case "CommonApplicationData": return "ProgramData";
+            }
+
+            return input;
+        }
+
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
+
             // nothing to do for nulls.
             if (String.IsNullOrEmpty(input))
             {
@@ -434,7 +478,7 @@ namespace Opc.Ua
             }
 
             // check for absolute path.
-            if (Path.IsPathRooted(input))
+            if (Utils.IsPathRooted(input))
             {
                 return input;
             }
@@ -462,6 +506,8 @@ namespace Opc.Ua
                 path = input.Substring(index+1);
             }
 
+            folder = ReplaceSpecialFolderWithEnvVar(folder);
+
             StringBuilder buffer = new StringBuilder();
 
             string value = Environment.GetEnvironmentVariable(folder);
@@ -469,7 +515,14 @@ namespace Opc.Ua
             {
                 buffer.Append(value);
             }
-                       
+            else
+            {
+                if (folder == "LocalFolder")
+                {
+                    buffer.Append(DefaultLocalFolder);
+                }
+            }
+
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -533,7 +586,7 @@ namespace Opc.Ua
                 FileInfo file = new FileInfo(filePath);
 
                 // check for absolute path.
-                bool isAbsolute = Path.IsPathRooted(filePath);
+                bool isAbsolute = Utils.IsPathRooted(filePath);
                 
                 if (isAbsolute)
                 {
@@ -647,7 +700,7 @@ namespace Opc.Ua
                 DirectoryInfo directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
-                bool isAbsolute = Path.IsPathRooted(dirPath);
+                bool isAbsolute = Utils.IsPathRooted(dirPath);
                 
                 if (isAbsolute)
                 {
@@ -862,7 +915,42 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        
+
+        /// <summary>
+        /// Replaces the cert subject name DC=localhost with the current host name.
+        /// </summary>
+        public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
+        {
+            // ignore nulls.
+            if (String.IsNullOrEmpty(subjectName))
+            {
+                return subjectName;
+            }
+
+            // IPv6 address needs a surrounding [] 
+            if (!String.IsNullOrEmpty(hostname) && hostname.Contains(':'))
+            {
+                hostname = "[" + hostname + "]";
+            }
+
+            // check if the string DC=localhost is specified.
+            int index = subjectName.IndexOf("DC=localhost", StringComparison.OrdinalIgnoreCase);
+
+            if (index == -1)
+            {
+                return subjectName;
+            }
+
+            // construct new uri.
+            StringBuilder buffer = new StringBuilder();
+
+            buffer.Append(subjectName.Substring(0, index + 3));
+            buffer.Append((hostname == null) ? GetHostName() : hostname);
+            buffer.Append(subjectName.Substring(index + "DC=localhost".Length));
+
+            return buffer.ToString();
+        }
+
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
@@ -2349,28 +2437,25 @@ namespace Opc.Ua
             if (a == null || b == null) return false;
             if (a.Length != b.Length) return false;
 
+            byte result = 0;
             for (int i = 0; i < a.Length; i++)
-                if (a[i] != b[i])
-                    return false;
+                result |= (byte) (a[i] ^ b[i]);
 
-            return true;
+            return result == 0;
         }
 
         public class Nonce
         {
-            private static int m_calls = 0;
+            static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
-            public static byte[] CreateNonce(string secret, uint length)
+            public static byte[] CreateNonce(uint length)
             {
-                // This function should rather use a crypthographic random number generator
-                // once available in .Net Standard library
-                string label = DateTime.UtcNow.Ticks.ToString();
-                // ensure every Nonce is different, even when the ticks didn't change since the last call
-                m_calls++;
-                return PSHA1(new UTF8Encoding().GetBytes(secret), label, BitConverter.GetBytes(m_calls), 0, (int)length);
+                byte[] randomBytes = new byte[length];
+                m_rng.GetBytes(randomBytes);
+                return randomBytes;
             }
         }
 
@@ -2845,6 +2930,12 @@ namespace Opc.Ua
         /// </summary>
         public static bool CompareDistinguishedName(X509Certificate2 certificate, List<string> parsedName)
         {
+            // can't compare if the number of fields is 0.
+            if (parsedName.Count == 0)
+            {
+                return false;
+            }
+            
             // parse the names.
             List<string> certificateName = ParseDistinguishedName(certificate.Subject);
 
@@ -2854,7 +2945,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            // compare each.
+            // sort to ensure similar entries are compared
+            parsedName.Sort(StringComparer.OrdinalIgnoreCase);
+            certificateName.Sort(StringComparer.OrdinalIgnoreCase);
+
+            // compare each entry
             for (int ii = 0; ii < parsedName.Count; ii++)
             {
                 if (String.Compare(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase) != 0)

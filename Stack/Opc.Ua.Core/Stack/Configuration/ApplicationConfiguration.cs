@@ -505,7 +505,7 @@ namespace Opc.Ua
             {
                 filePath = m_clientConfiguration.EndpointCacheFilePath;
                 
-                if (!Path.IsPathRooted(filePath))
+                if (!Utils.IsPathRooted(filePath))
                 {
                     FileInfo sourceFile = new FileInfo(this.SourceFilePath);
                     filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);

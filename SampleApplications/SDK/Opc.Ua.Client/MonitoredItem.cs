@@ -491,7 +491,7 @@ namespace Opc.Ua.Client
         }
         
         /// <summary>
-        /// The last value or event recieved from the server.
+        /// The last value or event received from the server.
         /// </summary>
         public IEncodeable LastValue
         {

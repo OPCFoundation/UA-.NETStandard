@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.Storage;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Navigation;
 
@@ -37,6 +38,10 @@ namespace Opc.Ua.SampleClient
             application.ApplicationName = "UA Sample Client";
             application.ApplicationType = ApplicationType.ClientAndServer;
             application.ConfigSectionName = "Opc.Ua.SampleClient";
+
+            // helper to let Opc.Ua Utils find the localFolder in the environment
+            StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+            Utils.DefaultLocalFolder = localFolder.Path;
 
             // set empty page for MessageDlg
             Window.Current.Content = new ClientPage();
