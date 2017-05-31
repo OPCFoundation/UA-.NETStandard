@@ -1824,6 +1824,11 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
+                    if (errors[ii].StatusCode != StatusCodes.Good)
+                    {
+                        continue;
+                    }
+
                     if (propertyState != null)
                     {
                         object propertyValue;
