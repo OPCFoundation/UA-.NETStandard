@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// <param name="text">The plain text stored within this object</param>
         public LocalizedText(string text)
         {
-            m_locale = null;
+            m_locale = CultureInfo.InvariantCulture.TwoLetterISOLanguageName;
             m_text   = text;
         }
 
