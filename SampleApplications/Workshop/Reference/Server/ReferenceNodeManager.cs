@@ -256,10 +256,10 @@ namespace Quickstarts.ReferenceServer
                     BaseDataVariableState floatArrayVar = CreateVariable(arraysFolder, staticArrays + "Float", "Float", DataTypeIds.Float, ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
                     float[] floatArrayVal = floatArrayVar.Value as float[];
-                    floatArrayVal[0] %= 0xf10E+4;
-                    floatArrayVal[1] %= 0xf10E+4;
-                    floatArrayVal[2] %= 0xf10E+4;
-                    floatArrayVal[3] %= 0xf10E+4;
+                    floatArrayVal[0] %= 0xf10E + 4;
+                    floatArrayVal[1] %= 0xf10E + 4;
+                    floatArrayVal[2] %= 0xf10E + 4;
+                    floatArrayVal[3] %= 0xf10E + 4;
                     variables.Add(floatArrayVar);
 
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "Guid", "Guid", DataTypeIds.Guid, ValueRanks.OneDimension));
@@ -537,7 +537,7 @@ namespace Quickstarts.ReferenceServer
                                 item.InstrumentRange = null;
                             }
                             else if (builtInType == BuiltInType.Float)
-                            { 
+                            {
                                 item.EURange.Value.High = 0;
                                 item.EURange.Value.Low = 0;
                             }
@@ -636,23 +636,57 @@ namespace Quickstarts.ReferenceServer
                     // create variable nodes with specific references
                     BaseDataVariableState hasForwardReference = CreateMeshVariable(referencesFolder, referencesPrefix + "HasForwardReference", "HasForwardReference");
                     hasForwardReference.AddReference(ReferenceTypes.HasCause, false, variables[0].NodeId);
+                    variables.Add(hasForwardReference);
+
                     BaseDataVariableState hasInverseReference = CreateMeshVariable(referencesFolder, referencesPrefix + "HasInverseReference", "HasInverseReference");
                     hasInverseReference.AddReference(ReferenceTypes.HasCause, true, variables[0].NodeId);
-                    BaseDataVariableState has3ForwardReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "Has3ForwardReferences", "Has3ForwardReferences");
-                    has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[0].NodeId);
-                    has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[1].NodeId);
-                    has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[2].NodeId);
+                    variables.Add(hasInverseReference);
+
+                    BaseDataVariableState has3InverseReference = null;
+                    for (int i = 1; i <= 5; i++)
+                    {
+                        string referenceString = "Has3ForwardReferences";
+                        if (i > 1)
+                        {
+                            referenceString += i.ToString();
+                        }
+                        BaseDataVariableState has3ForwardReferences = CreateMeshVariable(referencesFolder, referencesPrefix + referenceString, referenceString);
+                        has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[0].NodeId);
+                        has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[1].NodeId);
+                        has3ForwardReferences.AddReference(ReferenceTypes.HasCause, false, variables[2].NodeId);
+                        if (i == 1)
+                        {
+                            has3InverseReference = has3ForwardReferences;
+                        }
+                        variables.Add(has3ForwardReferences);
+                    }
+
                     BaseDataVariableState has3InverseReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "Has3InverseReferences", "Has3InverseReferences");
                     has3InverseReferences.AddReference(ReferenceTypes.HasEffect, true, variables[0].NodeId);
                     has3InverseReferences.AddReference(ReferenceTypes.HasEffect, true, variables[1].NodeId);
                     has3InverseReferences.AddReference(ReferenceTypes.HasEffect, true, variables[2].NodeId);
-                    BaseDataVariableState hasForwardAndInverseReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "HasForwardAndInverseReference", "HasForwardAndInverseReference", hasForwardReference, hasInverseReference, has3ForwardReferences, has3InverseReferences, variables[0]);
-
-                    variables.Add(hasForwardReference);
-                    variables.Add(hasInverseReference);
-                    variables.Add(has3ForwardReferences);
                     variables.Add(has3InverseReferences);
+
+                    BaseDataVariableState hasForwardAndInverseReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "HasForwardAndInverseReference", "HasForwardAndInverseReference", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
+
+                    BaseDataVariableState hasReferencesWithDifferentParentTypes = CreateMeshVariable(referencesFolder, referencesPrefix + "HasReferencesWithDifferentParentTypes", "HasReferencesWithDifferentParentTypes", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
+                    {
+                        int i = 0;
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
+                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
+                    }
+                    variables.Add(hasReferencesWithDifferentParentTypes);
                     #endregion
 
                     #region AccessRights
@@ -1923,6 +1957,8 @@ namespace Quickstarts.ReferenceServer
             {
                 return StatusCodes.BadOutOfRange;
             }
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.Children);
 
             return ServiceResult.Good;
         }
