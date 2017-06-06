@@ -135,6 +135,7 @@ namespace Opc.Ua.Server
                     if (samplingDiagnosticsArrayNode != null)
                     {
                         serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
+                        samplingDiagnosticsArrayNode.Delete(SystemContext);
                     }
                 }
                 

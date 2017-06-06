@@ -578,6 +578,9 @@ namespace Opc.Ua.Server
                 serverObject.ServerArray.OnSimpleReadValue = OnReadServerArray;
                 serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
+                // dynamic change of enabledFlag is disabled to pass CTT
+                serverObject.ServerDiagnostics.EnabledFlag.AccessLevel = AccessLevels.CurrentRead;
+                serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels.CurrentRead;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
@@ -609,18 +612,18 @@ namespace Opc.Ua.Server
                 // initialize diagnostics.
                 m_serverDiagnostics = new ServerDiagnosticsSummaryDataType();
                 
-    		    m_serverDiagnostics.ServerViewCount = 0;
-    		    m_serverDiagnostics.CurrentSessionCount = 0;
-    		    m_serverDiagnostics.CumulatedSessionCount = 0;
-    		    m_serverDiagnostics.SecurityRejectedSessionCount = 0;
-    		    m_serverDiagnostics.RejectedSessionCount = 0;
-    		    m_serverDiagnostics.SessionTimeoutCount = 0;
-    		    m_serverDiagnostics.SessionAbortCount = 0;
-    		    m_serverDiagnostics.PublishingIntervalCount = 0;
-    		    m_serverDiagnostics.CurrentSubscriptionCount = 0;
-    		    m_serverDiagnostics.CumulatedSubscriptionCount = 0;
-    		    m_serverDiagnostics.SecurityRejectedRequestsCount = 0;
-    		    m_serverDiagnostics.RejectedRequestsCount = 0;
+                m_serverDiagnostics.ServerViewCount = 0;
+                m_serverDiagnostics.CurrentSessionCount = 0;
+                m_serverDiagnostics.CumulatedSessionCount = 0;
+                m_serverDiagnostics.SecurityRejectedSessionCount = 0;
+                m_serverDiagnostics.RejectedSessionCount = 0;
+                m_serverDiagnostics.SessionTimeoutCount = 0;
+                m_serverDiagnostics.SessionAbortCount = 0;
+                m_serverDiagnostics.PublishingIntervalCount = 0;
+                m_serverDiagnostics.CurrentSubscriptionCount = 0;
+                m_serverDiagnostics.CumulatedSubscriptionCount = 0;
+                m_serverDiagnostics.SecurityRejectedRequestsCount = 0;
+                m_serverDiagnostics.RejectedRequestsCount = 0;
                             
                 m_diagnosticsNodeManager.CreateServerDiagnostics(
                     m_defaultSystemContext,
