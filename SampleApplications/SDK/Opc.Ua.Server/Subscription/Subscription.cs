@@ -42,15 +42,15 @@ namespace Opc.Ua.Server
     /// </summary>
     public interface ISubscription
     {
-		/// <summary>
-		/// The session that owns the monitored item.
-		/// </summary>
-		Session Session { get; }
+        /// <summary>
+        /// The session that owns the monitored item.
+        /// </summary>
+        Session Session { get; }
 
-		/// <summary>
-		/// The identifier for the item that is unique within the server.
-		/// </summary>
-		uint Id { get; } 
+        /// <summary>
+        /// The identifier for the item that is unique within the server.
+        /// </summary>
+        uint Id { get; } 
 
         /// <summary>
         /// Called when a monitored item is ready to publish.
@@ -63,10 +63,10 @@ namespace Opc.Ua.Server
         void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
     }
 
-	/// <summary>
-	/// Manages a subscription created by a client.
-	/// </summary>
-	public class Subscription : ISubscription, IDisposable
+    /// <summary>
+    /// Manages a subscription created by a client.
+    /// </summary>
+    public class Subscription : ISubscription, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -76,12 +76,12 @@ namespace Opc.Ua.Server
             IServerInternal  server,
             Session          session,
             uint             subscriptionId,
-			double           publishingInterval,
+            double           publishingInterval,
             uint             maxLifetimeCount,
-			uint             maxKeepAliveCount,
+            uint             maxKeepAliveCount,
             uint             maxNotificationsPerPublish,
             byte             priority,
-			bool             publishingEnabled,
+            bool             publishingEnabled,
             uint             maxMessageCount)
         {       
             if (server == null)  throw new ArgumentNullException("server");
@@ -184,25 +184,25 @@ namespace Opc.Ua.Server
         #endregion
 
         #region ISubscription Members
-		/// <summary>
-		/// The session that owns the monitored item.
-		/// </summary>
-		public Session Session 
+        /// <summary>
+        /// The session that owns the monitored item.
+        /// </summary>
+        public Session Session 
         { 
             get { return m_session; }
         }
 
         /// <summary>
-		/// The unique identifier assigned to the subscription.
-		/// </summary>
+        /// The unique identifier assigned to the subscription.
+        /// </summary>
         public uint Id
         {
             get { return m_id; }
         }
         
         /// <summary>
-		/// Queues an item that is ready to publish.
-		/// </summary>
+        /// Queues an item that is ready to publish.
+        /// </summary>
         public void ItemReadyToPublish(IMonitoredItem monitoredItem)
         {
             /*
@@ -285,10 +285,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// The publishing rate for the subscription.
-		/// </summary>
-		public double PublishingInterval
+        /// <summary>
+        /// The publishing rate for the subscription.
+        /// </summary>
+        public double PublishingInterval
         {
             get
             {
@@ -299,10 +299,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// The number of monitored items.
-		/// </summary>
-		public int MonitoredItemCount
+        /// <summary>
+        /// The number of monitored items.
+        /// </summary>
+        public int MonitoredItemCount
         {
             get
             {
@@ -313,10 +313,10 @@ namespace Opc.Ua.Server
             }
         }    
         
-		/// <summary>
-		/// The priority assigned to the subscription.
-		/// </summary>
-		public byte Priority
+        /// <summary>
+        /// The priority assigned to the subscription.
+        /// </summary>
+        public byte Priority
         {
             get
             {
@@ -324,10 +324,10 @@ namespace Opc.Ua.Server
             }
         }        
 
-		/// <summary>
-		/// Deletes the subscription.
-		/// </summary>
-		public void Delete(OperationContext context)
+        /// <summary>
+        /// Deletes the subscription.
+        /// </summary>
+        public void Delete(OperationContext context)
         {
             // delete the diagnostics.
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
@@ -365,10 +365,10 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Checks if the subscription is ready to publish.
-		/// </summary>
-		public PublishingState PublishTimerExpired()
+        /// <summary>
+        /// Checks if the subscription is ready to publish.
+        /// </summary>
+        public PublishingState PublishTimerExpired()
         {
             lock (m_lock)
             {
@@ -509,9 +509,9 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Tells the subscription that the owning session is being closed.
-		/// </summary>
+        /// <summary>
+        /// Tells the subscription that the owning session is being closed.
+        /// </summary>
         public void SessionClosed()
         {
             lock (m_lock)
@@ -552,8 +552,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-		/// Removes a message from the message queue.
-		/// </summary>
+        /// Removes a message from the message queue.
+        /// </summary>
         public ServiceResult Acknowledge(OperationContext context, uint sequenceNumber)
         {
             lock (m_lock)
@@ -1005,9 +1005,9 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Updates the publishing parameters for the subscription.
-		/// </summary>
+        /// <summary>
+        /// Updates the publishing parameters for the subscription.
+        /// </summary>
         public void Modify(
             OperationContext context,
             double           publishingInterval,
@@ -1059,13 +1059,13 @@ namespace Opc.Ua.Server
                 // TraceState("MODIFIED");
             }
         }
-        		
-		/// <summary>
-		/// Enables/disables publishing for the subscription.
-		/// </summary>
-		public void SetPublishingMode(
+                
+        /// <summary>
+        /// Enables/disables publishing for the subscription.
+        /// </summary>
+        public void SetPublishingMode(
             OperationContext context,
-			bool             publishingEnabled)
+            bool             publishingEnabled)
         {
             lock (m_lock)
             {
@@ -1273,10 +1273,10 @@ namespace Opc.Ua.Server
             }
         }
         
-		/// <summary>
-		/// Adds monitored items to a subscription.
-		/// </summary>
-		public void CreateMonitoredItems(
+        /// <summary>
+        /// Adds monitored items to a subscription.
+        /// </summary>
+        public void CreateMonitoredItems(
             OperationContext                        context,
             TimestampsToReturn                      timestampsToReturn,
             MonitoredItemCreateRequestCollection    itemsToCreate, 
@@ -1390,13 +1390,6 @@ namespace Opc.Ua.Server
                     diagnosticInfos.Clear();
                 }
 
-                // update diagnostics.
-                lock (DiagnosticsWriteLock)
-                {
-                    m_diagnostics.MonitoredItemCount = 0;
-                    m_diagnostics.DisabledMonitoredItemCount = 0;
-                }
-                
                 // TraceState("ITEMS CREATED");
             }
         }
@@ -1408,9 +1401,17 @@ namespace Opc.Ua.Server
             double samplingInterval,
             MonitoringMode monitoringMode)
         {
-            // TBD
+            // update diagnostics
+            lock (DiagnosticsWriteLock)
+            {
+                if (monitoringMode == MonitoringMode.Disabled)
+                {
+                    m_diagnostics.DisabledMonitoredItemCount++;
+                }
+                m_diagnostics.MonitoredItemCount++;
+            }
         }
-        
+
         /// <summary>
         /// Adds an item to the sampling interval.
         /// </summary>
@@ -1429,7 +1430,15 @@ namespace Opc.Ua.Server
             double samplingInterval,
             MonitoringMode monitoringMode)
         {
-            // TBD
+            // update diagnostics
+            lock (DiagnosticsWriteLock)
+            {
+                if (monitoringMode == MonitoringMode.Disabled)
+                {
+                    m_diagnostics.DisabledMonitoredItemCount--;
+                }
+                m_diagnostics.MonitoredItemCount--;
+            }
         }
 
         /// <summary>
@@ -1440,17 +1449,31 @@ namespace Opc.Ua.Server
             MonitoringMode oldMode,
             MonitoringMode newMode)
         {
-            // TBD
+            if (newMode != oldMode)
+            {
+                // update diagnostics
+                lock (DiagnosticsWriteLock)
+                {
+                    if (newMode == MonitoringMode.Disabled)
+                    {
+                        m_diagnostics.DisabledMonitoredItemCount++;
+                    }
+                    else
+                    {
+                        m_diagnostics.DisabledMonitoredItemCount--;
+                    }
+                }
+            }
         }
 
-		/// <summary>
-		/// Modifies monitored items in a subscription.
-		/// </summary>
-		public void ModifyMonitoredItems(
-			OperationContext                        context,
-			TimestampsToReturn                      timestampsToReturn,
-			MonitoredItemModifyRequestCollection    itemsToModify,
-			out MonitoredItemModifyResultCollection results,
+        /// <summary>
+        /// Modifies monitored items in a subscription.
+        /// </summary>
+        public void ModifyMonitoredItems(
+            OperationContext                        context,
+            TimestampsToReturn                      timestampsToReturn,
+            MonitoredItemModifyRequestCollection    itemsToModify,
+            out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
         {
             if (context == null)       throw new ArgumentNullException("context");
@@ -1594,9 +1617,9 @@ namespace Opc.Ua.Server
             }
         }
 
-		/// <summary>
-		/// Deletes the monitored items in a subscription.
-		/// </summary>
+        /// <summary>
+        /// Deletes the monitored items in a subscription.
+        /// </summary>
         public void DeleteMonitoredItems(
             OperationContext context,
             UInt32Collection monitoredItemIds,
@@ -1606,11 +1629,11 @@ namespace Opc.Ua.Server
             DeleteMonitoredItems(context, monitoredItemIds, false, out results, out diagnosticInfos);
         }
 
-		/// <summary>
-		/// Deletes the monitored items in a subscription.
-		/// </summary>
-		private void DeleteMonitoredItems(
-			OperationContext             context,
+        /// <summary>
+        /// Deletes the monitored items in a subscription.
+        /// </summary>
+        private void DeleteMonitoredItems(
+            OperationContext             context,
             UInt32Collection             monitoredItemIds,
             bool                         doNotCheckSession,
             out StatusCodeCollection     results,
@@ -1758,20 +1781,13 @@ namespace Opc.Ua.Server
                     diagnosticInfos.Clear();
                 }
 
-                // update diagnostics.
-                lock (DiagnosticsWriteLock)
-                {
-                    m_diagnostics.MonitoredItemCount = 0;
-                    m_diagnostics.DisabledMonitoredItemCount = 0;
-                }
-
                 // TraceState("ITEMS DELETED");
             }
         }
         
-		/// <summary>
-		/// Changes the monitoring mode for a set of items.
-		/// </summary>
+        /// <summary>
+        /// Changes the monitoring mode for a set of items.
+        /// </summary>
         public void SetMonitoringMode(
             OperationContext             context,
             MonitoringMode               monitoringMode,
@@ -1889,13 +1905,6 @@ namespace Opc.Ua.Server
                 if (!diagnosticsExist && diagnosticInfos != null)
                 {
                     diagnosticInfos.Clear();
-                }
-
-                // update diagnostics.
-                lock (DiagnosticsWriteLock)
-                {
-                    m_diagnostics.MonitoredItemCount = 0;
-                    m_diagnostics.DisabledMonitoredItemCount = 0;
                 }
 
                 if (monitoringMode == MonitoringMode.Disabled)
