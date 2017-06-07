@@ -184,6 +184,12 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
                     subscription.GetMonitoredItems(out serverHandles, out clientHandles);
 
                     outputArguments[0] = serverHandles;
