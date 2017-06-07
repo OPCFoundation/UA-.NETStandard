@@ -61,6 +61,11 @@ namespace Opc.Ua.Server
         /// Called when a monitored item is ready to publish.
         /// </summary>
         void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
+
+        /// <summary>
+        /// Called when a value of monitored item is discarded in the monitoring queue.
+        /// </summary>
+        void QueueOverflowHandler();
     }
 
     /// <summary>
@@ -552,6 +557,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Update the monitoring queue overflow count.
+        /// </summary>
+        public void QueueOverflowHandler()
+        {
+            lock (DiagnosticsWriteLock)
+            {
+                m_diagnostics.MonitoringQueueOverflowCount ++;
+            }
+        }
+
+        /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
         public ServiceResult Acknowledge(OperationContext context, uint sequenceNumber)
@@ -723,7 +739,7 @@ namespace Opc.Ua.Server
                 
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
-                
+
                 while (current != null)
                 {
                     LinkedListNode<IMonitoredItem> next = current.Next;
@@ -766,10 +782,10 @@ namespace Opc.Ua.Server
                             m_diagnostics.NotificationsCount += (uint)notificationCount;
                         }
                     }
-                                        
+
                     current = next;
                 }
-                    
+
                 // pubish the remaining notifications.
                 while (events.Count + datachanges.Count > 0)
                 {
@@ -837,15 +853,18 @@ namespace Opc.Ua.Server
             }
 
             // have to drop unsent messages if out of queue space.
-            if (messages.Count > m_maxMessageCount)
+            int overflowCount = messages.Count - (int)m_maxMessageCount;
+            if (overflowCount > 0)
             {
+                
                 Utils.Trace(
                     "WARNING: QUEUE OVERFLOW. Dropping {2} Messages. Increase MaxMessageQueueSize. SubId={0}, MaxMessageQueueSize={1}", 
                     m_id,
                     m_maxMessageCount,
-                    messages.Count - (int)m_maxMessageCount);
+                    overflowCount);
 
-                messages.RemoveRange(0, messages.Count - (int)m_maxMessageCount);
+                messages.RemoveRange(0, overflowCount);
+
             }
 
             // remove old messages if queue is full.

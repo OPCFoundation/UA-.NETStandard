@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
@@ -41,7 +40,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public MonitoredItemQueue(uint monitoredItemId)
+        public MonitoredItemQueue(uint monitoredItemId, DiscardedValueHandler discardedValueHandler = null)
         {
             m_monitoredItemId = monitoredItemId;
             m_values = null;
@@ -52,9 +51,12 @@ namespace Opc.Ua.Server
             m_discardOldest = false;
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
+            m_discardedValueHandler = discardedValueHandler;
         }
 
         #region Public Methods
+        public delegate void DiscardedValueHandler();
+
         /// <summary>
         /// Gets the current queue size.
         /// </summary>
@@ -210,6 +212,8 @@ namespace Opc.Ua.Server
                         m_errors[last] = error;
                     }
 
+                    m_discardedValueHandler?.Invoke();
+
                     return;
                 }
             }
@@ -286,6 +290,7 @@ namespace Opc.Ua.Server
                 // check if queue is full.
                 if (m_start == next)
                 {
+                    m_discardedValueHandler?.Invoke();
 
                     if (!m_discardOldest)
                     {
@@ -433,6 +438,7 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private long m_nextSampleTime;
         private long m_samplingInterval;
+        DiscardedValueHandler m_discardedValueHandler;
         #endregion
     }
 }
