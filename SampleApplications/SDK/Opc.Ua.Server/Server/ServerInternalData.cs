@@ -570,6 +570,14 @@ namespace Opc.Ua.Server
                 serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
                 serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
                 serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)m_configuration.TransportQuotas.MaxArrayLength;
+                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)m_configuration.TransportQuotas.MaxStringLength;
+                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRead.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerWrite.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerBrowse.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRegisterNodes.Value = 0;
 
                 // setup callbacks for dynamic values.
                 serverObject.NamespaceArray.OnSimpleReadValue = OnReadNamespaceArray;
@@ -634,8 +642,10 @@ namespace Opc.Ua.Server
                 m_diagnosticsNodeManager.SetDiagnosticsEnabled(
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
-                   
+
                 // TBD - Load the Software Certificates.
+                // serverObject.ServerCapabilities.SoftwareCertificates.Value =
+
             }
         }
         
