@@ -3356,6 +3356,13 @@ namespace Opc.Ua
 
                     return result;
                 }
+
+                case Attributes.ContainsNoLoops:
+                {
+                    value = true;
+                    return StatusCodes.Good;
+                }
+
             }
 
             return StatusCodes.BadAttributeIdInvalid;
