@@ -669,7 +669,7 @@ namespace Quickstarts.ReferenceServer
 
                     BaseDataVariableState hasForwardAndInverseReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "HasForwardAndInverseReference", "HasForwardAndInverseReference", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
-
+#if HASREFERENCESWITHDIFFERENTPARENTTYPES
                     BaseDataVariableState hasReferencesWithDifferentParentTypes = CreateMeshVariable(referencesFolder, referencesPrefix + "HasReferencesWithDifferentParentTypes", "HasReferencesWithDifferentParentTypes", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
                     {
                         int i = 0;
@@ -687,6 +687,7 @@ namespace Quickstarts.ReferenceServer
                         hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
                     }
                     variables.Add(hasReferencesWithDifferentParentTypes);
+#endif
                     #endregion
 
                     #region AccessRights
@@ -1022,8 +1023,14 @@ namespace Quickstarts.ReferenceServer
 
                     outputMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnOutputCall);
                     #endregion
+                    #endregion
 
+                    #region Views
+                    FolderState viewsFolder = CreateFolder(root, "Views", "Views");
+                    const string views = "Views_";
 
+                    ViewState viewStateOperations = CreateView(viewsFolder, externalReferences, views + "Operations", "Operations");
+                    ViewState viewStateEngineering = CreateView(viewsFolder, externalReferences, views + "Engineering", "Engineering");
                     #endregion
 
                     #region Locales
