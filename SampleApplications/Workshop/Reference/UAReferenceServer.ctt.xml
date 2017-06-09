@@ -35,7 +35,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="opc.tcp://localhost:62541/Quickstarts/ReferenceServer"/>
+        <Value typename="QString" type="10" data="opc.tcp://mregen10:62541/Quickstarts/ReferenceServer"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -688,7 +688,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="1"/>
+           <Value typename="QString" type="10" data="3"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -802,7 +802,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="0"/>
+           <Value typename="QString" type="10" data="3"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -8731,7 +8731,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data="i=87"/>
+              <Value typename="QString" type="10" data="ns=2;s=Views_Operations"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
