@@ -38,10 +38,7 @@ By default all sample applications are configured to register with a Local Disco
 
 ## How to build and run the samples in Visual Studio on Windows
 
-1. Open the UA-NetStandard.sln solution file using **Visual Studio 2015**.  
-
-> Open the UA-NetStandard_2017.sln solution file if you want to build with Visual Studio 2017.  Note that only .net Standard stack and console samples are included in this solution file.  However, you can pack the build output into nuget packages directly from within Visual Studio 2017 and use these to build .net, UWP, or .net Standard applications with Visual Studio 2017.
-
+1. Open the UA-NetStandard.sln solution file using Visual Studio 2017.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
  
@@ -74,43 +71,8 @@ Please follow instructions in this [article](https://docs.microsoft.com/en-us/do
 ## How to build and run the OPC UA Reference Server with UACTT
 - Please refer to the OPC Foundation UA .Net Standard Library [Reference Server](SampleApplications/Workshop/Reference/README.md) for a detailed description how to run the reference server against the UACTT.
 
-## How to build and run the OPC UA Web Telemetry sample
-
-* Go to the [Azure portal](https://portal.azure.com/) and create a new Storage account.
-
-* Open the solution OpcUaWebTelemetry.sln with VisualStudio 2015.
-
-* Open the MessageProcessing\Configuration.cs file to configure the app to use your Azure resources (Storage account and IoTHub).
-```
-        // {StorageAccountName} is the name of the storage account and could be found 
-        // under Settings->Access keys->Storage account name of your storage account on the Azure portal.
-        // {AccessKey} is the access key of the storage account and could be found 
-        // under Settings->Access keys->key1 of your storage account on the Azure portal.
-        public static string StorageConnectionString = "DefaultEndpointsProtocol=https;AccountName={StorageAccountName};AccountKey={AccessKey}";
-
-        // {ConsumerGroupName} is the name of a aonsumer group of your IoTHub. The IoTHub you use is the
-        // one you have created for use with the OPC UA Publisher sample.
-        // You need to create this consumer group via the messaging settings of your IoTHub in the Azure portal. 
-        // We recommend that you do not share this Consumer group with other consumers, nor that you use the $Default consumer group. 
-        public static string EventHubConsumerGroup = "{ConsumerGroupName}";
-
-        // {EventHubEndpoint} is the Event Hub compatible endpoint of your IoTHub and could be found 
-        // under Settings->Messaging->Event Hub-compatible endpoint of your IoTHub in the Azure portal.
-        // {PrimaryKey} is the IoT Hub primary key for access with iothubowner policy and could be found
-        // under Settings->Shared access policies->iothubowner->Primary key of your IoTHub in the Azure portal.  
-        public static string EventHubConnectionString = "Endpoint={EventHubEndpoint};SharedAccessKeyName=iothubowner;{PrimaryKey}";
-
-        // {HubName} is the Event Hub compatible name of your IoTHub and could be found 
-        // under Settings->Messaging->Event Hub-compatible name of your IoTHub in the Azure portal.
-        public static string EventHubName = "{HubName}";
-```
-* Save the file, rebuild the solution and start it. This will start a local instance of the application.
-
-* The solution can also be deployed into a Azure App service. Please use VisualStudio 2015's Azure publishing functionality for this purpose.
-
-* Now run the OPC UA Publisher sample, connect to a OPC UA server and publish a node.
-
-* You should see the node value on the web page after a few seconds.
+## What happened to the OPC UA Web Telemetry sample?
+The web telemetry sample was removed as there is a much more complete (and better looking!) solution now available [here](https://github.com/azure/azure-iot-connected-factory). You can try this new solution, called "Connected Factory", out [here](http://www.azureiotsuite.com).
 
 ## Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
