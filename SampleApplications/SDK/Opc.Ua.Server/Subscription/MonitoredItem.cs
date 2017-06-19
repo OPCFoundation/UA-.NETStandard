@@ -1614,6 +1614,15 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            // special case NaN is always not equal
+            if (value1.Equals(float.NaN) || 
+                value1.Equals(double.NaN) ||
+                value2.Equals(float.NaN) || 
+                value2.Equals(double.NaN))
+            {
+                return false;
+            }
+
             // check if values are equal.
             if (value1.Equals(value2))
             {
