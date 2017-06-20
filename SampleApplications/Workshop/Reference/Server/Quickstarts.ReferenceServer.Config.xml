@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->

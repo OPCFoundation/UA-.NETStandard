@@ -669,25 +669,6 @@ namespace Quickstarts.ReferenceServer
 
                     BaseDataVariableState hasForwardAndInverseReferences = CreateMeshVariable(referencesFolder, referencesPrefix + "HasForwardAndInverseReference", "HasForwardAndInverseReference", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
-#if HASREFERENCESWITHDIFFERENTPARENTTYPES
-                    BaseDataVariableState hasReferencesWithDifferentParentTypes = CreateMeshVariable(referencesFolder, referencesPrefix + "HasReferencesWithDifferentParentTypes", "HasReferencesWithDifferentParentTypes", hasForwardReference, hasInverseReference, has3InverseReference, has3InverseReferences, variables[0]);
-                    {
-                        int i = 0;
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasCause, true, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, false, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
-                        hasReferencesWithDifferentParentTypes.AddReference(ReferenceTypes.HasEffect, true, variables[i++].NodeId);
-                    }
-                    variables.Add(hasReferencesWithDifferentParentTypes);
-#endif
                     #endregion
 
                     #region AccessRights
