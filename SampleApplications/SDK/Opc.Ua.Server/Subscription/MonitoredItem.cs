@@ -1495,6 +1495,12 @@ namespace Opc.Ua.Server
                 m_filterToUse as DataChangeFilter,
                 m_range);
 
+            if (changed)
+            {
+                m_lastValue = value;
+                m_lastError = error;
+            }
+
             return changed;
         }
 
@@ -1736,7 +1742,7 @@ namespace Opc.Ua.Server
 
             if (baseline > 0)
             {
-                if (Math.Abs((value1 - value2)/baseline) <= (double)deadband)
+                if (Math.Abs((value1 - value2)/baseline) <= deadband)
                 {
                     return false;
                 }
