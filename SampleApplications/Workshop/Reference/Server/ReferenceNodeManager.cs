@@ -1649,8 +1649,7 @@ namespace Quickstarts.ReferenceServer
 
             // Simulate a mV Voltmeter
             Range newRange = GetAnalogRange(builtInType);
-            // Are these numbers hardcoded in the test client?
-            // Using anything but 120,-10 makes a few tests fail
+            // Using anything but 120,-10 fails a few tests
             newRange.High = Math.Min(newRange.High, 120);
             newRange.Low = Math.Max(newRange.Low, -10);
             variable.InstrumentRange.Value = newRange;
