@@ -149,7 +149,6 @@ namespace Opc.Ua.Server
             {
                 QueuedSubscription queuedSubscription = new QueuedSubscription();
 
-                queuedSubscription.Priority = subscription.Priority;
                 queuedSubscription.ReadyToPublish = false;
                 queuedSubscription.Timestamp = DateTime.UtcNow;
                 queuedSubscription.Subscription = subscription;
@@ -194,7 +193,7 @@ namespace Opc.Ua.Server
                 // TraceState("SUBSCRIPTION REMOVED");
             }
         }
-        
+
         /// <summary>
         /// Processes acknowledgements for previously published messages.
         /// </summary>
@@ -315,14 +314,14 @@ namespace Opc.Ua.Server
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         QueuedSubscription subscription = subscriptions[ii];
-
-                        if (subscription.Priority > maxPriority)
+                        byte priority = subscription.Subscription.Priority;
+                        if (priority > maxPriority)
                         {
-                            maxPriority = subscription.Priority;
+                            maxPriority = priority;
                             earliestTimestamp = DateTime.MaxValue;
                         }
 
-                        if (subscription.Priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
+                        if (priority >= maxPriority && earliestTimestamp > subscription.Timestamp)
                         {
                             earliestTimestamp = subscription.Timestamp;
                             subscriptionToPublish = subscription;
@@ -796,7 +795,6 @@ namespace Opc.Ua.Server
         private class QueuedSubscription
         {
             public Subscription Subscription;
-            public byte Priority;
             public DateTime Timestamp;
             public bool ReadyToPublish;
             public bool Publishing;
