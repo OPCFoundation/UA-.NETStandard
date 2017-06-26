@@ -28,19 +28,11 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Text;
-using System.Windows.Forms;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -275,56 +267,6 @@ namespace Opc.Ua.Client.Controls
             if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 e.Accept = true;
-            }
-        }
-
-        /// <summary>
-        /// Does any configuration checks before starting up.
-        /// </summary>
-        public static async Task<ApplicationConfiguration> LoadConfiguration(
-            string configSectionName,
-            ApplicationType applicationType,
-            string defaultConfigFile,
-            bool interactive)
-        {
-            // get the location of the config file.
-            string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(configSectionName);
-
-            if (filePath == null || !System.IO.File.Exists(filePath))
-            {
-                filePath = Utils.GetAbsoluteFilePath(defaultConfigFile, false, false, false);
-            }
-
-            try
-            {
-                // load the configuration file.
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(new FileInfo(filePath), applicationType, null);
-
-                if (configuration == null)
-                {
-                    return null;
-                }
-
-                return configuration;
-            }
-            catch (Exception e)
-            {
-                // warn user.
-                if (interactive)
-                {
-                    StringBuilder message = new StringBuilder();
-
-                    message.Append("Could not load configuration file.\r\n");
-                    message.Append(filePath);
-                    message.Append("\r\n");
-                    message.Append("\r\n");
-                    message.Append(e.Message);
-
-                    MessageBox.Show(message.ToString(), "Application Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-
-                Utils.Trace(e, "Could not load configuration file. {0}", filePath);
-                return null;
             }
         }
 

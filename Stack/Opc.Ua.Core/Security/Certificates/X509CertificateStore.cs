@@ -137,7 +137,7 @@ namespace Opc.Ua
                 {
                     if (certificate.Thumbprint == thumbprint)
                     {
-                        store.Certificates.Remove(certificate);
+                        store.Remove(certificate);
                     }
                 }
             }
