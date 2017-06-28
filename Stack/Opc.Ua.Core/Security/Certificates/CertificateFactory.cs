@@ -159,48 +159,6 @@ public class CertificateFactory
     /// </summary>
     /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
     /// <param name="storePath">The store path (syntax depends on storeType).</param>
-    /// <param name="applicationUri">The application uri (created if not specified).</param>
-    /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
-    /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
-    /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
-    /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
-    /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
-    /// <param name="hashSizeInBits">The hash size in bits.</param>
-    /// <returns>The certificate with a private key.</returns>
-    public static X509Certificate2 CreateCertificate(
-        string storeType,
-        string storePath,
-        string applicationUri,
-        string applicationName,
-        string subjectName = null,
-        IList<string> serverDomainNames = null,
-        ushort keySize = defaultKeySize,
-        ushort lifetimeInMonths = defaultLifeTime,
-        ushort hashSizeInBits = defaultHashSize
-        )
-    {
-        return CreateCertificate(
-            storeType,
-            storePath,
-            null,
-            applicationUri,
-            applicationName,
-            subjectName,
-            serverDomainNames,
-            keySize,
-            DateTime.UtcNow - TimeSpan.FromDays(1),
-            lifetimeInMonths,
-            hashSizeInBits,
-            false,
-            null
-            );
-    }
-
-    /// <summary>
-    /// Creates a self signed application instance certificate.
-    /// </summary>
-    /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
-    /// <param name="storePath">The store path (syntax depends on storeType).</param>
     /// <param name="password">The password to use to protect the certificate.</param>
     /// <param name="applicationUri">The application uri (created if not specified).</param>
     /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
@@ -226,7 +184,8 @@ public class CertificateFactory
         ushort lifetimeInMonths,
         ushort hashSizeInBits,
         bool isCA,
-        X509Certificate2 issuerCAKeyCert)
+        X509Certificate2 issuerCAKeyCert,
+        byte[] publicKey)
     {
         if (issuerCAKeyCert != null)
         {
@@ -243,8 +202,7 @@ public class CertificateFactory
             ref subjectName,
             ref domainNames,
             ref keySize,
-            ref lifetimeInMonths,
-            isCA);
+            ref lifetimeInMonths);
 
         using (var cfrg = new CertificateFactoryRandomGenerator())
         {
@@ -280,7 +238,16 @@ public class CertificateFactory
             var keyPairGenerator = new RsaKeyPairGenerator();
             keyPairGenerator.Init(keyGenerationParameters);
             subjectKeyPair = keyPairGenerator.GenerateKeyPair();
-            cg.SetPublicKey(subjectKeyPair.Public);
+
+            if (publicKey == null)
+            {
+                cg.SetPublicKey(subjectKeyPair.Public);
+            }
+            else
+            {
+                AsymmetricKeyParameter subjectKey = PublicKeyFactory.CreateKey(publicKey);
+                cg.SetPublicKey(subjectKey);
+            }
 
             // add extensions
             // Subject key identifier
@@ -449,6 +416,7 @@ public class CertificateFactory
         return certificate;
     }
     #endregion
+
     #region Private Methods
     /// <summary>
     /// Sets the parameters to suitable defaults.
@@ -459,8 +427,7 @@ public class CertificateFactory
         ref string subjectName,
         ref IList<String> domainNames,
         ref ushort keySize,
-        ref ushort lifetimeInMonths,
-        bool isCA)
+        ref ushort lifetimeInMonths)
     {
         // enforce recommended keysize unless lower value is enforced.
         if (keySize < 1024)
