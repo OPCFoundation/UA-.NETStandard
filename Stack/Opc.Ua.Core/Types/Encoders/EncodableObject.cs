@@ -71,7 +71,7 @@ namespace Opc.Ua
 
             if (!useXml && dataEncoding.Name != DefaultBinary)
             {
-                return StatusCodes.BadDataEncodingUnsupported;
+                return StatusCodes.BadDataEncodingInvalid;
             }
             
             try
