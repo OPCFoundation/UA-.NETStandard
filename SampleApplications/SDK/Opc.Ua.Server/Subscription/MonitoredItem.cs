@@ -1495,12 +1495,6 @@ namespace Opc.Ua.Server
                 m_filterToUse as DataChangeFilter,
                 m_range);
 
-            if (changed)
-            {
-                m_lastValue = value;
-                m_lastError = error;
-            }
-
             return changed;
         }
 
