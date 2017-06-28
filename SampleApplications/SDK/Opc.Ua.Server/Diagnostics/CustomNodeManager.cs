@@ -1799,7 +1799,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    Utils.Trace("WRITE: Value={0} Range={1}", nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
+                    Utils.TraceDebug("WRITE: Value={0} Range={1}", nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 
                     PropertyState propertyState = handle.Node as PropertyState;
                     object previousPropertyValue = null;
