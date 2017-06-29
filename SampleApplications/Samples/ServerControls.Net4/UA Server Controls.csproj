@@ -133,16 +133,12 @@
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
-      <Project>{6c449a1e-244e-4515-9949-a7e22012537c}</Project>
+      <Project>{251c2bd9-33f5-4eb1-903d-8463c8fd16f0}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
     <ProjectReference Include="..\Controls.Net4\UA Sample Controls.csproj">
       <Project>{92ae819b-4938-4502-ac32-67063f9893cd}</Project>
       <Name>UA Sample Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Opc.Ua.Sample\Opc.Ua.Sample.csproj">
-      <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
-      <Name>Opc.Ua.Sample</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
