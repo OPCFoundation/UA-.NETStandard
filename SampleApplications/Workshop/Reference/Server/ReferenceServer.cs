@@ -221,7 +221,7 @@ namespace Quickstarts.ReferenceServer
 
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(new ServiceResult(
-                    StatusCodes.BadIdentityTokenRejected,
+                    StatusCodes.BadIdentityTokenInvalid,
                     "InvalidCertificate",
                     "http://opcfoundation.org/UA/Sample/",
                     new LocalizedText(info)));
