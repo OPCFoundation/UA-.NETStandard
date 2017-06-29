@@ -73,7 +73,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="500"/>
+        <Value typename="QString" type="10" data="250"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -111,7 +111,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="0"/>
+        <Value typename="QString" type="10" data="2"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -143,13 +143,13 @@
      <Row row="3">
       <Column column="0">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="Time Tolerence"/>
+        <Value typename="QString" type="10" data="Time Tolerance"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="5000"/>
+        <Value typename="QString" type="10" data="1000"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -225,7 +225,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="0"/>
+        <Value typename="QString" type="10" data="2"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -307,7 +307,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="0"/>
+           <Value typename="QString" type="10" data="100"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -13487,7 +13487,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="&quot;http://opcfoundation.org/UA/&quot;, &quot;urn:localhost:UA:Quickstarts:ReferenceServer&quot;, &quot;http://opcfoundation.org/Quickstarts/ReferenceApplications&quot;, &quot;http://opcfoundation.org/UA/Diagnostics&quot;"/>
+           <Value typename="QString" type="10" data="&quot;http://opcfoundation.org/UA/&quot;, &quot;urn:mregen10:UA:Quickstarts:ReferenceServer&quot;, &quot;http://opcfoundation.org/Quickstarts/ReferenceApplications&quot;, &quot;http://opcfoundation.org/UA/Diagnostics&quot;"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
