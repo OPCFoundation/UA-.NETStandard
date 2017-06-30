@@ -1033,10 +1033,6 @@
       <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Opc.Ua.Sample\Opc.Ua.Sample.csproj">
-      <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
-      <Name>Opc.Ua.Sample</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

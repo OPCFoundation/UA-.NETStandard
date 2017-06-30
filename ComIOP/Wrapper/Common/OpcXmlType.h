@@ -78,7 +78,7 @@ typedef FILETIME  DateTime;
 // ENUM:    Type
 // PURPOSE: Defines the set of possible XML data types.
 
-typedef enum Type
+enum Type
 {
     XML_EMPTY    = 0x0000,
     XML_BOOLEAN  = 0x0001,

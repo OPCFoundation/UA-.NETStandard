@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
     <AssemblyName>ConsoleAggregationServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleAggregationServer</PackageId>
@@ -19,15 +19,15 @@
   <ItemGroup>
     <Compile Include="..\Server\AggregationNodeManager.cs;..\Server\AggregationServer.cs;..\Server\AggregationServerConfiguration.cs;..\Server\AggregatedTypeCache.cs;..\Server\NamespaceMapper.cs;..\Server\Browser.cs;..\Server\Model\AggregationModel.Classes.cs;..\Server\Model\AggregationModel.Constants.cs;..\Server\Model\AggregationModel.DataTypes.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
     <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes">
-      <Link>AggregationServer\Model\AggregationModel.PredefinedNodes.uanodes</Link>
+      <Link>AggregationServer/Model/AggregationModel.PredefinedNodes.uanodes</Link>
     </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
 
 </Project>

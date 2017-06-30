@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProjectGuid>{C228B4A7-8A03-4663-AD6C-8B16CE83D4DC}</ProjectGuid>
     <RootNamespace>ProxyHost</RootNamespace>
     <Keyword>ManagedCProj</Keyword>
@@ -18,20 +20,20 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <CLRSupport>true</CLRSupport>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <CLRSupport>true</CLRSupport>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -177,9 +179,6 @@ rem echo Registered Server at "$(TargetPath)"
     <Image Include="app.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="app.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="app.config">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">copy "%(Filename)%(Extension)" "$(TargetPath).config"
 </Command>
@@ -201,26 +200,29 @@ rem echo Registered Server at "$(TargetPath)"
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{8906c833-3c21-45b7-b103-1f27aa945075}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{9cde220b-7614-42c4-99b0-7b4713ab2931}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{15aeee57-3aae-4333-b69f-777f6573d8a4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{31ec9480-617b-48c4-a5be-1d159a278d1d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\Common\UA COM Interop Library.csproj">
       <Project>{24d3c616-ed4c-4af9-b529-7b418ec8acc4}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Common\OPC Sample Utility Classes.vcxproj">
       <Project>{268ae545-d614-4b66-aef3-c5b85919ad9d}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ServerWrapper\UA COM Server Wrapper.csproj">
+      <Project>{f4805912-a3f9-4045-bc63-01f34a216ee7}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Opc.Ua.Client">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Net" />
     <Reference Include="System.Security" />
