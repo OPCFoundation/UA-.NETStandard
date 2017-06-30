@@ -185,6 +185,7 @@
     <ServerProfileArray>
       <ua:String>Standard UA Server Profile</ua:String>
       <ua:String>Data Access Server Facet</ua:String>
+      <ua:String>Method Server Facet</ua:String>
     </ServerProfileArray>
 
   </ServerConfiguration>
