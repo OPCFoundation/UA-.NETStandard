@@ -644,9 +644,6 @@ namespace Opc.Ua.Server
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
-                // TBD - Load the Software Certificates.
-                // serverObject.ServerCapabilities.SoftwareCertificates.Value =
-
             }
         }
         
