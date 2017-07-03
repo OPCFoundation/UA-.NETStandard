@@ -15,8 +15,12 @@ script:
   - dotnet restore
   - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleClient
   - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleServer
+  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleReferenceServer
   - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleClient
   - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleServer
+  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleReferenceServer
 
 after_script:
   - echo "========== build done ============"
