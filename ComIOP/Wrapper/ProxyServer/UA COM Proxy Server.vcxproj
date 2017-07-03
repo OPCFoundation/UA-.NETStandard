@@ -218,9 +218,6 @@ rem echo Registered Server at "$(TargetPath)"
     <ProjectReference Include="..\Common\OPC Sample Utility Classes.vcxproj">
       <Project>{268ae545-d614-4b66-aef3-c5b85919ad9d}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\ServerWrapper\UA COM Server Wrapper.csproj">
-      <Project>{f4805912-a3f9-4045-bc63-01f34a216ee7}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
