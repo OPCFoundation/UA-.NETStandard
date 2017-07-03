@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>OPC Foundation/CertificateStores/MachineDefault</StorePath>
-      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -83,7 +83,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
       </ServerSecurityPolicy>
-<!--  CTT 1.02.334 does not support Sha256
+      <!--  CTT 1.03.341 does not support Sha256
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
@@ -92,7 +92,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
--->      
+      -->
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
@@ -180,6 +180,14 @@
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
     <MaxSubscriptionCount>100</MaxSubscriptionCount>
     <MaxEventQueueSize>10000</MaxEventQueueSize>
+
+    <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
+    <ServerProfileArray>
+      <ua:String>Standard UA Server Profile</ua:String>
+      <ua:String>Data Access Server Facet</ua:String>
+      <ua:String>Method Server Facet</ua:String>
+    </ServerProfileArray>
+
   </ServerConfiguration>
 
   <Extensions>

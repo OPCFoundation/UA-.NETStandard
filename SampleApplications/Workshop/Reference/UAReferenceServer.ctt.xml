@@ -25,7 +25,7 @@
     <ItemData role="0" rolename="DisplayRole">
      <Value typename="QString" type="10" data="Server Test"/>
     </ItemData>
-    <ChildRows size="10">
+    <ChildRows size="11">
      <Row row="0">
       <Column column="0">
        <ItemData role="0" rolename="DisplayRole">
@@ -73,7 +73,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="500"/>
+        <Value typename="QString" type="10" data="250"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -111,7 +111,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="0"/>
+        <Value typename="QString" type="10" data="2"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -143,13 +143,13 @@
      <Row row="3">
       <Column column="0">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="Time Tolerence"/>
+        <Value typename="QString" type="10" data="Time Tolerance"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="5000"/>
+        <Value typename="QString" type="10" data="1000"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -225,7 +225,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="0"/>
+        <Value typename="QString" type="10" data="2"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -307,7 +307,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="0"/>
+           <Value typename="QString" type="10" data="100"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -1306,7 +1306,7 @@
                 <ItemData role="0" rolename="DisplayRole">
                  <Value typename="QString" type="10" data="Scalar"/>
                 </ItemData>
-                <ChildRows size="33">
+                <ChildRows size="34">
                  <Row row="0">
                   <Column column="0">
                    <ItemData role="0" rolename="DisplayRole">
@@ -2561,6 +2561,44 @@
                    <ChildRows size="0"/>
                   </Column>
                  </Row>
+                 <Row row="33">
+                  <Column column="0">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="QString" type="10" data="Decimal"/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                  <Column column="1">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="" type="0" data=""/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                  <Column column="2">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="QString" type="10" data="The NodeId of a Node of type: DECIMAL&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                  <Column column="3">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="int" type="2" data="1"/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                  <Column column="4">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="int" type="2" data="3"/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                  <Column column="5">
+                   <ItemData role="0" rolename="DisplayRole">
+                    <Value typename="int" type="2" data="0"/>
+                   </ItemData>
+                   <ChildRows size="0"/>
+                  </Column>
+                 </Row>
                 </ChildRows>
                </Column>
                <Column column="1">
@@ -2583,7 +2621,7 @@
                </Column>
                <Column column="4">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="int" type="2" data="0"/>
+                 <Value typename="int" type="2" data="4"/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -7969,7 +8007,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data="ns=2;s=References_HasForwardReference"/>
+              <Value typename="QString" type="10" data="ns=2;s=References_Has3ForwardReferences2"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -8007,7 +8045,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=References_Has3ForwardReferences3"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -8045,7 +8083,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=References_Has3ForwardReferences4"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -8083,7 +8121,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=References_Has3ForwardReferences5"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -8693,7 +8731,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=Views_Operations"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -11607,6 +11645,44 @@
        <ChildRows size="0"/>
       </Column>
      </Row>
+     <Row row="10">
+      <Column column="0">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="QString" type="10" data="Debug"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+      <Column column="1">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="QString" type="10" data="2"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+      <Column column="2">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="QString" type="10" data="True = print verbose output for UA Service calls via library objects.&#xa;False = print minimal information (faster performance)"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+      <Column column="3">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="int" type="2" data="1"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+      <Column column="4">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="int" type="2" data="0"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+      <Column column="5">
+       <ItemData role="0" rolename="DisplayRole">
+        <Value typename="int" type="2" data="4"/>
+       </ItemData>
+       <ChildRows size="0"/>
+      </Column>
+     </Row>
     </ChildRows>
    </Column>
    <Column column="1">
@@ -11667,7 +11743,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="Public key for a Certificate Authority."/>
+           <Value typename="QString" type="10" data="Public key for a Certificate Authority.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -11743,7 +11819,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="Location of the Revoked Certificate List repository.&lt;br>Copy the contents (*.crl) to your Server's CRL directory."/>
+           <Value typename="QString" type="10" data="Location of the Revoked Certificate List repository."/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -11933,7 +12009,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="The &lt;b>Incorrectly Signed&lt;/b> Certificate that the UA CTT should use when connecting to a UA Server.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
+           <Value typename="QString" type="10" data="The &lt;b>Incorrectly Signed&lt;/b> Certificate that the UA CTT should use when connecting to a UA Server."/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12389,7 +12465,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="X509 Certificate for a USER."/>
+           <Value typename="QString" type="10" data="X509 Certificate for a USER.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12553,7 +12629,7 @@
          </Column>
          <Column column="4">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="int" type="2" data="3"/>
+           <Value typename="int" type="2" data="0"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12591,7 +12667,7 @@
          </Column>
          <Column column="4">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="int" type="2" data="3"/>
+           <Value typename="int" type="2" data="0"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12617,7 +12693,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="User x509 certificate that is trusted, but has expired"/>
+           <Value typename="QString" type="10" data="User x509 certificate that is trusted, but has expired.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12629,7 +12705,7 @@
          </Column>
          <Column column="4">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="int" type="2" data="3"/>
+           <Value typename="int" type="2" data="0"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12667,7 +12743,7 @@
          </Column>
          <Column column="4">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="int" type="2" data="3"/>
+           <Value typename="int" type="2" data="0"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12769,7 +12845,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="User x509 certificate that is revoked"/>
+           <Value typename="QString" type="10" data="User x509 certificate that is revoked.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -12845,7 +12921,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="Issued User X509 certificate that is trusted."/>
+           <Value typename="QString" type="10" data="Issued User X509 certificate that is trusted.&lt;br>&lt;font color=blue>Please copy this certificate to your Server's trust list.&lt;/font>"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -13411,7 +13487,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="&quot;http://opcfoundation.org/UA/&quot;, &quot;urn:mregen-ubuntu16:UA:Quickstarts:ReferenceServer&quot;, &quot;http://opcfoundation.org/Quickstarts/ReferenceApplications&quot;, &quot;http://opcfoundation.org/UA/Diagnostics&quot;"/>
+           <Value typename="QString" type="10" data="&quot;http://opcfoundation.org/UA/&quot;, &quot;urn:mregen10:UA:Quickstarts:ReferenceServer&quot;, &quot;http://opcfoundation.org/Quickstarts/ReferenceApplications&quot;, &quot;http://opcfoundation.org/UA/Diagnostics&quot;"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -14165,7 +14241,7 @@
        <ItemData role="0" rolename="DisplayRole">
         <Value typename="QString" type="10" data="CertificateOverrides"/>
        </ItemData>
-       <ChildRows size="3">
+       <ChildRows size="4">
         <Row row="0">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
@@ -14270,6 +14346,44 @@
          <Column column="4">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="int" type="2" data="3"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="5">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="4"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+        </Row>
+        <Row row="3">
+         <Column column="0">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="DisableCertificateHostNameInvalid"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="1">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="0"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="2">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="Set this flag to reflect that the server is configured to ignore domain- and/or hostname mismatch when comparing the URL used to connect with the content of the certificate. Note: most server will have this supression flag set, because they technically can not resolve the domain name of an incoming service call and by this can not compare it to match the domain name in the certificate."/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="3">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="1"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="4">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="0"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>

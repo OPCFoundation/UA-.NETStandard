@@ -177,19 +177,35 @@ namespace Opc.Ua.Sample
                     throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed);
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // construct translation object with default text.
-                TranslationInfo info = new TranslationInfo(
-                    "InvalidCertificate",
-                    "en-US",
-                    "'{0}' is not a trusted user certificate.",
-                    certificate.Subject);
+                TranslationInfo info;
+                StatusCode result = StatusCodes.BadIdentityTokenRejected;
+                ServiceResultException se = e as ServiceResultException;
+                if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                {
+                    info = new TranslationInfo(
+                        "InvalidCertificate",
+                        "en-US",
+                        "'{0}' is an invalid user certificate.",
+                        certificate.Subject);
+
+                    result = StatusCodes.BadIdentityTokenInvalid;
+                }
+                else
+                {
+                    // construct translation object with default text.
+                    info = new TranslationInfo(
+                        "UntrustedCertificate",
+                        "en-US",
+                        "'{0}' is not a trusted user certificate.",
+                        certificate.Subject);
+                }
 
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(new ServiceResult(
-                    StatusCodes.BadIdentityTokenRejected,
-                    "InvalidCertificate",
+                    result,
+                    info.Key,
                     "http://opcfoundation.org/UA/Sample/",
                     new LocalizedText(info)));
             }

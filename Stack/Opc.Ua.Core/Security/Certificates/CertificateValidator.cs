@@ -884,6 +884,13 @@ namespace Opc.Ua
                             status.StatusInformation);
                     }
 
+                case X509ChainStatusFlags.NotSignatureValid:
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateUntrusted,
+                            status.StatusInformation);
+                    }
+
                 default:
                     {
                         return ServiceResult.Create(
