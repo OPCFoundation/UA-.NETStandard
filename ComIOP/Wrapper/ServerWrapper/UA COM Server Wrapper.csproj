@@ -121,7 +121,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="InstallConfig.xml" />
     <EmbeddedResource Include="ServerDiagnosticsCtrl.resx">
       <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>
