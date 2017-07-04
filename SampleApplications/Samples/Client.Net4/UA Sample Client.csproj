@@ -100,7 +100,6 @@
     <Content Include="App.config">
       <SubType>Designer</SubType>
     </Content>
-    <EmbeddedResource Include="InstallConfig.xml" />
     <EmbeddedResource Include="SampleClientForm.resx">
       <DependentUpon>SampleClientForm.cs</DependentUpon>
       <SubType>Designer</SubType>

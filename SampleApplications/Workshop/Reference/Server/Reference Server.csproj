@@ -105,7 +105,6 @@
       <SubType>Designer</SubType>
     </Content>
     <Content Include="App.ico" />
-    <EmbeddedResource Include="InstallConfig.xml" />
     <Content Include="Quickstarts.ReferenceServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>

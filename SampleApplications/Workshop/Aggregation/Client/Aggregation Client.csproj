@@ -114,7 +114,6 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <EmbeddedResource Include="InstallConfig.xml" />
     <Content Include="Quickstarts.AggregationClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>

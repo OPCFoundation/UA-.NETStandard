@@ -90,7 +90,6 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <EmbeddedResource Include="InstallConfig.xml" />
     <Content Include="Model\ModelDesign.xml" />
     <Content Include="Quickstarts.AggregationServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
