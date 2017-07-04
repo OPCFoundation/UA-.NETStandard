@@ -1300,6 +1300,8 @@ namespace Opc.Ua
             m_maxPublishRequestCount = 20;
             m_maxSubscriptionCount = 100;
             m_maxEventQueueSize = 10000;
+            // see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
+            m_serverProfileArray = new string[] { "Standard UA Server Profile" };
         }
 
         /// <summary>
@@ -1600,6 +1602,24 @@ namespace Opc.Ua
             get { return m_maxEventQueueSize; }
             set { m_maxEventQueueSize = value; }
         }
+
+        /// <summary>
+        /// Gets or sets the server profile array.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 28)]
+        public StringCollection ServerProfileArray
+        {
+            get { return m_serverProfileArray; }
+            set {
+                    m_serverProfileArray = value;
+                    if (m_serverProfileArray == null)
+                    {
+                        m_serverProfileArray = new StringCollection();
+                    }
+                }
+        }
+
         #endregion
 
         #region Private Members
@@ -1628,6 +1648,7 @@ namespace Opc.Ua
         private int m_maxPublishRequestCount;
         private int m_maxSubscriptionCount;
         private int m_maxEventQueueSize;
+        private StringCollection m_serverProfileArray;
         #endregion
     }
     #endregion

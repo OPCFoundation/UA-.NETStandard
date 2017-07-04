@@ -4,7 +4,7 @@
 #---------------------------------#
 
 # version format
-version: 0.1.2.{build}-{branch}
+version: 0.2.0.{build}-{branch}
 
 
 # branches to build
@@ -18,7 +18,7 @@ branches:
 #---------------------------------#
 
 # Build worker image (VM template)
-image: Visual Studio 2015
+image: Visual Studio 2017
 
 # scripts that are called at very beginning, before repo cloning
 init:
@@ -33,14 +33,12 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: UA-NetStandard.sln
-  - solution_name: "UA COM Interop.sln"
-  - solution_name: OpcUaWebTelemetry.sln
   - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  
   
 # this is how to allow failing jobs in the matrix
 matrix:
-  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
+  fast_finish: false     # set this flag to immediately finish build once one of the jobs fails.
 
 # scripts to run before build
 before_build:

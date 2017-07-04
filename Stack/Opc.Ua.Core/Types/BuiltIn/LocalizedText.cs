@@ -12,15 +12,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Globalization;
 
 namespace Opc.Ua
 {
-	  /// <summary>
-	  /// Human readable qualified with a locale.
-	  /// </summary>
+    /// <summary>
+    /// Human readable qualified with a locale.
+    /// </summary>
     /// <remarks>
     /// <para>
     /// The LocalizedText is defined in <b>Part 3 - Address Space Model, Section 7.5</b>, titled 
@@ -60,8 +59,8 @@ namespace Opc.Ua
     /// </para>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-	public partial class LocalizedText : IFormattable
-    {        
+    public partial class LocalizedText : IFormattable
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with the default values.
@@ -72,26 +71,26 @@ namespace Opc.Ua
         private LocalizedText()
         {
             m_locale = null;
-            m_text   = null;
+            m_text = null;
         }
 
-                
+
         /// <summary>
         /// Formats the text with the arguments using the specified locale.
         /// </summary>
         public LocalizedText(string key, string locale, string text, params object[] args)
         :
             this(new TranslationInfo(key, locale, text, args))
-        {        
+        {
         }
 
         /// <summary>
         /// Creates text from a TranslationInfo object.
         /// </summary>
         public LocalizedText(TranslationInfo translationInfo)
-        {            
+        {
             if (translationInfo == null) throw new ArgumentNullException("translationInfo");
-            
+
             m_locale = translationInfo.Locale;
             m_text = translationInfo.Text;
             m_translationInfo = translationInfo;
@@ -114,7 +113,7 @@ namespace Opc.Ua
                     culture = CultureInfo.InvariantCulture;
                 }
             }
-            
+
             try
             {
                 m_text = String.Format(culture, m_translationInfo.Text, m_translationInfo.Args);
@@ -124,7 +123,7 @@ namespace Opc.Ua
                 m_text = m_translationInfo.Text;
             }
         }
-                
+
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
@@ -134,11 +133,11 @@ namespace Opc.Ua
         /// <param name="value">The text to create an instance from</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public LocalizedText(LocalizedText value)
-        {            
+        {
             if (value == null) throw new ArgumentNullException("value");
-            
+
             m_locale = value.m_locale;
-            m_text   = value.m_text;
+            m_text = value.m_text;
         }
 
         /// <summary>
@@ -151,7 +150,7 @@ namespace Opc.Ua
         public LocalizedText(string text)
         {
             m_locale = null;
-            m_text   = text;
+            m_text = text;
         }
 
         /// <summary>
@@ -180,7 +179,7 @@ namespace Opc.Ua
             m_text = text;
 
             if (!String.IsNullOrEmpty(key))
-            {        
+            {
                 m_translationInfo = new TranslationInfo(key, locale, text);
             }
         }
@@ -197,12 +196,12 @@ namespace Opc.Ua
         {
             get { return m_locale; }
         }
-        
+
         /// <summary cref="LocalizedText.Locale" />
         [DataMember(Name = "Locale", Order = 1)]
         internal string XmlEncodedLocale
         {
-            get { return m_locale;  }
+            get { return m_locale; }
             set { m_locale = value; }
         }
 
@@ -216,12 +215,12 @@ namespace Opc.Ua
         {
             get { return m_text; }
         }
-        
+
         /// <summary cref="LocalizedText.Text" />
         [DataMember(Name = "Text", Order = 2)]
         internal string XmlEncodedText
         {
-            get { return m_text;  }
+            get { return m_text; }
             set { m_text = value; }
         }
 
@@ -233,7 +232,7 @@ namespace Opc.Ua
         /// </remarks>
         public string Key
         {
-            get 
+            get
             {
                 if (m_translationInfo != null)
                 {
@@ -242,8 +241,8 @@ namespace Opc.Ua
 
                 return null;
             }
-            
-            set 
+
+            set
             {
                 if (m_translationInfo != null)
                 {
@@ -254,17 +253,17 @@ namespace Opc.Ua
                 m_translationInfo = new TranslationInfo(value, m_locale, m_text);
             }
         }
-        
+
         /// <summary>
         /// The information required to translate the text into other locales.
         /// </summary>
         public TranslationInfo TranslationInfo
         {
-            get { return m_translationInfo;  }
+            get { return m_translationInfo; }
             set { m_translationInfo = value; }
         }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
@@ -297,7 +296,7 @@ namespace Opc.Ua
 
             return ltext.m_text == m_text;
         }
-        
+
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -306,7 +305,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
-        public static bool operator==(LocalizedText value1, LocalizedText value2)
+        public static bool operator ==(LocalizedText value1, LocalizedText value2)
         {
             if (!Object.ReferenceEquals(value1, null))
             {
@@ -324,7 +323,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
-        public static bool operator!=(LocalizedText value1, LocalizedText value2)
+        public static bool operator !=(LocalizedText value1, LocalizedText value2)
         {
             if (!Object.ReferenceEquals(value1, null))
             {
@@ -349,7 +348,7 @@ namespace Opc.Ua
 
             return 0;
         }
-        
+
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -378,11 +377,11 @@ namespace Opc.Ua
             {
                 return String.Format(formatProvider, "{0}", this.m_text);
             }
-        
+
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
         #endregion
-                
+
         #region ICloneable Members
         /// <summary>
         /// Makes a deep copy of the object.
@@ -409,7 +408,7 @@ namespace Opc.Ua
         {
             return new LocalizedText(value);
         }
-        
+
         /// <summary>
         /// Converts a string to a localized text.
         /// </summary>
@@ -425,7 +424,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null LocalizedText.
         /// </summary>
-        public static LocalizedText Null 
+        public static LocalizedText Null
         {
             get { return s_Null; }
         }
@@ -469,8 +468,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public LocalizedTextCollection() {}
-        
+        public LocalizedTextCollection() { }
+
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
@@ -478,7 +477,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy into this new instance</param>
-        public LocalizedTextCollection(IEnumerable<LocalizedText> collection) : base(collection) {}
+        public LocalizedTextCollection(IEnumerable<LocalizedText> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -487,8 +486,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity of this collection</param>
-        public LocalizedTextCollection(int capacity) : base(capacity) {}
-        
+        public LocalizedTextCollection(int capacity) : base(capacity) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -505,7 +504,7 @@ namespace Opc.Ua
 
             return new LocalizedTextCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -517,7 +516,7 @@ namespace Opc.Ua
         {
             return ToLocalizedTextCollection(values);
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>

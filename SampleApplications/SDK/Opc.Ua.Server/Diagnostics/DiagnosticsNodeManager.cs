@@ -120,12 +120,12 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 base.CreateAddressSpace(externalReferences);
-                      
+
                 // sampling interval diagnostics not supported by the server.
                 ServerDiagnosticsState serverDiagnosticsNode = (ServerDiagnosticsState)FindPredefinedNode(
                     ObjectIds.Server_ServerDiagnostics,
                     typeof(ServerDiagnosticsState));
-                                
+
                 if (serverDiagnosticsNode != null)
                 {
                     NodeState samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
@@ -134,10 +134,11 @@ namespace Opc.Ua.Server
 
                     if (samplingDiagnosticsArrayNode != null)
                     {
+                        DeleteNode(SystemContext, VariableIds.Server_ServerDiagnostics_SamplingIntervalDiagnosticsArray);
                         serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
                     }
                 }
-                
+
                 // The nodes are now loaded by the DiagnosticsNodeManager from the file
                 // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
                 // via the AttachNode() method when the DiagnosticsNodeManager starts.
@@ -152,6 +153,7 @@ namespace Opc.Ua.Server
                 {
                     getMonitoredItems.OnCallMethod = OnGetMonitoredItems;
                 }
+
             }
         }
         
@@ -183,6 +185,12 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
                     subscription.GetMonitoredItems(out serverHandles, out clientHandles);
 
                     outputArguments[0] = serverHandles;

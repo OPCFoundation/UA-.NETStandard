@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.IO;
 using System.Threading.Tasks;
+using System.Globalization;
 
 namespace Opc.Ua.Server
 {
@@ -673,11 +674,6 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                if (e.StatusCode == StatusCodes.BadSessionNotActivated)
-                {
-                    return CreateResponse(requestHeader, e);
-                }
-
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
@@ -2678,7 +2674,7 @@ namespace Opc.Ua.Server
             serverDescription = new ApplicationDescription();
 
             serverDescription.ApplicationUri = configuration.ApplicationUri;
-            serverDescription.ApplicationName = configuration.ApplicationName;
+            serverDescription.ApplicationName = new LocalizedText("en-US", configuration.ApplicationName);
             serverDescription.ApplicationType = configuration.ApplicationType;
             serverDescription.ProductUri = configuration.ProductUri;
             serverDescription.DiscoveryUrls = GetDiscoveryUrls();

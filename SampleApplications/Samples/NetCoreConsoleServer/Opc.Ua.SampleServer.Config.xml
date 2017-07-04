@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
       <StorePath>CurrentUser\UA_MachineDefault</StorePath>
-      <SubjectName>CN=UA Core Sample Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=UA Core Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
