@@ -32,6 +32,7 @@ namespace Opc.Ua
         private ServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
+        private uint m_nestingLevel;
         #endregion
 
         #region Constructors
@@ -40,8 +41,8 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException("context");
             Initialize();
 
-
             m_context = context;
+            m_nestingLevel = 0;
             m_reader = new JsonTextReader(new StringReader(json));
             m_root = ReadObject();
             m_stack = new Stack<object>();
@@ -53,6 +54,7 @@ namespace Opc.Ua
             Initialize();
 
             m_context = context;
+            m_nestingLevel = 0;
             m_reader = reader;
             m_root = ReadObject();
             m_stack = new Stack<object>();
@@ -942,6 +944,16 @@ namespace Opc.Ua
 
             try
             {
+                // check the nesting level for avoiding a stack overflow.
+                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded",
+                        m_context.MaxEncodingNestingLevels);
+                }
+
+                m_nestingLevel++;
                 m_stack.Push(value);
 
                 DiagnosticInfo di = new DiagnosticInfo();
@@ -985,6 +997,7 @@ namespace Opc.Ua
             }
             finally
             {
+                m_nestingLevel--;
                 m_stack.Pop();
             }
         }
@@ -1150,6 +1163,16 @@ namespace Opc.Ua
 
             try
             {
+                // check the nesting level for avoiding a stack overflow.
+                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded",
+                        m_context.MaxEncodingNestingLevels);
+                }
+
+                m_nestingLevel++;
                 m_stack.Push(value);
 
                 BuiltInType type = (BuiltInType)ReadByte("Type");
@@ -1180,6 +1203,7 @@ namespace Opc.Ua
             }
             finally
             {
+                m_nestingLevel--;
                 m_stack.Pop();
             }
         }
@@ -1357,6 +1381,17 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
             }
 
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             try
             {
                 m_stack.Push(token);
@@ -1367,6 +1402,8 @@ namespace Opc.Ua
             {
                 m_stack.Pop();
             }
+
+            m_nestingLevel--;
 
             return value;
         }

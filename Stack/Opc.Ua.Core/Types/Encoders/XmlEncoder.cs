@@ -35,6 +35,7 @@ namespace Opc.Ua
 
             m_destination = new StringBuilder();
             m_context     = context;
+            m_nestingLevel = 0;
 
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.CheckCharacters = false;
@@ -72,6 +73,7 @@ namespace Opc.Ua
 
             Initialize(root.Name, root.Namespace);
             m_context = context;
+            m_nestingLevel = 0;
         }
 
 		/// <summary>
@@ -612,10 +614,21 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (BeginField(fieldName, value == null, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                
+
                 if (value != null)
                 {
                     WriteInt32("SymbolicId", value.SymbolicId);
@@ -628,9 +641,11 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
         }
 
         /// <summary>
@@ -687,18 +702,31 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (BeginField(fieldName, false, false))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                
-                m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);                
-                WriteVariantContents(value.Value, value.TypeInfo);                
+
+                m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                WriteVariantContents(value.Value, value.TypeInfo);
                 m_writer.WriteEndElement();
-                
+
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
         }
         
         /// <summary>
@@ -804,7 +832,18 @@ namespace Opc.Ua
         /// Writes an encodeable object to the stream.
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
-        {            
+        {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (BeginField(fieldName, value == null, true))
             {
                 if (value != null)
@@ -814,7 +853,9 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
-        }      
+
+            m_nestingLevel--;
+        }
 
         /// <summary>
         /// Writes an enumerated value array to the stream.
@@ -1959,6 +2000,7 @@ namespace Opc.Ua
         private ServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
+        private uint m_nestingLevel;
         #endregion
     }
 }

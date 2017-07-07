@@ -32,6 +32,7 @@ namespace Opc.Ua
         private ServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
+        private uint m_nestingLevel;
         #endregion
 
         public bool UseReversibleEncoding { get; private set; }
@@ -45,6 +46,7 @@ namespace Opc.Ua
             Initialize();
 
             m_context = context;
+            m_nestingLevel = 0;
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
 
@@ -729,6 +731,17 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
@@ -773,6 +786,8 @@ namespace Opc.Ua
             }
 
             PopStructure();
+
+            m_nestingLevel--;
         }
 
         /// <summary>
@@ -837,10 +852,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant array to the stream.
+        /// Writes an Variant to the stream.
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (Variant.Null == value)
             {
                 WriteSimpleField(fieldName, null, false);
@@ -881,6 +907,8 @@ namespace Opc.Ua
 
                 PopStructure();
             }
+
+            m_nestingLevel--;
         }
 
         /// <summary>
@@ -987,6 +1015,17 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
@@ -1001,6 +1040,8 @@ namespace Opc.Ua
             }
 
             PopStructure();
+
+            m_nestingLevel--;
         }
 
         /// <summary>
