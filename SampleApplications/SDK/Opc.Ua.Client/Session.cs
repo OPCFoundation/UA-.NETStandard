@@ -3764,6 +3764,7 @@ namespace Opc.Ua.Client
                 {
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
+                    case StatusCodes.BadSessionIdInvalid:
                     case StatusCodes.BadTooManyPublishRequests:
                     case StatusCodes.BadServerHalted:
                         {
