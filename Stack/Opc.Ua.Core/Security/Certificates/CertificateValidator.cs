@@ -818,7 +818,8 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.UntrustedRoot:
                     {
                         // check if a self signed cert is valid
-                        if (id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
+                        if (issuer == null && !isIssuer &&
+                            id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
                         {
                             // NotSignatureValid status is only returned on Windows, 
                             // we have to verify the cert integrity on other platforms
