@@ -335,8 +335,11 @@ namespace Opc.Ua.Server
         public void Delete(OperationContext context)
         {
             // delete the diagnostics.
-            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
-            m_server.DiagnosticsNodeManager.DeleteSubscriptionDiagnostics(systemContext, m_diagnosticsId);
+            if (m_diagnosticsId != null && !m_diagnosticsId.IsNullNodeId)
+            {
+                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
+                m_server.DiagnosticsNodeManager.DeleteSubscriptionDiagnostics(systemContext, m_diagnosticsId);
+            }
 
             lock (m_lock)
             {   
