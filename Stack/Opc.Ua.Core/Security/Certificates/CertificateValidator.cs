@@ -817,12 +817,12 @@ namespace Opc.Ua
 
                 case X509ChainStatusFlags.UntrustedRoot:
                     {
-                        // check if a self signed cert is valid
+                        // self signed cert signature validation 
+                        // .Net Core ChainStatus returns NotSignatureValid only on Windows, 
+                        // so we have to do the extra cert signature check on all platforms
                         if (issuer == null && !isIssuer &&
                             id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
                         {
-                            // NotSignatureValid status is only returned on Windows, 
-                            // we have to verify the cert integrity on other platforms
                             if (!IsSignatureValid(id.Certificate))
                             {
                                 goto case X509ChainStatusFlags.NotSignatureValid;
@@ -831,7 +831,7 @@ namespace Opc.Ua
 
                         // ignore this error because the root check is done
                         // by looking the certificate up in the trusted issuer stores passed to the validator.
-                        // the ChainStatus uses the Windows trusted issuer stores.
+                        // the ChainStatus uses the trusted issuer stores.
                         break;
                     }
 
