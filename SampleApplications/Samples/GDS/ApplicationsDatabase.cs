@@ -209,6 +209,29 @@ namespace Opc.Ua.GdsServer
             Accepted
         }
 
+        public NodeId AddCertificateToDevice(
+          NodeId applicationId,
+          byte[] certificate,
+          byte[] privateKey,
+          string authorityId)
+        {
+            if (NodeId.IsNull(applicationId))
+            {
+                throw new ArgumentNullException("applicationId");
+            }
+
+            // TODO: add cert and private key to device twin as tags
+ 
+            return new NodeId(applicationId.Identifier.ToString(), NamespaceIndex);
+        }
+
+        public void GetCertificateAndPrivateKey(NodeId applicationId, out byte[] certificate, out byte[] privateKey)
+        {
+            // TODO
+            certificate = null;
+            privateKey = null;
+        }
+
         public NodeId CreateCertificateRequest(
             NodeId applicationId,
             byte[] certificate,

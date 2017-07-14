@@ -37,6 +37,8 @@ using Opc.Ua.Gds;
 using Opc.Ua.Server;
 using System.Threading.Tasks;
 using Org.BouncyCastle.X509;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace Opc.Ua.GdsServer
 {
@@ -121,26 +123,13 @@ namespace Opc.Ua.GdsServer
         }
         #endregion
 
-        private void HasGdsAdminAccess(ISystemContext context)
-        {
-            if (context != null)
-            {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if (identity == null || identity.Role != GdsRole.GdsAdmin)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "GDS Administrator access required.");
-                }
-            }
-        }
-
         private void HasApplicationAdminAccess(ISystemContext context)
         {
             if (context != null)
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
 
-                if (identity == null || (identity.Role != GdsRole.GdsAdmin && identity.Role != GdsRole.ApplicationAdmin))
+                if ((identity == null) || (identity.Role != GdsRole.ApplicationAdmin))
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
                 }
@@ -155,7 +144,7 @@ namespace Opc.Ua.GdsServer
 
                 if (identity == null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User access required.");
                 }
             }
         }
@@ -233,14 +222,9 @@ namespace Opc.Ua.GdsServer
                         X509Crl crl = null; //TODO: parser.ReadCrl();
 
                         Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(certificate);
-                        if (!crl.IsRevoked(bccert))
+                        if ((crl != null) && !crl.IsRevoked(bccert))
                         {
-                            //TODO:
-                            //RevokeCertificate(
-                            //    certificateGroup.DefaultTrustList + "\\trusted",
-                            //    x509,
-                            //    certificateGroup.PrivateKeyFilePath,
-                            //    null);
+                            //TODO: RevokeCertificate(certificateGroup.DefaultTrustList + "\\trusted", x509, certificateGroup.PrivateKeyFilePath, null);
                         }
                     }
                     catch (Exception e)
@@ -392,8 +376,10 @@ namespace Opc.Ua.GdsServer
                 using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(trustListPath))
                 {
                     var x509 = new X509Certificate2(certificateGroup.Certificate.RawData);
-
-                    if (store.FindByThumbprint(x509.Thumbprint) == null)
+                    Task<X509Certificate2Collection> t = store.FindByThumbprint(x509.Thumbprint);
+                    t.Wait();
+                    X509Certificate2Collection certs = t.Result;
+                    if (certs.Count == 0)
                     {
                         await store.Add(x509);
                     }
@@ -901,13 +887,14 @@ namespace Opc.Ua.GdsServer
             HasApplicationAdminAccess(context);
 
             byte[] certificate = null;
-            byte[] httpsCertificate = null;
+            byte[] privateKey = null;
+            m_database.UnregisterApplication(applicationId, out certificate, out privateKey);
 
-            m_database.UnregisterApplication(applicationId, out certificate, out httpsCertificate);
-
-            RevokeCertificate(certificate);
-            RevokeCertificate(httpsCertificate);
-
+            if (certificate != null)
+            {
+                RevokeCertificate(certificate);
+            }
+            
             return ServiceResult.Good;
         }
 
@@ -1081,7 +1068,7 @@ namespace Opc.Ua.GdsServer
 
             if (application == null)
             {
-                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId is does not refer to a valid application.");
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
             }
 
             if (NodeId.IsNull(certificateGroupId))
@@ -1114,7 +1101,7 @@ namespace Opc.Ua.GdsServer
 
                 buffer.Append("CN=");
 
-                if (NodeId.IsNull(certificateGroup.Id) || certificateGroup.Id == DefaultApplicationGroupId)
+                if ((NodeId.IsNull(certificateGroup.Id) || (certificateGroup.Id == DefaultApplicationGroupId)) && (application.ApplicationNames.Count > 0))
                 {
                     buffer.Append(application.ApplicationNames[0]);
                 }
@@ -1122,11 +1109,6 @@ namespace Opc.Ua.GdsServer
                 else if (certificateGroup.Id == DefaultHttpsGroupId)
                 {
                     buffer.Append(GetDefaultHttpsDomain(application));
-                }
-
-                if (!String.IsNullOrEmpty(m_configuration.DefaultSubjectNameContext))
-                {
-                    buffer.Append(m_configuration.DefaultSubjectNameContext);
                 }
 
                 subjectName = buffer.ToString();
@@ -1155,8 +1137,8 @@ namespace Opc.Ua.GdsServer
                     CertificateStoreType.Directory,
                     m_configuration.ApplicationCertificatesStorePath,
                     privateKeyPassword,
-                    application.ApplicationUri,
-                    application.ApplicationNames[0].Text,
+                    application.ApplicationUri != null? application.ApplicationUri : "urn:ApplicationURI",
+                    application.ApplicationNames.Count > 0? application.ApplicationNames[0].Text : "ApplicationName",
                     subjectName,
                     domainNames,
                     (certificateGroup.Configuration.DefaultCertificateKeySize != 0) ? certificateGroup.Configuration.DefaultCertificateKeySize : (ushort)1024,
@@ -1178,28 +1160,26 @@ namespace Opc.Ua.GdsServer
                 return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
             }
 
+            // since CreateCert() automatically stores the new cert in our cert store, delete it again
             using (DirectoryCertificateStore store = (DirectoryCertificateStore) CertificateStoreIdentifier.OpenStore(m_configuration.ApplicationCertificatesStorePath))
             {
-                byte[] privateKey = null;
+                byte[] privateKeyPFX = null;
                 var privateKeyPath = store.GetPrivateKeyFilePath(newCertificate.Thumbprint);
-
                 if (privateKeyPath != null)
                 {
-                    privateKey = File.ReadAllBytes(privateKeyPath);
+                    privateKeyPFX = File.ReadAllBytes(privateKeyPath);
                 }
 
                 Task<bool> task = store.Delete(newCertificate.Thumbprint);
                 task.Wait();
 
-                requestId = m_database.CreateCertificateRequest(
+                // now update our database with the new certificate and private key
+                requestId = m_database.AddCertificateToDevice(
                     applicationId,
                     newCertificate.RawData,
-                    privateKey,
+                    privateKeyPFX,
                     certificateGroup.Id.Identifier as string);
             }
-
-            // immediately approve certificate for now.
-            m_database.ApproveCertificateRequest(requestId, false);
 
             return ServiceResult.Good;
         }
@@ -1220,7 +1200,7 @@ namespace Opc.Ua.GdsServer
 
             if (application == null)
             {
-                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId is does not refer to a valid application.");
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
             }
 
             if (NodeId.IsNull(certificateGroupId))
@@ -1232,7 +1212,7 @@ namespace Opc.Ua.GdsServer
 
             if (!m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
-                return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId is does not refer to a supported certificateGroup.");
+                return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId does not refer to a supported certificateGroup.");
             }
 
             if (!NodeId.IsNull(certificateTypeId))
@@ -1248,52 +1228,24 @@ namespace Opc.Ua.GdsServer
 
             try
             {
-                DateTime now = DateTime.UtcNow;
-                now = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-1);
+                Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
+                CertificationRequestInfo info = pkcs10CertificationRequest.GetCertificationRequestInfo();
 
-                /// <summary>
-                /// Signs an existing certificate by the CA.
-                /// </summary>
-                /// <param name="requestPath">The path to the certificate signing request.</param>
-                /// <param name="commonName">Name of the common.</param>
-                /// <param name="applicationUri">The application uri. Replaces whatever is in the existing certificate.</param>
-                /// <param name="domainNames">The domain names. Replaces whatever is in the existing certificate.</param>
-                /// <param name="issuerKeyFilePath">The path to the CA private key.</param>
-                /// <param name="issuerKeyFilePassword">The password for the CA private key.</param>
-                /// <param name="startTime">The begining of the validity period for the certificate.</param>
-                /// <param name="lifetimeInMonths">The lifetime in months.</param>
-                /// <param name="hashSizeInBits">The hash size in bits.</param>
-                /// <param name="outputStore">The location for the new certificate.</param>
-                /// <returns>
-                /// The path to the new certificate.
-                /// </returns>
-                /// <exception cref="System.IO.FileNotFoundException">Public key file not found
-                /// or
-                /// Issuer key file not found
-                /// or
-                /// Output store not found</exception>
-                /// <exception cref="ServiceResultException">Input file was not processed properly.
-                /// or
-                /// Invalid response produced by the CertificateGenerator.</exception>
-                /// 
-                //TODO:
-                /*
-                var newCertificate = CertificateAuthority.Sign(
-                    Utils.ToHexString(certificateRequest),
-                    application.ApplicationNames[0].Text,
-                    application.ApplicationUri,
-                    domainNames,
-                    certificateGroup.PrivateKeyFilePath,
+                certificate = CertificateFactory.CreateCertificate(
+                    CertificateStoreType.Directory,
+                    m_configuration.ApplicationCertificatesStorePath,
                     null,
-                    now,
+                    application.ApplicationUri != null ? application.ApplicationUri : "urn:ApplicationURI",
+                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                    info.Subject.ToString(),
+                    domainNames,
+                    (certificateGroup.Configuration.DefaultCertificateKeySize != 0) ? certificateGroup.Configuration.DefaultCertificateKeySize : (ushort)1024,
+                    DateTime.UtcNow.AddDays(-1),
                     (certificateGroup.Configuration.DefaultCertificateLifetime != 0) ? certificateGroup.Configuration.DefaultCertificateLifetime : (ushort)60,
                     256,
-                    m_configuration.ApplicationCertificatesStorePath);
-                */
-
-                //var bytes = Utils.FromHexString(newCertificate);
-                var bytes = Utils.FromHexString("newCertificate"); //TODO!
-                certificate = Utils.ParseCertificateBlob(bytes);
+                    false,
+                    new X509Certificate2(certificateGroup.PrivateKeyFilePath, string.Empty, X509KeyStorageFlags.Exportable),
+                    info.SubjectPublicKeyInfo.GetEncoded());
             }
             catch (Exception e)
             {
@@ -1307,14 +1259,19 @@ namespace Opc.Ua.GdsServer
                 return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
             }
 
-            requestId = m_database.CreateCertificateRequest(
+            // since CreateCert() automatically stores the certificate in our application store, we remove it again
+            using (DirectoryCertificateStore store = (DirectoryCertificateStore)CertificateStoreIdentifier.OpenStore(m_configuration.ApplicationCertificatesStorePath))
+            {
+                Task<bool> task = store.Delete(certificate.Thumbprint);
+                task.Wait();
+            }
+
+            // update our database with the cert
+            requestId = m_database.AddCertificateToDevice(
                 applicationId,
-                certificate.GetRawCertData(),
+                certificate.RawData,
                 null,
                 certificateGroup.Id.Identifier as string);
-
-            // immediately approve certificate for now.
-            m_database.ApproveCertificateRequest(requestId, false);
 
             return ServiceResult.Good;
         }
@@ -1332,12 +1289,7 @@ namespace Opc.Ua.GdsServer
             issuerCertificates = null;
             HasApplicationAdminAccess(context);
 
-            var done = m_database.CompleteCertificateRequest(applicationId, requestId, out certificate, out privateKey);
-
-            if (!done)
-            {
-                return new ServiceResult(StatusCodes.BadNothingToDo, "The request has not been approved by the administrator.");
-            }
+            m_database.GetCertificateAndPrivateKey(applicationId, out certificate, out privateKey);
 
             CertificateGroup certificateGroup = GetGroupForCertificate(certificate);
 
@@ -1360,7 +1312,7 @@ namespace Opc.Ua.GdsServer
 
             if (application == null)
             {
-                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId is does not refer to a valid application.");
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
             }
 
             if (application.ApplicationType == ApplicationType.Client)
@@ -1396,7 +1348,7 @@ namespace Opc.Ua.GdsServer
 
             if (application == null)
             {
-                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId is does not refer to a valid application.");
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
             }
 
             if (NodeId.IsNull(certificateGroupId))
@@ -1408,7 +1360,7 @@ namespace Opc.Ua.GdsServer
 
             if (trustListId == null)
             {
-                return new ServiceResult(StatusCodes.BadNotFound, "The CertificateGroupId is does not refer to a group that is valid for the application.");
+                return new ServiceResult(StatusCodes.BadNotFound, "The CertificateGroupId does not refer to a group that is valid for the application.");
             }
 
             return ServiceResult.Good;
