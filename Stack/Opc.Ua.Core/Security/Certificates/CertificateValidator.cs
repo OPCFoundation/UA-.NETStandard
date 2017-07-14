@@ -817,9 +817,21 @@ namespace Opc.Ua
 
                 case X509ChainStatusFlags.UntrustedRoot:
                     {
+                        // self signed cert signature validation 
+                        // .Net Core ChainStatus returns NotSignatureValid only on Windows, 
+                        // so we have to do the extra cert signature check on all platforms
+                        if (issuer == null && !isIssuer &&
+                            id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
+                        {
+                            if (!IsSignatureValid(id.Certificate))
+                            {
+                                goto case X509ChainStatusFlags.NotSignatureValid;
+                            }
+                        }
+
                         // ignore this error because the root check is done
                         // by looking the certificate up in the trusted issuer stores passed to the validator.
-                        // the ChainStatus uses the Windows trusted issuer stores.
+                        // the ChainStatus uses the trusted issuer stores.
                         break;
                     }
 
@@ -914,6 +926,22 @@ namespace Opc.Ua
                 oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
                 oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
                 oid.Value == "1.3.14.3.2.27";          // dsaSHA1
+        }
+        /// <summary>
+        /// Returns if a self signed certificate is properly signed.
+        /// </summary>
+        private static bool IsSignatureValid(X509Certificate2 cert)
+        {
+            Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(cert.RawData);
+            try
+            {
+                bcCert.Verify(bcCert.GetPublicKey());
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
         }
         #endregion
 
