@@ -192,7 +192,8 @@
 
   <Extensions>
     <ua:XmlElement>
-      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/Empty">
+      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceApplications">
+        <ShutdownDelay>10</ShutdownDelay>
       </ReferenceServerConfiguration>
     </ua:XmlElement>
   </Extensions>
