@@ -33,8 +33,9 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException("context");
             Initialize();
             m_context = context;
-        }     
-        
+            m_nestingLevel = 0;
+        }
+
         /// <summary>
         /// Initializes the object with an XML element to parse.
         /// </summary>
@@ -44,6 +45,7 @@ namespace Opc.Ua
             Initialize();
             m_reader = XmlReader.Create(new StringReader(element.OuterXml));
             m_context = context;
+            m_nestingLevel = 0;
         }
 
         /// <summary>
@@ -55,6 +57,7 @@ namespace Opc.Ua
 
             m_reader  = reader;
             m_context = context;
+            m_nestingLevel = 0;
 
             string ns = null;
             string name = null;
@@ -82,11 +85,11 @@ namespace Opc.Ua
 
             PushNamespace(ns);
             BeginField(name, false);
-        }      
-                        
-		/// <summary>
-		/// Sets private members to default values.
-		/// </summary>
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
         private void Initialize()
         {
             m_reader     = null;
@@ -1190,6 +1193,17 @@ namespace Opc.Ua
         /// </summary>
         public DiagnosticInfo ReadDiagnosticInfo()
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             DiagnosticInfo value = new DiagnosticInfo();
 
             if (BeginField("SymbolicId", true))
@@ -1224,6 +1238,8 @@ namespace Opc.Ua
                 value.InnerDiagnosticInfo = ReadDiagnosticInfo();
                 EndField("InnerDiagnosticInfo");
             }
+
+            m_nestingLevel--;
 
             return value;
         }
@@ -1321,6 +1337,17 @@ namespace Opc.Ua
         /// </summary>
         public Variant ReadVariant(string fieldName)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             Variant value = new Variant();
 
             if (BeginField(fieldName, true))
@@ -1347,6 +1374,8 @@ namespace Opc.Ua
                 
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
 
             return value;
         }
@@ -1443,6 +1472,17 @@ namespace Opc.Ua
                     Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
             }
 
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (BeginField(fieldName, true))
             {
                 XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
@@ -1466,10 +1506,12 @@ namespace Opc.Ua
                     m_reader.Skip();
                     m_reader.MoveToContent();
                 }
-                          
+
                 EndField(fieldName);
             }
-             
+
+            m_nestingLevel--;
+
             return value;
         }
         
@@ -2742,6 +2784,7 @@ namespace Opc.Ua
         private ServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
+        private uint m_nestingLevel;
         #endregion
     }
 }
