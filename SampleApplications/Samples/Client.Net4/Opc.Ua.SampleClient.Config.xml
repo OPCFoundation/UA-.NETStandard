@@ -32,7 +32,7 @@
            In this case the first certificate matching the complete distinguished name is used. localhost is replaced with the hostname.
            If no certificate is found, a new self signed application certificate is created.
            The Thumbprint should be specified if the CN or DN does not uniquely identify a certificate. -->
-      <SubjectName>CN=UA Sample Client, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=UA Sample Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
 
       <!-- The SHA1 thumbprint for the certificate.
            The thumbprint uniquely identifies a certificate.
@@ -137,7 +137,6 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
-      <ua:String>https://localhost:61212/UA/SampleClient/</ua:String>
     </BaseAddresses>
 
     <!-- 

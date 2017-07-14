@@ -4,13 +4,15 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{F4805912-A3F9-4045-BC63-01F34A216EE7}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Opc.Ua.ComServerWrapper</RootNamespace>
     <AssemblyName>UA COM Server Wrapper</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>App.ico</ApplicationIcon>
     <SignAssembly>false</SignAssembly>
@@ -63,22 +65,6 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Opc.Ua.Client">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net46\Opc.Ua.Client.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.ComInterop, Version=1.1.334.6, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\bin\Debug\Opc.Ua.ComInterop.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Configuration">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Core">
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Opc.Ua.Server">
-      <HintPath>..\..\..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -135,7 +121,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="InstallConfig.xml" />
     <EmbeddedResource Include="ServerDiagnosticsCtrl.resx">
       <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -162,6 +147,28 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{8906c833-3c21-45b7-b103-1f27aa945075}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{9cde220b-7614-42c4-99b0-7b4713ab2931}</Project>
+      <Name>Opc.Ua.Configuration</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{15aeee57-3aae-4333-b69f-777f6573d8a4}</Project>
+      <Name>Opc.Ua.Server</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{31ec9480-617b-48c4-a5be-1d159a278d1d}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Common\UA COM Interop Library.csproj">
+      <Project>{24d3c616-ed4c-4af9-b529-7b418ec8acc4}</Project>
+      <Name>UA COM Interop Library</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

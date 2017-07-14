@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Opc.Ua.Server.Controls</RootNamespace>
     <AssemblyName>Opc.Ua.ServerControls</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SignAssembly>false</SignAssembly>
     <AssemblyOriginatorKeyFile>
@@ -59,21 +59,6 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Opc.Ua.Configuration, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\SDK\Opc.Ua.Configuration\bin\Debug\net46\Opc.Ua.Configuration.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Opc.Ua.Core, Version=1.2.335.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Stack\Opc.Ua.Core\bin\Debug\net46\Opc.Ua.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Opc.Ua.Server, Version=1.2.334.6, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\SDK\Opc.Ua.Server\bin\Debug\net46\Opc.Ua.Server.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -139,6 +124,18 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
+      <Name>Opc.Ua.Configuration</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{251c2bd9-33f5-4eb1-903d-8463c8fd16f0}</Project>
+      <Name>Opc.Ua.Server</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Controls.Net4\UA Sample Controls.csproj">
       <Project>{92ae819b-4938-4502-ac32-67063f9893cd}</Project>
       <Name>UA Sample Controls</Name>

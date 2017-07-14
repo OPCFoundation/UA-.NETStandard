@@ -128,36 +128,36 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="session">The session to use.</param>
         /// <returns>
-        /// A copy of the system context that references the new operation context.
+        /// A copy of the system context that references the new session.
         /// </returns>
         public ServerSystemContext Copy(Session session)
         {
             ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
 
-            OperationContext = null;
+            copy.OperationContext = null;
 
             if (session != null)
             {
-                SessionId = session.Id;
-                UserIdentity = session.Identity;
-                PreferredLocales = session.PreferredLocales;
+                copy.SessionId = session.Id;
+                copy.UserIdentity = session.Identity;
+                copy.PreferredLocales = session.PreferredLocales;
             }
             else
             {
-                SessionId = null;
-                UserIdentity = null;
-                PreferredLocales = null;
+                copy.SessionId = null;
+                copy.UserIdentity = null;
+                copy.PreferredLocales = null;
             }
 
             return copy;
         }
 
         /// <summary>
-        /// Creates a copy of the context that can be used with the specified session.
+        /// Creates a copy of the context that can be used with the specified server context.
         /// </summary>
-        /// <param name="context">The session to use.</param>
+        /// <param name="context">The server context to use.</param>
         /// <returns>
-        /// A copy of the system context that references the new operation context.
+        /// A copy of the system context that references the new server context.
         /// </returns>
         public ServerSystemContext Copy(ServerSystemContext context)
         {
@@ -165,14 +165,14 @@ namespace Opc.Ua.Server
 
             if (context != null)
             {
-                OperationContext = context.OperationContext;
-                SessionId = context.SessionId;
-                UserIdentity = context.UserIdentity;
-                PreferredLocales = context.PreferredLocales;
-                NamespaceUris = context.NamespaceUris;
-                ServerUris = context.ServerUris;
-                TypeTable = context.TypeTable;
-                EncodeableFactory = context.EncodeableFactory;
+                copy.OperationContext = context.OperationContext;
+                copy.SessionId = context.SessionId;
+                copy.UserIdentity = context.UserIdentity;
+                copy.PreferredLocales = context.PreferredLocales;
+                copy.NamespaceUris = context.NamespaceUris;
+                copy.ServerUris = context.ServerUris;
+                copy.TypeTable = context.TypeTable;
+                copy.EncodeableFactory = context.EncodeableFactory;
             }
 
             return copy;

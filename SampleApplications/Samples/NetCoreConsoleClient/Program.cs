@@ -95,9 +95,18 @@ namespace NetCoreConsoleClient
                 X509Certificate2 certificate = CertificateFactory.CreateCertificate(
                     config.SecurityConfiguration.ApplicationCertificate.StoreType,
                     config.SecurityConfiguration.ApplicationCertificate.StorePath,
+                    null,
                     config.ApplicationUri,
                     config.ApplicationName,
-                    config.SecurityConfiguration.ApplicationCertificate.SubjectName
+                    config.SecurityConfiguration.ApplicationCertificate.SubjectName,
+                    null,
+                    CertificateFactory.defaultKeySize,
+                    DateTime.UtcNow - TimeSpan.FromDays(1),
+                    CertificateFactory.defaultLifeTime,
+                    CertificateFactory.defaultHashSize,
+                    false,
+                    null,
+                    null
                     );
 
                 config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;

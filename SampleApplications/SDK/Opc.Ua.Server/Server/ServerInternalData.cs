@@ -566,10 +566,19 @@ namespace Opc.Ua.Server
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
                 serverObject.ServerCapabilities.LocaleIdArray.Value = m_resourceManager.GetAvailableLocales();
+                serverObject.ServerCapabilities.ServerProfileArray.Value = m_configuration.ServerConfiguration.ServerProfileArray.ToArray();
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
                 serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
                 serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
                 serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)m_configuration.TransportQuotas.MaxArrayLength;
+                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)m_configuration.TransportQuotas.MaxStringLength;
+                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRead.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerWrite.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerBrowse.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRegisterNodes.Value = 0;
 
                 // setup callbacks for dynamic values.
                 serverObject.NamespaceArray.OnSimpleReadValue = OnReadNamespaceArray;
@@ -578,6 +587,9 @@ namespace Opc.Ua.Server
                 serverObject.ServerArray.OnSimpleReadValue = OnReadServerArray;
                 serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
+                // dynamic change of enabledFlag is disabled to pass CTT
+                serverObject.ServerDiagnostics.EnabledFlag.AccessLevel = AccessLevels.CurrentRead;
+                serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels.CurrentRead;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
@@ -609,18 +621,18 @@ namespace Opc.Ua.Server
                 // initialize diagnostics.
                 m_serverDiagnostics = new ServerDiagnosticsSummaryDataType();
                 
-    		    m_serverDiagnostics.ServerViewCount = 0;
-    		    m_serverDiagnostics.CurrentSessionCount = 0;
-    		    m_serverDiagnostics.CumulatedSessionCount = 0;
-    		    m_serverDiagnostics.SecurityRejectedSessionCount = 0;
-    		    m_serverDiagnostics.RejectedSessionCount = 0;
-    		    m_serverDiagnostics.SessionTimeoutCount = 0;
-    		    m_serverDiagnostics.SessionAbortCount = 0;
-    		    m_serverDiagnostics.PublishingIntervalCount = 0;
-    		    m_serverDiagnostics.CurrentSubscriptionCount = 0;
-    		    m_serverDiagnostics.CumulatedSubscriptionCount = 0;
-    		    m_serverDiagnostics.SecurityRejectedRequestsCount = 0;
-    		    m_serverDiagnostics.RejectedRequestsCount = 0;
+                m_serverDiagnostics.ServerViewCount = 0;
+                m_serverDiagnostics.CurrentSessionCount = 0;
+                m_serverDiagnostics.CumulatedSessionCount = 0;
+                m_serverDiagnostics.SecurityRejectedSessionCount = 0;
+                m_serverDiagnostics.RejectedSessionCount = 0;
+                m_serverDiagnostics.SessionTimeoutCount = 0;
+                m_serverDiagnostics.SessionAbortCount = 0;
+                m_serverDiagnostics.PublishingIntervalCount = 0;
+                m_serverDiagnostics.CurrentSubscriptionCount = 0;
+                m_serverDiagnostics.CumulatedSubscriptionCount = 0;
+                m_serverDiagnostics.SecurityRejectedRequestsCount = 0;
+                m_serverDiagnostics.RejectedRequestsCount = 0;
                             
                 m_diagnosticsNodeManager.CreateServerDiagnostics(
                     m_defaultSystemContext,
@@ -631,8 +643,7 @@ namespace Opc.Ua.Server
                 m_diagnosticsNodeManager.SetDiagnosticsEnabled(
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
-                   
-                // TBD - Load the Software Certificates.
+
             }
         }
         

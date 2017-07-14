@@ -1251,12 +1251,18 @@ namespace Opc.Ua.Configuration
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
                 id.StoreType,
                 id.StorePath,
+                null,
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
                 serverDomainNames,
                 minimumKeySize,
-                lifeTimeInMonths
+                DateTime.UtcNow - TimeSpan.FromDays(1),
+                lifeTimeInMonths,
+                CertificateFactory.defaultHashSize,
+                false,
+                null,
+                null
                 );
 
             id.Certificate = certificate;

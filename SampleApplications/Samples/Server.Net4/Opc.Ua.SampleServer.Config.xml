@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
       <StorePath>CurrentUser\UA_MachineDefault</StorePath>
-      <SubjectName>CN=UA Sample Server, C=US, S=Arizona, L="16101 N. 82nd Street, Scottsdale", O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=UA Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -55,7 +55,6 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
-      <ua:String>https://localhost:51212/UA/SampleServer/</ua:String>
     </BaseAddresses>
 
     <!-- 

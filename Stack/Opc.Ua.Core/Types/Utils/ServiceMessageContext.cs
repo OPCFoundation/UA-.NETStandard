@@ -31,24 +31,26 @@ namespace Opc.Ua
         /// </summary>
         public ServiceMessageContext()
         {            
-            m_maxStringLength     = UInt16.MaxValue;
-            m_maxByteStringLength = UInt16.MaxValue*16;
-            m_maxArrayLength      = UInt16.MaxValue;
-            m_maxMessageSize      = UInt16.MaxValue*32;
-            m_namespaceUris       = new NamespaceTable();
-            m_serverUris          = new StringTable();
-            m_factory             = EncodeableFactory.GlobalFactory;
+            m_maxStringLength          = UInt16.MaxValue;
+            m_maxByteStringLength      = UInt16.MaxValue*16;
+            m_maxArrayLength           = UInt16.MaxValue;
+            m_maxMessageSize           = UInt16.MaxValue*32;
+            m_namespaceUris            = new NamespaceTable();
+            m_serverUris               = new StringTable();
+            m_factory                  = EncodeableFactory.GlobalFactory;
+            m_maxEncodingNestingLevels = 200;
         }
 
         private ServiceMessageContext(bool shared) : this()
         {
-            m_maxStringLength     = UInt16.MaxValue;
-            m_maxByteStringLength = UInt16.MaxValue*16;
-            m_maxArrayLength      = UInt16.MaxValue;
-            m_maxMessageSize      = UInt16.MaxValue*32;
-            m_namespaceUris       = new NamespaceTable(shared);
-            m_serverUris          = new StringTable(shared);
-            m_factory             = EncodeableFactory.GlobalFactory;
+            m_maxStringLength          = UInt16.MaxValue;
+            m_maxByteStringLength      = UInt16.MaxValue*16;
+            m_maxArrayLength           = UInt16.MaxValue;
+            m_maxMessageSize           = UInt16.MaxValue*32;
+            m_namespaceUris            = new NamespaceTable(shared);
+            m_serverUris               = new StringTable(shared);
+            m_factory                  = EncodeableFactory.GlobalFactory;
+            m_maxEncodingNestingLevels = 200;
         }
         #endregion
         
@@ -121,6 +123,14 @@ namespace Opc.Ua
         {
             get { lock (m_lock) { return m_maxMessageSize; } }
             set { lock (m_lock) { m_maxMessageSize = value; } }
+        }
+
+        /// <summary>
+        /// The maximum nesting level accepted while encoding or decoding objects.
+        /// </summary>
+        public uint MaxEncodingNestingLevels
+        {
+            get { lock (m_lock) { return m_maxEncodingNestingLevels; } }
         }
 
         /// <summary>
@@ -205,6 +215,7 @@ namespace Opc.Ua
         private int m_maxByteStringLength;
         private int m_maxArrayLength;
         private int m_maxMessageSize;
+        private uint m_maxEncodingNestingLevels;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private EncodeableFactory m_factory;
