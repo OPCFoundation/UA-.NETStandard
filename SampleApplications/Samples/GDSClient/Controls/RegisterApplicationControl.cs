@@ -1609,37 +1609,21 @@ namespace Opc.Ua.GdsClient
                 }
 
                 m_lastDirPath = new FileInfo(dialog.FileName).Directory.FullName;
-
-                try
+                               
+                if (dialog.FileName.EndsWith(".der", StringComparison.OrdinalIgnoreCase))
                 {
-                    using (Stream ostrm = File.Open(dialog.FileName, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-                    {
-                        XmlSerializer serializer = new XmlSerializer(typeof(RegisteredApplication));
-                        var application = serializer.Deserialize(ostrm);
-                        m_application = (RegisteredApplication)application;
-                    }
-
-                    DataToControl();
-                    ReadRegistration(true);
+                    ConfigurationFileTextBox.Text = null;
+                    SetCertificatePublicKey(dialog.FileName);
                 }
-                catch (Exception)
+                else
                 {
-                    if (dialog.FileName.EndsWith(".der", StringComparison.OrdinalIgnoreCase))
-                    {
-                        ConfigurationFileTextBox.Text = null;
-                        SetCertificatePublicKey(dialog.FileName);
-                    }
-                    else
-                    {
-                        InitializePullConfiguration(dialog.FileName);
-                        ConfigurationFileTextBox.Text = AddSpecialFolders(dialog.FileName);
-                    }
-
-                    ControlToData();
-                    RaiseRegisteredApplicationChangedEvent(m_application);
+                    InitializePullConfiguration(dialog.FileName);
+                    ConfigurationFileTextBox.Text = AddSpecialFolders(dialog.FileName);
                 }
 
+                ControlToData();
                 RaiseRegisteredApplicationChangedEvent(m_application);
+               
             }
             catch (Exception exception)
             {

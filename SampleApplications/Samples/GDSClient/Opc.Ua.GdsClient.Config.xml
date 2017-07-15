@@ -57,7 +57,7 @@
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <GlobalDiscoveryServerUrl>opc.tcp://erichbgds.cloudapp.net:58810</GlobalDiscoveryServerUrl>
+        <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810</GlobalDiscoveryServerUrl>
         <ExternalEditor>devenv.exe</ExternalEditor>
         <TemporaryStorePath>OPC Foundation/GDS/PKI/temporary</TemporaryStorePath>
       </GlobalDiscoveryClientConfiguration>
