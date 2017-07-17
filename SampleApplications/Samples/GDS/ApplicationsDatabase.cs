@@ -220,14 +220,13 @@ namespace Opc.Ua.GdsServer
                 throw new ArgumentNullException("applicationId");
             }
 
-            // TODO: add cert and private key to device twin as tags
- 
+            //TODO: add cert and private key to database or even better secure storage
             return new NodeId(applicationId.Identifier.ToString(), NamespaceIndex);
         }
 
         public void GetCertificateAndPrivateKey(NodeId applicationId, out byte[] certificate, out byte[] privateKey)
         {
-            // TODO
+            //TODO: retrieve cert and private key from database or even better secure storage
             certificate = null;
             privateKey = null;
         }
