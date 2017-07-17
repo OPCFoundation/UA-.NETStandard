@@ -271,7 +271,7 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append)))
+                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
                         {
                             if (truncated)
                             {
