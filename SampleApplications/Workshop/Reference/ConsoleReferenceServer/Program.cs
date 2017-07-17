@@ -103,6 +103,7 @@ namespace Quickstarts.ReferenceServer
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
+                server.Stop();
                 server.Dispose();
                 server = null;
 

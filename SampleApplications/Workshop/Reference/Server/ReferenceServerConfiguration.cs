@@ -68,9 +68,19 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// The delay in seconds to allow a graceful shutdown.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public uint ShutdownDelay
+        {
+            get { return m_shutdownDelay; }
+            set { m_shutdownDelay = value; }
+        }
         #endregion
 
         #region Private Members
+        private uint m_shutdownDelay;
         #endregion
     }
 }
