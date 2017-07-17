@@ -174,7 +174,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch
             {
-                // error during shutdown procedure
+                // ignore error during shutdown procedure.
             }
 
             base.OnServerStopping();
