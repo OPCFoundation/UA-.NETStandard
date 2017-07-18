@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
                     getMonitoredItems.OnCallMethod = OnGetMonitoredItems;
                 }
 
-                // set ValueRank for GetMonitoredItems.OutputArguments.Value.
+                // set ArrayDimensions for GetMonitoredItems.OutputArguments.Value.
                 PropertyState getMonitoredItemsOutputArguments = (PropertyState)FindPredefinedNode(
                     VariableIds.Server_GetMonitoredItems_OutputArguments,
                     typeof(PropertyState));
