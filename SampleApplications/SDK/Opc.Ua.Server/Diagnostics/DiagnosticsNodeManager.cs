@@ -154,6 +154,25 @@ namespace Opc.Ua.Server
                     getMonitoredItems.OnCallMethod = OnGetMonitoredItems;
                 }
 
+                // set ValueRank for GetMonitoredItems.OutputArguments.Value.
+                PropertyState getMonitoredItemsOutputArguments = (PropertyState)FindPredefinedNode(
+                    VariableIds.Server_GetMonitoredItems_OutputArguments,
+                    typeof(PropertyState));
+
+                if (getMonitoredItemsOutputArguments != null)
+                {
+                    Argument[] outputArgumentsValue = (Argument[])getMonitoredItemsOutputArguments.Value;
+
+                    if (outputArgumentsValue != null)
+                    {
+                        foreach (Argument argument in outputArgumentsValue)
+                        {
+                            argument.ArrayDimensions = new UInt32Collection { 0 };
+                        }
+
+                        getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
+                    }
+                }
             }
         }
         
