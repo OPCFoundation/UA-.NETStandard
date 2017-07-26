@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Opc.Ua.Client.Controls;
-using Opc.Ua.Server.Controls;
 
 namespace Quickstarts.ReferenceClient
 {

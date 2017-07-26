@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Server.Controls;
+using Opc.Ua.Client.Controls;
 
 namespace AggregationClient
 {
@@ -78,7 +78,7 @@ namespace AggregationClient
             this.SubscribeMI = new System.Windows.Forms.ToolStripMenuItem();
             this.CallMI = new System.Windows.Forms.ToolStripMenuItem();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
-            this.clientHeaderBranding1 = new Opc.Ua.Server.Controls.HeaderBranding();
+            this.clientHeaderBranding1 = new Opc.Ua.Client.Controls.HeaderBranding();
             this.MenuBar.SuspendLayout();
             this.MainPN.SuspendLayout();
             this.BrowseMenu.SuspendLayout();
