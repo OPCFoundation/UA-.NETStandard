@@ -1,6 +1,6 @@
-﻿namespace Opc.Ua.Server.Controls
+﻿namespace Opc.Ua.Client.Controls
 {
-    partial class ServerHeaderBranding
+    partial class HeaderBranding
     {
         /// <summary> 
         /// Required designer variable.
@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ServerHeaderBranding));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(HeaderBranding));
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
             this.label1 = new System.Windows.Forms.Label();
@@ -97,7 +97,7 @@
             this.appName.Text = "Sample Application";
             this.appName.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
-            // ServerHeaderBranding
+            // HeaderBranding
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
@@ -109,7 +109,7 @@
             this.Controls.Add(this.appName);
             this.MaximumSize = new System.Drawing.Size(0, 100);
             this.MinimumSize = new System.Drawing.Size(500, 90);
-            this.Name = "ServerHeaderBranding";
+            this.Name = "HeaderBranding";
             this.Padding = new System.Windows.Forms.Padding(3);
             this.Size = new System.Drawing.Size(591, 90);
             this.Load += new System.EventHandler(this.ServerHeaderBranding_Load);

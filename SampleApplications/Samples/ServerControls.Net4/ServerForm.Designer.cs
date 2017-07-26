@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Controls
             this.components = new System.ComponentModel.Container();
             this.TrayIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.ServerDiagnosticsCTRL = new Opc.Ua.Server.Controls.ServerDiagnosticsCtrl();
-            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.HeaderBranding();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Controls
 
         private ServerDiagnosticsCtrl ServerDiagnosticsCTRL;
         private System.Windows.Forms.NotifyIcon TrayIcon;
-        private ServerHeaderBranding serverHeaderBranding1;
+        private HeaderBranding serverHeaderBranding1;
         private System.Windows.Forms.MenuStrip menuStrip1;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;

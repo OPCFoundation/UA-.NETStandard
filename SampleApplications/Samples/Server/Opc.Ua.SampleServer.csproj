@@ -93,7 +93,6 @@
   <ItemGroup>
     <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
     <None Include="Opc.Ua.SampleServer_TemporaryKey.pfx" />
-    <None Include="project.lock.json" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.xaml.cs">

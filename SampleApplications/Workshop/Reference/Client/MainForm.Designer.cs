@@ -73,7 +73,7 @@ namespace Quickstarts.ReferenceClient
             this.StatusBar = new System.Windows.Forms.StatusStrip();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
             this.BrowseCTRL = new BrowseNodeCtrl();
-            this.clientHeaderBranding1 = new ServerHeaderBranding();
+            this.clientHeaderBranding1 = new HeaderBranding();
             this.MenuBar.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -234,7 +234,7 @@ namespace Quickstarts.ReferenceClient
         private System.Windows.Forms.ToolStripMenuItem Help_ContentsMI;
         private ConnectServerCtrl ConnectServerCTRL;
         private BrowseNodeCtrl BrowseCTRL;
-        private ServerHeaderBranding clientHeaderBranding1;
+        private HeaderBranding clientHeaderBranding1;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
     }
