@@ -1997,8 +1997,7 @@ namespace Opc.Ua.Client
                 serverCertificate = Utils.ParseCertificateBlob(certificateData);
                 m_configuration.CertificateValidator.Validate(serverCertificate);
 
-                if ( checkDomain &&
-                    (m_configuration.SecurityConfiguration.TrustedPeerCertificates.ValidationOptions & CertificateValidationOptions.SuppressHostNameInvalid) == 0)
+                if (checkDomain)
                 {
                     CheckCertificateDomain(m_endpoint);
                 }
