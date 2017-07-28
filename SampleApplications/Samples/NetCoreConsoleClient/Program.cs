@@ -48,6 +48,7 @@ namespace NetCoreConsoleClient
         public static async Task ConsoleSampleClient(string endpointURL)
         {
             Console.WriteLine("1 - Create an Application Configuration.");
+            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             var config = new ApplicationConfiguration()
             {
                 ApplicationName = "UA Core Sample Client",
@@ -130,9 +131,7 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("2 - Discover endpoints of {0}.", endpointURL);
-            Uri endpointURI = new Uri(endpointURL);
-            var endpointCollection = DiscoverEndpoints(config, endpointURI, 10);
-            var selectedEndpoint = SelectUaTcpEndpoint(endpointCollection, haveAppCertificate);
+            var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate);
             Console.WriteLine("    Selected endpoint uses: {0}", 
                 selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
@@ -219,61 +218,5 @@ namespace NetCoreConsoleClient
             e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
         }
 
-        private static EndpointDescriptionCollection DiscoverEndpoints(ApplicationConfiguration config, Uri discoveryUrl, int timeout)
-        {
-            // use a short timeout.
-            EndpointConfiguration configuration = EndpointConfiguration.Create(config);
-            configuration.OperationTimeout = timeout;
-
-            using (DiscoveryClient client = DiscoveryClient.Create(
-                discoveryUrl,
-                EndpointConfiguration.Create(config)))
-            {
-                try
-                {
-                    EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
-                    ReplaceLocalHostWithRemoteHost(endpoints, discoveryUrl);
-                    return endpoints;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Could not fetch endpoints from url: {0}", discoveryUrl);
-                    Console.WriteLine("Reason = {0}", e.Message);
-                    throw e;
-                }
-            }
-        }
-
-        private static EndpointDescription SelectUaTcpEndpoint(EndpointDescriptionCollection endpointCollection, bool haveCert)
-        {
-            EndpointDescription bestEndpoint = null;
-            foreach (EndpointDescription endpoint in endpointCollection)
-            {
-                if (endpoint.TransportProfileUri == Profiles.UaTcpTransport)
-                {
-                    if (bestEndpoint == null || 
-                        haveCert && (endpoint.SecurityLevel > bestEndpoint.SecurityLevel) ||
-                        !haveCert && (endpoint.SecurityLevel < bestEndpoint.SecurityLevel))
-                    {
-                        bestEndpoint = endpoint;
-                    }
-                }
-            }
-            return bestEndpoint;
-        }
-
-        private static void ReplaceLocalHostWithRemoteHost(EndpointDescriptionCollection endpoints, Uri discoveryUrl)
-        {
-            foreach (EndpointDescription endpoint in endpoints)
-            {
-                endpoint.EndpointUrl = Utils.ReplaceLocalhost(endpoint.EndpointUrl, discoveryUrl.DnsSafeHost);
-                StringCollection updatedDiscoveryUrls = new StringCollection();
-                foreach (string url in endpoint.Server.DiscoveryUrls)
-                {
-                    updatedDiscoveryUrls.Add(Utils.ReplaceLocalhost(url, discoveryUrl.DnsSafeHost));
-                }
-                endpoint.Server.DiscoveryUrls = updatedDiscoveryUrls;
-            }
-        }
     }
 }
