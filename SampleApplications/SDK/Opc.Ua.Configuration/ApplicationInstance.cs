@@ -707,19 +707,6 @@ namespace Opc.Ua.Configuration
                 await AddToTrustedStore(configuration, certificate);
             }
 
-            // add to discovery server.
-            if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
-            {
-                try
-                {
-                    await AddToDiscoveryServerTrustList(certificate, null, null, configuration.SecurityConfiguration.TrustedPeerCertificates);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Could not add certificate to LDS trust list.");
-                }
-            }
-
             // update configuration file.
             ConfigUtils.UpdateConfigurationLocation(InstallConfig.ExecutableFile, InstallConfig.ConfigurationFile);
 
@@ -1010,19 +997,6 @@ namespace Opc.Ua.Configuration
             {
                 // ensure it is trusted.
                 await AddToTrustedStore(configuration, certificate);
-            }
-
-            // add to discovery server.
-            if (configuration.ApplicationType == ApplicationType.Server || configuration.ApplicationType == ApplicationType.ClientAndServer)
-            {
-                try
-                {
-                    await AddToDiscoveryServerTrustList(certificate, null, null, configuration.SecurityConfiguration.TrustedPeerCertificates);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Could not add certificate to LDS trust list.");
-                }
             }
 
             return true;
@@ -1321,121 +1295,6 @@ namespace Opc.Ua.Configuration
                 {
                     await store.Delete(certificate.Thumbprint);
                 }
-            }
-        }
-
-        /// <summary>
-        /// Adds the application certificate to the discovery server trust list.
-        /// </summary>
-        public static async Task AddToDiscoveryServerTrustList(
-            X509Certificate2 certificate,
-            string oldThumbprint,
-            IList<X509Certificate2> issuers,
-            CertificateStoreIdentifier trustedCertificateStore)
-        {
-            Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to discovery server trust list.");
-
-            try
-            {
-                string configurationPath = Utils.GetAbsoluteFilePath(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + "OPC Foundation" + Path.DirectorySeparatorChar + "Config" + Path.DirectorySeparatorChar + "Opc.Ua.DiscoveryServer.Config.xml", true, false, false);
-                if (configurationPath == null)
-                {
-                    Utils.Trace("Could not find the discovery server configuration file. Please confirm that it is installed.");
-                }
-                else
-                {
-                    Opc.Ua.Security.SecuredApplication ldsConfiguration = new Opc.Ua.Security.SecurityConfigurationManager().ReadConfiguration(configurationPath);
-                    CertificateStoreIdentifier csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.TrustedCertificateStore);
-                    await AddApplicationCertificateToStore(csid, certificate, oldThumbprint);
-
-                    if (issuers != null && ldsConfiguration.IssuerCertificateStore != null)
-                    {
-                        csid = Opc.Ua.Security.SecuredApplication.FromCertificateStoreIdentifier(ldsConfiguration.IssuerCertificateStore);
-                        AddIssuerCertificatesToStore(csid, issuers);
-                    }
-
-                    CertificateIdentifier cid = Opc.Ua.Security.SecuredApplication.FromCertificateIdentifier(ldsConfiguration.ApplicationCertificate);
-                    X509Certificate2 ldsCertificate = await cid.Find(false);
-
-                    // add LDS certificate to application trust list.
-                    if (ldsCertificate != null && trustedCertificateStore != null)
-                    {
-                        await AddApplicationCertificateToStore(csid, ldsCertificate, null);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not add certificate to discovery server trust list.");
-            }
-        }
-
-        /// <summary>
-        /// Adds an application certificate to a store.
-        /// </summary>
-        private static async Task AddApplicationCertificateToStore(
-            CertificateStoreIdentifier csid,
-            X509Certificate2 certificate,
-            string oldThumbprint)
-        {
-            ICertificateStore store = csid.OpenStore();
-
-            try
-            {
-                // delete the old certificate.
-                if (oldThumbprint != null)
-                {
-                    await store.Delete(oldThumbprint);
-                }
-
-                // delete certificates with the same application uri.
-                if (store.FindByThumbprint(certificate.Thumbprint) == null)
-                {
-                    string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
-
-                    // delete any existing certificates.
-                    X509Certificate2Collection collection = await store.Enumerate();
-                    foreach (X509Certificate2 target in collection)
-                    {
-                        if (Utils.CompareDistinguishedName(target.Subject, certificate.Subject))
-                        {
-                            if (Utils.GetApplicationUriFromCertificate(target) == applicationUri)
-                            {
-                                await store.Delete(target.Thumbprint);
-                            }
-                        }
-                    }
-
-                    // add new certificate.
-                    await store.Add(new X509Certificate2(certificate.RawData));
-                }
-            }
-            finally
-            {
-                store.Close();
-            }
-        }
-
-        /// <summary>
-        /// Adds an application certificate to a store.
-        /// </summary>
-        private static void AddIssuerCertificatesToStore(CertificateStoreIdentifier csid, IList<X509Certificate2> issuers)
-        {
-            ICertificateStore store = csid.OpenStore();
-
-            try
-            {
-                foreach (X509Certificate2 issuer in issuers)
-                {
-                    if (store.FindByThumbprint(issuer.Thumbprint) == null)
-                    {
-                        store.Add(issuer);
-                    }
-                }
-            }
-            finally
-            {
-                store.Close();
             }
         }
 
