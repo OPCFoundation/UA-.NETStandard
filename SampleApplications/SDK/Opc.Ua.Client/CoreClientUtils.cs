@@ -107,11 +107,10 @@ namespace Opc.Ua.Client
             // parse the selected URL.
             Uri uri = new Uri(discoveryUrl);
 
-            // set a short timeout because this is happening in the drop down event.
             EndpointConfiguration configuration = EndpointConfiguration.Create();
             if (operationTimeout > 0)
             {
-                configuration.OperationTimeout = 5000;
+                configuration.OperationTimeout = operationTimeout;
             }
 
             EndpointDescription selectedEndpoint = null;
