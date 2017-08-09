@@ -162,7 +162,7 @@ namespace Opc.Ua.Gds
                 m_session = null;
             }
 
-            EndpointDescription endpointDescription = ClientUtils.SelectEndpoint(endpointUrl, true);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 

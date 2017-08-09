@@ -67,7 +67,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
-    <Compile Include="CertificateAuthority.cs" />
     <Compile Include="Controls\ApplicationCertificateControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -84,27 +83,39 @@
     <Compile Include="Controls\DiscoveryControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\DiscoveryControl.Designer.cs" />
+    <Compile Include="Controls\DiscoveryControl.Designer.cs">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\DiscoveryUrlsDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\DiscoveryUrlsDialog.Designer.cs" />
+    <Compile Include="Controls\DiscoveryUrlsDialog.Designer.cs">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\EditValueCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\EditValueCtrl.Designer.cs" />
+    <Compile Include="Controls\EditValueCtrl.Designer.cs">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\EditValueDlg.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\EditValueDlg.Designer.cs" />
+    <Compile Include="Controls\EditValueDlg.Designer.cs">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\EndpointUrlDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\EndpointUrlDialog.Designer.cs" />
+    <Compile Include="Controls\EndpointUrlDialog.Designer.cs">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ImageListControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\ImageListControl.Designer.cs" />
+    <Compile Include="Controls\ImageListControl.Designer.cs">
+      <DependentUpon>ImageListControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\RegisterApplicationControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -114,7 +125,9 @@
     <Compile Include="Controls\SelectGdsDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\SelectGdsDialog.Designer.cs" />
+    <Compile Include="Controls\SelectGdsDialog.Designer.cs">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\SelectServerDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -124,11 +137,15 @@
     <Compile Include="Controls\ServerCapabilitiesDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\ServerCapabilitiesDialog.Designer.cs" />
+    <Compile Include="Controls\ServerCapabilitiesDialog.Designer.cs">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ServerStatusControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\ServerStatusControl.Designer.cs" />
+    <Compile Include="Controls\ServerStatusControl.Designer.cs">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\SetTypeDlg.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -138,27 +155,39 @@
     <Compile Include="Controls\TrustListControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\TrustListControl.Designer.cs" />
+    <Compile Include="Controls\TrustListControl.Designer.cs">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\TrustListDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\TrustListDialog.Designer.cs" />
+    <Compile Include="Controls\TrustListDialog.Designer.cs">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\UntrustedCertificateDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\UntrustedCertificateDialog.Designer.cs" />
+    <Compile Include="Controls\UntrustedCertificateDialog.Designer.cs">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\UserIdentityDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\UserIdentityDialog.Designer.cs" />
+    <Compile Include="Controls\UserIdentityDialog.Designer.cs">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ViewApplicationRecordsDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\ViewApplicationRecordsDialog.Designer.cs" />
+    <Compile Include="Controls\ViewApplicationRecordsDialog.Designer.cs">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ViewServersOnNetworkDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\ViewServersOnNetworkDialog.Designer.cs" />
+    <Compile Include="Controls\ViewServersOnNetworkDialog.Designer.cs">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="GlobalDiscoveryClientConfiguration.cs" />
     <Compile Include="GlobalDiscoveryServer.cs" />
     <Compile Include="LocalDiscoveryServer.cs" />
@@ -181,32 +210,60 @@
     <EmbeddedResource Include="Controls\ApplicationTrustListControl.resx">
       <DependentUpon>ApplicationTrustListControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\DiscoveryControl.resx" />
-    <EmbeddedResource Include="Controls\DiscoveryUrlsDialog.resx" />
-    <EmbeddedResource Include="Controls\EditValueCtrl.resx" />
-    <EmbeddedResource Include="Controls\EditValueDlg.resx" />
-    <EmbeddedResource Include="Controls\EndpointUrlDialog.resx" />
+    <EmbeddedResource Include="Controls\DiscoveryControl.resx">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DiscoveryUrlsDialog.resx">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueCtrl.resx">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueDlg.resx">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EndpointUrlDialog.resx">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\ImageListControl.resx">
       <DependentUpon>ImageListControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\RegisterApplicationControl.resx">
       <DependentUpon>RegisterApplicationControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\SelectGdsDialog.resx" />
+    <EmbeddedResource Include="Controls\SelectGdsDialog.resx">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\SelectServerDialog.resx">
       <DependentUpon>SelectServerDialog.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\ServerCapabilitiesDialog.resx" />
-    <EmbeddedResource Include="Controls\ServerStatusControl.resx" />
+    <EmbeddedResource Include="Controls\ServerCapabilitiesDialog.resx">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ServerStatusControl.resx">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\SetTypeDlg.resx">
       <DependentUpon>SetTypeDlg.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\TrustListControl.resx" />
-    <EmbeddedResource Include="Controls\TrustListDialog.resx" />
-    <EmbeddedResource Include="Controls\UntrustedCertificateDialog.resx" />
-    <EmbeddedResource Include="Controls\UserIdentityDialog.resx" />
-    <EmbeddedResource Include="Controls\ViewApplicationRecordsDialog.resx" />
-    <EmbeddedResource Include="Controls\ViewServersOnNetworkDialog.resx" />
+    <EmbeddedResource Include="Controls\TrustListControl.resx">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TrustListDialog.resx">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UntrustedCertificateDialog.resx">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UserIdentityDialog.resx">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewApplicationRecordsDialog.resx">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewServersOnNetworkDialog.resx">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>

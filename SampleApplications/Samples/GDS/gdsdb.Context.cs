@@ -7,24 +7,24 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.GdsServer
 {
+    using System;
     using System.Data.Entity;
     using System.Data.Entity.Infrastructure;
-    using Opc.Ua.GdsServer;
-
+    
     public partial class gdsdbEntities : DbContext
     {
         public gdsdbEntities()
             : base("name=gdsdbEntities")
         {
         }
-
+    
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             throw new UnintentionalCodeFirstException();
         }
-
+    
         public DbSet<ApplicationName> ApplicationNames { get; set; }
         public DbSet<ServerEndpoint> ServerEndpoints { get; set; }
         public DbSet<Application> Applications { get; set; }

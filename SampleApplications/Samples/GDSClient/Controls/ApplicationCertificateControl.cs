@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Text;
-using System.IO;
 using System.Windows.Forms;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Gds;
 using System.Threading.Tasks;
+using Opc.Ua;
+using Opc.Ua.Gds;
 
 namespace Opc.Ua.GdsClient
 {
@@ -239,7 +238,7 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-                    byte[] certificateRequest = CertificateAuthority.CreateRequest(m_certificate, 256);
+                    byte[] certificateRequest = CertificateFactory.CreateSigningRequest(m_certificate);
                     requestId = m_gds.StartSigningRequest(m_application.ApplicationId, null, null, certificateRequest);
                 }
 
@@ -297,7 +296,7 @@ namespace Opc.Ua.GdsClient
                         if (privateKeyPFX == null)
                         {
                             X509Certificate2 oldCertificate = await cid.Find(true);
-                            newCert = CertificateAuthority.Combine(newCert, oldCertificate);
+                            newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
                             await store.Delete(oldCertificate.Thumbprint);
                         }
                         else

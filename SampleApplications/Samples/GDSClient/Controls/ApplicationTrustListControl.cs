@@ -58,15 +58,15 @@ namespace Opc.Ua.GdsClient
 
         private void MergeWithGdsButton_Click(object sender, EventArgs e)
         {
-            PullFromGds(false);
+            Task.Run(async () => await PullFromGds(false));
         }
 
         private void PullFromGdsButton_Click(object sender, EventArgs e)
         {
-            PullFromGds(true);
+            Task.Run(async () => await PullFromGds(true));
         }
 
-        private async void DeleteExistingFromStore(string storePath)
+        private async Task DeleteExistingFromStore(string storePath)
         {
             if (String.IsNullOrEmpty(storePath))
             {
@@ -120,7 +120,7 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void PullFromGds(bool deleteBeforeAdd)
+        private async Task PullFromGds(bool deleteBeforeAdd)
         {
             try
             {
@@ -152,8 +152,8 @@ namespace Opc.Ua.GdsClient
                 {
                     if (deleteBeforeAdd)
                     {
-                        DeleteExistingFromStore(m_trustListStorePath);
-                        DeleteExistingFromStore(m_issuerListStorePath);
+                        await DeleteExistingFromStore(m_trustListStorePath);
+                        await DeleteExistingFromStore(m_issuerListStorePath);
                     }
                 }
 
@@ -167,12 +167,10 @@ namespace Opc.Ua.GdsClient
                             {
                                 var x509 = new X509Certificate2(certificate);
 
-                                Task<X509Certificate2Collection> t = store.FindByThumbprint(x509.Thumbprint);
-                                t.Wait();
-                                X509Certificate2Collection certs = t.Result;
+                                X509Certificate2Collection certs = await store.FindByThumbprint(x509.Thumbprint);
                                 if (certs.Count == 0)
                                 {
-                                    store.Add(x509);
+                                    await store.Add(x509);
                                 }
                             }
                         }
@@ -197,12 +195,10 @@ namespace Opc.Ua.GdsClient
                             {
                                 var x509 = new X509Certificate2(certificate);
 
-                                Task<X509Certificate2Collection> t = store.FindByThumbprint(x509.Thumbprint);
-                                t.Wait();
-                                X509Certificate2Collection certs = t.Result;
+                                X509Certificate2Collection certs = await store.FindByThumbprint(x509.Thumbprint);
                                 if (certs.Count == 0)
                                 {
-                                    store.Add(x509);
+                                    await store.Add(x509);
                                 }
                             }
                         }

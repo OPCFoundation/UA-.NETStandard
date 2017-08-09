@@ -30,7 +30,6 @@
 using System;
 using System.Windows.Forms;
 using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.GdsServer
@@ -55,17 +54,14 @@ namespace Opc.Ua.GdsServer
             try
             {
                 // load the application configuration.
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
-                task.Wait();
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-                task2.Wait();
+                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
                 var server = new GlobalDiscoveryServerServer();
-                Task task3 = application.Start(server);
-                task3.Wait();
+                application.Start(server).Wait();
 
                 // run the application interactively.
                 System.Windows.Forms.Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));
