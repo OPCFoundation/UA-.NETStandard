@@ -161,8 +161,6 @@ namespace Quickstarts.ReferenceServer
         }
         #endregion
 
-
-
         #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
@@ -1534,6 +1532,15 @@ namespace Quickstarts.ReferenceServer
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
 
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
+            }
+            else if (valueRank == ValueRanks.TwoDimensions)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0, 0 });
+            }
+
             variable.ValuePrecision.Value = 2;
             variable.ValuePrecision.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.ValuePrecision.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -1641,6 +1648,15 @@ namespace Quickstarts.ReferenceServer
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.Historizing = false;
+
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
+            }
+            else if (valueRank == ValueRanks.TwoDimensions)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0, 0 });
+            }
 
             BuiltInType builtInType = Opc.Ua.TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
 
