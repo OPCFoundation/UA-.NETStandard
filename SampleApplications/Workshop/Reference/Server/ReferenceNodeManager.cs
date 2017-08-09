@@ -233,11 +233,8 @@ namespace Quickstarts.ReferenceServer
                     #region Scalar_Static_Arrays
                     FolderState arraysFolder = CreateFolder(staticFolder, "Scalar_Static_Arrays", "Arrays");
                     const string staticArrays = "Scalar_Static_Arrays_";
-                    // set ArrayDimensions for Boolean variable.
-                    BaseDataVariableState booleanArrayVar = CreateVariable(arraysFolder, staticArrays + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.OneDimension);
-                    booleanArrayVar.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
-                    variables.Add(booleanArrayVar);
 
+                    variables.Add(CreateVariable(arraysFolder, staticArrays + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "Byte", "Byte", DataTypeIds.Byte, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "ByteString", "ByteString", DataTypeIds.ByteString, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "DateTime", "DateTime", DataTypeIds.DateTime, ValueRanks.OneDimension));
@@ -2088,6 +2085,15 @@ namespace Quickstarts.ReferenceServer
             variable.Value = GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
+            }
+            else if (valueRank == ValueRanks.TwoDimensions)
+            {
+                variable.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0, 0 });
+            }
 
             if (parent != null)
             {

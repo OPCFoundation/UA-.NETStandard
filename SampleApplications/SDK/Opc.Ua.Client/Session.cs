@@ -830,26 +830,29 @@ namespace Opc.Ua.Client
 
             if (domains != null)
             {
-                string hostname = endpoint.EndpointUrl.DnsSafeHost;
+                string [] hostnames = endpoint.EndpointUrl.DnsSafeHost.Split('.');
 
-                if (hostname == "localhost" || hostname == "127.0.0.1")
+                if (String.Compare(hostnames[0], "localhost", StringComparison.CurrentCultureIgnoreCase)==0)
                 {
-                    hostname = Utils.GetHostName();
+                    hostnames[0] = Utils.GetHostName();
                 }
 
                 for (int ii = 0; ii < domains.Count; ii++)
                 {
-                    if (String.Compare(hostname, domains[ii], StringComparison.CurrentCultureIgnoreCase) == 0)
+                    foreach (string hostname in hostnames)
                     {
-                        domainFound = true;
-                        break;
+                        if (String.Compare(hostname, domains[ii], StringComparison.CurrentCultureIgnoreCase) == 0)
+                        {
+                            domainFound = true;
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (!domainFound)
-            {
-                throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                if (!domainFound)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                }
             }
         }
 
@@ -1994,7 +1997,7 @@ namespace Opc.Ua.Client
                 serverCertificate = Utils.ParseCertificateBlob(certificateData);
                 m_configuration.CertificateValidator.Validate(serverCertificate);
 
-                if(checkDomain)
+                if (checkDomain)
                 {
                     CheckCertificateDomain(m_endpoint);
                 }

@@ -72,6 +72,34 @@ namespace Opc.Ua
                 profileUris,
                 out endpoints);
 
+            // if a server is behind a firewall, can only be accessed with a FQDN or IP address
+            // it may return URLs that are not accessible to the client. This problem can be avoided 
+            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
+            // access any of the endpoints. This code patches the returned endpoints accordingly.
+            Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
+            if (endpointUrl != null)
+            {
+                // patch discovery Url to endpoint Url used for service call
+                foreach (EndpointDescription discoveryEndPoint in endpoints)
+                {
+                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
+                    if (endpointUrl.Scheme == discoveryEndPointUri.Scheme)
+                    {
+                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
+                        builder.Host = endpointUrl.DnsSafeHost;
+                        builder.Port = endpointUrl.Port;
+                        discoveryEndPoint.EndpointUrl = builder.ToString();
+                    }
+
+                    if (discoveryEndPoint.Server != null &&
+                        discoveryEndPoint.Server.DiscoveryUrls != null)
+                    {
+                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
+                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
+                    }
+                }
+            }
+
             return endpoints;
         }
 
