@@ -328,6 +328,7 @@ namespace Opc.Ua.Bindings
                             {
                                 e.UserToken = null;
                             }
+                            e.Dispose();
                         }
                     };
                     argsV6.Completed += callback;
@@ -363,6 +364,7 @@ namespace Opc.Ua.Bindings
                             {
                                 e.UserToken = null;
                             }
+                            e.Dispose();
                         }
                     };
                     argsV4.Completed += callback;
