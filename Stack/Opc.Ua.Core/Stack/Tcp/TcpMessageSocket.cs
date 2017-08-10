@@ -266,17 +266,14 @@ namespace Opc.Ua.Bindings
 
             Action doCallback = () => callback(this, new TcpMessageSocketAsyncEventArgs { UserToken = state });
 
-            lock (m_socketLock)
+            if (addressV6 != null)
             {
-                if (addressV6 != null)
-                {
-                    BeginConnect(addressV6, AddressFamily.InterNetworkV6, port, doCallback);
-                }
+                BeginConnect(addressV6, AddressFamily.InterNetworkV6, port, doCallback);
+            }
 
-                if (addressV4 != null && m_socket == null)
-                {
-                    BeginConnect(addressV4, AddressFamily.InterNetwork, port, doCallback);
-                }
+            if (addressV4 != null && m_socket == null)
+            {
+                BeginConnect(addressV4, AddressFamily.InterNetwork, port, doCallback);
             }
         }
 
