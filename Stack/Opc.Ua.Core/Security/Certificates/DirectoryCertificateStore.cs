@@ -330,7 +330,7 @@ namespace Opc.Ua
                     }
                     if (rsa != null)
                     {
-                        int inputBlockSize = rsa.KeySize / 8 - 42;
+                        int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, true);
                         byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
                         byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
                         if (bytes2 != null)
@@ -442,7 +442,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             if (issuer == null)
             {
@@ -451,29 +451,22 @@ namespace Opc.Ua
 
             List<X509CRL> crls = new List<X509CRL>();
 
-            // check for CRL.
-            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
-
-            if (info.Exists)
+            foreach (X509CRL crl in EnumerateCRLs())
             {
-                foreach (FileInfo file in info.GetFiles("*.crl"))
+                if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
                 {
-                    X509CRL crl = new X509CRL(file.FullName);
+                    continue;
+                }
 
-                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
-                    {
-                        continue;
-                    }
+                if (!crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
 
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
-                    {
-                        crls.Add(crl);
-                    }
+                if (!validateUpdateTime ||
+                    crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                {
+                    crls.Add(crl);
                 }
             }
 

@@ -1,4 +1,4 @@
-﻿// T4 code generation is enabled for model 'C:\Users\erichb\Source\Repos\mregen\UA-.UWP-Universal-Windows-Platform\SampleApplications\Samples\GDSCommon\gdsdb.edmx'. 
+﻿// T4 code generation is enabled for model 'C:\Users\mregen\Source\Repos\UA-.NETStandardLibrary2\SampleApplications\Samples\GDS\gdsdb.edmx'. 
 // To enable legacy code generation, change the value of the 'Code Generation Strategy' designer
 // property to 'Legacy ObjectContext'. This property is available in the Properties Window when the model
 // is open in the designer.

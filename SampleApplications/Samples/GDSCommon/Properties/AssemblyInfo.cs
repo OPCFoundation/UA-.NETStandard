@@ -35,11 +35,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("GlobalDiscoveryLibrary")]
-[assembly: AssemblyDescription("GlobalDiscoveryServer Prototype Library")]
+[assembly: AssemblyDescription("GlobalDiscoveryServer Library")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("OPC Foundation")]
 [assembly: AssemblyProduct("GlobalDiscoveryServer Prototype")]
-[assembly: AssemblyCopyright("Copyright © OPC Foundation 2013")]
+[assembly: AssemblyCopyright("Copyright © OPC Foundation 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

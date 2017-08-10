@@ -122,7 +122,7 @@ namespace Opc.Ua.GdsServer
                 applicationId = (Guid)application.ApplicationId.Identifier;
             }
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 Application record = null;
 
@@ -209,28 +209,6 @@ namespace Opc.Ua.GdsServer
             Accepted
         }
 
-        public NodeId AddCertificateToDevice(
-          NodeId applicationId,
-          byte[] certificate,
-          byte[] privateKey,
-          string authorityId)
-        {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException("applicationId");
-            }
-
-            //TODO: add cert and private key to database or even better secure storage
-            return new NodeId(applicationId.Identifier.ToString(), NamespaceIndex);
-        }
-
-        public void GetCertificateAndPrivateKey(NodeId applicationId, out byte[] certificate, out byte[] privateKey)
-        {
-            //TODO: retrieve cert and private key from database or even better secure storage
-            certificate = null;
-            privateKey = null;
-        }
-
         public NodeId CreateCertificateRequest(
             NodeId applicationId,
             byte[] certificate,
@@ -249,7 +227,7 @@ namespace Opc.Ua.GdsServer
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
             }
             
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var application = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
 
@@ -297,7 +275,7 @@ namespace Opc.Ua.GdsServer
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
             }
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
 
@@ -332,7 +310,7 @@ namespace Opc.Ua.GdsServer
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
             }
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
 
@@ -392,7 +370,7 @@ namespace Opc.Ua.GdsServer
 
             List<byte[]> certificates = new List<byte[]>();
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var result = (from ii in entities.Applications
                               where ii.ApplicationId == id.Value
@@ -440,7 +418,7 @@ namespace Opc.Ua.GdsServer
 
             Guid id = (Guid)applicationId.Identifier;
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
                               where x.ApplicationId == id
@@ -494,7 +472,7 @@ namespace Opc.Ua.GdsServer
 
         public ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
                               where x.ApplicationUri == applicationUri
@@ -557,7 +535,7 @@ namespace Opc.Ua.GdsServer
         {
             lastCounterResetTime = DateTime.MinValue;
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.ServerEndpoints
                               join y in entities.Applications on x.ApplicationId equals y.ID
@@ -655,7 +633,7 @@ namespace Opc.Ua.GdsServer
 
             Guid id = (Guid)applicationId.Identifier;
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
                               where x.ApplicationId == id
@@ -697,7 +675,7 @@ namespace Opc.Ua.GdsServer
 
             Guid id = (Guid)applicationId.Identifier;
 
-            using (Opc.Ua.Gds.gdsdbEntities entities = new Opc.Ua.Gds.gdsdbEntities())
+            using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var result = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
 

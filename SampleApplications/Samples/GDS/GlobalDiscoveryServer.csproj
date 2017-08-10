@@ -100,9 +100,21 @@
     <Compile Include="CertificateStore.cs">
       <DependentUpon>gdsdb.tt</DependentUpon>
     </Compile>
-    <Compile Include="gdsdb.Context.cs" />
-    <Compile Include="gdsdb.cs" />
-    <Compile Include="gdsdb.Designer.cs" />
+    <Compile Include="gdsdb.Context.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>gdsdb.Context.tt</DependentUpon>
+    </Compile>
+    <Compile Include="gdsdb.cs">
+      <DependentUpon>gdsdb.tt</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+    <Compile Include="gdsdb.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+    </Compile>
     <Compile Include="RoleBasedIdentity.cs" />
     <Compile Include="GlobalDiscoveryServerConfiguration.cs" />
     <Compile Include="ApplicationsNodeManager.cs" />
@@ -128,13 +140,21 @@
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <Content Include="DB\Tables.sql" />
     <Content Include="gdsdb.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>gdsdb.Context1.cs</LastGenOutput>
+      <LastGenOutput>gdsdb.Context.cs</LastGenOutput>
     </Content>
+    <None Include="gdsdb.mdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Content Include="gdsdb.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>gdsdb1.cs</LastGenOutput>
+      <LastGenOutput>gdsdb.cs</LastGenOutput>
+    </Content>
+    <Content Include="gdsdb_log.ldf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DependentUpon>gdsdb.mdf</DependentUpon>
     </Content>
     <Content Include="Opc.Ua.GlobalDiscoveryServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -145,12 +165,11 @@
     </None>
     <EntityDeploy Include="gdsdb.edmx">
       <Generator>EntityModelCodeGenerator</Generator>
-      <LastGenOutput>gdsdb1.Designer.cs</LastGenOutput>
+      <LastGenOutput>gdsdb.Designer.cs</LastGenOutput>
     </EntityDeploy>
-    <None Include="gdsdb.edmx.diagram" />
-    <Content Include="Opc.Ua.Gds.PredefinedNodes.uanodes">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <None Include="gdsdb.edmx.diagram">
+      <DependentUpon>gdsdb.edmx</DependentUpon>
+    </None>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
@@ -183,12 +202,8 @@
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\GDSCommon\GlobalDiscoveryLibrary.csproj">
-      <Project>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</Project>
+      <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
       <Name>GlobalDiscoveryLibrary</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Opc.Ua.Sample\Opc.Ua.Sample.csproj">
-      <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
-      <Name>Opc.Ua.Sample</Name>
     </ProjectReference>
     <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
@@ -221,6 +236,7 @@
       <Version>6.1.3</Version>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

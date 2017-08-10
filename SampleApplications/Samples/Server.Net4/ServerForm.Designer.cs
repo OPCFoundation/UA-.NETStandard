@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+
 namespace Opc.Ua.Sample
 {
     partial class ServerForm 
@@ -61,7 +62,7 @@ namespace Opc.Ua.Sample
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager( typeof( ServerForm ) );
             this.TrayIcon = new System.Windows.Forms.NotifyIcon( this.components );
             this.ServerDiagnosticsCTRL = new Opc.Ua.Sample.ServerDiagnosticsCtrl();
-            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.HeaderBranding();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -164,7 +165,7 @@ namespace Opc.Ua.Sample
 
         private ServerDiagnosticsCtrl ServerDiagnosticsCTRL;
         private System.Windows.Forms.NotifyIcon TrayIcon;
-        private Opc.Ua.Server.Controls.ServerHeaderBranding serverHeaderBranding1;
+        private Opc.Ua.Server.Controls.HeaderBranding serverHeaderBranding1;
         private System.Windows.Forms.MenuStrip menuStrip1;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;

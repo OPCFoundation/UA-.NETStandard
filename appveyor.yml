@@ -33,6 +33,7 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: UA-NetStandard.sln
+  - solution_name: "UA Global Discovery Server.sln"
   - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  
   

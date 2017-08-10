@@ -114,17 +114,20 @@ namespace Opc.Ua.GdsServer
         /// </summary>
         private void Initialize()
         {
+            DefaultCertificateLifetime = CertificateFactory.defaultLifeTime;
+            DefaultCertificateKeySize = CertificateFactory.defaultKeySize;
+            DefaultCertificateHashSize = CertificateFactory.defaultHashSize;
         }
         #endregion
 
         #region Public Properties
-        [DataMember(Order = 1)]
+        [DataMember(IsRequired = true, Order = 1)]
         public string Id { get; set; }
 
-        [DataMember(Order = 2)]
+        [DataMember(IsRequired = true, Order = 2)]
         public string SubjectName { get; set; }
 
-        [DataMember(Order = 3)]
+        [DataMember(IsRequired = true, Order = 3)]
         public string BaseStorePath { get; set; }
 
         [DataMember(Order = 4)]
@@ -132,6 +135,12 @@ namespace Opc.Ua.GdsServer
 
         [DataMember(Order = 5)]
         public ushort DefaultCertificateKeySize { get; set; }
+
+        [DataMember(Order = 6)]
+        public ushort DefaultCertificateHashSize { get; set; }
+
+        public string TrustedListPath { get { return BaseStorePath + "\\trusted"; }}
+        public string IssuerListPath { get { return BaseStorePath + "\\issuer"; } }
         #endregion
 
         #region Private Members
@@ -139,7 +148,7 @@ namespace Opc.Ua.GdsServer
     }
 
     [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
-    public partial class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
+    public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
