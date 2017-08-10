@@ -644,9 +644,6 @@ namespace Opc.Ua.Bindings
         private int m_bytesReceived;
         private int m_bytesToReceive;
         private int m_incomingMessageSize;
-        private Socket m_socketV4;
-        private Socket m_socketV6;
-        private int m_socketResponses;
         #endregion
     }
 }
