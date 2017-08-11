@@ -353,13 +353,15 @@ namespace Opc.Ua.Bindings
                         {
                             m_socket.Shutdown(SocketShutdown.Both);
                         }
-
-                        m_socket.Dispose();
-                        m_socket = null;
                     }
                     catch (Exception e)
                     {
                         Utils.Trace(e, "Unexpected error closing socket.");
+                    }
+                    finally
+                    {
+                        m_socket.Dispose();
+                        m_socket = null;
                     }
                 }
             }
