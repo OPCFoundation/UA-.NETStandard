@@ -140,21 +140,14 @@
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="DB\Tables.sql" />
+    <EmbeddedResource Include="DB\Tables.sql" />
     <Content Include="gdsdb.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>gdsdb.Context.cs</LastGenOutput>
     </Content>
-    <None Include="gdsdb.mdf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <Content Include="gdsdb.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>gdsdb.cs</LastGenOutput>
-    </Content>
-    <Content Include="gdsdb_log.ldf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <DependentUpon>gdsdb.mdf</DependentUpon>
     </Content>
     <Content Include="Opc.Ua.GlobalDiscoveryServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
