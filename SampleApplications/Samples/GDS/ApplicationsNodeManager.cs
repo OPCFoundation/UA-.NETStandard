@@ -110,6 +110,11 @@ namespace Opc.Ua.GdsServer
                     Utils.Trace(ie, "");
                     ie = ie.InnerException;
                 }
+
+                Utils.Trace(e, "Initialize Database tables!");
+                m_database.InitializeTables();
+
+                Utils.Trace(e, "Database Initialized!");
             }
 
             Server.MessageContext.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).Assembly);

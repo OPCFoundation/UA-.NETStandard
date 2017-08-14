@@ -800,7 +800,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// helper to get Bouncy Castle public key parameters from a X509Cerificate2
+    /// Get public key parameters from a X509Certificate2
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
@@ -815,7 +815,8 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// helper to get Bouncy Castle private key parameters from a X509Cerificate2
+    /// Get private key parameters from a X509Cerificate2.
+    /// The private key must be exportable.
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
@@ -975,6 +976,7 @@ public class CertificateFactory
         X509Certificate2 certWithPrivateKey, 
         bool throwOnError = false)
     {
+        bool result = false;
         try
         {
             // verify the public and private key match
@@ -990,10 +992,7 @@ public class CertificateFactory
                     byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
                     if (decryptedBlock != null)
                     {
-                        if (Utils.IsEqual(testBlock, decryptedBlock))
-                        {
-                            return true;
-                        }
+                        result = Utils.IsEqual(testBlock, decryptedBlock);
                     }
                 }
             }
@@ -1007,12 +1006,12 @@ public class CertificateFactory
         }
         finally
         { 
-            if (throwOnError)
+            if (!result && throwOnError)
             {
                 throw new CryptographicException("The public/private key pair in the certficates do not match.");
             }
         }
-        return false;
+        return result;
     }
     #endregion
 

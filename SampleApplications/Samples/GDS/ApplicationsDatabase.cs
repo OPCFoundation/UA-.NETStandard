@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Opc.Ua.Gds;
+using System.Reflection;
+using System.IO;
 
 namespace Opc.Ua.GdsServer
 {
@@ -10,6 +12,21 @@ namespace Opc.Ua.GdsServer
     {
         public ApplicationsDatabase()
         {
+        }
+
+        public void InitializeTables()
+        {
+            using (gdsdbEntities entities = new gdsdbEntities())
+            {
+                Assembly assembly = typeof(ApplicationsDatabase).GetTypeInfo().Assembly;
+                StreamReader istrm = new StreamReader(assembly.GetManifestResourceStream("Opc.Ua.GdsServer.DB.Tables.sql"));
+                string tables = istrm.ReadToEnd();
+                entities.Database.Initialize(true);
+                entities.Database.CreateIfNotExists();
+                var parts = tables.Split(new string[] { "GO" }, System.StringSplitOptions.None);
+                foreach (var part in parts) { entities.Database.ExecuteSqlCommand(part); }
+                entities.SaveChanges();
+            }
         }
 
         public ushort NamespaceIndex { get; set; }
