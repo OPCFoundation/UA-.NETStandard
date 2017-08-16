@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Gds;
 using Opc.Ua.Server;
@@ -48,6 +47,8 @@ namespace Opc.Ua.GdsServer
     {
         private NodeId DefaultApplicationGroupId;
         private NodeId DefaultHttpsGroupId;
+        // placeholder until password support is implemented
+        private string m_nullPassword = null;
 
         #region Constructors
         /// <summary>
@@ -249,7 +250,7 @@ namespace Opc.Ua.GdsServer
                         CertificateFactory.RevokeCertificateAsync(
                             m_configuration.AuthoritiesStorePath,
                             x509,
-                            null).Wait();
+                            m_nullPassword).Wait();
 
                         UpdateAuthorityCertInTrustedList(certificateGroup.Certificate, certificateGroup.Configuration.TrustedListPath).Wait();
                     }
@@ -312,7 +313,7 @@ namespace Opc.Ua.GdsServer
                 X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.AuthoritiesStorePath,
-                    null,
+                    m_nullPassword,
                     null,
                     null,
                     sn,
@@ -1183,7 +1184,7 @@ namespace Opc.Ua.GdsServer
                 certificate = CertificateFactory.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.ApplicationCertificatesStorePath,
-                    null,
+                    m_nullPassword,
                     application.ApplicationUri != null ? application.ApplicationUri : "urn:ApplicationURI",
                     application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
                     info.Subject.ToString(),
