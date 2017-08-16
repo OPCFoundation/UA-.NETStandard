@@ -111,10 +111,10 @@ namespace Opc.Ua.GdsServer
                     ie = ie.InnerException;
                 }
 
-                Utils.Trace(e, "Initialize Database tables!");
+                Utils.Trace("Initialize Database tables!");
                 m_database.InitializeTables();
 
-                Utils.Trace(e, "Database Initialized!");
+                Utils.Trace("Database Initialized!");
             }
 
             Server.MessageContext.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).Assembly);
@@ -276,14 +276,16 @@ namespace Opc.Ua.GdsServer
                 throw new ArgumentNullException("BaseStorePath not specified");
             }
 
-            string sn = certificateGroupConfiguration.SubjectName.Replace("localhost", Utils.GetHostName());
+            string subjectName = certificateGroupConfiguration.SubjectName.Replace("localhost", Utils.GetHostName());
+
+            Utils.Trace(Utils.TraceMasks.Information, "InitializeCertificateGroup: {0}", certificateGroupConfiguration.SubjectName);
 
             using (DirectoryCertificateStore store = (DirectoryCertificateStore)CertificateStoreIdentifier.OpenStore(m_configuration.AuthoritiesStorePath))
             {
                 X509Certificate2Collection certificates = await store.Enumerate();
                 foreach (var certificate in certificates)
                 {
-                    if (Utils.CompareDistinguishedName(certificate.Subject, sn))
+                    if (Utils.CompareDistinguishedName(certificate.Subject, subjectName))
                     {
                         certificateGroup = new CertificateGroup()
                         {
@@ -309,13 +311,22 @@ namespace Opc.Ua.GdsServer
 
             if (certificateGroup == null)
             {
+
+                Utils.Trace(Utils.TraceMasks.Security, 
+                    "Create new CA Certificate: {0}, KeySize: {1}, HashSize: {2}, LifeTime: {3} months", 
+                    subjectName,
+                    certificateGroupConfiguration.DefaultCertificateKeySize,
+                    certificateGroupConfiguration.DefaultCertificateHashSize,
+                    certificateGroupConfiguration.DefaultCertificateLifetime
+                    );
+
                 X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
                     CertificateStoreType.Directory,
                     m_configuration.AuthoritiesStorePath,
                     null,
                     null,
                     null,
-                    sn,
+                    subjectName,
                     null,
                     certificateGroupConfiguration.DefaultCertificateKeySize,
                     yesterday,
@@ -356,11 +367,11 @@ namespace Opc.Ua.GdsServer
                     }
                 }
                 
-                // initialize revocation list
+                // initialize cert revocation list (CRL)
                 await CertificateFactory.RevokeCertificateAsync(m_configuration.AuthoritiesStorePath, newCertificate, null);
             }
 
-            // sync the authority store with the the trusted list
+            // sync the authority store with the trusted list
             await UpdateAuthorityCertInTrustedList(certificateGroup.Certificate, certificateGroup.Configuration.TrustedListPath);
 
             return certificateGroup;
@@ -376,12 +387,16 @@ namespace Opc.Ua.GdsServer
                     await store.Add(authorityCertificate);
                 }
 
-                // delete existing CRL
+                // delete existing CRL in trusted list
                 foreach (var crl in store.EnumerateCRLs(authorityCertificate, false))
                 {
-                    store.DeleteCRL(crl);
+                    if (crl.VerifySignature(authorityCertificate, false))
+                    {
+                        store.DeleteCRL(crl);
+                    }
                 }
 
+                // copy latest CRL to trusted list
                 using (ICertificateStore storeAuthority = CertificateStoreIdentifier.OpenStore(m_configuration.AuthoritiesStorePath))
                 {
                     foreach (var crl in storeAuthority.EnumerateCRLs(authorityCertificate, true))
@@ -775,6 +790,9 @@ namespace Opc.Ua.GdsServer
             ref DateTime lastCounterResetTime,
             ref ServerOnNetwork[] servers)
         {
+
+            Utils.Trace(Utils.TraceMasks.Information, "QueryServers: {0} {1}", applicationUri, applicationName);
+
             servers = m_database.QueryServers(
                 startingRecordId,
                 maxRecordsToReturn,
@@ -796,6 +814,8 @@ namespace Opc.Ua.GdsServer
         {
             HasApplicationAdminAccess(context);
 
+            Utils.Trace(Utils.TraceMasks.Information, "OnRegisterApplication: {0}", application.ApplicationUri);
+
             applicationId = m_database.RegisterApplication(application);
 
             return ServiceResult.Good;
@@ -808,6 +828,8 @@ namespace Opc.Ua.GdsServer
             ApplicationRecordDataType application)
         {
             HasApplicationAdminAccess(context);
+
+            Utils.Trace(Utils.TraceMasks.Information, "OnUpdateApplication: {0}", application.ApplicationUri);
 
             var record = m_database.GetApplication(application.ApplicationId);
 
@@ -829,6 +851,8 @@ namespace Opc.Ua.GdsServer
         {
             HasApplicationAdminAccess(context);
 
+            Utils.Trace(Utils.TraceMasks.Information, "OnUnregisterApplication: {0}", applicationId.ToString());
+
             byte[] certificate = null;
             byte[] privateKey = null;
             m_database.UnregisterApplication(applicationId, out certificate, out privateKey);
@@ -849,6 +873,7 @@ namespace Opc.Ua.GdsServer
             ref ApplicationRecordDataType[] applications)
         {
             HasApplicationUserAccess(context);
+            Utils.Trace(Utils.TraceMasks.Information, "OnFindApplications: {0}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
         }
