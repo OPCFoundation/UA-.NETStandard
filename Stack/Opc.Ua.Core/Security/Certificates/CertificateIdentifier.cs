@@ -730,7 +730,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

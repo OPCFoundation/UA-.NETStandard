@@ -23,9 +23,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
+
 using Org.BouncyCastle.X509;
+
 
 namespace Opc.Ua
 {
@@ -147,7 +152,7 @@ namespace Opc.Ua
         {
             X509CrlParser parser = new X509CrlParser();
             m_crl = parser.ReadCrl(crl);
-            UpdateTime = m_crl.ThisUpdate;
+            UpdateTime = (m_crl.ThisUpdate == null) ? DateTime.MinValue : m_crl.ThisUpdate;
             NextUpdateTime = (m_crl.NextUpdate == null) ? DateTime.MinValue : m_crl.NextUpdate.Value;
             // a few conversions to match System.Security conventions
             string issuerDN = m_crl.IssuerDN.ToString();

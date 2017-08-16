@@ -1,0 +1,61 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.AddDataSetMetaData"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="Add DataSet MetaData" Height="300" Width="500" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <Label Grid.Row="1" Grid.Column="0" Content="Name" />
+        <TextBox Text="{Binding Name}" Grid.Row="1" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+        <Label Grid.Row="2" Grid.Column="0" Content="Description" />
+        <TextBox Text="{Binding Address}" Grid.Row="2" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+        <Label Grid.Row="3" Grid.Column="0" Content="Fields" />
+        <TextBox Text="{Binding PublisherId}" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+        <Button HorizontalAlignment="Right" Content="Browse" Height="23" Width="100" Grid.Row="3" Grid.Column="2" />
+
+        <Label Grid.Row="4" Grid.Column="0" Content="Namespaces" />
+        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+        <Button HorizontalAlignment="Right" Content="Browse" Height="23" Width="100" Grid.Row="4" Grid.Column="2" />
+
+
+        <Label Grid.Row="5" Grid.Column="0" Content="Structure DataTypes" />
+        <TextBox Text="{Binding Name}" Grid.Row="5" Grid.Column="1" Margin="5,5" Width="200" Height="23" />
+        <Button HorizontalAlignment="Right" Content="Browse" Height="23" Width="100" Grid.Row="5" Grid.Column="2" />
+
+        <Label Grid.Row="6" Grid.Column="0" Content="Enumeration DataTypes" />
+        <TextBox Text="{Binding Address}" Grid.Row="6" Grid.Column="1" Margin="5,5" Width="200" Height="23" />
+        <Button HorizontalAlignment="Right" Content="Browse" Height="23" Width="100" Grid.Row="6" Grid.Column="2" />
+
+        <Label Grid.Row="7" Grid.Column="0" Content="Configuration Version" />
+        <TextBox Text="{Binding Address}" Grid.Row="7" Grid.Column="1" Margin="5,5" Width="200" Height="23" />
+
+        <StackPanel Grid.Row="8" Grid.Column="1" Margin="10,0" Orientation="Horizontal" VerticalAlignment="Bottom"
+                    HorizontalAlignment="Right">
+            <Button Width="100" Content="Apply" Height="22" VerticalAlignment="Center" />
+            <Button Width="100" Margin="5,0" Content="Cancel" Height="22" VerticalAlignment="Center" />
+        </StackPanel>
+
+    </Grid>
+</Window>

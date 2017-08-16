@@ -1122,7 +1122,7 @@ namespace Opc.Ua
                     // third pass - match based on security level.
                     foreach (EndpointDescription description in matches)
                     {
-                        if (description.SecurityLevel > match.SecurityLevel)
+                        if (description.SecurityMode > match.SecurityMode)
                         {
                             match = description;
                         }

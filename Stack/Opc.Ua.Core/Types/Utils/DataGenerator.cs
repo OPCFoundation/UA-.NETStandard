@@ -350,7 +350,7 @@ namespace Opc.Ua.Test
                     actualDimensions[ii] = (int)arrayDimensions[ii];
                 }
 
-                while (actualDimensions[ii] == 0)
+                if (actualDimensions[ii] == 0)
                 {
                     actualDimensions[ii] = m_random.NextInt32(m_maxArrayLength);
                 }

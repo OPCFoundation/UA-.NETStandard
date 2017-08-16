@@ -330,7 +330,7 @@ namespace Opc.Ua
                     }
                     if (rsa != null)
                     {
-                        int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, true);
+                        int inputBlockSize = rsa.KeySize / 8 - 42;
                         byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
                         byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
                         if (bytes2 != null)
@@ -442,7 +442,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
         {
             if (issuer == null)
             {
@@ -451,22 +451,29 @@ namespace Opc.Ua
 
             List<X509CRL> crls = new List<X509CRL>();
 
-            foreach (X509CRL crl in EnumerateCRLs())
+            // check for CRL.
+            DirectoryInfo info = new DirectoryInfo(this.Directory.FullName + Path.DirectorySeparatorChar + "crl");
+
+            if (info.Exists)
             {
-                if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                foreach (FileInfo file in info.GetFiles("*.crl"))
                 {
-                    continue;
-                }
+                    X509CRL crl = new X509CRL(file.FullName);
 
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
+                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    {
+                        continue;
+                    }
 
-                if (!validateUpdateTime ||
-                    crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
-                {
-                    crls.Add(crl);
+                    if (!crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+
+                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    {
+                        crls.Add(crl);
+                    }
                 }
             }
 

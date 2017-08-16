@@ -22,6 +22,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
         public new object MemberwiseClone()
         {
             return base.MemberwiseClone();

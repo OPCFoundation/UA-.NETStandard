@@ -175,7 +175,7 @@ namespace Opc.Ua
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

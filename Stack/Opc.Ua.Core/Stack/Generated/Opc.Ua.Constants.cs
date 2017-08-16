@@ -1643,6 +1643,10 @@ namespace Opc.Ua
         /// The identifier for the ExceptionDeviationFormat DataType.
         /// </summary>
         public const uint ExceptionDeviationFormat = 890;
+        /// <summary>
+        /// The identifier for the RolePermissionType DataType.
+        /// </summary>
+        public const uint RolePermissionType = 96;
     }
     #endregion
 
@@ -5437,7 +5441,7 @@ namespace Opc.Ua
         /// <summary>
         /// The identifier for the DataSetMetaDataType_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint DataSetMetaDataType_Encoding_DefaultBinary = 14838;
+        public const uint DataSetMetaDataType_Encoding_DefaultBinary = 124;
 
         /// <summary>
         /// The identifier for the FieldMetaData_Encoding_DefaultBinary Object.
@@ -5447,17 +5451,17 @@ namespace Opc.Ua
         /// <summary>
         /// The identifier for the DataTypeDescription_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint DataTypeDescription_Encoding_DefaultBinary = 14840;
+        public const uint DataTypeDescription_Encoding_DefaultBinary = 125;
 
         /// <summary>
         /// The identifier for the StructureDescription_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint StructureDescription_Encoding_DefaultBinary = 15597;
+        public const uint StructureDescription_Encoding_DefaultBinary = 126;
 
         /// <summary>
         /// The identifier for the EnumDescription_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint EnumDescription_Encoding_DefaultBinary = 15598;
+        public const uint EnumDescription_Encoding_DefaultBinary = 127;
 
         /// <summary>
         /// The identifier for the KeyValuePair_Encoding_DefaultBinary Object.
@@ -6578,6 +6582,15 @@ namespace Opc.Ua
         /// The identifier for the Annotation_Encoding_DefaultBinary Object.
         /// </summary>
         public const uint Annotation_Encoding_DefaultBinary = 893;
+        /// <summary>
+        /// The identifier for the RolePermissionType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint RolePermissionType_Encoding_DefaultBinary = 128;
+
+        /// <summary>
+        /// The identifier for the RolePermissionType_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint RolePermissionType_Encoding_DefaultXml = 16126;
     }
     #endregion
 
@@ -19808,6 +19821,10 @@ namespace Opc.Ua
         /// The identifier for the ExceptionDeviationFormat DataType.
         /// </summary>
         public static readonly NodeId ExceptionDeviationFormat = new NodeId(Opc.Ua.DataTypes.ExceptionDeviationFormat);
+        /// <summary>
+        /// The identifier for the RolePermissionType DataType.
+        /// </summary>
+        public static readonly NodeId RolePermissionType = new NodeId(Opc.Ua.DataTypes.RolePermissionType);
     }
     #endregion
 
@@ -24743,6 +24760,15 @@ namespace Opc.Ua
         /// The identifier for the Annotation_Encoding_DefaultBinary Object.
         /// </summary>
         public static readonly NodeId Annotation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultBinary);
+        /// <summary>
+        /// The identifier for the RolePermissionType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId RolePermissionType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the RolePermissionType_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId RolePermissionType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultXml);
     }
     #endregion
 
