@@ -355,7 +355,7 @@ public class CertificateFactory
             else
             {
                 // note: this cert has a private key!
-                certificate = CreateCertificateWithPrivateKey(x509, subjectPrivateKey, random);
+                certificate = CreateCertificateWithPrivateKey(x509, subjectName, subjectPrivateKey, random);
             }
 
             Utils.Trace(Utils.TraceMasks.Security, "Created new certificate: {0}", certificate.Thumbprint);
@@ -628,7 +628,7 @@ public class CertificateFactory
         {
             SecureRandom random = new SecureRandom(cfrg);
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-            return CreateCertificateWithPrivateKey(x509, GetPrivateKeyParameter(certificateWithPrivateKey), random);
+            return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, GetPrivateKeyParameter(certificateWithPrivateKey), random);
         }
     }
 
@@ -945,11 +945,12 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// helper to create a X509Certificate2 with a private key by combining 
+    /// Create a X509Certificate2 with a private key by combining 
     /// a bouncy castle X509Certificate and a private key
     /// </summary>
     private static X509Certificate2 CreateCertificateWithPrivateKey(
         Org.BouncyCastle.X509.X509Certificate certificate,
+        string friendlyName,
         AsymmetricKeyParameter privateKey,
         SecureRandom random)
     {
@@ -960,7 +961,7 @@ public class CertificateFactory
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);
-            pkcsStore.SetKeyEntry("key", new AsymmetricKeyEntry(privateKey), chain);
+            pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
             pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
             // merge into X509Certificate2
