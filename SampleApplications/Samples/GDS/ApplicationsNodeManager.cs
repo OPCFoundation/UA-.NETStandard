@@ -521,9 +521,7 @@ namespace Opc.Ua.GdsServer
                     {
                         if ((masks & (uint)TrustListMasks.TrustedCertificates) != 0)
                         {
-                            Task<X509Certificate2Collection> task = store.Enumerate();
-                            task.Wait();
-                            X509Certificate2Collection certificates = task.Result;
+                            X509Certificate2Collection certificates = store.Enumerate().Result;
                             foreach (var certificate in certificates)
                             {
                                 trustList.TrustedCertificates.Add(certificate.RawData);
@@ -543,9 +541,7 @@ namespace Opc.Ua.GdsServer
                     {
                         if ((masks & (uint)TrustListMasks.IssuerCertificates) != 0)
                         {
-                            Task<X509Certificate2Collection> task = store.Enumerate();
-                            task.Wait();
-                            X509Certificate2Collection certificates = task.Result;
+                            X509Certificate2Collection certificates = store.Enumerate().Result;
                             foreach (var certificate in certificates)
                             {
                                 trustList.IssuerCertificates.Add(certificate.RawData);

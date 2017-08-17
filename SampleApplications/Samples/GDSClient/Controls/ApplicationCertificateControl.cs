@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Gds;
+using System.IO;
 
 namespace Opc.Ua.GdsClient
 {
@@ -20,6 +21,7 @@ namespace Opc.Ua.GdsClient
         private GlobalDiscoveryServer m_gds;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
+        private string m_nullPassword = null;
 
         public async void Initialize(
             GlobalDiscoveryClientConfiguration configuration,
@@ -218,10 +220,7 @@ namespace Opc.Ua.GdsClient
                     id.StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath);
                     id.StorePath = m_application.CertificateStorePath;
                     id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName());
-
-                    Task<X509Certificate2> t = id.Find(true);
-                    t.Wait();
-                    m_certificate = t.Result;
+                    m_certificate = id.Find(true).Result;
                 }
 
                 if (m_certificate == null)
@@ -234,11 +233,17 @@ namespace Opc.Ua.GdsClient
                         m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName()),
                         GetDomainNames(),
                         "PFX",
-                        null);
+                        m_nullPassword);
                 }
                 else
                 {
-                    byte[] certificateRequest = CertificateFactory.CreateSigningRequest(m_certificate);
+                    X509Certificate2 csrCertificate = m_certificate;
+                    if (!m_certificate.HasPrivateKey)
+                    {
+                        byte [] pkcsData = File.ReadAllBytes(m_application.CertificatePrivateKeyPath);
+                        csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_nullPassword);
+                    }
+                    byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate);
                     requestId = m_gds.StartSigningRequest(m_application.ApplicationId, null, null, certificateRequest);
                 }
 
