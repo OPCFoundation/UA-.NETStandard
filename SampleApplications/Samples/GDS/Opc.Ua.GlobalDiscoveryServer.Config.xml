@@ -115,6 +115,12 @@
     </RegistrationEndpoint>
     
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
+
+    <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
+    <ServerProfileArray>
+      <ua:String>Global Discovery Server Profile</ua:String>
+    </ServerProfileArray>
+
   </ServerConfiguration>
 
   <Extensions>
