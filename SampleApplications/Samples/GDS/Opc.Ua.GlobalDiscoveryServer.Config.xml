@@ -122,7 +122,6 @@
     </ServerProfileArray>
 
   </ServerConfiguration>
-
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
@@ -140,6 +139,7 @@
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>
+        <ShutdownDelay>5</ShutdownDelay>
     </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>

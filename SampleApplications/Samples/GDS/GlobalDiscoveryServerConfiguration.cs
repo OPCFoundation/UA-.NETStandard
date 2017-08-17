@@ -79,6 +79,9 @@ namespace Opc.Ua.GdsServer
 
         [DataMember(Order = 5)]
         public StringCollection KnownHostNames { get; set; }
+
+        [DataMember(Order = 6)]
+        public uint ShutdownDelay { get; set; }
         #endregion
 
         #region Private Members
