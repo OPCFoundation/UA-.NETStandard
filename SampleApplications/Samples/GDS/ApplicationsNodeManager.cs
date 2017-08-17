@@ -47,6 +47,7 @@ namespace Opc.Ua.GdsServer
     {
         private NodeId DefaultApplicationGroupId;
         private NodeId DefaultHttpsGroupId;
+        private NodeId DefaultUserTokenGroupId;
         // placeholder until password support is implemented
         private string m_nullPassword = null;
 
@@ -83,7 +84,8 @@ namespace Opc.Ua.GdsServer
             }
 
             DefaultApplicationGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
-            DefaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris); 
+            DefaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
+            DefaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
 
             m_database = new ApplicationsDatabase();
             m_certificateGroups = new Dictionary<NodeId, CertificateGroup>();
@@ -304,6 +306,13 @@ namespace Opc.Ua.GdsServer
                             certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
                         }
 
+                        if (certificateGroupConfiguration.Id.Contains("UserToken"))
+                        {
+                            certificateGroup.Id = DefaultUserTokenGroupId;
+                            certificateGroup.CertificateType = null;
+                            certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
+                        }
+
                         certificateGroup.DefaultTrustList.Handle = new TrustList(certificateGroup.DefaultTrustList, certificateGroupConfiguration.TrustedListPath, certificateGroupConfiguration.IssuerListPath);
                         break;
                     }
@@ -356,6 +365,11 @@ namespace Opc.Ua.GdsServer
                         certificateGroup.Id = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
                         certificateGroup.CertificateType = Opc.Ua.ObjectTypeIds.HttpsCertificateType;
                         certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
+                    }
+                    else if (certificateGroupConfiguration.Id == "UserToken")
+                    {
+                        certificateGroup.Id = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
+                        certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
                     }
                     else
                     {
@@ -937,6 +951,11 @@ namespace Opc.Ua.GdsServer
             throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL.");
         }
 
+        private string GetDefaultUserToken()
+        {
+            return "USER";
+        }
+
         private string GetSubjectName(ApplicationRecordDataType application, CertificateGroup certificateGroup, string subjectName)
         {
             bool contextFound = false;
@@ -1074,10 +1093,13 @@ namespace Opc.Ua.GdsServer
                 {
                     buffer.Append(application.ApplicationNames[0]);
                 }
-
                 else if (certificateGroup.Id == DefaultHttpsGroupId)
                 {
                     buffer.Append(GetDefaultHttpsDomain(application));
+                }
+                else if (certificateGroup.Id == DefaultUserTokenGroupId)
+                {
+                    buffer.Append(GetDefaultUserToken());
                 }
 
                 if (!String.IsNullOrEmpty(m_configuration.DefaultSubjectNameContext))
@@ -1294,13 +1316,23 @@ namespace Opc.Ua.GdsServer
             {
                 certificateGroupIds = new NodeId[]
                 { 
-                    DefaultApplicationGroupId
+                    DefaultApplicationGroupId,
+                    DefaultUserTokenGroupId
+                };
+            }
+            else if (application.ApplicationType == ApplicationType.ClientAndServer)
+            {
+                certificateGroupIds = new NodeId[]
+                { 
+                    DefaultApplicationGroupId,
+                    DefaultHttpsGroupId,
+                    DefaultUserTokenGroupId
                 };
             }
             else
             {
                 certificateGroupIds = new NodeId[]
-                { 
+                {
                     DefaultApplicationGroupId,
                     DefaultHttpsGroupId
                 };
