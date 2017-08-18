@@ -97,7 +97,7 @@ namespace Quickstarts.ReferenceServer
 
             properties.ManufacturerName = "OPC Foundation";
             properties.ProductName = "Quickstart Reference Server";
-            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.0";
+            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.03";
             properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
             properties.BuildNumber = Utils.GetAssemblyBuildNumber();
             properties.BuildDate = Utils.GetAssemblyTimestamp();
@@ -201,7 +201,7 @@ namespace Quickstarts.ReferenceServer
 
             if (x509Token != null)
             {
-                VerifyCertificate(x509Token.Certificate);
+                VerifyUserTokenCertificate(x509Token.Certificate);
                 args.Identity = new UserIdentity(x509Token);
                 Utils.Trace("X509 Token Accepted: {0}", args.Identity.DisplayName);
                 return;
@@ -241,7 +241,7 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(new ServiceResult(
                     StatusCodes.BadUserAccessDenied,
                     "InvalidPassword",
-                    "http://opcfoundation.org/UA/Sample/",
+                    LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
         }
@@ -249,7 +249,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
-        private void VerifyCertificate(X509Certificate2 certificate)
+        private void VerifyUserTokenCertificate(X509Certificate2 certificate)
         {
             try
             {
@@ -293,7 +293,7 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(new ServiceResult(
                     result,
                     info.Key,
-                    "http://opcfoundation.org/UA/Sample/",
+                    LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
         }
