@@ -67,6 +67,11 @@ namespace Opc.Ua
         StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
 
         /// <summary>
+        /// Whether the store supports CRLs.
+        /// </summary>
+        bool SupportsCRLs { get; }
+
+        /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
         List<X509CRL> EnumerateCRLs();
