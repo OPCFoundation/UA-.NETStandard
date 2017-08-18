@@ -30,7 +30,6 @@
 using System;
 using System.Windows.Forms;
 using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.GdsClient
