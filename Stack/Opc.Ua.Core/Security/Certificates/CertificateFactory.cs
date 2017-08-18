@@ -11,11 +11,12 @@
 */
 
 using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.IO;
-using System.Text;
 using Opc.Ua;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Asn1.X509;
@@ -30,7 +31,7 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.X509.Extension;
-using System.Threading.Tasks;
+using Org.BouncyCastle.OpenSsl;
 
 namespace Opc.Ua
 {
@@ -633,6 +634,87 @@ public class CertificateFactory
     }
 
     /// <summary>
+    /// Create a X509Certificate2 with a private key by combining 
+    /// the certificate with a private key from a PEM stream
+    /// </summary>
+    public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
+        X509Certificate2 certificate,
+        byte [] pemDataBlob,
+        string password = null)
+    {
+        AsymmetricKeyParameter privateKey = null;
+        PemReader pemReader;
+        using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
+        {
+            if (password == null)
+            {
+                pemReader = new PemReader(pemStreamReader);
+            }
+            else
+            {
+                Password pwFinder = new Password(password.ToCharArray());
+                pemReader = new PemReader(pemStreamReader, pwFinder);
+            }
+            try
+            {
+                // find the private key in the PEM blob
+                var pemObject = pemReader.ReadObject();
+                while (pemObject != null)
+                {
+                    privateKey = pemObject as RsaPrivateCrtKeyParameters;
+                    if (privateKey != null)
+                    {
+                        break;
+                    }
+
+                    AsymmetricCipherKeyPair keypair = pemObject as AsymmetricCipherKeyPair;
+                    if (keypair != null)
+                    { 
+                        privateKey = keypair.Private;
+                        break;
+                    }
+
+                    // read next object
+                    pemObject = pemReader.ReadObject();
+                }
+            }
+            finally
+            {
+                pemReader.Reader.Dispose();
+            }
+        }
+
+        if (privateKey == null)
+        {
+            throw new ServiceResultException("PEM data blob does not contain a private key.");
+        }
+
+        using (var cfrg = new CertificateFactoryRandomGenerator())
+        {
+            SecureRandom random = new SecureRandom(cfrg);
+            Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
+            return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
+        }
+    }
+
+    private class Password
+        : IPasswordFinder
+    {
+        private readonly char[] password;
+
+        public Password(
+            char[] word)
+        {
+            this.password = (char[])word.Clone();
+        }
+
+        public char[] GetPassword()
+        {
+            return (char[])password.Clone();
+        }
+    }
+
+    /// <summary>
     /// Verify the signature of a self signed certificate.
     /// </summary>
     public static bool VerifySelfSigned(X509Certificate2 cert)
@@ -752,7 +834,7 @@ public class CertificateFactory
 
         if (uri == null)
         {
-            throw new ArgumentNullException("applicationUri", "Must specify a valid URL.");
+            throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
         }
 
         // create the subject name,
