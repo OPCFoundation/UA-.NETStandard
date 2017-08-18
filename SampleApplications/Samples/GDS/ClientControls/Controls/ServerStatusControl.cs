@@ -47,6 +47,14 @@ namespace Opc.Ua.Gds
             InitializeComponent();
         }
 
+        private PushConfigurationServer m_server;
+
+        public void Initialize(PushConfigurationServer server)
+        {
+            m_server = server;
+            ServerBrowseControl.Initialize((server != null) ? server.Session : null, Opc.Ua.ObjectIds.ObjectsFolder, ReferenceTypeIds.HierarchicalReferences);
+        }
+
         public void SetServerStatus(ServerStatusDataType status)
         {
             ProductNameTextBox.Text = "---";
@@ -81,6 +89,37 @@ namespace Opc.Ua.Gds
             }
         }
         
+        private void ApplyChangesButton_Click(object sender, EventArgs e)
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            try
+            {
+                m_server.ApplyChanges();
+            }
+            catch (Exception exception)
+            {
+                var se = exception as ServiceResultException;
+
+                if (se == null || se.StatusCode != StatusCodes.BadServerHalted)
+                {
+                    Opc.Ua.Client.Controls.ExceptionDlg.Show(Parent.Text, exception);
+                }
+            }
+
+            try
+            {
+                m_server.Disconnect();
+            }
+            catch (Exception)
+            {
+                // ignore.
+            }
+        }
+
         private void Button_MouseEnter(object sender, EventArgs e)
         {
             ((Control)sender).BackColor = Color.CornflowerBlue;

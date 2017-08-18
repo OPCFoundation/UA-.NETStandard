@@ -26,7 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
- 
+
+using Opc.Ua.Client;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -48,6 +49,8 @@ namespace Opc.Ua.Gds
             m_gds = gds;
 
             ServersListBox.Items.Clear();
+            //ServersListBox.Items.Add("opc.tcp://opcfoundation-prototyping.org:58810/GlobalDiscoveryServer");
+            //ServersListBox.Items.Add("opc.tcp://gds.opc.org:58810/GlobalDiscoveryServer");
 
             foreach (var serverUrl in serverUrls)
             {
@@ -55,6 +58,7 @@ namespace Opc.Ua.Gds
             }
 
             ServerUrlTextBox.Text = gds.EndpointUrl;
+            UserNameCredentialsRB.Checked = true;
             OkButton.Enabled = Uri.IsWellFormedUriString(ServerUrlTextBox.Text.Trim(), UriKind.Absolute);
 
             if (base.ShowDialog(owner) != DialogResult.OK)
@@ -75,7 +79,7 @@ namespace Opc.Ua.Gds
             OkButton.Enabled = Uri.IsWellFormedUriString(ServerUrlTextBox.Text.Trim(), UriKind.Absolute);
         }
 
-        private void OkButton_Click(object sender, EventArgs e)
+        private async void OkButton_Click(object sender, EventArgs e)
         {
             try
             {
@@ -89,6 +93,24 @@ namespace Opc.Ua.Gds
                 try
                 {
                     Cursor = Cursors.WaitCursor;
+
+                    var endpoint = CoreClientUtils.SelectEndpoint(url, true);
+
+                    if (UserNameCredentialsRB.Checked)
+                    {
+                        if (endpoint.FindUserTokenPolicy(UserTokenType.UserName.ToString()) == null)
+                        {
+                            throw new ArgumentException("Server does not support username/password user identity tokens.");
+                        }
+
+                        var identity = new Opc.Ua.Client.Controls.UserNamePasswordDlg().ShowDialog(m_gds.AdminCredentials, "Provide GDS Administartor Credentials");
+
+                        if (identity != null)
+                        {
+                            m_gds.AdminCredentials = identity;
+                        }
+                    }
+
                     m_gds.Connect(url);
                 }
                 finally
@@ -98,9 +120,9 @@ namespace Opc.Ua.Gds
 
                 DialogResult = System.Windows.Forms.DialogResult.OK;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
     }

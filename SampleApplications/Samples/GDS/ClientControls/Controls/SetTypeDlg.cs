@@ -182,9 +182,9 @@ namespace Opc.Ua.Gds
 
                 DialogResult = DialogResult.OK;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
         #endregion

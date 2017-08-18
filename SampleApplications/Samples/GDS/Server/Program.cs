@@ -68,7 +68,7 @@ namespace Opc.Ua.GdsServer
             }
             catch (Exception e)
             {
-                MessageBox.Show("Exception: " + e.Message, application.ApplicationName);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(application.ApplicationName, e);
                 return;
             }
         }

@@ -452,7 +452,7 @@ namespace Opc.Ua.Gds
             }
             catch (Exception e)
             {
-                MessageBox.Show(Text + ": " + e.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, e);
             }
         }
 
@@ -544,7 +544,7 @@ namespace Opc.Ua.Gds
             }
             catch (Exception e)
             {
-                MessageBox.Show(Text + ": " + e.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, e);
             }
         }
 
@@ -623,7 +623,7 @@ namespace Opc.Ua.Gds
             }
             catch (Exception e)
             {
-                MessageBox.Show(Text + ": " + e.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, e); 
             }
         }
 
@@ -767,9 +767,9 @@ namespace Opc.Ua.Gds
                     }
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -995,9 +995,9 @@ namespace Opc.Ua.Gds
                         new GetEndpointsData() { Parent = e.Node, Lds = m_lds });
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1016,9 +1016,9 @@ namespace Opc.Ua.Gds
                     ServersTable.DefaultView.RowFilter = "";
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1044,9 +1044,9 @@ namespace Opc.Ua.Gds
                     new EndpointUrlDialog().ShowDialog((string)row[0]);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1061,9 +1061,9 @@ namespace Opc.Ua.Gds
                     new EndpointUrlDialog().ShowDialog((string)row[2]);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
     }

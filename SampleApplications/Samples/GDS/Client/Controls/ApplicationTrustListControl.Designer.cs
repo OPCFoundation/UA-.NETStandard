@@ -88,6 +88,7 @@
             this.PushToServerButton.Text = "Push To Server";
             this.ToolTips.SetToolTip(this.PushToServerButton, "Updates the Trust List on the remote Server.");
             this.PushToServerButton.UseVisualStyleBackColor = false;
+            this.PushToServerButton.Click += new System.EventHandler(this.PushToServerButton_Click);
             this.PushToServerButton.MouseEnter += new System.EventHandler(this.Button_MouseEnter);
             this.PushToServerButton.MouseLeave += new System.EventHandler(this.Button_MouseLeave);
             // 
@@ -155,6 +156,7 @@
             this.ApplyChangesButton.TabIndex = 5;
             this.ApplyChangesButton.Text = "Apply Changes";
             this.ApplyChangesButton.UseVisualStyleBackColor = false;
+            this.ApplyChangesButton.Click += new System.EventHandler(this.ApplyChangesButton_Click);
             // 
             // ApplicationTrustListControl
             // 

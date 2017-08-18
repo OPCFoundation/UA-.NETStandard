@@ -184,9 +184,9 @@ namespace Opc.Ua.Gds
 
                 m_dataset.AcceptChanges();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -197,9 +197,9 @@ namespace Opc.Ua.Gds
                 UnregisterButton.Enabled = ApplicationRecordDataGridView.SelectedRows.Count > 0;
                 OkButton.Enabled = ApplicationRecordDataGridView.SelectedRows.Count <= 1;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
     }

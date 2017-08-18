@@ -168,6 +168,7 @@ namespace Opc.Ua.GdsClient
 
             m_application.RegistrationType = (RegistrationType)RegistrationTypeComboBox.SelectedIndex;
             m_application.ServerUrl = SelectServerUrl(DiscoveryUrlsTextBox.Tag as IList<string>);
+            m_application.Domains = DomainsTextBox.Text.Trim();
 
             if (record != null)
             {
@@ -227,6 +228,7 @@ namespace Opc.Ua.GdsClient
         {
             ApplicationIdTextBox.Text = null;
             ApplicationUriTextBox.Text = (m_application != null) ? m_application.ApplicationUri : null;
+            DomainsTextBox.Text = m_application.Domains;
 
             try
             {
@@ -572,9 +574,9 @@ namespace Opc.Ua.GdsClient
                 ControlToData();
                 RaiseRegisteredApplicationChangedEvent(m_application);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -589,9 +591,9 @@ namespace Opc.Ua.GdsClient
                     SetServerCapabilities(capabilities);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -619,9 +621,9 @@ namespace Opc.Ua.GdsClient
                     DiscoveryUrlsTextBox.Tag = discoveryUrls;
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -664,9 +666,9 @@ namespace Opc.Ua.GdsClient
 
                 CertificateStorePathTextBox.Text = AddSpecialFolders(directory.FullName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -800,9 +802,9 @@ namespace Opc.Ua.GdsClient
                         MessageBoxIcon.Error);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -847,9 +849,9 @@ namespace Opc.Ua.GdsClient
 
                 CertificatePrivateKeyPathTextBox.Text = AddSpecialFolders(dialog.FileName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -916,9 +918,9 @@ namespace Opc.Ua.GdsClient
                         MessageBoxIcon.Error);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -963,9 +965,9 @@ namespace Opc.Ua.GdsClient
 
                 HttpsCertificatePrivateKeyPathTextBox.Text = AddSpecialFolders(dialog.FileName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1014,9 +1016,9 @@ namespace Opc.Ua.GdsClient
 
                 TrustListStorePathTextBox.Text = AddSpecialFolders(directory.FullName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1059,9 +1061,9 @@ namespace Opc.Ua.GdsClient
 
                 IssuerListStorePathTextBox.Text = AddSpecialFolders(directory.FullName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1104,9 +1106,9 @@ namespace Opc.Ua.GdsClient
 
                 HttpsTrustListStorePathTextBox.Text = AddSpecialFolders(directory.FullName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1149,9 +1151,9 @@ namespace Opc.Ua.GdsClient
 
                 HttpsIssuerListStorePathTextBox.Text = AddSpecialFolders(directory.FullName);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1299,9 +1301,9 @@ namespace Opc.Ua.GdsClient
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1435,9 +1437,9 @@ namespace Opc.Ua.GdsClient
                        MessageBoxIcon.Information);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1499,9 +1501,9 @@ namespace Opc.Ua.GdsClient
 
                 PickServerButton.Visible = RegistrationTypeComboBox.SelectedIndex == ServerPushManagement;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1596,9 +1598,9 @@ namespace Opc.Ua.GdsClient
                     }
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1654,9 +1656,9 @@ namespace Opc.Ua.GdsClient
                 RaiseRegisteredApplicationChangedEvent(m_application);
                
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1667,9 +1669,9 @@ namespace Opc.Ua.GdsClient
                 var pathToFile = Utils.GetAbsoluteFilePath(ConfigurationFileTextBox.Text.Trim(), true, true, false);
                 System.Diagnostics.Process.Start((m_externalEditor)??@"devenv.exe", "\"" + pathToFile + "\"");
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1720,9 +1722,9 @@ namespace Opc.Ua.GdsClient
             {
                 ClearFields();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Parent.Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 

@@ -1,4 +1,20 @@
-﻿namespace Opc.Ua.GdsClient
+/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+namespace Opc.Ua.GdsClient
 {
     partial class RegisterApplicationControl
     {
@@ -89,6 +105,8 @@
             this.RegisterApplicationButton = new System.Windows.Forms.Button();
             this.ApplyChangesButton = new System.Windows.Forms.Button();
             this.ToolTip = new System.Windows.Forms.ToolTip(this.components);
+            this.DomainsLabel = new System.Windows.Forms.Label();
+            this.DomainsTextBox = new System.Windows.Forms.TextBox();
             this.RegistrationPanel.SuspendLayout();
             this.RegistrationDetailsPanel.SuspendLayout();
             this.RegistrationButtonsPanel.SuspendLayout();
@@ -100,8 +118,9 @@
             this.RegistrationPanel.Controls.Add(this.RegistrationButtonsPanel);
             this.RegistrationPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.RegistrationPanel.Location = new System.Drawing.Point(0, 0);
+            this.RegistrationPanel.Margin = new System.Windows.Forms.Padding(4);
             this.RegistrationPanel.Name = "RegistrationPanel";
-            this.RegistrationPanel.Size = new System.Drawing.Size(879, 514);
+            this.RegistrationPanel.Size = new System.Drawing.Size(1172, 633);
             this.RegistrationPanel.TabIndex = 50;
             // 
             // RegistrationDetailsPanel
@@ -110,6 +129,8 @@
             this.RegistrationDetailsPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.RegistrationDetailsPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.RegistrationDetailsPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.RegistrationDetailsPanel.Controls.Add(this.DomainsTextBox, 1, 22);
+            this.RegistrationDetailsPanel.Controls.Add(this.DomainsLabel, 0, 22);
             this.RegistrationDetailsPanel.Controls.Add(this.HttpsCertificatePrivateKeyPathButton, 2, 19);
             this.RegistrationDetailsPanel.Controls.Add(this.HttpsCertificatePublicKeyPathButton, 2, 18);
             this.RegistrationDetailsPanel.Controls.Add(this.HttpsCertificatePrivateKeyPathTextBox, 1, 19);
@@ -160,9 +181,10 @@
             this.RegistrationDetailsPanel.Controls.Add(this.TrustListStorePathButton, 2, 14);
             this.RegistrationDetailsPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.RegistrationDetailsPanel.Location = new System.Drawing.Point(0, 0);
+            this.RegistrationDetailsPanel.Margin = new System.Windows.Forms.Padding(4);
             this.RegistrationDetailsPanel.Name = "RegistrationDetailsPanel";
-            this.RegistrationDetailsPanel.Padding = new System.Windows.Forms.Padding(3, 0, 3, 3);
-            this.RegistrationDetailsPanel.RowCount = 23;
+            this.RegistrationDetailsPanel.Padding = new System.Windows.Forms.Padding(4, 0, 4, 4);
+            this.RegistrationDetailsPanel.RowCount = 24;
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
@@ -186,15 +208,16 @@
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.RegistrationDetailsPanel.Size = new System.Drawing.Size(879, 482);
+            this.RegistrationDetailsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.RegistrationDetailsPanel.Size = new System.Drawing.Size(1172, 594);
             this.RegistrationDetailsPanel.TabIndex = 0;
             // 
             // HttpsCertificatePrivateKeyPathButton
             // 
-            this.HttpsCertificatePrivateKeyPathButton.Location = new System.Drawing.Point(852, 362);
+            this.HttpsCertificatePrivateKeyPathButton.Location = new System.Drawing.Point(1136, 423);
             this.HttpsCertificatePrivateKeyPathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.HttpsCertificatePrivateKeyPathButton.Name = "HttpsCertificatePrivateKeyPathButton";
-            this.HttpsCertificatePrivateKeyPathButton.Size = new System.Drawing.Size(24, 20);
+            this.HttpsCertificatePrivateKeyPathButton.Size = new System.Drawing.Size(32, 25);
             this.HttpsCertificatePrivateKeyPathButton.TabIndex = 58;
             this.HttpsCertificatePrivateKeyPathButton.Text = "...";
             this.HttpsCertificatePrivateKeyPathButton.UseVisualStyleBackColor = true;
@@ -202,10 +225,10 @@
             // 
             // HttpsCertificatePublicKeyPathButton
             // 
-            this.HttpsCertificatePublicKeyPathButton.Location = new System.Drawing.Point(852, 338);
+            this.HttpsCertificatePublicKeyPathButton.Location = new System.Drawing.Point(1136, 394);
             this.HttpsCertificatePublicKeyPathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.HttpsCertificatePublicKeyPathButton.Name = "HttpsCertificatePublicKeyPathButton";
-            this.HttpsCertificatePublicKeyPathButton.Size = new System.Drawing.Size(24, 20);
+            this.HttpsCertificatePublicKeyPathButton.Size = new System.Drawing.Size(32, 25);
             this.HttpsCertificatePublicKeyPathButton.TabIndex = 57;
             this.HttpsCertificatePublicKeyPathButton.Text = "...";
             this.HttpsCertificatePublicKeyPathButton.UseVisualStyleBackColor = true;
@@ -214,20 +237,20 @@
             // HttpsCertificatePrivateKeyPathTextBox
             // 
             this.HttpsCertificatePrivateKeyPathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsCertificatePrivateKeyPathTextBox.Location = new System.Drawing.Point(184, 362);
-            this.HttpsCertificatePrivateKeyPathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsCertificatePrivateKeyPathTextBox.Location = new System.Drawing.Point(243, 423);
+            this.HttpsCertificatePrivateKeyPathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsCertificatePrivateKeyPathTextBox.Name = "HttpsCertificatePrivateKeyPathTextBox";
-            this.HttpsCertificatePrivateKeyPathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.HttpsCertificatePrivateKeyPathTextBox.Size = new System.Drawing.Size(890, 22);
             this.HttpsCertificatePrivateKeyPathTextBox.TabIndex = 56;
             this.HttpsCertificatePrivateKeyPathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
             // HttpsCertificatePublicKeyPathTextBox
             // 
             this.HttpsCertificatePublicKeyPathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsCertificatePublicKeyPathTextBox.Location = new System.Drawing.Point(184, 338);
-            this.HttpsCertificatePublicKeyPathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsCertificatePublicKeyPathTextBox.Location = new System.Drawing.Point(243, 394);
+            this.HttpsCertificatePublicKeyPathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsCertificatePublicKeyPathTextBox.Name = "HttpsCertificatePublicKeyPathTextBox";
-            this.HttpsCertificatePublicKeyPathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.HttpsCertificatePublicKeyPathTextBox.Size = new System.Drawing.Size(890, 22);
             this.HttpsCertificatePublicKeyPathTextBox.TabIndex = 55;
             this.HttpsCertificatePublicKeyPathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -236,10 +259,10 @@
             this.HttpsCertificatePrivateKeyPathLabel.AllowDrop = true;
             this.HttpsCertificatePrivateKeyPathLabel.AutoSize = true;
             this.HttpsCertificatePrivateKeyPathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsCertificatePrivateKeyPathLabel.Location = new System.Drawing.Point(5, 362);
-            this.HttpsCertificatePrivateKeyPathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsCertificatePrivateKeyPathLabel.Location = new System.Drawing.Point(7, 423);
+            this.HttpsCertificatePrivateKeyPathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsCertificatePrivateKeyPathLabel.Name = "HttpsCertificatePrivateKeyPathLabel";
-            this.HttpsCertificatePrivateKeyPathLabel.Size = new System.Drawing.Size(175, 20);
+            this.HttpsCertificatePrivateKeyPathLabel.Size = new System.Drawing.Size(230, 25);
             this.HttpsCertificatePrivateKeyPathLabel.TabIndex = 53;
             this.HttpsCertificatePrivateKeyPathLabel.Text = "HTTPS Certificate Private Key Path";
             this.HttpsCertificatePrivateKeyPathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -249,20 +272,20 @@
             this.HttpsCertificatePublicKeyPathLabel.AllowDrop = true;
             this.HttpsCertificatePublicKeyPathLabel.AutoSize = true;
             this.HttpsCertificatePublicKeyPathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsCertificatePublicKeyPathLabel.Location = new System.Drawing.Point(5, 338);
-            this.HttpsCertificatePublicKeyPathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsCertificatePublicKeyPathLabel.Location = new System.Drawing.Point(7, 394);
+            this.HttpsCertificatePublicKeyPathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsCertificatePublicKeyPathLabel.Name = "HttpsCertificatePublicKeyPathLabel";
-            this.HttpsCertificatePublicKeyPathLabel.Size = new System.Drawing.Size(175, 20);
+            this.HttpsCertificatePublicKeyPathLabel.Size = new System.Drawing.Size(230, 25);
             this.HttpsCertificatePublicKeyPathLabel.TabIndex = 52;
             this.HttpsCertificatePublicKeyPathLabel.Text = "HTTPS Certificate Public Key Path";
             this.HttpsCertificatePublicKeyPathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // HttpsIssuerListStorePathButton
             // 
-            this.HttpsIssuerListStorePathButton.Location = new System.Drawing.Point(852, 410);
+            this.HttpsIssuerListStorePathButton.Location = new System.Drawing.Point(1136, 481);
             this.HttpsIssuerListStorePathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.HttpsIssuerListStorePathButton.Name = "HttpsIssuerListStorePathButton";
-            this.HttpsIssuerListStorePathButton.Size = new System.Drawing.Size(24, 20);
+            this.HttpsIssuerListStorePathButton.Size = new System.Drawing.Size(32, 25);
             this.HttpsIssuerListStorePathButton.TabIndex = 50;
             this.HttpsIssuerListStorePathButton.Text = "...";
             this.HttpsIssuerListStorePathButton.UseVisualStyleBackColor = true;
@@ -271,10 +294,10 @@
             // HttpsIssuerListStorePathTextBox
             // 
             this.HttpsIssuerListStorePathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsIssuerListStorePathTextBox.Location = new System.Drawing.Point(184, 410);
-            this.HttpsIssuerListStorePathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsIssuerListStorePathTextBox.Location = new System.Drawing.Point(243, 481);
+            this.HttpsIssuerListStorePathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsIssuerListStorePathTextBox.Name = "HttpsIssuerListStorePathTextBox";
-            this.HttpsIssuerListStorePathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.HttpsIssuerListStorePathTextBox.Size = new System.Drawing.Size(890, 22);
             this.HttpsIssuerListStorePathTextBox.TabIndex = 49;
             this.HttpsIssuerListStorePathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -283,20 +306,20 @@
             this.HttpsIssuerListStorePathLabel.AllowDrop = true;
             this.HttpsIssuerListStorePathLabel.AutoSize = true;
             this.HttpsIssuerListStorePathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsIssuerListStorePathLabel.Location = new System.Drawing.Point(5, 410);
-            this.HttpsIssuerListStorePathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsIssuerListStorePathLabel.Location = new System.Drawing.Point(7, 481);
+            this.HttpsIssuerListStorePathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsIssuerListStorePathLabel.Name = "HttpsIssuerListStorePathLabel";
-            this.HttpsIssuerListStorePathLabel.Size = new System.Drawing.Size(175, 20);
+            this.HttpsIssuerListStorePathLabel.Size = new System.Drawing.Size(230, 25);
             this.HttpsIssuerListStorePathLabel.TabIndex = 48;
             this.HttpsIssuerListStorePathLabel.Text = "HTTPS Issuer List Store Path";
             this.HttpsIssuerListStorePathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // HttpsTrustListStorePathButton
             // 
-            this.HttpsTrustListStorePathButton.Location = new System.Drawing.Point(852, 386);
+            this.HttpsTrustListStorePathButton.Location = new System.Drawing.Point(1136, 452);
             this.HttpsTrustListStorePathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.HttpsTrustListStorePathButton.Name = "HttpsTrustListStorePathButton";
-            this.HttpsTrustListStorePathButton.Size = new System.Drawing.Size(24, 20);
+            this.HttpsTrustListStorePathButton.Size = new System.Drawing.Size(32, 25);
             this.HttpsTrustListStorePathButton.TabIndex = 47;
             this.HttpsTrustListStorePathButton.Text = "...";
             this.HttpsTrustListStorePathButton.UseVisualStyleBackColor = true;
@@ -305,10 +328,10 @@
             // HttpsTrustListStorePathTextBox
             // 
             this.HttpsTrustListStorePathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsTrustListStorePathTextBox.Location = new System.Drawing.Point(184, 386);
-            this.HttpsTrustListStorePathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsTrustListStorePathTextBox.Location = new System.Drawing.Point(243, 452);
+            this.HttpsTrustListStorePathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsTrustListStorePathTextBox.Name = "HttpsTrustListStorePathTextBox";
-            this.HttpsTrustListStorePathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.HttpsTrustListStorePathTextBox.Size = new System.Drawing.Size(890, 22);
             this.HttpsTrustListStorePathTextBox.TabIndex = 46;
             this.HttpsTrustListStorePathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -317,20 +340,20 @@
             this.HttpsTrustListStorePathLabel.AllowDrop = true;
             this.HttpsTrustListStorePathLabel.AutoSize = true;
             this.HttpsTrustListStorePathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.HttpsTrustListStorePathLabel.Location = new System.Drawing.Point(5, 386);
-            this.HttpsTrustListStorePathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.HttpsTrustListStorePathLabel.Location = new System.Drawing.Point(7, 452);
+            this.HttpsTrustListStorePathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.HttpsTrustListStorePathLabel.Name = "HttpsTrustListStorePathLabel";
-            this.HttpsTrustListStorePathLabel.Size = new System.Drawing.Size(175, 20);
+            this.HttpsTrustListStorePathLabel.Size = new System.Drawing.Size(230, 25);
             this.HttpsTrustListStorePathLabel.TabIndex = 45;
             this.HttpsTrustListStorePathLabel.Text = "HTTPS Trust List Store Path";
             this.HttpsTrustListStorePathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // DiscoveryUrlsButton
             // 
-            this.DiscoveryUrlsButton.Location = new System.Drawing.Point(852, 122);
+            this.DiscoveryUrlsButton.Location = new System.Drawing.Point(1136, 136);
             this.DiscoveryUrlsButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.DiscoveryUrlsButton.Name = "DiscoveryUrlsButton";
-            this.DiscoveryUrlsButton.Size = new System.Drawing.Size(24, 20);
+            this.DiscoveryUrlsButton.Size = new System.Drawing.Size(32, 25);
             this.DiscoveryUrlsButton.TabIndex = 44;
             this.DiscoveryUrlsButton.Text = "...";
             this.DiscoveryUrlsButton.UseVisualStyleBackColor = true;
@@ -341,10 +364,10 @@
             this.DiscoveryUrlsTextBox.AllowDrop = true;
             this.DiscoveryUrlsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.DiscoveryUrlsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.DiscoveryUrlsTextBox.Location = new System.Drawing.Point(184, 122);
-            this.DiscoveryUrlsTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.DiscoveryUrlsTextBox.Location = new System.Drawing.Point(243, 136);
+            this.DiscoveryUrlsTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.DiscoveryUrlsTextBox.Name = "DiscoveryUrlsTextBox";
-            this.DiscoveryUrlsTextBox.Size = new System.Drawing.Size(666, 20);
+            this.DiscoveryUrlsTextBox.Size = new System.Drawing.Size(890, 25);
             this.DiscoveryUrlsTextBox.TabIndex = 43;
             this.DiscoveryUrlsTextBox.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.DiscoveryUrlsTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
@@ -354,10 +377,10 @@
             this.DiscoveryUrlsLabel.AllowDrop = true;
             this.DiscoveryUrlsLabel.AutoSize = true;
             this.DiscoveryUrlsLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.DiscoveryUrlsLabel.Location = new System.Drawing.Point(5, 122);
-            this.DiscoveryUrlsLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.DiscoveryUrlsLabel.Location = new System.Drawing.Point(7, 136);
+            this.DiscoveryUrlsLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.DiscoveryUrlsLabel.Name = "DiscoveryUrlsLabel";
-            this.DiscoveryUrlsLabel.Size = new System.Drawing.Size(175, 20);
+            this.DiscoveryUrlsLabel.Size = new System.Drawing.Size(230, 25);
             this.DiscoveryUrlsLabel.TabIndex = 42;
             this.DiscoveryUrlsLabel.Text = "Discovery URLs";
             this.DiscoveryUrlsLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -367,20 +390,20 @@
             this.ServerCapabilitiesTextBox.AllowDrop = true;
             this.ServerCapabilitiesTextBox.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.ServerCapabilitiesTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ServerCapabilitiesTextBox.Location = new System.Drawing.Point(184, 146);
-            this.ServerCapabilitiesTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ServerCapabilitiesTextBox.Location = new System.Drawing.Point(243, 165);
+            this.ServerCapabilitiesTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ServerCapabilitiesTextBox.Name = "ServerCapabilitiesTextBox";
-            this.ServerCapabilitiesTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ServerCapabilitiesTextBox.Size = new System.Drawing.Size(890, 25);
             this.ServerCapabilitiesTextBox.TabIndex = 38;
             this.ServerCapabilitiesTextBox.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.ServerCapabilitiesTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
             // ServerCapabilitiesButton
             // 
-            this.ServerCapabilitiesButton.Location = new System.Drawing.Point(852, 146);
+            this.ServerCapabilitiesButton.Location = new System.Drawing.Point(1136, 165);
             this.ServerCapabilitiesButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.ServerCapabilitiesButton.Name = "ServerCapabilitiesButton";
-            this.ServerCapabilitiesButton.Size = new System.Drawing.Size(24, 20);
+            this.ServerCapabilitiesButton.Size = new System.Drawing.Size(32, 25);
             this.ServerCapabilitiesButton.TabIndex = 37;
             this.ServerCapabilitiesButton.Text = "...";
             this.ServerCapabilitiesButton.UseVisualStyleBackColor = true;
@@ -391,10 +414,10 @@
             this.ServerCapabilitiesLabel.AllowDrop = true;
             this.ServerCapabilitiesLabel.AutoSize = true;
             this.ServerCapabilitiesLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ServerCapabilitiesLabel.Location = new System.Drawing.Point(5, 146);
-            this.ServerCapabilitiesLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ServerCapabilitiesLabel.Location = new System.Drawing.Point(7, 165);
+            this.ServerCapabilitiesLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ServerCapabilitiesLabel.Name = "ServerCapabilitiesLabel";
-            this.ServerCapabilitiesLabel.Size = new System.Drawing.Size(175, 20);
+            this.ServerCapabilitiesLabel.Size = new System.Drawing.Size(230, 25);
             this.ServerCapabilitiesLabel.TabIndex = 36;
             this.ServerCapabilitiesLabel.Text = "Server Capabilities";
             this.ServerCapabilitiesLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -404,10 +427,10 @@
             this.ApplicationIdTextBox.AllowDrop = true;
             this.ApplicationIdTextBox.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.ApplicationIdTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationIdTextBox.Location = new System.Drawing.Point(184, 26);
-            this.ApplicationIdTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationIdTextBox.Location = new System.Drawing.Point(243, 29);
+            this.ApplicationIdTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationIdTextBox.Name = "ApplicationIdTextBox";
-            this.ApplicationIdTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ApplicationIdTextBox.Size = new System.Drawing.Size(890, 25);
             this.ApplicationIdTextBox.TabIndex = 34;
             this.ApplicationIdTextBox.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -416,20 +439,20 @@
             this.ApplicationIdLabel.AllowDrop = true;
             this.ApplicationIdLabel.AutoSize = true;
             this.ApplicationIdLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationIdLabel.Location = new System.Drawing.Point(5, 26);
-            this.ApplicationIdLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationIdLabel.Location = new System.Drawing.Point(7, 29);
+            this.ApplicationIdLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationIdLabel.Name = "ApplicationIdLabel";
-            this.ApplicationIdLabel.Size = new System.Drawing.Size(175, 20);
+            this.ApplicationIdLabel.Size = new System.Drawing.Size(230, 25);
             this.ApplicationIdLabel.TabIndex = 33;
             this.ApplicationIdLabel.Text = "Application ID";
             this.ApplicationIdLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // IssuerListStorePathButton
             // 
-            this.IssuerListStorePathButton.Location = new System.Drawing.Point(852, 314);
+            this.IssuerListStorePathButton.Location = new System.Drawing.Point(1136, 365);
             this.IssuerListStorePathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.IssuerListStorePathButton.Name = "IssuerListStorePathButton";
-            this.IssuerListStorePathButton.Size = new System.Drawing.Size(24, 20);
+            this.IssuerListStorePathButton.Size = new System.Drawing.Size(32, 25);
             this.IssuerListStorePathButton.TabIndex = 31;
             this.IssuerListStorePathButton.Text = "...";
             this.IssuerListStorePathButton.UseVisualStyleBackColor = true;
@@ -438,10 +461,10 @@
             // CertificateSubjectNameTextBox
             // 
             this.CertificateSubjectNameTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificateSubjectNameTextBox.Location = new System.Drawing.Point(184, 218);
-            this.CertificateSubjectNameTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificateSubjectNameTextBox.Location = new System.Drawing.Point(243, 252);
+            this.CertificateSubjectNameTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificateSubjectNameTextBox.Name = "CertificateSubjectNameTextBox";
-            this.CertificateSubjectNameTextBox.Size = new System.Drawing.Size(666, 20);
+            this.CertificateSubjectNameTextBox.Size = new System.Drawing.Size(890, 22);
             this.CertificateSubjectNameTextBox.TabIndex = 18;
             this.CertificateSubjectNameTextBox.TextChanged += new System.EventHandler(this.CertificateLocation_TextChanged);
             // 
@@ -450,10 +473,10 @@
             this.CertificateSubjectNameLabel.AllowDrop = true;
             this.CertificateSubjectNameLabel.AutoSize = true;
             this.CertificateSubjectNameLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificateSubjectNameLabel.Location = new System.Drawing.Point(5, 218);
-            this.CertificateSubjectNameLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificateSubjectNameLabel.Location = new System.Drawing.Point(7, 252);
+            this.CertificateSubjectNameLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificateSubjectNameLabel.Name = "CertificateSubjectNameLabel";
-            this.CertificateSubjectNameLabel.Size = new System.Drawing.Size(175, 20);
+            this.CertificateSubjectNameLabel.Size = new System.Drawing.Size(230, 22);
             this.CertificateSubjectNameLabel.TabIndex = 17;
             this.CertificateSubjectNameLabel.Text = "Certificate Subject Name";
             this.CertificateSubjectNameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -461,10 +484,10 @@
             // IssuerListStorePathTextBox
             // 
             this.IssuerListStorePathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.IssuerListStorePathTextBox.Location = new System.Drawing.Point(184, 314);
-            this.IssuerListStorePathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.IssuerListStorePathTextBox.Location = new System.Drawing.Point(243, 365);
+            this.IssuerListStorePathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.IssuerListStorePathTextBox.Name = "IssuerListStorePathTextBox";
-            this.IssuerListStorePathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.IssuerListStorePathTextBox.Size = new System.Drawing.Size(890, 22);
             this.IssuerListStorePathTextBox.TabIndex = 30;
             this.IssuerListStorePathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -473,10 +496,10 @@
             this.IssuerListStorePathLabel.AllowDrop = true;
             this.IssuerListStorePathLabel.AutoSize = true;
             this.IssuerListStorePathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.IssuerListStorePathLabel.Location = new System.Drawing.Point(5, 314);
-            this.IssuerListStorePathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.IssuerListStorePathLabel.Location = new System.Drawing.Point(7, 365);
+            this.IssuerListStorePathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.IssuerListStorePathLabel.Name = "IssuerListStorePathLabel";
-            this.IssuerListStorePathLabel.Size = new System.Drawing.Size(175, 20);
+            this.IssuerListStorePathLabel.Size = new System.Drawing.Size(230, 25);
             this.IssuerListStorePathLabel.TabIndex = 29;
             this.IssuerListStorePathLabel.Text = "Issuer List Store Path";
             this.IssuerListStorePathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -484,10 +507,10 @@
             // TrustListStorePathTextBox
             // 
             this.TrustListStorePathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.TrustListStorePathTextBox.Location = new System.Drawing.Point(184, 290);
-            this.TrustListStorePathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.TrustListStorePathTextBox.Location = new System.Drawing.Point(243, 336);
+            this.TrustListStorePathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.TrustListStorePathTextBox.Name = "TrustListStorePathTextBox";
-            this.TrustListStorePathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.TrustListStorePathTextBox.Size = new System.Drawing.Size(890, 22);
             this.TrustListStorePathTextBox.TabIndex = 28;
             this.TrustListStorePathTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -496,10 +519,10 @@
             this.TrustListStorePathLabel.AllowDrop = true;
             this.TrustListStorePathLabel.AutoSize = true;
             this.TrustListStorePathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.TrustListStorePathLabel.Location = new System.Drawing.Point(5, 290);
-            this.TrustListStorePathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.TrustListStorePathLabel.Location = new System.Drawing.Point(7, 336);
+            this.TrustListStorePathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.TrustListStorePathLabel.Name = "TrustListStorePathLabel";
-            this.TrustListStorePathLabel.Size = new System.Drawing.Size(175, 20);
+            this.TrustListStorePathLabel.Size = new System.Drawing.Size(230, 25);
             this.TrustListStorePathLabel.TabIndex = 27;
             this.TrustListStorePathLabel.Text = "Trust List Store Path";
             this.TrustListStorePathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -507,10 +530,10 @@
             // ProductUriTextBox
             // 
             this.ProductUriTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ProductUriTextBox.Location = new System.Drawing.Point(184, 98);
-            this.ProductUriTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ProductUriTextBox.Location = new System.Drawing.Point(243, 110);
+            this.ProductUriTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ProductUriTextBox.Name = "ProductUriTextBox";
-            this.ProductUriTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ProductUriTextBox.Size = new System.Drawing.Size(890, 22);
             this.ProductUriTextBox.TabIndex = 13;
             this.ProductUriTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -519,10 +542,10 @@
             this.ProductUriLabel.AllowDrop = true;
             this.ProductUriLabel.AutoSize = true;
             this.ProductUriLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ProductUriLabel.Location = new System.Drawing.Point(5, 98);
-            this.ProductUriLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ProductUriLabel.Location = new System.Drawing.Point(7, 110);
+            this.ProductUriLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ProductUriLabel.Name = "ProductUriLabel";
-            this.ProductUriLabel.Size = new System.Drawing.Size(175, 20);
+            this.ProductUriLabel.Size = new System.Drawing.Size(230, 22);
             this.ProductUriLabel.TabIndex = 12;
             this.ProductUriLabel.Text = "Product URI";
             this.ProductUriLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -530,10 +553,10 @@
             // ApplicationUriTextBox
             // 
             this.ApplicationUriTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationUriTextBox.Location = new System.Drawing.Point(184, 74);
-            this.ApplicationUriTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationUriTextBox.Location = new System.Drawing.Point(243, 84);
+            this.ApplicationUriTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationUriTextBox.Name = "ApplicationUriTextBox";
-            this.ApplicationUriTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ApplicationUriTextBox.Size = new System.Drawing.Size(890, 22);
             this.ApplicationUriTextBox.TabIndex = 11;
             this.ApplicationUriTextBox.TextChanged += new System.EventHandler(this.ApplicationUriTextBox_TextChanged);
             // 
@@ -542,10 +565,10 @@
             this.ApplicationUriLabel.AllowDrop = true;
             this.ApplicationUriLabel.AutoSize = true;
             this.ApplicationUriLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationUriLabel.Location = new System.Drawing.Point(5, 74);
-            this.ApplicationUriLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationUriLabel.Location = new System.Drawing.Point(7, 84);
+            this.ApplicationUriLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationUriLabel.Name = "ApplicationUriLabel";
-            this.ApplicationUriLabel.Size = new System.Drawing.Size(175, 20);
+            this.ApplicationUriLabel.Size = new System.Drawing.Size(230, 22);
             this.ApplicationUriLabel.TabIndex = 10;
             this.ApplicationUriLabel.Text = "Application URI";
             this.ApplicationUriLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -553,10 +576,10 @@
             // ApplicationNameTextBox
             // 
             this.ApplicationNameTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationNameTextBox.Location = new System.Drawing.Point(184, 50);
-            this.ApplicationNameTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationNameTextBox.Location = new System.Drawing.Point(243, 58);
+            this.ApplicationNameTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationNameTextBox.Name = "ApplicationNameTextBox";
-            this.ApplicationNameTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ApplicationNameTextBox.Size = new System.Drawing.Size(890, 22);
             this.ApplicationNameTextBox.TabIndex = 9;
             this.ApplicationNameTextBox.TextChanged += new System.EventHandler(this.GenericField_TextChanged);
             // 
@@ -565,10 +588,10 @@
             this.ApplicationNameLabel.AllowDrop = true;
             this.ApplicationNameLabel.AutoSize = true;
             this.ApplicationNameLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ApplicationNameLabel.Location = new System.Drawing.Point(5, 50);
-            this.ApplicationNameLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ApplicationNameLabel.Location = new System.Drawing.Point(7, 58);
+            this.ApplicationNameLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ApplicationNameLabel.Name = "ApplicationNameLabel";
-            this.ApplicationNameLabel.Size = new System.Drawing.Size(175, 20);
+            this.ApplicationNameLabel.Size = new System.Drawing.Size(230, 22);
             this.ApplicationNameLabel.TabIndex = 8;
             this.ApplicationNameLabel.Text = "Application Name";
             this.ApplicationNameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -576,10 +599,10 @@
             // CertificatePrivateKeyPathTextBox
             // 
             this.CertificatePrivateKeyPathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificatePrivateKeyPathTextBox.Location = new System.Drawing.Point(184, 266);
-            this.CertificatePrivateKeyPathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificatePrivateKeyPathTextBox.Location = new System.Drawing.Point(243, 307);
+            this.CertificatePrivateKeyPathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificatePrivateKeyPathTextBox.Name = "CertificatePrivateKeyPathTextBox";
-            this.CertificatePrivateKeyPathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.CertificatePrivateKeyPathTextBox.Size = new System.Drawing.Size(890, 22);
             this.CertificatePrivateKeyPathTextBox.TabIndex = 23;
             this.CertificatePrivateKeyPathTextBox.TextChanged += new System.EventHandler(this.CertificateLocation_TextChanged);
             // 
@@ -588,10 +611,10 @@
             this.CertificatePrivateKeyPathLabel.AllowDrop = true;
             this.CertificatePrivateKeyPathLabel.AutoSize = true;
             this.CertificatePrivateKeyPathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificatePrivateKeyPathLabel.Location = new System.Drawing.Point(5, 266);
-            this.CertificatePrivateKeyPathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificatePrivateKeyPathLabel.Location = new System.Drawing.Point(7, 307);
+            this.CertificatePrivateKeyPathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificatePrivateKeyPathLabel.Name = "CertificatePrivateKeyPathLabel";
-            this.CertificatePrivateKeyPathLabel.Size = new System.Drawing.Size(175, 20);
+            this.CertificatePrivateKeyPathLabel.Size = new System.Drawing.Size(230, 25);
             this.CertificatePrivateKeyPathLabel.TabIndex = 22;
             this.CertificatePrivateKeyPathLabel.Text = "Certificate Private Key Path";
             this.CertificatePrivateKeyPathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -599,10 +622,10 @@
             // CertificatePublicKeyPathTextBox
             // 
             this.CertificatePublicKeyPathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificatePublicKeyPathTextBox.Location = new System.Drawing.Point(184, 242);
-            this.CertificatePublicKeyPathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificatePublicKeyPathTextBox.Location = new System.Drawing.Point(243, 278);
+            this.CertificatePublicKeyPathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificatePublicKeyPathTextBox.Name = "CertificatePublicKeyPathTextBox";
-            this.CertificatePublicKeyPathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.CertificatePublicKeyPathTextBox.Size = new System.Drawing.Size(890, 22);
             this.CertificatePublicKeyPathTextBox.TabIndex = 20;
             this.CertificatePublicKeyPathTextBox.TextChanged += new System.EventHandler(this.CertificateLocation_TextChanged);
             // 
@@ -611,10 +634,10 @@
             this.CertificatePublicKeyPathLabel.AllowDrop = true;
             this.CertificatePublicKeyPathLabel.AutoSize = true;
             this.CertificatePublicKeyPathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificatePublicKeyPathLabel.Location = new System.Drawing.Point(5, 242);
-            this.CertificatePublicKeyPathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificatePublicKeyPathLabel.Location = new System.Drawing.Point(7, 278);
+            this.CertificatePublicKeyPathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificatePublicKeyPathLabel.Name = "CertificatePublicKeyPathLabel";
-            this.CertificatePublicKeyPathLabel.Size = new System.Drawing.Size(175, 20);
+            this.CertificatePublicKeyPathLabel.Size = new System.Drawing.Size(230, 25);
             this.CertificatePublicKeyPathLabel.TabIndex = 19;
             this.CertificatePublicKeyPathLabel.Text = "Certificate Public Key Path";
             this.CertificatePublicKeyPathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -622,10 +645,10 @@
             // CertificateStorePathTextBox
             // 
             this.CertificateStorePathTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificateStorePathTextBox.Location = new System.Drawing.Point(184, 194);
-            this.CertificateStorePathTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificateStorePathTextBox.Location = new System.Drawing.Point(243, 223);
+            this.CertificateStorePathTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificateStorePathTextBox.Name = "CertificateStorePathTextBox";
-            this.CertificateStorePathTextBox.Size = new System.Drawing.Size(666, 20);
+            this.CertificateStorePathTextBox.Size = new System.Drawing.Size(890, 22);
             this.CertificateStorePathTextBox.TabIndex = 15;
             this.CertificateStorePathTextBox.TextChanged += new System.EventHandler(this.CertificateLocation_TextChanged);
             // 
@@ -634,10 +657,10 @@
             this.CertificateStorePathLabel.AllowDrop = true;
             this.CertificateStorePathLabel.AutoSize = true;
             this.CertificateStorePathLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CertificateStorePathLabel.Location = new System.Drawing.Point(5, 194);
-            this.CertificateStorePathLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.CertificateStorePathLabel.Location = new System.Drawing.Point(7, 223);
+            this.CertificateStorePathLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.CertificateStorePathLabel.Name = "CertificateStorePathLabel";
-            this.CertificateStorePathLabel.Size = new System.Drawing.Size(175, 20);
+            this.CertificateStorePathLabel.Size = new System.Drawing.Size(230, 25);
             this.CertificateStorePathLabel.TabIndex = 14;
             this.CertificateStorePathLabel.Text = "Certificate Store Path";
             this.CertificateStorePathLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -645,10 +668,10 @@
             // ConfigurationFileTextBox
             // 
             this.ConfigurationFileTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ConfigurationFileTextBox.Location = new System.Drawing.Point(184, 170);
-            this.ConfigurationFileTextBox.Margin = new System.Windows.Forms.Padding(2);
+            this.ConfigurationFileTextBox.Location = new System.Drawing.Point(243, 194);
+            this.ConfigurationFileTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ConfigurationFileTextBox.Name = "ConfigurationFileTextBox";
-            this.ConfigurationFileTextBox.Size = new System.Drawing.Size(666, 20);
+            this.ConfigurationFileTextBox.Size = new System.Drawing.Size(890, 22);
             this.ConfigurationFileTextBox.TabIndex = 3;
             this.ConfigurationFileTextBox.TextChanged += new System.EventHandler(this.ConfigurationFileTextBox_TextChanged);
             // 
@@ -657,10 +680,10 @@
             this.ConfigurationFileLabel.AllowDrop = true;
             this.ConfigurationFileLabel.AutoSize = true;
             this.ConfigurationFileLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ConfigurationFileLabel.Location = new System.Drawing.Point(5, 170);
-            this.ConfigurationFileLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.ConfigurationFileLabel.Location = new System.Drawing.Point(7, 194);
+            this.ConfigurationFileLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.ConfigurationFileLabel.Name = "ConfigurationFileLabel";
-            this.ConfigurationFileLabel.Size = new System.Drawing.Size(175, 20);
+            this.ConfigurationFileLabel.Size = new System.Drawing.Size(230, 25);
             this.ConfigurationFileLabel.TabIndex = 2;
             this.ConfigurationFileLabel.Text = "Configuration File";
             this.ConfigurationFileLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -670,10 +693,10 @@
             this.RegistrationTypeLabel.AllowDrop = true;
             this.RegistrationTypeLabel.AutoSize = true;
             this.RegistrationTypeLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.RegistrationTypeLabel.Location = new System.Drawing.Point(5, 2);
-            this.RegistrationTypeLabel.Margin = new System.Windows.Forms.Padding(2);
+            this.RegistrationTypeLabel.Location = new System.Drawing.Point(7, 2);
+            this.RegistrationTypeLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.RegistrationTypeLabel.Name = "RegistrationTypeLabel";
-            this.RegistrationTypeLabel.Size = new System.Drawing.Size(175, 20);
+            this.RegistrationTypeLabel.Size = new System.Drawing.Size(230, 23);
             this.RegistrationTypeLabel.TabIndex = 0;
             this.RegistrationTypeLabel.Text = "Registration Type";
             this.RegistrationTypeLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -682,19 +705,19 @@
             // 
             this.RegistrationTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.RegistrationTypeComboBox.FormattingEnabled = true;
-            this.RegistrationTypeComboBox.Location = new System.Drawing.Point(184, 2);
-            this.RegistrationTypeComboBox.Margin = new System.Windows.Forms.Padding(2, 2, 2, 1);
+            this.RegistrationTypeComboBox.Location = new System.Drawing.Point(243, 2);
+            this.RegistrationTypeComboBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 1);
             this.RegistrationTypeComboBox.Name = "RegistrationTypeComboBox";
-            this.RegistrationTypeComboBox.Size = new System.Drawing.Size(184, 21);
+            this.RegistrationTypeComboBox.Size = new System.Drawing.Size(244, 24);
             this.RegistrationTypeComboBox.TabIndex = 1;
             this.RegistrationTypeComboBox.SelectedIndexChanged += new System.EventHandler(this.RegistrationTypeComboBox_SelectedIndexChanged);
             // 
             // CertificateStorePathButton
             // 
-            this.CertificateStorePathButton.Location = new System.Drawing.Point(852, 194);
+            this.CertificateStorePathButton.Location = new System.Drawing.Point(1136, 223);
             this.CertificateStorePathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.CertificateStorePathButton.Name = "CertificateStorePathButton";
-            this.CertificateStorePathButton.Size = new System.Drawing.Size(24, 20);
+            this.CertificateStorePathButton.Size = new System.Drawing.Size(32, 25);
             this.CertificateStorePathButton.TabIndex = 16;
             this.CertificateStorePathButton.Text = "...";
             this.CertificateStorePathButton.UseVisualStyleBackColor = true;
@@ -702,10 +725,10 @@
             // 
             // ConfigurationFileButton
             // 
-            this.ConfigurationFileButton.Location = new System.Drawing.Point(852, 170);
+            this.ConfigurationFileButton.Location = new System.Drawing.Point(1136, 194);
             this.ConfigurationFileButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.ConfigurationFileButton.Name = "ConfigurationFileButton";
-            this.ConfigurationFileButton.Size = new System.Drawing.Size(24, 20);
+            this.ConfigurationFileButton.Size = new System.Drawing.Size(32, 25);
             this.ConfigurationFileButton.TabIndex = 4;
             this.ConfigurationFileButton.Text = "...";
             this.ConfigurationFileButton.UseVisualStyleBackColor = true;
@@ -713,10 +736,10 @@
             // 
             // CertificatePrivateKeyPathButton
             // 
-            this.CertificatePrivateKeyPathButton.Location = new System.Drawing.Point(852, 266);
+            this.CertificatePrivateKeyPathButton.Location = new System.Drawing.Point(1136, 307);
             this.CertificatePrivateKeyPathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.CertificatePrivateKeyPathButton.Name = "CertificatePrivateKeyPathButton";
-            this.CertificatePrivateKeyPathButton.Size = new System.Drawing.Size(24, 20);
+            this.CertificatePrivateKeyPathButton.Size = new System.Drawing.Size(32, 25);
             this.CertificatePrivateKeyPathButton.TabIndex = 24;
             this.CertificatePrivateKeyPathButton.Text = "...";
             this.CertificatePrivateKeyPathButton.UseVisualStyleBackColor = true;
@@ -724,10 +747,10 @@
             // 
             // CertificatePublicKeyPathButton
             // 
-            this.CertificatePublicKeyPathButton.Location = new System.Drawing.Point(852, 242);
+            this.CertificatePublicKeyPathButton.Location = new System.Drawing.Point(1136, 278);
             this.CertificatePublicKeyPathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.CertificatePublicKeyPathButton.Name = "CertificatePublicKeyPathButton";
-            this.CertificatePublicKeyPathButton.Size = new System.Drawing.Size(24, 20);
+            this.CertificatePublicKeyPathButton.Size = new System.Drawing.Size(32, 25);
             this.CertificatePublicKeyPathButton.TabIndex = 21;
             this.CertificatePublicKeyPathButton.Text = "...";
             this.CertificatePublicKeyPathButton.UseVisualStyleBackColor = true;
@@ -735,10 +758,10 @@
             // 
             // TrustListStorePathButton
             // 
-            this.TrustListStorePathButton.Location = new System.Drawing.Point(852, 290);
+            this.TrustListStorePathButton.Location = new System.Drawing.Point(1136, 336);
             this.TrustListStorePathButton.Margin = new System.Windows.Forms.Padding(0, 2, 0, 2);
             this.TrustListStorePathButton.Name = "TrustListStorePathButton";
-            this.TrustListStorePathButton.Size = new System.Drawing.Size(24, 20);
+            this.TrustListStorePathButton.Size = new System.Drawing.Size(32, 25);
             this.TrustListStorePathButton.TabIndex = 32;
             this.TrustListStorePathButton.Text = "...";
             this.TrustListStorePathButton.UseVisualStyleBackColor = true;
@@ -756,9 +779,10 @@
             this.RegistrationButtonsPanel.Controls.Add(this.RegisterApplicationButton);
             this.RegistrationButtonsPanel.Controls.Add(this.ApplyChangesButton);
             this.RegistrationButtonsPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.RegistrationButtonsPanel.Location = new System.Drawing.Point(0, 482);
+            this.RegistrationButtonsPanel.Location = new System.Drawing.Point(0, 594);
+            this.RegistrationButtonsPanel.Margin = new System.Windows.Forms.Padding(4);
             this.RegistrationButtonsPanel.Name = "RegistrationButtonsPanel";
-            this.RegistrationButtonsPanel.Size = new System.Drawing.Size(879, 32);
+            this.RegistrationButtonsPanel.Size = new System.Drawing.Size(1172, 39);
             this.RegistrationButtonsPanel.TabIndex = 13;
             // 
             // PickServerButton
@@ -767,9 +791,10 @@
             this.PickServerButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.PickServerButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.PickServerButton.ForeColor = System.Drawing.Color.White;
-            this.PickServerButton.Location = new System.Drawing.Point(770, 0);
+            this.PickServerButton.Location = new System.Drawing.Point(1029, 0);
+            this.PickServerButton.Margin = new System.Windows.Forms.Padding(4);
             this.PickServerButton.Name = "PickServerButton";
-            this.PickServerButton.Size = new System.Drawing.Size(110, 32);
+            this.PickServerButton.Size = new System.Drawing.Size(147, 39);
             this.PickServerButton.TabIndex = 7;
             this.PickServerButton.Text = "Pick Server";
             this.ToolTip.SetToolTip(this.PickServerButton, "Clears all fields");
@@ -782,9 +807,10 @@
             this.ClearButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.ClearButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ClearButton.ForeColor = System.Drawing.Color.White;
-            this.ClearButton.Location = new System.Drawing.Point(660, 0);
+            this.ClearButton.Location = new System.Drawing.Point(882, 0);
+            this.ClearButton.Margin = new System.Windows.Forms.Padding(4);
             this.ClearButton.Name = "ClearButton";
-            this.ClearButton.Size = new System.Drawing.Size(110, 32);
+            this.ClearButton.Size = new System.Drawing.Size(147, 39);
             this.ClearButton.TabIndex = 6;
             this.ClearButton.Text = "Clear";
             this.ToolTip.SetToolTip(this.ClearButton, "Clears all fields");
@@ -799,9 +825,10 @@
             this.OpenConfigurationButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.OpenConfigurationButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.OpenConfigurationButton.ForeColor = System.Drawing.Color.White;
-            this.OpenConfigurationButton.Location = new System.Drawing.Point(550, 0);
+            this.OpenConfigurationButton.Location = new System.Drawing.Point(735, 0);
+            this.OpenConfigurationButton.Margin = new System.Windows.Forms.Padding(4);
             this.OpenConfigurationButton.Name = "OpenConfigurationButton";
-            this.OpenConfigurationButton.Size = new System.Drawing.Size(110, 32);
+            this.OpenConfigurationButton.Size = new System.Drawing.Size(147, 39);
             this.OpenConfigurationButton.TabIndex = 5;
             this.OpenConfigurationButton.Text = "Open Config";
             this.ToolTip.SetToolTip(this.OpenConfigurationButton, "Launches an external editor to view the contents of the configuration file.");
@@ -816,9 +843,10 @@
             this.LoadButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.LoadButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.LoadButton.ForeColor = System.Drawing.Color.White;
-            this.LoadButton.Location = new System.Drawing.Point(440, 0);
+            this.LoadButton.Location = new System.Drawing.Point(588, 0);
+            this.LoadButton.Margin = new System.Windows.Forms.Padding(4);
             this.LoadButton.Name = "LoadButton";
-            this.LoadButton.Size = new System.Drawing.Size(110, 32);
+            this.LoadButton.Size = new System.Drawing.Size(147, 39);
             this.LoadButton.TabIndex = 4;
             this.LoadButton.Text = "Load";
             this.ToolTip.SetToolTip(this.LoadButton, "Loads a previously saved registration file.");
@@ -833,9 +861,10 @@
             this.SaveButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.SaveButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.SaveButton.ForeColor = System.Drawing.Color.White;
-            this.SaveButton.Location = new System.Drawing.Point(330, 0);
+            this.SaveButton.Location = new System.Drawing.Point(441, 0);
+            this.SaveButton.Margin = new System.Windows.Forms.Padding(4);
             this.SaveButton.Name = "SaveButton";
-            this.SaveButton.Size = new System.Drawing.Size(110, 32);
+            this.SaveButton.Size = new System.Drawing.Size(147, 39);
             this.SaveButton.TabIndex = 3;
             this.SaveButton.Text = "Save";
             this.ToolTip.SetToolTip(this.SaveButton, "Saves the registration information in a form that can be copied to other machines" +
@@ -851,9 +880,10 @@
             this.UnregisterApplicationButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.UnregisterApplicationButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.UnregisterApplicationButton.ForeColor = System.Drawing.Color.White;
-            this.UnregisterApplicationButton.Location = new System.Drawing.Point(220, 0);
+            this.UnregisterApplicationButton.Location = new System.Drawing.Point(294, 0);
+            this.UnregisterApplicationButton.Margin = new System.Windows.Forms.Padding(4);
             this.UnregisterApplicationButton.Name = "UnregisterApplicationButton";
-            this.UnregisterApplicationButton.Size = new System.Drawing.Size(110, 32);
+            this.UnregisterApplicationButton.Size = new System.Drawing.Size(147, 39);
             this.UnregisterApplicationButton.TabIndex = 1;
             this.UnregisterApplicationButton.Text = "Unregister";
             this.ToolTip.SetToolTip(this.UnregisterApplicationButton, "Unregisters the Application and revokes its Certificate.");
@@ -868,9 +898,10 @@
             this.RegisterApplicationButton.Dock = System.Windows.Forms.DockStyle.Left;
             this.RegisterApplicationButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.RegisterApplicationButton.ForeColor = System.Drawing.Color.White;
-            this.RegisterApplicationButton.Location = new System.Drawing.Point(110, 0);
+            this.RegisterApplicationButton.Location = new System.Drawing.Point(147, 0);
+            this.RegisterApplicationButton.Margin = new System.Windows.Forms.Padding(4);
             this.RegisterApplicationButton.Name = "RegisterApplicationButton";
-            this.RegisterApplicationButton.Size = new System.Drawing.Size(110, 32);
+            this.RegisterApplicationButton.Size = new System.Drawing.Size(147, 39);
             this.RegisterApplicationButton.TabIndex = 0;
             this.RegisterApplicationButton.Text = "Register";
             this.ToolTip.SetToolTip(this.RegisterApplicationButton, "Registers the Application with the GDS. Updates any existing record.");
@@ -886,8 +917,9 @@
             this.ApplyChangesButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ApplyChangesButton.ForeColor = System.Drawing.Color.White;
             this.ApplyChangesButton.Location = new System.Drawing.Point(0, 0);
+            this.ApplyChangesButton.Margin = new System.Windows.Forms.Padding(4);
             this.ApplyChangesButton.Name = "ApplyChangesButton";
-            this.ApplyChangesButton.Size = new System.Drawing.Size(110, 32);
+            this.ApplyChangesButton.Size = new System.Drawing.Size(147, 39);
             this.ApplyChangesButton.TabIndex = 2;
             this.ApplyChangesButton.Text = "Apply Changes";
             this.ToolTip.SetToolTip(this.ApplyChangesButton, "Saves any changes to the fields in local memory.");
@@ -896,14 +928,36 @@
             this.ApplyChangesButton.MouseEnter += new System.EventHandler(this.Button_MouseEnter);
             this.ApplyChangesButton.MouseLeave += new System.EventHandler(this.Button_MouseLeave);
             // 
+            // DomainsLabel
+            // 
+            this.DomainsLabel.AllowDrop = true;
+            this.DomainsLabel.AutoSize = true;
+            this.DomainsLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.DomainsLabel.Location = new System.Drawing.Point(7, 510);
+            this.DomainsLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.DomainsLabel.Name = "DomainsLabel";
+            this.DomainsLabel.Size = new System.Drawing.Size(230, 22);
+            this.DomainsLabel.TabIndex = 62;
+            this.DomainsLabel.Text = "Domains";
+            this.DomainsLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // DomainsTextBox
+            // 
+            this.DomainsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.DomainsTextBox.Location = new System.Drawing.Point(243, 510);
+            this.DomainsTextBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.DomainsTextBox.Name = "DomainsTextBox";
+            this.DomainsTextBox.Size = new System.Drawing.Size(890, 22);
+            this.DomainsTextBox.TabIndex = 63;
+            // 
             // RegisterApplicationControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.RegistrationPanel);
             this.Margin = new System.Windows.Forms.Padding(0);
             this.Name = "RegisterApplicationControl";
-            this.Size = new System.Drawing.Size(879, 514);
+            this.Size = new System.Drawing.Size(1172, 633);
             this.RegistrationPanel.ResumeLayout(false);
             this.RegistrationDetailsPanel.ResumeLayout(false);
             this.RegistrationDetailsPanel.PerformLayout();
@@ -974,5 +1028,7 @@
         private System.Windows.Forms.Label HttpsCertificatePublicKeyPathLabel;
         private System.Windows.Forms.Button ClearButton;
         private System.Windows.Forms.Button PickServerButton;
+        private System.Windows.Forms.TextBox DomainsTextBox;
+        private System.Windows.Forms.Label DomainsLabel;
     }
 }

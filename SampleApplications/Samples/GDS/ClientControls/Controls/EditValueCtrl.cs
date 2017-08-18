@@ -1582,9 +1582,9 @@ namespace Opc.Ua.Gds
                     ShowValue(info);
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1600,9 +1600,9 @@ namespace Opc.Ua.Gds
                     break;
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -1628,9 +1628,9 @@ namespace Opc.Ua.Gds
                     }
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
                 e.Cancel = true;
             }
         }
@@ -1662,9 +1662,9 @@ namespace Opc.Ua.Gds
                     }
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 

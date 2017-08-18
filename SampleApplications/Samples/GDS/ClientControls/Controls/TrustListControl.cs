@@ -110,9 +110,12 @@ namespace Opc.Ua.Gds
                     {
                         List<X509CRL> crls = new List<X509CRL>();
 
-                        foreach (X509CRL crl in store.EnumerateCRLs(certificate))
+                        if (store.SupportsCRLs)
                         {
-                            crls.Add(crl);
+                            foreach (X509CRL crl in store.EnumerateCRLs(certificate))
+                            {
+                                crls.Add(crl);
+                            }
                         }
 
                         AddCertificate(certificate, Status.Trusted, crls);
@@ -134,9 +137,12 @@ namespace Opc.Ua.Gds
                         {
                             List<X509CRL> crls = new List<X509CRL>();
 
-                            foreach (X509CRL crl in store.EnumerateCRLs(certificate))
+                            if (store.SupportsCRLs)
                             {
-                                crls.Add(crl);
+                                foreach (X509CRL crl in store.EnumerateCRLs(certificate))
+                                {
+                                    crls.Add(crl);
+                                }
                             }
                             
                             AddCertificate(certificate, Status.Issuer, crls);
@@ -399,9 +405,9 @@ namespace Opc.Ua.Gds
                     break;
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -426,9 +432,9 @@ namespace Opc.Ua.Gds
                 m_dataset.AcceptChanges();
                 NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex); 
             }
         }
 
@@ -445,9 +451,9 @@ namespace Opc.Ua.Gds
                 m_dataset.AcceptChanges();
                 NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -464,9 +470,9 @@ namespace Opc.Ua.Gds
                 m_dataset.AcceptChanges();
                 NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -483,9 +489,9 @@ namespace Opc.Ua.Gds
                 m_dataset.AcceptChanges();
                 NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -536,9 +542,9 @@ namespace Opc.Ua.Gds
                 AddCertificate(certificate, Status.Trusted, null);
                 NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -586,9 +592,9 @@ namespace Opc.Ua.Gds
                 m_certificateFile = new FileInfo(dialog.FileName);
                 File.WriteAllBytes(dialog.FileName, certificate.RawData);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 

@@ -28,6 +28,7 @@
       <xs:element name="HttpsTrustListStorePath" type="xs:string" minOccurs="0"></xs:element>
       <xs:element name="HttpsIssuerListStorePath" type="xs:string" minOccurs="0"></xs:element>
       <xs:element name="CertificateRequestId" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="Domains" type="xs:string" minOccurs="0"></xs:element>
     </xs:sequence>
     <xs:attribute name="RegistrationType" type="RegistrationType" use="required"></xs:attribute>
   </xs:complexType>

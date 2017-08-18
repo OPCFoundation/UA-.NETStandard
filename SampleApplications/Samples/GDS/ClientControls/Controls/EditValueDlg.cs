@@ -99,9 +99,9 @@ namespace Opc.Ua.Gds
                 SetTypeCB.SelectedItem = ValueCTRL.CurrentType;
                 SetArraySizeBTN.Visible = ValueCTRL.CanSetArraySize;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex); 
             }
         }
 
@@ -111,9 +111,9 @@ namespace Opc.Ua.Gds
             {
                 ValueCTRL.Back();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -124,9 +124,9 @@ namespace Opc.Ua.Gds
                 ValueCTRL.EndEdit();
                 DialogResult = DialogResult.OK;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -136,9 +136,9 @@ namespace Opc.Ua.Gds
             {
                 ValueCTRL.SetArraySize();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -148,9 +148,9 @@ namespace Opc.Ua.Gds
             {
                 ValueCTRL.SetType((BuiltInType)SetTypeCB.SelectedItem);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
         #endregion

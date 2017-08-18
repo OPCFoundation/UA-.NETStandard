@@ -96,9 +96,9 @@ namespace Opc.Ua.Gds
             {
                 SearchButton.Enabled = ServersDataGridView.SelectedRows.Count > 0;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -181,9 +181,9 @@ namespace Opc.Ua.Gds
                     MessageBox.Show(ParentForm, "No servers available that meet the filter criteria.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);                        
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -251,9 +251,9 @@ namespace Opc.Ua.Gds
 
                 ServersTable.AcceptChanges();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -267,9 +267,9 @@ namespace Opc.Ua.Gds
                 StopButton.Tag = null;
                 NextButton.Visible = false;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -299,9 +299,9 @@ namespace Opc.Ua.Gds
                 ServerCapabilitiesTextBox.Text = buffer.ToString();
                 ServerCapabilitiesTextBox.Tag = capabilities;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
     }

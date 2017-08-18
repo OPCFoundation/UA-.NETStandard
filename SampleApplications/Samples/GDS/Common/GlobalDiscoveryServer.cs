@@ -80,6 +80,11 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Raised when admin credentials are required.
+        /// </summary>
+        public event AdminCredentialsRequiredEventHandler AdminCredentialsRequired;
+
+        /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
         /// <value>
@@ -204,6 +209,15 @@ namespace Opc.Ua.Gds
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
+        }
+
+        public void Disconnect()
+        {
+            if (m_session != null)
+            {
+                m_session.Close();
+                m_session = null;
+            }
         }
 
         private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
@@ -486,6 +500,32 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Gets the certificate groups.
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <returns></returns>
+        public NodeId[] GetCertificateGroups(
+            NodeId applicationId)
+        {
+            if (!IsConnected)
+            {
+                Connect(null);
+            }
+
+            var outputArguments = m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, m_session.NamespaceUris),
+                applicationId);
+
+            if (outputArguments.Count > 0)
+            {
+                return outputArguments[0] as NodeId[];
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Gets the trust lists method.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
@@ -581,6 +621,68 @@ namespace Opc.Ua.Gds
         }
         #endregion
         
+        #region Private Methods
+        private IUserIdentity ElevatePermissions()
+        {
+            IUserIdentity oldUser = m_session.Identity;
+
+            if (m_adminCredentials == null || !Object.ReferenceEquals(m_session.Identity, m_adminCredentials))
+            {
+                IUserIdentity newCredentials = null;
+
+                if (m_adminCredentials == null)
+                {
+                    var handle = AdminCredentialsRequired;
+
+                    if (handle == null)
+                    {
+                        throw new InvalidOperationException("The operation requires administrator credentials.");
+                    }
+
+                    var args = new AdminCredentialsRequiredEventArgs();
+                    handle(this, args);
+                    newCredentials = args.Credentials;
+
+                    if (args.CacheCredentials)
+                    {
+                        m_adminCredentials = args.Credentials;
+                    }
+                }
+                else
+                {
+                    newCredentials = m_adminCredentials;
+                }
+
+                try
+                {
+                    m_session.UpdateSession(newCredentials, m_preferredLocales);
+                }
+                catch (Exception)
+                {
+                    m_adminCredentials = null;
+                    throw;
+                }
+            }
+
+            return oldUser;
+        }
+
+        private void RevertPermissions(IUserIdentity oldUser)
+        {
+            try
+            {
+                if (Object.ReferenceEquals(m_session.Identity, m_adminCredentials))
+                {
+                    m_session.UpdateSession(oldUser, m_preferredLocales);
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Error reverting to normal permissions.");
+            }
+        }
+        #endregion
+
         #region Private Fields
         private ApplicationInstance m_application;
         private string m_endpointUrl;

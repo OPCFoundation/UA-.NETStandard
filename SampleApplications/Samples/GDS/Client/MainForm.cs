@@ -62,6 +62,12 @@ namespace Opc.Ua.GdsClient
             m_gds = new GlobalDiscoveryServer(m_application, m_configuration);
             m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
        
+            m_server = new PushConfigurationServer(m_application);
+
+            m_server.KeepAlive += Server_KeepAlive;
+            m_server.ServerStatusChanged += Server_StatusNotification;
+            m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
+
             RegistrationPanel.Initialize(m_gds, null, m_configuration);
 
             m_application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
@@ -83,6 +89,7 @@ namespace Opc.Ua.GdsClient
         private UserIdentity m_identity;
         private GlobalDiscoveryServer m_gds;
         private LocalDiscoveryServer m_lds;
+        private PushConfigurationServer m_server;
         private RegisteredApplication m_registeredApplication;
         private GlobalDiscoveryClientConfiguration m_configuration;
         private bool m_gdsConfigured;
@@ -98,6 +105,21 @@ namespace Opc.Ua.GdsClient
             TrustList,
             HttpsTrustList,
             Discovery
+        }
+
+        private void Server_ConnectionStatusChanged(object sender, EventArgs e)
+        {
+            if (Object.ReferenceEquals(sender, m_server))
+            {
+                if (m_server.IsConnected)
+                {
+                    ServerStatusPanel.Initialize(m_server);
+                }
+                else
+                {
+                    ServerStatusPanel.Initialize(null);
+                }
+            }
         }
 
         private void ShowPanel(Panel panel)
@@ -165,17 +187,19 @@ namespace Opc.Ua.GdsClient
 
         private void SetServer(EndpointDescription endpoint)
         {
+            DisconnectButton_Click(this, null);
+
             if (endpoint != null)
             {
                 var ce = new ConfiguredEndpointCollection().Add(endpoint);
                 ServerUrlTextBox.Text = ce.ToString();
-                ServerUrlTextBox.Tag = ce;
+                ServerUrlTextBox.Tag = m_server.Endpoint = ce;
                 UpdateStatus(true, DateTime.UtcNow, "Disconnected {0}", ce);
             }
             else
             {
                 ServerUrlTextBox.Text = "";
-                ServerUrlTextBox.Tag = null;
+                ServerUrlTextBox.Tag = m_server.Endpoint = null;
                 UpdateStatus(true, DateTime.MinValue, "---");
             }
 
@@ -192,12 +216,42 @@ namespace Opc.Ua.GdsClient
                 {
                     SetServer(endpoint);
                     RegistrationPanel.Initialize(m_gds, endpoint, m_configuration);
+                    SelectGdsButton.Visible = true;
                     return;
                 }
             }
+            catch (Exception ex)
+            {
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
+            }
+        }
+
+        private void ConnectButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ConfiguredEndpoint endpoint = (ConfiguredEndpoint)ServerUrlTextBox.Tag;
+
+                if (endpoint == null)
+                {
+                    return;
+                }
+
+                if (endpoint.Description.Server.ApplicationUri == endpoint.Description.EndpointUrl)
+                {
+                    m_server.Connect(endpoint.Description.EndpointUrl);
+                }
+                else
+                {
+                    m_server.Connect(endpoint);
+                }
+
+                ServerStatusPanel.Initialize(m_server);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
+            }
             catch (Exception exception)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                ExceptionDlg.Show(this.Text, exception);
             }
         }
 
@@ -216,10 +270,9 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception exception)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                ExceptionDlg.Show(this.Text, exception);
             }
         }
-
 
         private void CertificateValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
@@ -238,11 +291,44 @@ namespace Opc.Ua.GdsClient
                     e.Accept = true;
                 }
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
+
+        private void Server_KeepAlive(Session session, KeepAliveEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new KeepAliveEventHandler(Server_KeepAlive), session, e);
+                return;
+            }
+
+            try
+            {
+                // check for events from discarded sessions.
+                if (!Object.ReferenceEquals(session, m_server.Session))
+                {
+                    return;
+                }
+
+                // start reconnect sequence on communication error.
+                if (ServiceResult.IsBad(e.Status))
+                {
+                    UpdateStatus(true, e.CurrentTime, "Communication Error ({0})", e.Status);
+                    return;
+                }
+
+                // update status.
+                UpdateStatus(false, e.CurrentTime, "Connected {0}", session.ConfiguredEndpoint);
+            }
+            catch (Exception exception)
+            {
+                ExceptionDlg.Show(this.Text, exception);
+            }
+        }
+
         
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
@@ -261,6 +347,23 @@ namespace Opc.Ua.GdsClient
             ServerStatusTime.ForeColor = (error) ? Color.Red : Color.Empty;
         }
 
+        private void DisconnectButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (m_server.IsConnected)
+                {
+                    m_server.Disconnect();
+                    UpdateStatus(true, DateTime.UtcNow, "Disconnected {0}", m_server.Endpoint);
+                    ServerStatusPanel.Initialize(null);
+                }
+            }
+            catch (Exception exception)
+            {
+                ExceptionDlg.Show(this.Text, exception);
+            }
+        }
+
         private void RegistrationButton_Click(object sender, EventArgs e)
         {
             try
@@ -272,14 +375,15 @@ namespace Opc.Ua.GdsClient
                     {
                         m_configuration.GlobalDiscoveryServerUrl = m_gds.EndpointUrl;
                         m_gdsConfigured = true;
+                        SelectGdsButton.Visible = true;
                     }
                 }
 
                 ShowPanel(Panel.Registration);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -289,9 +393,9 @@ namespace Opc.Ua.GdsClient
             {
                 ShowPanel(Panel.ServerStatus);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -299,12 +403,12 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_registeredApplication, false);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
                 ShowPanel(Panel.Certificate);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -312,12 +416,12 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_registeredApplication, true);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, true);
                 ShowPanel(Panel.HttpsCertificate);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -325,12 +429,12 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                TrustListPanel.Initialize(m_gds, m_registeredApplication, false);
+                TrustListPanel.Initialize(m_gds, m_server, m_registeredApplication, false);
                 ShowPanel(Panel.TrustList);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -338,12 +442,12 @@ namespace Opc.Ua.GdsClient
         {
             try
             {
-                TrustListPanel.Initialize(m_gds, m_registeredApplication, true);
+                TrustListPanel.Initialize(m_gds, m_server, m_registeredApplication, true);
                 ShowPanel(Panel.HttpsTrustList);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -354,9 +458,9 @@ namespace Opc.Ua.GdsClient
                 DiscoveryPanel.Initialize(m_endpoints, m_lds, m_gds, m_filters);
                 ShowPanel(Panel.Discovery);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -366,9 +470,9 @@ namespace Opc.Ua.GdsClient
             {
                 SelectServerButton_Click(this, null);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
@@ -403,18 +507,32 @@ namespace Opc.Ua.GdsClient
                 HttpsCertificateButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.GetHttpsDomainName()));
                 HttpsTrustListButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.HttpsTrustListStorePath));
 
-                CertificatePanel.Initialize(m_configuration, m_gds, e.Application, false);
-                TrustListPanel.Initialize(m_gds, e.Application, false);
+                CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
+                TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
         private void ConfigurationButton_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void SelectGdsButton_Click(object sender, EventArgs e)
+        {
+            m_gds.AdminCredentials = null;
+            m_gds.Disconnect();
+            m_gdsConfigured = false;
+
+            string uri = new SelectGdsDialog().ShowDialog(null, m_gds, m_gds.GetDefaultGdsUrls(m_lds));
+            if (uri != null)
+            {
+                m_configuration.GlobalDiscoveryServerUrl = m_gds.EndpointUrl;
+                m_gdsConfigured = true;
+            }
         }
     }
 }

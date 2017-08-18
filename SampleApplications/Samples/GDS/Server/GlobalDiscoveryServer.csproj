@@ -115,6 +115,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>gdsdb.edmx</DependentUpon>
     </Compile>
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="RoleBasedIdentity.cs" />
     <Compile Include="GlobalDiscoveryServerConfiguration.cs" />
     <Compile Include="ApplicationsNodeManager.cs" />

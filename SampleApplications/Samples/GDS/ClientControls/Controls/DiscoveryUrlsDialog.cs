@@ -107,9 +107,9 @@ namespace Opc.Ua.Gds
                 m_discoveryUrls = validatedUrls;
                 DialogResult = DialogResult.OK;
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                MessageBox.Show(Text + ": " + exception.Message);
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
         }
 
