@@ -81,7 +81,7 @@ namespace Opc.Ua.Gds
 
                 if (!m_gds.IsConnected)
                 {
-                    m_gds.SelectDefaultGds(null);
+                    new SelectGdsDialog().ShowDialog(null, m_gds, m_gds.GetDefaultGdsUrls(null));
                 }
 
                 uint maxNoOfRecords = (uint)NumberOfRecordsUpDown.Value;

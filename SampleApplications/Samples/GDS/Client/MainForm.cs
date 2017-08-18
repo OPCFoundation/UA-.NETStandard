@@ -238,7 +238,8 @@ namespace Opc.Ua.GdsClient
             {
                 if (!m_gdsConfigured)
                 {
-                    if (m_gds.SelectDefaultGds(m_lds))
+                    string uri = new SelectGdsDialog().ShowDialog(null, m_gds, m_gds.GetDefaultGdsUrls(m_lds));
+                    if (uri != null)
                     {
                         m_configuration.GlobalDiscoveryServerUrl = m_gds.EndpointUrl;
                         m_gdsConfigured = true;

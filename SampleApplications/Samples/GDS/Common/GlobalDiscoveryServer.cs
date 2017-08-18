@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds
         /// <returns>
         /// TRUE if successful; FALSE otherwise.
         /// </returns>
-        public bool SelectDefaultGds(LocalDiscoveryServer lds)
+        public List<string> GetDefaultGdsUrls(LocalDiscoveryServer lds)
         {
             List<string> gdsUrls = new List<string>();
 
@@ -148,14 +148,7 @@ namespace Opc.Ua.Gds
                 Utils.Trace(exception, "Unexpected error connecting to LDS");
             }
 
-            string url = new SelectGdsDialog().ShowDialog(null, this, gdsUrls);
-
-            if (url != null)
-            {
-                return true;
-            }
-
-            return false;
+            return gdsUrls;
         }
 
         /// <summary>
@@ -173,12 +166,12 @@ namespace Opc.Ua.Gds
 
             if (String.IsNullOrEmpty(endpointUrl))
             {
-                throw new ArgumentNullException("endpointUrl");
+                throw new ArgumentNullException(nameof(endpointUrl));
             }
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
             if (m_session != null)

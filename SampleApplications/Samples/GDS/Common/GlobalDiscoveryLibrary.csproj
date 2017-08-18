@@ -5,6 +5,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProjectGuid>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -73,20 +75,26 @@
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security" />
     <Reference Include="System.ServiceModel" />
-    <Reference Include="System.ServiceModel.Web">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
+    <Compile Include="GlobalDiscoveryClientConfiguration.cs" />
+    <Compile Include="GlobalDiscoveryServer.cs" />
+    <Compile Include="LocalDiscoveryServer.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Classes.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Constants.cs" />
     <Compile Include="Model\Opc.Ua.Gds.DataTypes.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RegisteredApplication.cs">
+      <DependentUpon>RegisteredApplication.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="RegisteredApplicationExtensions.cs" />
+    <Compile Include="ServerCapabilities.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
@@ -130,14 +138,28 @@
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
-      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{761e1eb7-59fb-4d77-8ab3-986b623535c8}</Project>
       <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{72d92985-2b09-409c-8573-35db1bea370c}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
+      <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />
     <Content Include="Model\Opc.Ua.Gds.PredefinedNodes.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BuildSchema.bat" />
+    <None Include="RegisteredApplication.xsd">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -177,28 +177,27 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
-      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{761e1eb7-59fb-4d77-8ab3-986b623535c8}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
-      <Project>{6c449a1e-244e-4515-9949-a7e22012537c}</Project>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{5f871952-f62d-424c-b8ad-964931460b3e}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
+    <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
-      <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\GDSCommon\GlobalDiscoveryLibrary.csproj">
+    <ProjectReference Include="..\Common\GlobalDiscoveryLibrary.csproj">
       <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
       <Name>GlobalDiscoveryLibrary</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
+    <ProjectReference Include="..\..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
       <Name>UA Server Controls</Name>
       <Private>True</Private>

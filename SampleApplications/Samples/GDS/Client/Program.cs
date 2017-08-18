@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
- using System;
+using System;
 using System.Windows.Forms;
 using Opc.Ua.Configuration;
 using System.Threading.Tasks;
@@ -55,12 +55,10 @@ namespace Opc.Ua.GdsClient
             try
             {
                 // load the application configuration.
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
-                task.Wait();
+                ApplicationConfiguration config = application.LoadApplicationConfiguration(false).Result;
 
                 // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-                task2.Wait();
+                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // run the application interactively.
                 Application.Run(new MainForm(application));
