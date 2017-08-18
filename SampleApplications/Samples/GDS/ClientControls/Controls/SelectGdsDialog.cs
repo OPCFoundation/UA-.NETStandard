@@ -98,12 +98,12 @@ namespace Opc.Ua.Gds
 
                     if (UserNameCredentialsRB.Checked)
                     {
-                        if (endpoint.FindUserTokenPolicy(UserTokenType.UserName.ToString()) == null)
+                        if (endpoint.FindUserTokenPolicy(UserTokenType.UserName, (string)null) == null)
                         {
                             throw new ArgumentException("Server does not support username/password user identity tokens.");
                         }
 
-                        var identity = new Opc.Ua.Client.Controls.UserNamePasswordDlg().ShowDialog(m_gds.AdminCredentials, "Provide GDS Administartor Credentials");
+                        var identity = new Opc.Ua.Client.Controls.UserNamePasswordDlg().ShowDialog(m_gds.AdminCredentials, "Provide GDS Administrator Credentials");
 
                         if (identity != null)
                         {

@@ -322,11 +322,22 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-                    X509Certificate2 csrCertificate = m_certificate;
-                    if (!m_certificate.HasPrivateKey)
+                    X509Certificate2 csrCertificate = null;
+                    if (m_certificate.HasPrivateKey)
                     {
+                        csrCertificate = m_certificate;
+                    }
+                    else
+                    { 
                         byte [] pkcsData = File.ReadAllBytes(m_application.CertificatePrivateKeyPath);
-                        csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
+                        if (GetPrivateKeyFormat() == "PFX")
+                        {
+                            csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
+                        }
+                        else
+                        {
+                            csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(m_certificate, pkcsData, m_certificatePassword);
+                        }
                     }
                     byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate);
                     requestId = m_gds.StartSigningRequest(m_application.ApplicationId, null, null, certificateRequest);
