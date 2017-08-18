@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public ExceptionDlg()
         {
-            //InitializeComponent();
+            InitializeComponent();
         }
 
         private Exception m_exception;
