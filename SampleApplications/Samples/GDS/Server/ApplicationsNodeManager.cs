@@ -77,9 +77,9 @@ namespace Opc.Ua.GdsServer
 
             if (!String.IsNullOrEmpty(m_configuration.DefaultSubjectNameContext))
             {
-                if (m_configuration.DefaultSubjectNameContext[0] != '/')
+                if (m_configuration.DefaultSubjectNameContext[0] != ',')
                 {
-                    m_configuration.DefaultSubjectNameContext = "/" + m_configuration.DefaultSubjectNameContext;
+                    m_configuration.DefaultSubjectNameContext = "," + m_configuration.DefaultSubjectNameContext;
                 }
             }
 
