@@ -35,17 +35,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
-    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
@@ -216,10 +211,6 @@
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{72d92985-2b09-409c-8573-35db1bea370c}</Project>
       <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
-      <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
