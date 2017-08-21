@@ -27,21 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
- using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Opc.Ua.Gds;
-using System.Reflection;
-using System.IO;
 
 namespace Opc.Ua.GdsServer
 {
     public class ApplicationsDatabase
     {
-        public ApplicationsDatabase()
-        {
-        }
 
         public void InitializeTables()
         {
@@ -64,7 +61,7 @@ namespace Opc.Ua.GdsServer
         {
             if (application == null)
             {
-                throw new ArgumentNullException("application");
+                throw new ArgumentNullException(nameof(application));
             }
 
             if (application.ApplicationUri == null)
@@ -263,7 +260,7 @@ namespace Opc.Ua.GdsServer
         {
             if (NodeId.IsNull(applicationId))
             {
-                throw new ArgumentNullException("applicationId");
+                throw new ArgumentNullException(nameof(applicationId));
             }
 
             Guid? id = applicationId.Identifier as Guid?;
@@ -311,7 +308,7 @@ namespace Opc.Ua.GdsServer
         {
             if (NodeId.IsNull(requestId))
             {
-                throw new ArgumentNullException("requestId");
+                throw new ArgumentNullException(nameof(requestId));
             }
 
             Guid? id = requestId.Identifier as Guid?;
@@ -346,7 +343,7 @@ namespace Opc.Ua.GdsServer
 
             if (NodeId.IsNull(requestId))
             {
-                throw new ArgumentNullException("requestId");
+                throw new ArgumentNullException(nameof(requestId));
             }
 
             Guid? id = requestId.Identifier as Guid?;
@@ -404,7 +401,7 @@ namespace Opc.Ua.GdsServer
         {
             if (NodeId.IsNull(applicationId))
             {
-                throw new ArgumentNullException("applicationId");
+                throw new ArgumentNullException(nameof(applicationId));
             }
 
             Guid? id = applicationId.Identifier as Guid?;
@@ -424,7 +421,7 @@ namespace Opc.Ua.GdsServer
 
                 if (result == null)
                 {
-                    throw new ArgumentException("A record with the specified application id does not exist.", "applicationId");
+                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
 
                 certificate = result.Certificate;
@@ -669,12 +666,12 @@ namespace Opc.Ua.GdsServer
         {
             if (NodeId.IsNull(applicationId))
             {
-                throw new ArgumentNullException("applicationId");
+                throw new ArgumentNullException(nameof(applicationId));
             }
 
             if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
             {
-                throw new ArgumentException("The application id is not recognized.", "applicationId");
+                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
             }
 
             Guid id = (Guid)applicationId.Identifier;
@@ -711,12 +708,12 @@ namespace Opc.Ua.GdsServer
         {
             if (NodeId.IsNull(applicationId))
             {
-                throw new ArgumentNullException("applicationId");
+                throw new ArgumentNullException(nameof(applicationId));
             }
 
             if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
             {
-                throw new ArgumentException("The application id is not recognized.", "applicationId");
+                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
             }
 
             Guid id = (Guid)applicationId.Identifier;
@@ -930,7 +927,7 @@ namespace Opc.Ua.GdsServer
             }
 
 
-            if (!tokens[tokenIndex + 1].StartsWith("[^"))
+            if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
             {
                 int nextTokenIndex = tokenIndex + 1;
 
@@ -1022,7 +1019,7 @@ namespace Opc.Ua.GdsServer
                 return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
             }
 
-            if (token.StartsWith("["))
+            if (token.StartsWith("[", StringComparison.Ordinal))
             {
                 bool inverse = false;
                 bool match = false;
@@ -1040,10 +1037,7 @@ namespace Opc.Ua.GdsServer
                         return targetIndex + 1;
                     }
 
-                    if (inverse && target[targetIndex] == token[ii])
-                    {
-                        match = true;
-                    }
+                    match |= (inverse && target[targetIndex] == token[ii]);
                 }
 
                 if (inverse && !match)
@@ -1054,7 +1048,7 @@ namespace Opc.Ua.GdsServer
                 return -1;
             }
 
-            if (target.Substring(targetIndex).StartsWith(token))
+            if (target.Substring(targetIndex).StartsWith(token, StringComparison.Ordinal))
             {
                 return targetIndex + token.Length;
             }

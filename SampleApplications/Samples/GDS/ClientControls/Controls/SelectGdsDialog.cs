@@ -49,8 +49,6 @@ namespace Opc.Ua.Gds
             m_gds = gds;
 
             ServersListBox.Items.Clear();
-            //ServersListBox.Items.Add("opc.tcp://opcfoundation-prototyping.org:58810/GlobalDiscoveryServer");
-            //ServersListBox.Items.Add("opc.tcp://gds.opc.org:58810/GlobalDiscoveryServer");
 
             foreach (var serverUrl in serverUrls)
             {
@@ -79,7 +77,7 @@ namespace Opc.Ua.Gds
             OkButton.Enabled = Uri.IsWellFormedUriString(ServerUrlTextBox.Text.Trim(), UriKind.Absolute);
         }
 
-        private async void OkButton_Click(object sender, EventArgs e)
+        private void OkButton_Click(object sender, EventArgs e)
         {
             try
             {

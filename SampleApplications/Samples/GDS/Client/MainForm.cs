@@ -52,9 +52,11 @@ namespace Opc.Ua.GdsClient
             // use suitable defaults if no configuration exists.
             if (m_configuration == null)
             {
-                m_configuration = new GlobalDiscoveryClientConfiguration();
-                m_configuration.GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810";
-                m_configuration.ExternalEditor = "devenv.exe";
+                m_configuration = new GlobalDiscoveryClientConfiguration()
+                {
+                    GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810",
+                    ExternalEditor = "devenv.exe"
+                };
             }
 
             m_filters = new QueryServersFilter();
@@ -133,9 +135,7 @@ namespace Opc.Ua.GdsClient
             
             foreach (var control in LeftPanel.Controls)
             {
-                Button button = control as Button;
-
-                if (button != null)
+                if (control is Button button)
                 {
                     button.BackColor = Color.MidnightBlue;
                 }
