@@ -32,7 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class SelectGdsDialog : Form
     {

@@ -61,8 +61,8 @@
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810</GlobalDiscoveryServerUrl>
-        <ExternalEditor>devenv.exe</ExternalEditor>
+        <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryServer</GlobalDiscoveryServerUrl>
+        <ExternalEditor>notepad.exe</ExternalEditor>
         <TemporaryStorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\TemporaryCertificates</TemporaryStorePath>
       </GlobalDiscoveryClientConfiguration>
     </ua:XmlElement>

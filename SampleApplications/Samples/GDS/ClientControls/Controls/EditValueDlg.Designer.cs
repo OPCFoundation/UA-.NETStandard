@@ -1,5 +1,5 @@
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     partial class EditValueDlg
     {
@@ -30,7 +30,7 @@ namespace Opc.Ua.Gds
         private void InitializeComponent()
         {
             this.MainPN = new System.Windows.Forms.Panel();
-            this.ValueCTRL = new Opc.Ua.Gds.EditValueCtrl();
+            this.ValueCTRL = new Opc.Ua.Gds.Client.Controls.EditValueCtrl();
             this.BottomPN = new System.Windows.Forms.Panel();
             this.ButtonsPN = new System.Windows.Forms.FlowLayoutPanel();
             this.CancelBTN = new System.Windows.Forms.Button();

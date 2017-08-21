@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.Gds
+﻿namespace Opc.Ua.Gds.Client.Controls
 {
     partial class UntrustedCertificateDialog
     {
@@ -31,7 +31,7 @@
             this.ButtonPanel = new System.Windows.Forms.Panel();
             this.TheCancelButton = new System.Windows.Forms.Button();
             this.OkButton = new System.Windows.Forms.Button();
-            this.CertificateValueControl = new Opc.Ua.Gds.EditValueCtrl();
+            this.CertificateValueControl = new Opc.Ua.Gds.Client.Controls.EditValueCtrl();
             this.ButtonPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -96,6 +96,6 @@
         private System.Windows.Forms.Panel ButtonPanel;
         private System.Windows.Forms.Button TheCancelButton;
         private System.Windows.Forms.Button OkButton;
-        private Opc.Ua.Gds.EditValueCtrl CertificateValueControl;
+        private Opc.Ua.Gds.Client.Controls.EditValueCtrl CertificateValueControl;
     }
 }

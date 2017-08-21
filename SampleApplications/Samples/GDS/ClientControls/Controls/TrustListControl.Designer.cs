@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.Gds
+﻿namespace Opc.Ua.Gds.Client.Controls
 {
     partial class CertificateStoreControl
     {

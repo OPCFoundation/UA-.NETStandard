@@ -28,12 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
-using System.Text;
-using Opc.Ua;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     /// <summary>
     /// Prompts the user to select an area to use as an event filter.

@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.Gds
+﻿namespace Opc.Ua.Gds.Client.Controls
 {
     partial class ServerStatusControl
     {
@@ -461,7 +461,7 @@
 
         private System.Windows.Forms.Panel RegistrationButtonsPanel;
         private System.Windows.Forms.Panel ServerStatusPanel;
-        private Client.Controls.BrowseNodeCtrl ServerBrowseControl;
+        private Opc.Ua.Client.Controls.BrowseNodeCtrl ServerBrowseControl;
         private System.Windows.Forms.TableLayoutPanel ServerStatusFieldsPanel;
         private System.Windows.Forms.Label ShutdownReasonTextBox;
         private System.Windows.Forms.Label ShutdownReasonLabel;

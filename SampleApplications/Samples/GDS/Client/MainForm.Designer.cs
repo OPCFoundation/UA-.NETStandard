@@ -63,11 +63,11 @@ namespace Opc.Ua.GdsClient
             this.ServerUrlTextBox = new System.Windows.Forms.TextBox();
             this.ConnectButton = new System.Windows.Forms.Button();
             this.DiscnnectButton = new System.Windows.Forms.Button();
-            this.DiscoveryPanel = new Opc.Ua.Gds.DiscoveryControl();
+            this.DiscoveryPanel = new Opc.Ua.Gds.Client.Controls.DiscoveryControl();
             this.TrustListPanel = new Opc.Ua.GdsClient.ApplicationTrustListControl();
             this.CertificatePanel = new Opc.Ua.GdsClient.ApplicationCertificateControl();
             this.RegistrationPanel = new Opc.Ua.GdsClient.RegisterApplicationControl();
-            this.ServerStatusPanel = new Opc.Ua.Gds.ServerStatusControl();
+            this.ServerStatusPanel = new Opc.Ua.Gds.Client.Controls.ServerStatusControl();
             this.BottomStatusStrip.SuspendLayout();
             this.LeftPanel.SuspendLayout();
             this.ServerUrlPanel.SuspendLayout();
@@ -236,7 +236,7 @@ namespace Opc.Ua.GdsClient
             this.HttpsCertificateButton.TabIndex = 8;
             this.HttpsCertificateButton.Text = "HTTPS Certificate";
             this.HttpsCertificateButton.UseVisualStyleBackColor = false;
-            this.HttpsCertificateButton.Click += new System.EventHandler(this.HttpsCertificateButton_Click);
+            this.HttpsCertificateButton.Click += new System.EventHandler(this.HttpsCertificateButton_ClickAsync);
             // 
             // CertificateButton
             // 
@@ -251,7 +251,7 @@ namespace Opc.Ua.GdsClient
             this.CertificateButton.TabIndex = 3;
             this.CertificateButton.Text = "Certificate";
             this.CertificateButton.UseVisualStyleBackColor = false;
-            this.CertificateButton.Click += new System.EventHandler(this.CertificateButton_Click);
+            this.CertificateButton.Click += new System.EventHandler(this.CertificateButton_ClickAsync);
             // 
             // ServerStatusButton
             // 
@@ -320,7 +320,7 @@ namespace Opc.Ua.GdsClient
             this.ConnectButton.Size = new System.Drawing.Size(43, 39);
             this.ConnectButton.TabIndex = 1;
             this.ConnectButton.UseVisualStyleBackColor = false;
-            this.ConnectButton.Click += new System.EventHandler(this.ConnectButton_Click);
+            this.ConnectButton.Click += new System.EventHandler(this.ConnectButton_ClickAsync);
             // 
             // DiscnnectButton
             // 
@@ -376,7 +376,7 @@ namespace Opc.Ua.GdsClient
             this.RegistrationPanel.Size = new System.Drawing.Size(1172, 568);
             this.RegistrationPanel.TabIndex = 1;
             this.RegistrationPanel.SelectServer += new System.EventHandler<Opc.Ua.GdsClient.SelectServerEventArgs>(this.RegistrationPanel_ServerRequired);
-            this.RegistrationPanel.RegisteredApplicationChanged += new System.EventHandler<Opc.Ua.GdsClient.RegisteredApplicationChangedEventArgs>(this.RegistrationPanel_RegisteredApplicationChanged);
+            this.RegistrationPanel.RegisteredApplicationChanged += new System.EventHandler<Opc.Ua.GdsClient.RegisteredApplicationChangedEventArgs>(this.RegistrationPanel_RegisteredApplicationChangedAsync);
             // 
             // ServerStatusPanel
             // 
@@ -432,12 +432,12 @@ namespace Opc.Ua.GdsClient
         private System.Windows.Forms.ToolStripStatusLabel ServerStatusLabel;
         private System.Windows.Forms.ToolStripStatusLabel ServerStatusTime;
         private RegisterApplicationControl RegistrationPanel;
-        private Opc.Ua.Gds.ServerStatusControl ServerStatusPanel;
+        private Opc.Ua.Gds.Client.Controls.ServerStatusControl ServerStatusPanel;
         private ApplicationCertificateControl CertificatePanel;
         private ApplicationTrustListControl TrustListPanel;
         private System.Windows.Forms.Button ConfigurationButton;
         private System.Windows.Forms.Button DiscoveryButton;
-        private Opc.Ua.Gds.DiscoveryControl DiscoveryPanel;
+        private Opc.Ua.Gds.Client.Controls.DiscoveryControl DiscoveryPanel;
         private System.Windows.Forms.Button HttpsTrustListButton;
         private System.Windows.Forms.Button HttpsCertificateButton;
         private System.Windows.Forms.Button SelectGdsButton;

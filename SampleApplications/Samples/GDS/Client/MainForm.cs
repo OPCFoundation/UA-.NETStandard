@@ -31,9 +31,11 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds;
-using Opc.Ua.Client.Controls;
+using Opc.Ua.Gds.Client.Controls;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.GdsClient
 {
@@ -54,8 +56,8 @@ namespace Opc.Ua.GdsClient
             {
                 m_configuration = new GlobalDiscoveryClientConfiguration()
                 {
-                    GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810",
-                    ExternalEditor = "devenv.exe"
+                    GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryServer",
+                    ExternalEditor = "notepad.exe"
                 };
             }
 
@@ -63,9 +65,7 @@ namespace Opc.Ua.GdsClient
             m_identity = new UserIdentity();
             m_gds = new GlobalDiscoveryServer(m_application, m_configuration);
             m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
-       
             m_server = new PushConfigurationServer(m_application);
-
             m_server.KeepAlive += Server_KeepAlive;
             m_server.ServerStatusChanged += Server_StatusNotification;
             m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
@@ -226,7 +226,7 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void ConnectButton_Click(object sender, EventArgs e)
+        private async void ConnectButton_ClickAsync(object sender, EventArgs e)
         {
             try
             {
@@ -247,7 +247,7 @@ namespace Opc.Ua.GdsClient
                 }
 
                 ServerStatusPanel.Initialize(m_server);
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
+                await CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
             }
             catch (Exception exception)
             {
@@ -399,11 +399,11 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void CertificateButton_Click(object sender, EventArgs e)
+        private async void CertificateButton_ClickAsync(object sender, EventArgs e)
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
+                await CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
                 ShowPanel(Panel.Certificate);
             }
             catch (Exception ex)
@@ -412,11 +412,11 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void HttpsCertificateButton_Click(object sender, EventArgs e)
+        private async void HttpsCertificateButton_ClickAsync(object sender, EventArgs e)
         {
             try
             {
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, true);
+                await CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, true);
                 ShowPanel(Panel.HttpsCertificate);
             }
             catch (Exception ex)
@@ -476,7 +476,7 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private void RegistrationPanel_RegisteredApplicationChanged(object sender, RegisteredApplicationChangedEventArgs e)
+        private async void RegistrationPanel_RegisteredApplicationChangedAsync(object sender, RegisteredApplicationChangedEventArgs e)
         {
             try
             {
@@ -507,7 +507,7 @@ namespace Opc.Ua.GdsClient
                 HttpsCertificateButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.GetHttpsDomainName()));
                 HttpsTrustListButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.HttpsTrustListStorePath));
 
-                CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
+                await CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
                 TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
             }
             catch (Exception ex)

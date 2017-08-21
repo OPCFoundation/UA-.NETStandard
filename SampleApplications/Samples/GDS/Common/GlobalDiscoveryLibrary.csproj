@@ -49,6 +49,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -82,6 +83,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
+    <Compile Include="CertificateWrapper.cs" />
     <Compile Include="GlobalDiscoveryClientConfiguration.cs" />
     <Compile Include="GlobalDiscoveryServer.cs" />
     <Compile Include="LocalDiscoveryServer.cs" />

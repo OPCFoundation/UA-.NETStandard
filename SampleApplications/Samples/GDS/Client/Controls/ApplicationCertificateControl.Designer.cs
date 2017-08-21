@@ -32,7 +32,7 @@
             this.RegistrationPanel = new System.Windows.Forms.Panel();
             this.RequestProgressLabel = new System.Windows.Forms.Label();
             this.WarningLabel = new System.Windows.Forms.Label();
-            this.CertificateControl = new Opc.Ua.Gds.EditValueCtrl();
+            this.CertificateControl = new Opc.Ua.Gds.Client.Controls.EditValueCtrl();
             this.RegistrationButtonsPanel = new System.Windows.Forms.Panel();
             this.ApplyChangesButton = new System.Windows.Forms.Button();
             this.RequestNewButton = new System.Windows.Forms.Button();
@@ -158,7 +158,7 @@
         private System.Windows.Forms.Panel RegistrationPanel;
         private System.Windows.Forms.Panel RegistrationButtonsPanel;
         private System.Windows.Forms.Button RequestNewButton;
-        private Opc.Ua.Gds.EditValueCtrl CertificateControl;
+        private Opc.Ua.Gds.Client.Controls.EditValueCtrl CertificateControl;
         private System.Windows.Forms.Label WarningLabel;
         private System.Windows.Forms.Timer CertificateRequestTimer;
         private System.Windows.Forms.Label RequestProgressLabel;

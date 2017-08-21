@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     partial class SetTypeDlg
     {

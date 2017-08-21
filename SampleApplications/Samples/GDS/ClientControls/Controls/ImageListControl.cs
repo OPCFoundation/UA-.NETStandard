@@ -28,17 +28,11 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ImageListControl : UserControl
     {

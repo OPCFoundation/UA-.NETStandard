@@ -33,18 +33,15 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Data;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml;
 using System.Xml.Serialization;
 using System.Reflection;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Runtime.Serialization;
-using Opc.Ua;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     /// <summary>
     /// Allows the user to edit a complex value.
@@ -495,7 +492,6 @@ namespace Opc.Ua.Gds
             return Utils.Clone(value);
         }
 
-        /// </summary>
         public void ShowValue(
             Opc.Ua.TypeInfo expectedType,
             string name,

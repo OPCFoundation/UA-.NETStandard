@@ -27,19 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.IO;
-using System.Reflection;
 using System.Windows.Forms;
-using Opc.Ua.Gds;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ServerCapabilitiesDialog : Form
     {

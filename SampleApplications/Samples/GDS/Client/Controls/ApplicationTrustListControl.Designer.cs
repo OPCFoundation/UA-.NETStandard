@@ -30,7 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             this.RegistrationPanel = new System.Windows.Forms.Panel();
-            this.CertificateStoreControl = new Opc.Ua.Gds.CertificateStoreControl();
+            this.CertificateStoreControl = new Opc.Ua.Gds.Client.Controls.CertificateStoreControl();
             this.RegistrationButtonsPanel = new System.Windows.Forms.Panel();
             this.PushToServerButton = new System.Windows.Forms.Button();
             this.MergeWithGdsButton = new System.Windows.Forms.Button();
@@ -178,7 +178,7 @@
         private System.Windows.Forms.Panel RegistrationButtonsPanel;
         private System.Windows.Forms.Button PullFromGdsButton;
         private System.Windows.Forms.Button ReadTrustListButton;
-        private Opc.Ua.Gds.CertificateStoreControl CertificateStoreControl;
+        private Opc.Ua.Gds.Client.Controls.CertificateStoreControl CertificateStoreControl;
         private System.Windows.Forms.Button PushToServerButton;
         private System.Windows.Forms.Button MergeWithGdsButton;
         private System.Windows.Forms.ToolTip ToolTips;

@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.Gds
+﻿namespace Opc.Ua.Gds.Client.Controls
 {
     partial class CertificatesStoreDialog
     {
@@ -33,7 +33,7 @@
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.ApplicationNameLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.ApplicationUriLabel = new System.Windows.Forms.ToolStripStatusLabel();
-            this.CertificatesControl = new Opc.Ua.Gds.CertificateStoreControl();
+            this.CertificatesControl = new Opc.Ua.Gds.Client.Controls.CertificateStoreControl();
             this.BottomPanel.SuspendLayout();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();

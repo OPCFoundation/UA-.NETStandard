@@ -56,7 +56,7 @@
   
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:58810</ua:String>
+      <ua:String>opc.tcp://localhost:58810/GlobalDiscoveryServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>

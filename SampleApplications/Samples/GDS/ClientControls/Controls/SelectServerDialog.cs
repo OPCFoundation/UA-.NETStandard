@@ -30,7 +30,7 @@
 using System.Windows.Forms;
 using Opc.Ua.Client.Controls;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class SelectServerDialog : Form
     {
@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds
             GlobalDiscoveryServer gds,
             QueryServersFilter filters)
         {
-            DiscoveryControl.Initialize(endpoints, lds, gds, filters);
+            this.DiscoveryControl.Initialize(endpoints, lds, gds, filters);
 
             if (base.ShowDialog(owner) != System.Windows.Forms.DialogResult.OK)
             {

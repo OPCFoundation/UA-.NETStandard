@@ -27,14 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Gds;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Drawing;
-using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Gds;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Opc.Ua.GdsClient
 {
@@ -52,7 +53,7 @@ namespace Opc.Ua.GdsClient
         private X509Certificate2 m_certificate;
         private string m_certificatePassword;
 
-        public async void Initialize(
+        public async Task Initialize(
             GlobalDiscoveryClientConfiguration configuration,
             GlobalDiscoveryServer gds,
             PushConfigurationServer server,
@@ -272,7 +273,7 @@ namespace Opc.Ua.GdsClient
 
                 foreach (var field in fields)
                 {
-                    if (field.StartsWith("DC="))
+                    if (field.StartsWith("DC=", StringComparison.Ordinal))
                     {
                         if (name != null)
                         {

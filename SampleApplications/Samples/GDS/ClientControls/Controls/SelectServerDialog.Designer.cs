@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.Gds
+﻿namespace Opc.Ua.Gds.Client.Controls
 {
     partial class SelectServerDialog
     {
@@ -31,7 +31,7 @@
             this.panel1 = new System.Windows.Forms.Panel();
             this.TheCancelButton = new System.Windows.Forms.Button();
             this.TheOkButton = new System.Windows.Forms.Button();
-            this.DiscoveryControl = new Opc.Ua.Gds.DiscoveryControl();
+            this.DiscoveryControl = new Opc.Ua.Gds.Client.Controls.DiscoveryControl();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -94,7 +94,7 @@
 
         #endregion
 
-        private DiscoveryControl DiscoveryControl;
+        private Opc.Ua.Gds.Client.Controls.DiscoveryControl DiscoveryControl;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button TheCancelButton;
         private System.Windows.Forms.Button TheOkButton;

@@ -11,8 +11,8 @@
     <ProjectGuid>{228EC503-2E77-45C9-87AC-3BB312E43196}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Opc.Ua.GdsClient</RootNamespace>
-    <AssemblyName>Opc.Ua.GdsClientControls</AssemblyName>
+    <RootNamespace>Opc.Ua.Gds.Client.Controls</RootNamespace>
+    <AssemblyName>Opc.Ua.Gds.Client.Controls</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -37,6 +37,7 @@
   <ItemGroup>
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -44,7 +45,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Controls\CertificateWrapper.cs" />
     <Compile Include="Controls\DiscoveryControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -211,6 +211,10 @@
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{72d92985-2b09-409c-8573-35db1bea370c}</Project>
       <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
+      <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>

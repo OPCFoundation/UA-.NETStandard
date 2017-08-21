@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using Opc.Ua.GdsClient;
 
 namespace Opc.Ua.Gds
 {

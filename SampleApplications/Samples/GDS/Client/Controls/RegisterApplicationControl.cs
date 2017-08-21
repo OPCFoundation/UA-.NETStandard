@@ -37,6 +37,7 @@ using System.Windows.Forms;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Serialization;
 using Opc.Ua.Gds;
+using Opc.Ua.Gds.Client.Controls;
 
 namespace Opc.Ua.GdsClient
 {
@@ -133,7 +134,7 @@ namespace Opc.Ua.GdsClient
             // always use opc.tcp by default.
             foreach (string discoveryUrl in discoveryUrls)
             {
-                if (discoveryUrl.StartsWith("opc.tcp://"))
+                if (discoveryUrl.StartsWith("opc.tcp://", StringComparison.Ordinal))
                 {
                     url = discoveryUrl;
                     break;
@@ -145,7 +146,7 @@ namespace Opc.Ua.GdsClient
             {
                 foreach (string discoveryUrl in discoveryUrls)
                 {
-                    if (discoveryUrl.StartsWith("https://"))
+                    if (discoveryUrl.StartsWith("https://", StringComparison.Ordinal))
                     {
                         url = discoveryUrl;
                         break;
@@ -684,7 +685,7 @@ namespace Opc.Ua.GdsClient
                 {
                     foreach (string field in Utils.ParseDistinguishedName(certificate.Subject))
                     {
-                        if (field.StartsWith("CN="))
+                        if (field.StartsWith("CN=", StringComparison.Ordinal))
                         {
                             ApplicationNameTextBox.Text = field.Substring(3);
                             break;
@@ -779,7 +780,7 @@ namespace Opc.Ua.GdsClient
                     {
                         foreach (string field in Utils.ParseDistinguishedName(certificate.Subject))
                         {
-                            if (field.StartsWith("CN="))
+                            if (field.StartsWith("CN=", StringComparison.Ordinal))
                             {
                                 ApplicationNameTextBox.Text = field.Substring(3);
                                 break;
@@ -902,7 +903,7 @@ namespace Opc.Ua.GdsClient
                 {
                     foreach (string field in Utils.ParseDistinguishedName(certificate.Subject))
                     {
-                        if (field.StartsWith("CN="))
+                        if (field.StartsWith("CN=", StringComparison.Ordinal))
                         {
                             break;
                         }
@@ -981,7 +982,7 @@ namespace Opc.Ua.GdsClient
 
                 if (!String.IsNullOrEmpty(storePath))
                 {
-                    while (storePath.EndsWith("\\"))
+                    while (storePath.EndsWith("\\", StringComparison.Ordinal))
                     {
                         storePath = storePath.Substring(0, storePath.Length - 1);
                     }
@@ -1575,6 +1576,7 @@ namespace Opc.Ua.GdsClient
                 {
                     using (Stream ostrm = File.Open(dialog.FileName, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
                     {
+                        // if you hit an exception in the following line during debug, enable the 'Just My Code' option in Tools/Debug
                         XmlSerializer serializer = new XmlSerializer(typeof(RegisteredApplication));
                         serializer.Serialize(ostrm, m_application);
                     }

@@ -34,7 +34,7 @@ using System.Text;
 using System.Windows.Forms;
 using Opc.Ua.Client.Controls;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ViewApplicationRecordsDialog : Form
     {

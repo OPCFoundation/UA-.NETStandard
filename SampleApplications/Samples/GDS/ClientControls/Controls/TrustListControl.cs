@@ -30,20 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing;
 using System.Data;
-using System.Linq;
-using System.Text;
+using System.Drawing;
 using System.IO;
-using System.Xml;
-using System.Xml.Serialization;
-using System.Windows.Forms;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
-using Opc.Ua.Client;
-using Opc.Ua.Gds;
+using System.Windows.Forms;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class CertificateStoreControl : UserControl
     {
