@@ -84,6 +84,17 @@ namespace Opc.Ua.Gds
         public event AdminCredentialsRequiredEventHandler AdminCredentialsRequired;
 
         /// <summary>
+        /// Gets the session.
+        /// </summary>
+        /// <value>
+        /// The session.
+        /// </value>
+        public Session Session
+        {
+            get { return m_session; }
+        }
+
+        /// <summary>
         /// Gets or sets the endpoint URL.
         /// </summary>
         /// <value>
@@ -200,6 +211,7 @@ namespace Opc.Ua.Gds
 
             m_session.SessionClosing += Session_SessionClosing;
             m_session.KeepAlive += Session_KeepAlive;
+            m_session.KeepAlive += KeepAlive;
 
             if (m_session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
             {
@@ -208,12 +220,39 @@ namespace Opc.Ua.Gds
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
+
+            Subscription subscription = new Subscription();
+            subscription.Handle = this;
+            subscription.DisplayName = null;
+            subscription.PublishingInterval = 1000;
+            subscription.KeepAliveCount = 10;
+            subscription.LifetimeCount = 100;
+            subscription.MaxNotificationsPerPublish = 10;
+            subscription.PublishingEnabled = true;
+            subscription.TimestampsToReturn = TimestampsToReturn.Neither;
+
+            m_session.AddSubscription(subscription);
+            subscription.Create();
+
+            MonitoredItem monitoredItem = new MonitoredItem();
+            monitoredItem.StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus;
+            monitoredItem.AttributeId = Attributes.Value;
+            monitoredItem.SamplingInterval = 1000;
+            monitoredItem.QueueSize = 0;
+            monitoredItem.DiscardOldest = true;
+            monitoredItem.Handle = typeof(ServerStatusDataType);
+            monitoredItem.Notification += ServerStatusChanged;
+
+            subscription.AddItem(monitoredItem);
+            subscription.ApplyChanges();
+
         }
 
         public void Disconnect()
         {
             if (m_session != null)
             {
+                KeepAlive(m_session, null);
                 m_session.Close();
                 m_session = null;
             }
@@ -233,6 +272,16 @@ namespace Opc.Ua.Gds
             m_session.Dispose();
             m_session = null;
         }
+
+        /// <summary>
+        /// Occurs when keep alive occurs.
+        /// </summary>
+        public event KeepAliveEventHandler KeepAlive;
+
+        /// <summary>
+        /// Occurs when the server status changes.
+        /// </summary>
+        public event MonitoredItemNotificationEventHandler ServerStatusChanged;
         #endregion
 
         #region GDS Methods

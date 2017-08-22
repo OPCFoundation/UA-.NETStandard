@@ -64,6 +64,8 @@ namespace Opc.Ua.GdsClient
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
             m_gds = new GlobalDiscoveryServer(m_application, m_configuration);
+            m_gds.KeepAlive += GdsServer_KeepAlive;
+            m_gds.ServerStatusChanged += GdsServer_StatusNotification;
             m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
             m_server = new PushConfigurationServer(m_application);
             m_server.KeepAlive += Server_KeepAlive;
@@ -74,6 +76,7 @@ namespace Opc.Ua.GdsClient
 
             m_application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
             UpdateStatus(true, DateTime.MinValue, "---");
+            UpdateGdsStatus(true, DateTime.MinValue, "---");
 
             ShowPanel(Panel.None);
 
@@ -255,6 +258,25 @@ namespace Opc.Ua.GdsClient
             }
         }
 
+        private void GdsServer_StatusNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new MonitoredItemNotificationEventHandler(GdsServer_StatusNotification), monitoredItem, e);
+                return;
+            }
+
+            try
+            {
+                MonitoredItemNotification notification = (MonitoredItemNotification)e.NotificationValue;
+                ServerStatusPanel.SetServerStatus(notification.Value.GetValue<ServerStatusDataType>(null));
+            }
+            catch (Exception exception)
+            {
+                ExceptionDlg.Show(this.Text, exception);
+            }
+        }
+
         private void Server_StatusNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
         {
             if (InvokeRequired)
@@ -297,6 +319,44 @@ namespace Opc.Ua.GdsClient
             }
         }
 
+        private void GdsServer_KeepAlive(Session session, KeepAliveEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new KeepAliveEventHandler(GdsServer_KeepAlive), session, e);
+                return;
+            }
+
+            try
+            {
+                // check for events from discarded sessions.
+                if (!Object.ReferenceEquals(session, m_gds.Session))
+                {
+                    return;
+                }
+
+                if (e == null)
+                {
+                    UpdateGdsStatus(true, e.CurrentTime, "Disconnected");
+                    return;
+                }
+
+                // start reconnect sequence on communication error.
+                if (ServiceResult.IsBad(e.Status))
+                {
+                    UpdateGdsStatus(true, e.CurrentTime, "Communication Error ({0})", e.Status);
+                    return;
+                }
+
+                // update status.
+                UpdateGdsStatus(false, e.CurrentTime, "Connected {0}", session.ConfiguredEndpoint);
+            }
+            catch (Exception exception)
+            {
+                ExceptionDlg.Show(this.Text, exception);
+            }
+        }
+
         private void Server_KeepAlive(Session session, KeepAliveEventArgs e)
         {
             if (InvokeRequired)
@@ -329,7 +389,23 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        
+        private void UpdateGdsStatus(bool error, DateTime time, string status, params object[] args)
+        {
+            if (error)
+            {
+                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.error;
+            }
+            else
+            {
+                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+            }
+
+            GdsServerStatusLabel.Text = String.Format(status, args);
+            GdsServerStatusLabel.ForeColor = (error) ? Color.Red : Color.Empty;
+            GdsServerStatusTime.Text = (time != DateTime.MinValue) ? time.ToLocalTime().ToString("hh:mm:ss") : "---";
+            GdsServerStatusTime.ForeColor = (error) ? Color.Red : Color.Empty;
+        }
+
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
             if (error)
@@ -526,12 +602,14 @@ namespace Opc.Ua.GdsClient
             m_gds.AdminCredentials = null;
             m_gds.Disconnect();
             m_gdsConfigured = false;
+            UpdateGdsStatus(true, DateTime.UtcNow, "Disconnected");
 
             string uri = new SelectGdsDialog().ShowDialog(null, m_gds, m_gds.GetDefaultGdsUrls(m_lds));
             if (uri != null)
             {
                 m_configuration.GlobalDiscoveryServerUrl = m_gds.EndpointUrl;
                 m_gdsConfigured = true;
+                UpdateGdsStatus(false, DateTime.UtcNow, "Connected");
             }
         }
     }
