@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFrameworks>netstandard1.3;netstandard1.4;net46</TargetFrameworks>
     <AssemblyName>Opc.Ua.Server</AssemblyName>
     <PackageId>Opc.Ua.Server</PackageId>
   </PropertyGroup>
@@ -10,4 +10,6 @@
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
 
+  <Target Name="GetPackagingOutputs" />
+  
 </Project>
