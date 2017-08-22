@@ -44,6 +44,7 @@ namespace Opc.Ua.GdsClient
         /// </summary>
         private void InitializeComponent()
         {
+            this.CertificateGroupSelector = new System.Windows.Forms.ComboBox();
             this.BottomStatusStrip = new System.Windows.Forms.StatusStrip();
             this.GdsServerStatusIcon = new System.Windows.Forms.ToolStripStatusLabel();
             this.GdsServerStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -52,7 +53,6 @@ namespace Opc.Ua.GdsClient
             this.ServerStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.ServerStatusTime = new System.Windows.Forms.ToolStripStatusLabel();
             this.LeftPanel = new System.Windows.Forms.Panel();
-            this.CertificateGroupSelector = new System.Windows.Forms.ComboBox();
             this.SelectGdsButton = new System.Windows.Forms.Button();
             this.DiscoveryButton = new System.Windows.Forms.Button();
             this.ConfigurationButton = new System.Windows.Forms.Button();
@@ -77,6 +77,17 @@ namespace Opc.Ua.GdsClient
             this.ServerUrlPanel.SuspendLayout();
             this.SuspendLayout();
             // 
+            // CertificateGroupSelector
+            // 
+            this.CertificateGroupSelector.BackColor = System.Drawing.Color.MidnightBlue;
+            this.CertificateGroupSelector.Dock = System.Windows.Forms.DockStyle.Left;
+            this.CertificateGroupSelector.ForeColor = System.Drawing.SystemColors.Window;
+            this.CertificateGroupSelector.FormattingEnabled = true;
+            this.CertificateGroupSelector.Location = new System.Drawing.Point(0, 320);
+            this.CertificateGroupSelector.Name = "CertificateGroupSelector";
+            this.CertificateGroupSelector.Size = new System.Drawing.Size(129, 21);
+            this.CertificateGroupSelector.TabIndex = 10;
+            // 
             // BottomStatusStrip
             // 
             this.BottomStatusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -88,7 +99,6 @@ namespace Opc.Ua.GdsClient
             this.ServerStatusLabel,
             this.ServerStatusTime});
             this.BottomStatusStrip.Location = new System.Drawing.Point(0, 481);
-            this.BottomStatusStrip.MinimumSize = new System.Drawing.Size(0, 0);
             this.BottomStatusStrip.Name = "BottomStatusStrip";
             this.BottomStatusStrip.Size = new System.Drawing.Size(1008, 22);
             this.BottomStatusStrip.TabIndex = 3;
@@ -163,16 +173,6 @@ namespace Opc.Ua.GdsClient
             this.LeftPanel.Size = new System.Drawing.Size(129, 478);
             this.LeftPanel.TabIndex = 5;
             // 
-            // CertificateGroupSelector
-            // 
-            this.CertificateGroupSelector.BackColor = System.Drawing.Color.MidnightBlue;
-            this.CertificateGroupSelector.Dock = System.Windows.Forms.DockStyle.Left;
-            this.CertificateGroupSelector.FormattingEnabled = true;
-            this.CertificateGroupSelector.Location = new System.Drawing.Point(0, 320);
-            this.CertificateGroupSelector.Name = "CertificateGroupSelector";
-            this.CertificateGroupSelector.Size = new System.Drawing.Size(129, 21);
-            this.CertificateGroupSelector.TabIndex = 10;
-            // 
             // SelectGdsButton
             // 
             this.SelectGdsButton.BackColor = System.Drawing.Color.MidnightBlue;
@@ -180,7 +180,6 @@ namespace Opc.Ua.GdsClient
             this.SelectGdsButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.SelectGdsButton.ForeColor = System.Drawing.Color.White;
             this.SelectGdsButton.Location = new System.Drawing.Point(0, 288);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.SelectGdsButton.Name = "SelectGdsButton";
             this.SelectGdsButton.Size = new System.Drawing.Size(129, 32);
             this.SelectGdsButton.TabIndex = 9;
@@ -195,7 +194,6 @@ namespace Opc.Ua.GdsClient
             this.DiscoveryButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.DiscoveryButton.ForeColor = System.Drawing.Color.White;
             this.DiscoveryButton.Location = new System.Drawing.Point(0, 256);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.DiscoveryButton.Name = "DiscoveryButton";
             this.DiscoveryButton.Size = new System.Drawing.Size(129, 32);
             this.DiscoveryButton.TabIndex = 6;
@@ -210,7 +208,6 @@ namespace Opc.Ua.GdsClient
             this.ConfigurationButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ConfigurationButton.ForeColor = System.Drawing.Color.White;
             this.ConfigurationButton.Location = new System.Drawing.Point(0, 224);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.ConfigurationButton.Name = "ConfigurationButton";
             this.ConfigurationButton.Size = new System.Drawing.Size(129, 32);
             this.ConfigurationButton.TabIndex = 5;
@@ -226,7 +223,6 @@ namespace Opc.Ua.GdsClient
             this.SelectServerButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.SelectServerButton.ForeColor = System.Drawing.Color.White;
             this.SelectServerButton.Location = new System.Drawing.Point(0, 192);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.SelectServerButton.Name = "SelectServerButton";
             this.SelectServerButton.Size = new System.Drawing.Size(129, 32);
             this.SelectServerButton.TabIndex = 1;
@@ -242,7 +238,6 @@ namespace Opc.Ua.GdsClient
             this.HttpsTrustListButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.HttpsTrustListButton.ForeColor = System.Drawing.Color.White;
             this.HttpsTrustListButton.Location = new System.Drawing.Point(0, 160);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.HttpsTrustListButton.Name = "HttpsTrustListButton";
             this.HttpsTrustListButton.Size = new System.Drawing.Size(129, 32);
             this.HttpsTrustListButton.TabIndex = 7;
@@ -257,7 +252,6 @@ namespace Opc.Ua.GdsClient
             this.TrustListButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.TrustListButton.ForeColor = System.Drawing.Color.White;
             this.TrustListButton.Location = new System.Drawing.Point(0, 128);
-            this.CertificateButton.Margin = new System.Windows.Forms.Padding(4);
             this.TrustListButton.Name = "TrustListButton";
             this.TrustListButton.Size = new System.Drawing.Size(129, 32);
             this.TrustListButton.TabIndex = 4;
@@ -379,15 +373,15 @@ namespace Opc.Ua.GdsClient
             this.DiscnnectButton.TabIndex = 2;
             this.DiscnnectButton.UseVisualStyleBackColor = false;
             this.DiscnnectButton.Click += new System.EventHandler(this.DisconnectButton_Click);
-            //             
+            // 
             // DiscoveryPanel
             // 
             this.DiscoveryPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.DiscoveryPanel.Location = new System.Drawing.Point(172, 43);
+            this.DiscoveryPanel.Location = new System.Drawing.Point(129, 35);
             this.DiscoveryPanel.Margin = new System.Windows.Forms.Padding(5);
             this.DiscoveryPanel.Name = "DiscoveryPanel";
-            this.DiscoveryPanel.Size = new System.Drawing.Size(1172, 568);
-            this.DiscoveryPanel.SplitterDistance = 390;
+            this.DiscoveryPanel.Size = new System.Drawing.Size(879, 446);
+            this.DiscoveryPanel.SplitterDistance = 293;
             this.DiscoveryPanel.TabIndex = 17;
             // 
             // TrustListPanel

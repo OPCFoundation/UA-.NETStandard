@@ -86,6 +86,7 @@ namespace Opc.Ua.GdsClient
             HttpsCertificateButton.Visible = false;
             TrustListButton.Enabled = false;
             HttpsTrustListButton.Visible = false;
+            CertificateGroupSelector.Visible = false;
         }
 
         private ApplicationInstance m_application;
@@ -179,6 +180,15 @@ namespace Opc.Ua.GdsClient
             {
                 TrustListPanel.Visible = true;
                 HttpsTrustListButton.BackColor = Color.CornflowerBlue;
+            }
+
+            if (panel == Panel.HttpsTrustList ||
+                panel == Panel.TrustList ||
+                panel == Panel.Certificate ||
+                panel == Panel.HttpsCertificate)
+            {
+                CertificateGroupSelector.Visible = true;
+                CertificateGroupSelector.BackColor = Color.CornflowerBlue;
             }
 
             if (panel == Panel.Discovery)
@@ -337,7 +347,7 @@ namespace Opc.Ua.GdsClient
 
                 if (e == null)
                 {
-                    UpdateGdsStatus(true, e.CurrentTime, "Disconnected");
+                    UpdateGdsStatus(true, DateTime.Now, "Disconnected");
                     return;
                 }
 
@@ -585,6 +595,19 @@ namespace Opc.Ua.GdsClient
 
                 await CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
                 TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
+
+                CertificateGroupSelector.Visible = false;
+                CertificateGroupSelector.Items.Clear();
+                if (e.Application != null)
+                {
+                    var certificateGroups = m_gds.GetCertificateGroups(e.Application.ApplicationId);
+                    foreach (var groupItem in certificateGroups)
+                    {
+                        CertificateGroupSelector.Items.Add(groupItem.Identifier);
+                    }
+                    CertificateGroupSelector.Visible = true;
+                }
+
             }
             catch (Exception ex)
             {

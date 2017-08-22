@@ -173,7 +173,7 @@ namespace Opc.Ua.GdsClient
 
             if (record != null)
             {
-                m_application.ApplicationId = (record.ApplicationId != null) ? record.ApplicationId.ToString() : null;
+                m_application.ApplicationId = record.ApplicationId?.ToString();
                 m_application.ApplicationUri = record.ApplicationUri;
                 m_application.ApplicationName = (record.ApplicationNames != null && record.ApplicationNames.Count > 0 && record.ApplicationNames[0].Text != null) ? record.ApplicationNames[0].Text.ToString() : null;
                 m_application.ProductUri = record.ProductUri;
@@ -395,7 +395,7 @@ namespace Opc.Ua.GdsClient
                 return null;
             }
 
-            return value.Replace("localhost", System.Net.Dns.GetHostName());
+            return value.Replace("localhost", Utils.GetHostName());
         }
 
         private string HostnameToLocalhost(string value)
@@ -405,7 +405,7 @@ namespace Opc.Ua.GdsClient
                 return null;
             }
 
-            return value.Replace(System.Net.Dns.GetHostName(), "localhost");
+            return value.Replace(Utils.GetHostName(), "localhost");
         }
 
         private void ClearFields()

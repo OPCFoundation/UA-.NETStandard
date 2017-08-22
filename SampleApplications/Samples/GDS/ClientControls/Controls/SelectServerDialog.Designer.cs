@@ -94,7 +94,7 @@
 
         #endregion
 
-        private Opc.Ua.Gds.Client.Controls.DiscoveryControl DiscoveryControl;
+        private DiscoveryControl DiscoveryControl;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button TheCancelButton;
         private System.Windows.Forms.Button TheOkButton;

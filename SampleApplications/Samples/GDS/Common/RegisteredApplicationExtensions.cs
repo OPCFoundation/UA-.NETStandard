@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds
                     if (Uri.IsWellFormedUriString(disoveryUrl, UriKind.Absolute))
                     {
                         Uri url = new Uri(disoveryUrl);
-                        return url.DnsSafeHost.Replace("localhost", System.Net.Dns.GetHostName());
+                        return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
                     }
                 }
             }

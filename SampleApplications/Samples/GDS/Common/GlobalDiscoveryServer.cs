@@ -220,7 +220,7 @@ namespace Opc.Ua.Gds
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
-
+#if SUBSCRIPTION
             Subscription subscription = new Subscription();
             subscription.Handle = this;
             subscription.DisplayName = null;
@@ -245,7 +245,7 @@ namespace Opc.Ua.Gds
 
             subscription.AddItem(monitoredItem);
             subscription.ApplyChanges();
-
+#endif
         }
 
         public void Disconnect()
@@ -282,9 +282,9 @@ namespace Opc.Ua.Gds
         /// Occurs when the server status changes.
         /// </summary>
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
-        #endregion
+#endregion
 
-        #region GDS Methods
+#region GDS Methods
         /// <summary>
         /// Finds the applications with the specified application uri.
         /// </summary>
@@ -562,7 +562,7 @@ namespace Opc.Ua.Gds
 
             var outputArguments = m_session.Call(
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateGroups, m_session.NamespaceUris),
                 applicationId);
 
             if (outputArguments.Count > 0)
@@ -667,9 +667,9 @@ namespace Opc.Ua.Gds
 
             return trustList;
         }
-        #endregion
+#endregion
         
-        #region Private Methods
+#region Private Methods
         private IUserIdentity ElevatePermissions()
         {
             IUserIdentity oldUser = m_session.Identity;
@@ -729,14 +729,14 @@ namespace Opc.Ua.Gds
                 Utils.Trace(e, "Error reverting to normal permissions.");
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ApplicationInstance m_application;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;
         private UserIdentity m_adminCredentials;
-        #endregion
+#endregion
     }
 }

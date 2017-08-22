@@ -94,11 +94,12 @@ namespace Opc.Ua.GdsClient
                     }
                     else if (!String.IsNullOrEmpty(application.CertificateStorePath))
                     {
-                        CertificateIdentifier id = new CertificateIdentifier();
-
-                        id.StorePath = application.CertificateStorePath;
+                        CertificateIdentifier id = new CertificateIdentifier
+                        {
+                            StorePath = application.CertificateStorePath
+                        };
                         id.StoreType = CertificateStoreIdentifier.DetermineStoreType(id.StoreType);
-                        id.SubjectName = application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName());
+                        id.SubjectName = application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
 
                         certificate = await id.Find(true);
                     }
@@ -230,7 +231,7 @@ namespace Opc.Ua.GdsClient
 
                         if (name == "localhost")
                         {
-                            name = System.Net.Dns.GetHostName();
+                            name = Utils.GetHostName();
                         }
 
                         bool found = false;
@@ -291,7 +292,7 @@ namespace Opc.Ua.GdsClient
                 }
             }
 
-            return new string[] { System.Net.Dns.GetHostName() };
+            return new string[] { Utils.GetHostName() };
         }
 
         private void RequestNewButton_Click(object sender, EventArgs e)
@@ -305,7 +306,7 @@ namespace Opc.Ua.GdsClient
                     CertificateIdentifier id = new CertificateIdentifier();
                     id.StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath);
                     id.StorePath = m_application.CertificateStorePath;
-                    id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName());
+                    id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
                     m_certificate = id.Find(true).Result;
                 }
 
@@ -316,7 +317,7 @@ namespace Opc.Ua.GdsClient
                         m_application.ApplicationId,
                         null,
                         null,
-                        m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName()),
+                        m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName()),
                         GetDomainNames(),
                         "PFX",
                         m_certificatePassword);
@@ -390,7 +391,7 @@ namespace Opc.Ua.GdsClient
                         {
                             StorePath = m_application.CertificateStorePath,
                             StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath),
-                            SubjectName = m_application.CertificateSubjectName.Replace("localhost", System.Net.Dns.GetHostName())
+                            SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName())
                         };
 
                         // update store
