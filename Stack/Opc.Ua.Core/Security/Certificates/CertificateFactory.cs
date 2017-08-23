@@ -356,7 +356,7 @@ public class CertificateFactory
             else
             {
                 // note: this cert has a private key!
-                certificate = CreateCertificateWithPrivateKey(x509, subjectName, subjectPrivateKey, random);
+                certificate = CreateCertificateWithPrivateKey(x509, null, subjectPrivateKey, random);
             }
 
             Utils.Trace(Utils.TraceMasks.Security, "Created new certificate: {0}", certificate.Thumbprint);
@@ -1043,12 +1043,29 @@ public class CertificateFactory
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);
+            if (string.IsNullOrEmpty(friendlyName))
+            {
+                friendlyName = GetCertificateCommonName(certificate);
+            }
             pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
             pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
             // merge into X509Certificate2
             return CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
         }
+    }
+
+    /// <summary>
+    /// Read the Common Name from a certificate.
+    /// </summary>
+    private static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
+    {
+        var subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+        if (subjectDN.Count > 0)
+        {
+            return subjectDN[0].ToString();
+        }
+        return string.Empty;
     }
 
     /// <summary>

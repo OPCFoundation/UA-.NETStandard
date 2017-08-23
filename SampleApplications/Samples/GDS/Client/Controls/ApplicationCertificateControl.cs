@@ -98,7 +98,7 @@ namespace Opc.Ua.GdsClient
                         {
                             StorePath = application.CertificateStorePath
                         };
-                        id.StoreType = CertificateStoreIdentifier.DetermineStoreType(id.StoreType);
+                        id.StoreType = CertificateStoreIdentifier.DetermineStoreType(id.StorePath);
                         id.SubjectName = application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
 
                         certificate = await id.Find(true);
@@ -295,7 +295,7 @@ namespace Opc.Ua.GdsClient
             return new string[] { Utils.GetHostName() };
         }
 
-        private void RequestNewButton_Click(object sender, EventArgs e)
+        private async void RequestNewButton_Click(object sender, EventArgs e)
         {
             try
             {
@@ -307,7 +307,11 @@ namespace Opc.Ua.GdsClient
                     id.StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath);
                     id.StorePath = m_application.CertificateStorePath;
                     id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
-                    m_certificate = id.Find(true).Result;
+                    m_certificate = await id.Find(true);
+                    if (m_certificate.HasPrivateKey)
+                    {
+                        m_certificate = await id.LoadPrivateKey(string.Empty);
+                    }
                 }
 
                 if (m_certificate == null)
@@ -402,8 +406,16 @@ namespace Opc.Ua.GdsClient
                             if (privateKeyPFX == null)
                             {
                                 X509Certificate2 oldCertificate = await cid.Find(true);
-                                newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
-                                await store.Delete(oldCertificate.Thumbprint);
+                                if (oldCertificate != null && oldCertificate.HasPrivateKey)
+                                {
+                                    oldCertificate = await cid.LoadPrivateKey(string.Empty);
+                                    newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
+                                    await store.Delete(oldCertificate.Thumbprint);
+                                }
+                                else
+                                {
+                                    throw new ServiceResultException("Failed to merge signed certificate with the private key.");
+                                }
                             }
                             else
                             {
