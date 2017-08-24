@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFrameworks>net46;netstandard1.4;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Sample</AssemblyName>
     <PackageId>Opc.Ua.Sample</PackageId>
   </PropertyGroup>

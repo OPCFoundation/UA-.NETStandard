@@ -1,29 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net46;netstandard1.3</TargetFrameworks>
+    <TargetFrameworks>net46;netstandard1.4;netstandard2.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
+    <DefineConstants Condition="'$(TargetFramework)' == 'netstandard2.0'">$(DefineConstants);NO_HTTPS</DefineConstants>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\ServerCapabilities.csv" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes;Types\Utils\LocalizedData.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Portable.BouncyCastle" Version="1.8.1.3" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="System.Data.Common" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
     <PackageReference Include="System.Private.ServiceModel" Version="4.3.0" />
     <PackageReference Include="System.ServiceModel.Primitives" Version="4.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="1.1.2" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Private.ServiceModel" Version="4.4.0" />
+    <PackageReference Include="System.ServiceModel.Primitives" Version="4.4.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net451'">

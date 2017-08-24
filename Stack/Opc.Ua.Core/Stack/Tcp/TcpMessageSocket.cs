@@ -671,8 +671,10 @@ namespace Opc.Ua.Bindings
                     {
                         throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
                     }
-
-                    args.Dispose();
+                    else
+                    {
+                        m_ReadComplete(null, args);
+                    }
                 }
             }
             catch (ServiceResultException sre)
