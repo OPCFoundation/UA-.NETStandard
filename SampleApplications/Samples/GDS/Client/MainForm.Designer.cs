@@ -44,7 +44,6 @@ namespace Opc.Ua.GdsClient
         /// </summary>
         private void InitializeComponent()
         {
-            this.CertificateGroupSelector = new System.Windows.Forms.ComboBox();
             this.BottomStatusStrip = new System.Windows.Forms.StatusStrip();
             this.GdsServerStatusIcon = new System.Windows.Forms.ToolStripStatusLabel();
             this.GdsServerStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -77,17 +76,6 @@ namespace Opc.Ua.GdsClient
             this.ServerUrlPanel.SuspendLayout();
             this.SuspendLayout();
             // 
-            // CertificateGroupSelector
-            // 
-            this.CertificateGroupSelector.BackColor = System.Drawing.Color.MidnightBlue;
-            this.CertificateGroupSelector.Dock = System.Windows.Forms.DockStyle.Left;
-            this.CertificateGroupSelector.ForeColor = System.Drawing.SystemColors.Window;
-            this.CertificateGroupSelector.FormattingEnabled = true;
-            this.CertificateGroupSelector.Location = new System.Drawing.Point(0, 320);
-            this.CertificateGroupSelector.Name = "CertificateGroupSelector";
-            this.CertificateGroupSelector.Size = new System.Drawing.Size(129, 21);
-            this.CertificateGroupSelector.TabIndex = 10;
-            // 
             // BottomStatusStrip
             // 
             this.BottomStatusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -98,7 +86,7 @@ namespace Opc.Ua.GdsClient
             this.ServerStatusIcon,
             this.ServerStatusLabel,
             this.ServerStatusTime});
-            this.BottomStatusStrip.Location = new System.Drawing.Point(0, 481);
+            this.BottomStatusStrip.Location = new System.Drawing.Point(0, 485);
             this.BottomStatusStrip.Name = "BottomStatusStrip";
             this.BottomStatusStrip.Size = new System.Drawing.Size(1008, 22);
             this.BottomStatusStrip.TabIndex = 3;
@@ -155,7 +143,6 @@ namespace Opc.Ua.GdsClient
             // LeftPanel
             // 
             this.LeftPanel.BackColor = System.Drawing.Color.MidnightBlue;
-            this.LeftPanel.Controls.Add(this.CertificateGroupSelector);
             this.LeftPanel.Controls.Add(this.SelectGdsButton);
             this.LeftPanel.Controls.Add(this.DiscoveryButton);
             this.LeftPanel.Controls.Add(this.ConfigurationButton);
@@ -170,7 +157,7 @@ namespace Opc.Ua.GdsClient
             this.LeftPanel.Location = new System.Drawing.Point(0, 3);
             this.LeftPanel.Margin = new System.Windows.Forms.Padding(4);
             this.LeftPanel.Name = "LeftPanel";
-            this.LeftPanel.Size = new System.Drawing.Size(129, 478);
+            this.LeftPanel.Size = new System.Drawing.Size(129, 482);
             this.LeftPanel.TabIndex = 5;
             // 
             // SelectGdsButton
@@ -380,7 +367,7 @@ namespace Opc.Ua.GdsClient
             this.DiscoveryPanel.Location = new System.Drawing.Point(129, 35);
             this.DiscoveryPanel.Margin = new System.Windows.Forms.Padding(5);
             this.DiscoveryPanel.Name = "DiscoveryPanel";
-            this.DiscoveryPanel.Size = new System.Drawing.Size(879, 446);
+            this.DiscoveryPanel.Size = new System.Drawing.Size(879, 450);
             this.DiscoveryPanel.SplitterDistance = 293;
             this.DiscoveryPanel.TabIndex = 17;
             // 
@@ -390,7 +377,7 @@ namespace Opc.Ua.GdsClient
             this.TrustListPanel.Location = new System.Drawing.Point(129, 35);
             this.TrustListPanel.Margin = new System.Windows.Forms.Padding(0);
             this.TrustListPanel.Name = "TrustListPanel";
-            this.TrustListPanel.Size = new System.Drawing.Size(879, 446);
+            this.TrustListPanel.Size = new System.Drawing.Size(879, 450);
             this.TrustListPanel.TabIndex = 16;
             // 
             // CertificatePanel
@@ -399,7 +386,7 @@ namespace Opc.Ua.GdsClient
             this.CertificatePanel.Location = new System.Drawing.Point(129, 35);
             this.CertificatePanel.Margin = new System.Windows.Forms.Padding(0);
             this.CertificatePanel.Name = "CertificatePanel";
-            this.CertificatePanel.Size = new System.Drawing.Size(879, 446);
+            this.CertificatePanel.Size = new System.Drawing.Size(879, 450);
             this.CertificatePanel.TabIndex = 15;
             // 
             // RegistrationPanel
@@ -409,7 +396,7 @@ namespace Opc.Ua.GdsClient
             this.RegistrationPanel.Margin = new System.Windows.Forms.Padding(0);
             this.RegistrationPanel.Name = "RegistrationPanel";
             this.RegistrationPanel.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
-            this.RegistrationPanel.Size = new System.Drawing.Size(879, 446);
+            this.RegistrationPanel.Size = new System.Drawing.Size(879, 450);
             this.RegistrationPanel.TabIndex = 1;
             this.RegistrationPanel.SelectServer += new System.EventHandler<Opc.Ua.GdsClient.SelectServerEventArgs>(this.RegistrationPanel_ServerRequired);
             this.RegistrationPanel.RegisteredApplicationChanged += new System.EventHandler<Opc.Ua.GdsClient.RegisteredApplicationChangedEventArgs>(this.RegistrationPanel_RegisteredApplicationChangedAsync);
@@ -421,14 +408,14 @@ namespace Opc.Ua.GdsClient
             this.ServerStatusPanel.Margin = new System.Windows.Forms.Padding(4);
             this.ServerStatusPanel.Name = "ServerStatusPanel";
             this.ServerStatusPanel.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.ServerStatusPanel.Size = new System.Drawing.Size(879, 446);
+            this.ServerStatusPanel.Size = new System.Drawing.Size(879, 450);
             this.ServerStatusPanel.TabIndex = 14;
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1008, 503);
+            this.ClientSize = new System.Drawing.Size(1008, 507);
             this.Controls.Add(this.DiscoveryPanel);
             this.Controls.Add(this.TrustListPanel);
             this.Controls.Add(this.CertificatePanel);
@@ -480,6 +467,5 @@ namespace Opc.Ua.GdsClient
         private System.Windows.Forms.ToolStripStatusLabel GdsServerStatusIcon;
         private System.Windows.Forms.ToolStripStatusLabel GdsServerStatusLabel;
         private System.Windows.Forms.ToolStripStatusLabel GdsServerStatusTime;
-        private System.Windows.Forms.ComboBox CertificateGroupSelector;
     }
 }

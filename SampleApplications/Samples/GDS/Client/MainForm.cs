@@ -86,7 +86,6 @@ namespace Opc.Ua.GdsClient
             HttpsCertificateButton.Visible = false;
             TrustListButton.Enabled = false;
             HttpsTrustListButton.Visible = false;
-            CertificateGroupSelector.Visible = false;
         }
 
         private ApplicationInstance m_application;
@@ -180,15 +179,6 @@ namespace Opc.Ua.GdsClient
             {
                 TrustListPanel.Visible = true;
                 HttpsTrustListButton.BackColor = Color.CornflowerBlue;
-            }
-
-            if (panel == Panel.HttpsTrustList ||
-                panel == Panel.TrustList ||
-                panel == Panel.Certificate ||
-                panel == Panel.HttpsCertificate)
-            {
-                CertificateGroupSelector.Visible = true;
-                CertificateGroupSelector.BackColor = Color.CornflowerBlue;
             }
 
             if (panel == Panel.Discovery)
@@ -590,23 +580,12 @@ namespace Opc.Ua.GdsClient
 
                 CertificateButton.Enabled = (e.Application != null);
                 TrustListButton.Enabled = (e.Application != null);
+#if !NO_HTTPS
                 HttpsCertificateButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.GetHttpsDomainName()));
                 HttpsTrustListButton.Visible = (e.Application != null && !String.IsNullOrEmpty(e.Application.HttpsTrustListStorePath));
-
+#endif
                 await CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
                 TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
-
-                CertificateGroupSelector.Visible = false;
-                CertificateGroupSelector.Items.Clear();
-                if (e.Application != null)
-                {
-                    var certificateGroups = m_gds.GetCertificateGroups(e.Application.ApplicationId);
-                    foreach (var groupItem in certificateGroups)
-                    {
-                        CertificateGroupSelector.Items.Add(groupItem.Identifier);
-                    }
-                    CertificateGroupSelector.Visible = true;
-                }
 
             }
             catch (Exception ex)

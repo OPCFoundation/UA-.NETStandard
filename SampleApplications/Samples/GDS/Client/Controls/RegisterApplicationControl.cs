@@ -38,6 +38,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Xml.Serialization;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client.Controls;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua.GdsClient
 {
@@ -469,6 +470,101 @@ namespace Opc.Ua.GdsClient
 
             try
             {
+                RegisteredApplication application = null;
+
+                using (FileStream reader = File.Open(path, FileMode.Open, FileAccess.Read))
+                {
+                    XmlSerializer serializer = new XmlSerializer(typeof(RegisteredApplication));
+                    application = serializer.Deserialize(reader) as RegisteredApplication;
+                }
+
+                if (application != null)
+                {
+                    SetRegistrationTypeNoTrigger(application.RegistrationType);
+
+                    ApplicationUriTextBox.Text = ReplaceLocalhost(application.ApplicationUri);
+                    ReadRegistration(true);
+
+                    ApplicationNameTextBox.Text = application.ApplicationName;
+                    ProductUriTextBox.Text = application.ProductUri;
+
+                    if (application.RegistrationType != RegistrationType.ClientPull)
+                    {
+                        SetDiscoveryUrls(application.DiscoveryUrl);
+                        if (application.ServerCapability != null)
+                        {
+                            SetServerCapabilities(application.ServerCapability);
+                        }
+                        else
+                        {
+                            SetServerCapabilities(new string[] { ServerCapability.LiveData });
+                        }
+                    }
+
+                    if (application.CertificateStorePath != null)
+                    {
+                        CertificateStorePathTextBox.Text = application.CertificateStorePath;
+                    }
+
+                    if (application.CertificateSubjectName != null)
+                    {
+                        CertificateSubjectNameTextBox.Text = application.CertificateSubjectName;
+                    }
+
+                    if (application.CertificatePublicKeyPath != null)
+                    {
+                        CertificatePublicKeyPathTextBox.Text = application.CertificatePublicKeyPath;
+                    }
+
+                    if (application.CertificatePrivateKeyPath != null)
+                    {
+                        CertificatePrivateKeyPathTextBox.Text = application.CertificatePrivateKeyPath;
+                    }
+
+                    if (application.TrustListStorePath != null)
+                    {
+                        TrustListStorePathTextBox.Text = application.TrustListStorePath;
+                    }
+
+                    if (application.IssuerListStorePath != null)
+                    {
+                        IssuerListStorePathTextBox.Text = application.IssuerListStorePath;
+                    }
+#if !NO_HTTPS
+                    if (application.HttpsCertificatePublicKeyPath != null)
+                    {
+                        HttpsCertificatePublicKeyPathTextBox.Text = application.HttpsCertificatePublicKeyPath;
+                    }
+
+                    if (application.HttpsCertificatePrivateKeyPath != null)
+                    {
+                        HttpsCertificatePrivateKeyPathTextBox.Text = application.HttpsCertificatePrivateKeyPath;
+                    }
+
+                    if (application.HttpsTrustListStorePath != null)
+                    {
+                        HttpsTrustListStorePathTextBox.Text = application.HttpsTrustListStorePath;
+                    }
+
+                    if (application.HttpsIssuerListStorePath != null)
+                    {
+                        HttpsIssuerListStorePathTextBox.Text = application.HttpsIssuerListStorePath;
+                    }
+#endif
+                    if (application.Domains != null)
+                    {
+                         DomainsTextBox.Text = ReplaceLocalhost(application.Domains);
+                    }
+
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                // ignore.
+            }
+
+            try { 
                 var configuration = new Opc.Ua.Security.SecurityConfigurationManager().ReadConfiguration(path);
 
                 if (configuration.ApplicationType == Security.ApplicationType.Client_1)
@@ -1474,6 +1570,20 @@ namespace Opc.Ua.GdsClient
                 IssuerListStorePathLabel.Visible = RegistrationTypeComboBox.SelectedIndex != ServerPushManagement;
                 IssuerListStorePathTextBox.Visible = RegistrationTypeComboBox.SelectedIndex != ServerPushManagement;
                 IssuerListStorePathButton.Visible = RegistrationTypeComboBox.SelectedIndex != ServerPushManagement;
+#if NO_HTTPS
+                HttpsCertificatePublicKeyPathLabel.Visible = 
+                HttpsCertificatePublicKeyPathTextBox.Visible = 
+                HttpsCertificatePublicKeyPathButton.Visible = 
+                HttpsCertificatePrivateKeyPathLabel.Visible = 
+                HttpsCertificatePrivateKeyPathTextBox.Visible = 
+                HttpsCertificatePrivateKeyPathButton.Visible = 
+                HttpsTrustListStorePathLabel.Visible = 
+                HttpsTrustListStorePathTextBox.Visible = 
+                HttpsTrustListStorePathButton.Visible = 
+                HttpsIssuerListStorePathLabel.Visible = 
+                HttpsIssuerListStorePathTextBox.Visible = 
+                HttpsIssuerListStorePathButton.Visible = false;
+#else
                 HttpsCertificatePublicKeyPathLabel.Visible = RegistrationTypeComboBox.SelectedIndex != ClientPullManagement;
                 HttpsCertificatePublicKeyPathTextBox.Visible = RegistrationTypeComboBox.SelectedIndex != ClientPullManagement;
                 HttpsCertificatePublicKeyPathButton.Visible = RegistrationTypeComboBox.SelectedIndex != ClientPullManagement;
@@ -1486,6 +1596,7 @@ namespace Opc.Ua.GdsClient
                 HttpsIssuerListStorePathLabel.Visible = RegistrationTypeComboBox.SelectedIndex == ClientPullManagement;
                 HttpsIssuerListStorePathTextBox.Visible = RegistrationTypeComboBox.SelectedIndex == ClientPullManagement;
                 HttpsIssuerListStorePathButton.Visible = RegistrationTypeComboBox.SelectedIndex == ClientPullManagement;
+#endif
                 OpenConfigurationButton.Visible = RegistrationTypeComboBox.SelectedIndex != ServerPushManagement;
 
                 if (m_promptOnRegistrationTypeChange)
