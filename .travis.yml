@@ -12,17 +12,18 @@ install:
   - sudo apt-get install dotnet-dev-2.0.0 -y
 script: 
   - echo "========== build all .Net Core samples ============"
+  - dotnet restore "UA Core Library.sln"
   - dotnet restore "UA-NetStandard.sln"
-  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleClient
-  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleServer
-  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleClient
-  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Samples/NetCoreConsoleServer
+  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient
+  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer
+  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient
+  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer
   - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
-  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
-  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+  - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+  - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
-  - dotnet build -c Debug -f netcoreapp1.1 SampleApplications/Workshop/Reference/ConsoleReferenceServer
-  - dotnet build -c Release -f netcoreapp1.1 SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer
 
 after_script:
   - echo "========== build done ============"
