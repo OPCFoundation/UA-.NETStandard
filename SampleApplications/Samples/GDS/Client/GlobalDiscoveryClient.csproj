@@ -168,6 +168,9 @@
     <PackageReference Include="Cannoli.Services">
       <Version>1.0.0.1</Version>
     </PackageReference>
+    <PackageReference Include="System.Diagnostics.DiagnosticSource">
+      <Version>4.4.1</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

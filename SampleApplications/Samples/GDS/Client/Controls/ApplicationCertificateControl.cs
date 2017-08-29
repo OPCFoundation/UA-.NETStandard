@@ -308,10 +308,18 @@ namespace Opc.Ua.GdsClient
                     id.StorePath = m_application.CertificateStorePath;
                     id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
                     m_certificate = await id.Find(true);
-                    if (m_certificate.HasPrivateKey)
+                    if (m_certificate != null &&
+                        m_certificate.HasPrivateKey)
                     {
                         m_certificate = await id.LoadPrivateKey(string.Empty);
                     }
+                }
+
+                bool hasPrivateKeyFile = false;
+                if (!string.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
+                {
+                    FileInfo file = new FileInfo(m_application.CertificatePrivateKeyPath);
+                    hasPrivateKeyFile = file.Exists;
                 }
 
                 if (m_certificate == null)
@@ -426,6 +434,69 @@ namespace Opc.Ua.GdsClient
                             await store.Add(newCert);
                         }
                     }
+                    else
+                    {
+                        DialogResult result = DialogResult.Yes;
+                        FileInfo file = new FileInfo(m_application.CertificatePublicKeyPath);
+                        if (file.Exists)
+                        {
+                            result = MessageBox.Show(
+                                Parent,
+                                "Replace certificate " +
+                                m_application.CertificatePublicKeyPath +
+                                "?",
+                                Parent.Text,
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Exclamation);
+                        }
+
+                        if (result == DialogResult.Yes)
+                        {
+                            byte[] exportedCert;
+                            if (string.Compare(file.Extension, ".PEM", true) == 0)
+                            {
+                                exportedCert = CertificateFactory.ExportCertificateAsPEM(newCert);
+                            }
+                            else
+                            {
+                                exportedCert = newCert.Export(X509ContentType.Cert);
+                            }
+
+                            File.WriteAllBytes(m_application.CertificatePublicKeyPath, exportedCert);
+                        }
+
+                        // if we provided a PFX or P12 with the private key, we need to merge the new cert with the private key
+                        if (GetPrivateKeyFormat() == "PFX")
+                        {
+                            file = new FileInfo(m_application.CertificatePrivateKeyPath);
+                            if (file.Exists)
+                            {
+                                result = MessageBox.Show(
+                                    Parent,
+                                    "Replace private key " +
+                                    m_application.CertificatePrivateKeyPath +
+                                    "?",
+                                    Parent.Text,
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Exclamation);
+                            }
+
+                            if (result == DialogResult.Yes)
+                            {
+                                byte[] pkcsData = File.ReadAllBytes(m_application.CertificatePrivateKeyPath);
+                                X509Certificate2 oldCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
+                                newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
+                                pkcsData = newCert.Export(X509ContentType.Pfx, m_certificatePassword);
+                                File.WriteAllBytes(m_application.CertificatePrivateKeyPath, pkcsData);
+                            }
+                        }
+
+                        if (privateKeyPFX != null)
+                        {
+                            throw new ServiceResultException("Did not expect a private key for this operation.");
+                        }
+
+                    }
 
                     // update trust list.
                     if (!String.IsNullOrEmpty(m_application.TrustListStorePath))
@@ -449,10 +520,11 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-#if TODO
-                    if (privateKey != null && privateKey.Length > 0)
+                    throw new ServiceResultException("Server Push is not yet implemented.");
+#if TODO_SERVERPUSH
+                    if (privateKeyPFX != null && privateKeyPFX.Length > 0)
                     {
-                        var x509 = new X509Certificate2(privateKey, m_certificatePassword, X509KeyStorageFlags.Exportable);
+                        var x509 = new X509Certificate2(privateKeyPFX, m_certificatePassword, X509KeyStorageFlags.Exportable);
                         privateKey = x509.Export(X509ContentType.Pfx);
                     }
                     bool applyChanges = m_server.UpdateCertificate(null, null, certificate, GetPrivateKeyFormat(), privateKey, issuerCertificates);

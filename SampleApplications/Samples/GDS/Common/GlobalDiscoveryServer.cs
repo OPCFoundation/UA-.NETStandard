@@ -220,7 +220,8 @@ namespace Opc.Ua.Gds
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
-#if SUBSCRIPTION
+
+#if TODO_GDS_STATUS_SUBSCRIPTION
             Subscription subscription = new Subscription();
             subscription.Handle = this;
             subscription.DisplayName = null;
