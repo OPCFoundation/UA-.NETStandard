@@ -697,6 +697,24 @@ public class CertificateFactory
         }
     }
 
+    /// <summary>
+    /// returns a byte array containing the cert in PEM format.
+    /// </summary>
+    public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
+    {
+        Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
+
+        using (var memoryStream = new MemoryStream())
+        {
+            using (var textWriter = new StreamWriter(memoryStream))
+            {
+                var pemWriter = new PemWriter(textWriter);
+                pemWriter.WriteObject(bcCert);
+                pemWriter.Writer.Flush();
+                return memoryStream.ToArray();
+            }
+        }
+    }
     private class Password
         : IPasswordFinder
     {
@@ -730,9 +748,9 @@ public class CertificateFactory
         }
         return true;
     }
-    #endregion
+#endregion
 
-    #region Private Methods
+#region Private Methods
     /// <summary>
     /// Sets the parameters to suitable defaults.
     /// </summary>
@@ -1113,7 +1131,7 @@ public class CertificateFactory
         }
         return result;
     }
-    #endregion
+#endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
     private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
