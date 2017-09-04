@@ -196,7 +196,8 @@ namespace Opc.Ua.GdsServer
                 certificateGroupId = DefaultApplicationGroupId;
             }
 
-            if (m_certificateGroups.TryGetValue(certificateGroupId, out CertificateGroup certificateGroup))
+            CertificateGroup certificateGroup = null;
+            if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return certificateGroup.DefaultTrustList?.NodeId;
             }
@@ -1051,8 +1052,8 @@ namespace Opc.Ua.GdsServer
                 certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
-
-            if (!m_certificateGroups.TryGetValue(certificateGroupId, out CertificateGroup certificateGroup))
+            CertificateGroup certificateGroup = null;
+            if (!m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The certificateGroup is not supported.");
             }
@@ -1191,7 +1192,8 @@ namespace Opc.Ua.GdsServer
                 certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
-            if (!m_certificateGroups.TryGetValue(certificateGroupId, out CertificateGroup certificateGroup))
+            CertificateGroup certificateGroup = null;
+            if (!m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId does not refer to a supported certificateGroup.");
             }
