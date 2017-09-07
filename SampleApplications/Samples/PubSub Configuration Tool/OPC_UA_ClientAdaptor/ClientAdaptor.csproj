@@ -36,17 +36,24 @@
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Runtime.Serialization.Primitives, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\..\packages\System.Runtime.Serialization.Primitives.4.3.0\lib\net46\System.Runtime.Serialization.Primitives.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization.Xml, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\..\packages\System.Runtime.Serialization.Xml.4.3.0\lib\net46\System.Runtime.Serialization.Xml.dll</HintPath>
+    </Reference>
     <Reference Include="System.Security.Cryptography.Algorithms">
-      <HintPath>Lib\System.Security.Cryptography.Algorithms.dll</HintPath>
+      <HintPath>..\..\..\..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
     </Reference>
     <Reference Include="System.Security.Cryptography.Encoding">
-      <HintPath>Lib\System.Security.Cryptography.Encoding.dll</HintPath>
+      <HintPath>..\..\..\..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
     </Reference>
     <Reference Include="System.Security.Cryptography.Primitives">
-      <HintPath>Lib\System.Security.Cryptography.Primitives.dll</HintPath>
+      <HintPath>..\..\..\..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
     </Reference>
     <Reference Include="System.Security.Cryptography.X509Certificates">
-      <HintPath>Lib\System.Security.Cryptography.X509Certificates.dll</HintPath>
+      <HintPath>..\..\..\..\packages\System.Security.Cryptography.X509Certificates.4.3.0\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
     </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
@@ -57,7 +64,7 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.XmlDocument">
-      <HintPath>Lib\System.Xml.XmlDocument.dll</HintPath>
+      <HintPath>..\..\..\..\packages\System.Xml.XmlDocument.4.3.0\lib\net46\System.Xml.XmlDocument.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase" />
   </ItemGroup>
@@ -85,10 +92,6 @@
       <Project>{92ae819b-4938-4502-ac32-67063f9893cd}</Project>
       <Name>UA Sample Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\LogManager\LogManager.csproj">
-      <Project>{5c3d2dbc-77aa-40c2-af49-eedc0cbce18e}</Project>
-      <Name>LogManager</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
@@ -97,6 +100,10 @@
       <Project>{5fbb5d20-5d60-4b08-b077-15bf57005d99}</Project>
       <Name>PubSubBase</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

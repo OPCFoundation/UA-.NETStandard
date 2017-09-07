@@ -97,7 +97,7 @@ namespace ClientAdaptor
 
                 securityGroup.SecurityGroupId = lstResponse[0].ToString();
                 securityGroup.GroupNodeId = lstResponse[1] as NodeId;
-                NLogManager.Log.Info(String.Format("AddNewSecurityGroup API with name {0} was Successfull", name)); 
+                Utils.Trace(String.Format("AddNewSecurityGroup API with name {0} was Successfull", name)); 
             } 
             catch (Exception e)
             {
@@ -191,7 +191,7 @@ namespace ClientAdaptor
                             }
                             catch(Exception ex)
                             {
-                                NLogManager.Log.Error("OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
+                                Utils.Trace(ex,"OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
                             }
 
                         }
@@ -199,7 +199,7 @@ namespace ClientAdaptor
                 }
                 catch(Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
                 }
 
             }
@@ -512,7 +512,7 @@ namespace ClientAdaptor
                                             }
                                             catch (Exception ex)
                                             {
-                                                NLogManager.Log.Error("ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
+                                                Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
                                             }
                                         }
 
@@ -604,7 +604,7 @@ namespace ClientAdaptor
                                                                 }
                                                                 catch(Exception ex)
                                                                 {
-                                                                    NLogManager.Log.Error("ClientAdaptor:GetPubSubConfiguration API"+ ex.Message);
+                                                                    Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API"+ ex.Message);
                                                                 }
                                                             }
                                                         }
@@ -663,7 +663,7 @@ namespace ClientAdaptor
                                             }
                                             catch(Exception ex)
                                             {
-                                                NLogManager.Log.Error("ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
+                                                Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                             }
                                         }
 
@@ -674,7 +674,7 @@ namespace ClientAdaptor
                                 }
                                 catch(Exception ex)
                                 {
-                                    NLogManager.Log.Error("ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
+                                    Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
                                 }
                               
 
@@ -700,7 +700,7 @@ namespace ClientAdaptor
                     }
                     catch (Exception ex)
                     {
-                        NLogManager.Log.Error("ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
+                        Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                     }
                 }
             }
@@ -892,7 +892,7 @@ namespace ClientAdaptor
             }
             catch (Exception e)
             {
-                NLogManager.Log.Error("ClientAdaptor:GetSecurityKeys API"+ e.Message);
+                Utils.Trace(e,"ClientAdaptor:GetSecurityKeys API"+ e.Message);
             }
             return errorMessage;
         }
@@ -907,7 +907,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("ClientAdaptor:EnablePubSubState API" + ex.Message);
+                Utils.Trace(ex,"ClientAdaptor:EnablePubSubState API" + ex.Message);
             }
             return errorMessage;
         }
@@ -921,7 +921,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("ClientAdaptor:DisablePubSubState API" + ex.Message);
+                Utils.Trace(ex,"ClientAdaptor:DisablePubSubState API" + ex.Message);
             }
             return errorMessage;
 
@@ -1238,7 +1238,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.Connect API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.Connect API" + ex.Message);
             }
             //  channel = null; ToDO: Do we need to close the channel
             return Session;
@@ -1409,7 +1409,7 @@ namespace ClientAdaptor
                 }
                 catch(Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
                 }
                 try
                 {
@@ -1417,7 +1417,7 @@ namespace ClientAdaptor
                 }
                 catch(Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
                 }
                     
                
@@ -1525,7 +1525,7 @@ namespace ClientAdaptor
                 }
                 catch (Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.Disconnect API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.Disconnect API" + ex.Message);
                 }
                 try
                 {
@@ -1534,7 +1534,7 @@ namespace ClientAdaptor
                 }
                 catch (Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.Disconnect API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.Disconnect API" + ex.Message);
                 }
             } 
             return false;
@@ -1588,7 +1588,7 @@ namespace ClientAdaptor
             }
             catch (NullReferenceException exe)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.CreateSession API" + exe.Message);
+                Utils.Trace(exe,"OPCUAClientAdaptor.CreateSession API" + exe.Message);
             }
             finally
             {
@@ -1656,7 +1656,7 @@ namespace ClientAdaptor
                 }
                 catch (Exception exe)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.CreateSubscription API" + exe.Message);
+                    Utils.Trace(exe,"OPCUAClientAdaptor.CreateSubscription API" + exe.Message);
                 }
                 //AddLog("New subscription " + "'" + subscriptionName + "'" + " created successfully.");
             }
@@ -1684,7 +1684,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.LoadApplicationInstance API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.LoadApplicationInstance API" + ex.Message);
             }
 
             //ApplicationInstance.SetUaValidationForHttps(applicationInst
@@ -1814,7 +1814,7 @@ namespace ClientAdaptor
                                 }
                                 catch(Exception ex)
                                 {
-                                    NLogManager.Log.Error("OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
+                                    Utils.Trace(ex,"OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
                                 }
                                 _PublishedDataDefinition.Children.Add(_PublishedDataSetItemDefinition);
                             }
@@ -1823,7 +1823,7 @@ namespace ClientAdaptor
                 }
                 catch(Exception ex)
                 {
-                    NLogManager.Log.Error("OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
+                    Utils.Trace(ex,"OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
                 }
             }
             return _PublishedDataSetDefinition;
@@ -1861,7 +1861,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.AddPublishedDataSet API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.AddPublishedDataSet API" + ex.Message);
             }
             return _PublishedDataSetBase;
         }
@@ -1895,7 +1895,7 @@ namespace ClientAdaptor
                     }
                     catch (Exception ex)
                     {
-                        NLogManager.Log.Error("OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
+                        Utils.Trace(ex,"OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
                     }
 
                 }
@@ -1906,7 +1906,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
                 errorMessage = ex.Message;
 
             }
@@ -1924,7 +1924,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.RemovePublishedDataSet API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.RemovePublishedDataSet API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
@@ -1943,7 +1943,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.RemovePublishedDataSetVariables API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.RemovePublishedDataSetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
@@ -1975,7 +1975,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.AddTargetVariables API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.AddTargetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
@@ -1992,7 +1992,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.AddDataSetMirror API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.AddDataSetMirror API" + ex.Message);
                 errMsg = ex.Message;
             }
             return errMsg;
@@ -2024,7 +2024,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.AddAdditionalTargetVariables API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.AddAdditionalTargetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
@@ -2041,7 +2041,7 @@ namespace ClientAdaptor
             }
             catch (Exception e)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.RemoveTargetVariable API" + e.Message);
+                Utils.Trace(e,"OPCUAClientAdaptor.RemoveTargetVariable API" + e.Message);
                 errmsg = e.Message;
             }
             return errmsg;
@@ -2060,7 +2060,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.WriteValue API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.WriteValue API" + ex.Message);
             }
             return results;
              
@@ -2077,7 +2077,7 @@ namespace ClientAdaptor
             }
             catch(Exception ex)
             {
-                NLogManager.Log.Error("OPCUAClientAdaptor.ReadValue API" + ex.Message);
+                Utils.Trace(ex,"OPCUAClientAdaptor.ReadValue API" + ex.Message);
             }
             return null;
         }

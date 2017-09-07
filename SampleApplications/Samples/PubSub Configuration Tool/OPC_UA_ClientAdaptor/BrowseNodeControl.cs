@@ -58,7 +58,7 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                NLogManager.Log.Error("BrowseNodeControl.Browse API" + ex.Message);
+                Utils.Trace(ex,"BrowseNodeControl.Browse API" + ex.Message);
                
             }
 

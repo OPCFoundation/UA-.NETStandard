@@ -1,0 +1,146 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.AddDataSetWriterGroup"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="Add DataSet Writer Group" Height="570" Width="500" ResizeMode="NoResize">
+    <Grid>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Group Name" Width="180" />
+            <TextBox x:Name="GroupNameTxt" Grid.Row="0" Text="{Binding GroupName}" Grid.Column="1" Margin="0,5"
+                     Width="210" Height="23" />
+
+            <Label Grid.Row="1" Grid.Column="0" Content="Publishing Interval (mSec)" Width="180" />
+            <TextBox Text="{Binding PublishingInterval}" Grid.Row="1" Grid.Column="1" Margin="0,5" Width="210"
+                     Height="23" />
+
+            <Label Visibility="{Binding IsUADP}" Grid.Row="2" Grid.Column="0" Content="Publishing Offset (mSec)"
+                   Width="180" />
+            <TextBox Visibility="{Binding IsUADP}" Grid.Row="2" Text="{Binding PublishingOffset}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="3" Grid.Column="0" Content="Keep Alive Time (mSec)" Width="180" />
+            <TextBox Grid.Row="3" Text="{Binding KeepAliveTime}" Grid.Column="1" Margin="0,5" Width="210" Height="23" />
+
+
+            <Label Grid.Row="4" Grid.Column="0" Content="Priority" Width="180" />
+            <TextBox Grid.Row="4" Text="{Binding Priority}" Grid.Column="1" Margin="0,5" Width="210" Height="23" />
+
+
+            <Label Grid.Row="5" Grid.Column="0" Content="Security Group Id" Width="180" />
+            <TextBox Grid.Row="5" Text="{Binding SecurityGroupId}" Grid.Column="1" Margin="0,5" Width="210" Height="23" />
+
+
+            <Label Visibility="{Binding IsUADP}" Grid.Row="6" Grid.Column="0" Content="Max NetworkMessage Size"
+                   Width="180" />
+            <TextBox Visibility="{Binding IsUADP}" Grid.Row="6" Text="{Binding MaxNetworkMessageSize}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+
+            <Label Grid.Row="7" Grid.Column="0" Content="Message Security Mode" Width="180" />
+            <ComboBox Grid.Row="7" Grid.Column="1" SelectedIndex="{Binding MessageSecurityMode}" Margin="0,5"
+                      Width="210" Height="23">
+                <ComboBoxItem>Invalid</ComboBoxItem>
+                <ComboBoxItem>None</ComboBoxItem>
+                <ComboBoxItem>Sign</ComboBoxItem>
+                <ComboBoxItem>SignAndEncrypt</ComboBoxItem>
+            </ComboBox>
+
+            <Label Visibility="{Binding IsUADP}" Grid.Row="8" Grid.Column="0" Content="Writer GroupId" Width="180" />
+            <TextBox Visibility="{Binding IsUADP}" Grid.Row="8" Text="{Binding WriterGroupId}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="9" Visibility="{Binding IsAMQP}" Grid.Column="0" Content="Queue Name" Width="180" />
+            <TextBox Grid.Row="9" Visibility="{Binding IsAMQP}" Text="{Binding QueueName}" Grid.Column="1" Margin="0,5"
+                     Width="210" Height="23" />
+
+            <Label Grid.Row="10" Visibility="{Binding IsAMQP}" Grid.Column="0" Content="Encoding Mime Type" Width="180" />
+            <TextBox Grid.Row="10" Visibility="{Binding IsAMQP}" Text="{Binding EncodingMimeType}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <GroupBox x:Name="NetworkMessageGroupBox" Visibility="{Binding IsUADP}" Grid.Row="11" Grid.Column="0"
+                      Grid.ColumnSpan="3" Header="Network Message Content Mask" HorizontalAlignment="Left"
+                      VerticalAlignment="Top">
+                <Grid Width="430" Height="100" Margin="0,5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="150" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="Chk_box1" Content="Publisher Id" HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0" Content="Group Header"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box3" Grid.Row="2" Margin="0,5" Grid.Column="0" Content="Group Id"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0" Content="Group Version"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+
+                    <CheckBox x:Name="Chk_box5" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                              Content="Network Message Number" HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="1" Content="Sequence Number"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box7" Grid.Row="2" Margin="0,5" Grid.Column="1" Content="Payload Header"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box8" Content="Timestamp" Grid.Row="3" Grid.Column="1"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box9" Content="PicoSeconds" Margin="0,5" Grid.Row="0" Grid.Column="2"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box10" Content="DataSet Class Id" Grid.Row="1" Grid.Column="2"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box11" Content="Promoted Fields" Grid.Row="2" Grid.Column="2"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top" />
+
+                </Grid>
+
+            </GroupBox>
+
+            <StackPanel Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,7" Orientation="Horizontal"
+                        VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="AddApplyClick" />
+                <Button Width="100" Margin="5,0" Content="Cancel" Height="23" VerticalAlignment="Center"
+                        Click="OnCanecelClick" />
+            </StackPanel>
+
+        </Grid>
+    </Grid>
+</Window>
