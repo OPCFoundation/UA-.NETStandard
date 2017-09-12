@@ -667,7 +667,7 @@ namespace Opc.Ua.Bindings
                 if (!socket.ReceiveAsync(args))
                 {
                     // I/O completed synchronously
-                    if ((args.SocketError != SocketError.Success) || (args.BytesTransferred < (m_bytesToReceive - m_bytesReceived)))
+                    if (args.SocketError != SocketError.Success)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
                     }
