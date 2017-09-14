@@ -342,8 +342,9 @@ namespace Opc.Ua.GdsClient
                         csrCertificate = m_certificate;
                     }
                     else
-                    { 
-                        byte [] pkcsData = File.ReadAllBytes(m_application.CertificatePrivateKeyPath);
+                    {
+                        string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
+                        byte [] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
                         if (GetPrivateKeyFormat() == "PFX")
                         {
                             csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
@@ -437,13 +438,14 @@ namespace Opc.Ua.GdsClient
                     else
                     {
                         DialogResult result = DialogResult.Yes;
-                        FileInfo file = new FileInfo(m_application.CertificatePublicKeyPath);
+                        string absoluteCertificatePublicKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, false);
+                        FileInfo file = new FileInfo(absoluteCertificatePublicKeyPath);
                         if (file.Exists)
                         {
                             result = MessageBox.Show(
                                 Parent,
                                 "Replace certificate " +
-                                m_application.CertificatePublicKeyPath +
+                                absoluteCertificatePublicKeyPath +
                                 "?",
                                 Parent.Text,
                                 MessageBoxButtons.YesNo,
@@ -461,20 +463,20 @@ namespace Opc.Ua.GdsClient
                             {
                                 exportedCert = newCert.Export(X509ContentType.Cert);
                             }
-
-                            File.WriteAllBytes(m_application.CertificatePublicKeyPath, exportedCert);
+                            File.WriteAllBytes(absoluteCertificatePublicKeyPath, exportedCert);
                         }
 
                         // if we provided a PFX or P12 with the private key, we need to merge the new cert with the private key
                         if (GetPrivateKeyFormat() == "PFX")
                         {
-                            file = new FileInfo(m_application.CertificatePrivateKeyPath);
+                            string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
+                            file = new FileInfo(absoluteCertificatePrivateKeyPath);
                             if (file.Exists)
                             {
                                 result = MessageBox.Show(
                                     Parent,
                                     "Replace private key " +
-                                    m_application.CertificatePrivateKeyPath +
+                                    absoluteCertificatePrivateKeyPath +
                                     "?",
                                     Parent.Text,
                                     MessageBoxButtons.YesNo,
@@ -483,11 +485,11 @@ namespace Opc.Ua.GdsClient
 
                             if (result == DialogResult.Yes)
                             {
-                                byte[] pkcsData = File.ReadAllBytes(m_application.CertificatePrivateKeyPath);
+                                byte[] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
                                 X509Certificate2 oldCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
                                 newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
                                 pkcsData = newCert.Export(X509ContentType.Pfx, m_certificatePassword);
-                                File.WriteAllBytes(m_application.CertificatePrivateKeyPath, pkcsData);
+                                File.WriteAllBytes(absoluteCertificatePrivateKeyPath, pkcsData);
                             }
                         }
 

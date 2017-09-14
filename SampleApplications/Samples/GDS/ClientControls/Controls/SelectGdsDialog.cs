@@ -92,7 +92,7 @@ namespace Opc.Ua.Gds.Client.Controls
                 {
                     Cursor = Cursors.WaitCursor;
 
-                    var endpoint = CoreClientUtils.SelectEndpoint(url, true);
+                    var endpoint = CoreClientUtils.SelectEndpoint(url, true, 5000);
 
                     if (UserNameCredentialsRB.Checked)
                     {
