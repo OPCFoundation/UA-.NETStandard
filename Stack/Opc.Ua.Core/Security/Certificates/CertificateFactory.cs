@@ -520,7 +520,7 @@ public class CertificateFactory
                     X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
                     crlGen.SetIssuerDN(bcCertCA.IssuerDN);
                     crlGen.SetThisUpdate(DateTime.UtcNow);
-                    crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(1));
+                    crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(12));
 
                     // merge all existing revocation list
                     X509CrlParser parser = new X509CrlParser();
