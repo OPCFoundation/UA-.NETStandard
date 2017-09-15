@@ -607,7 +607,7 @@ namespace Opc.Ua.Client
                         // validate SourceTimestamp of the notification.
                         if (datachange.Value != null && datachange.Value.SourceTimestamp > DateTime.UtcNow)
                         {
-                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
                         }
 
                         if (datachange.Value != null && datachange.Value.StatusCode.Overflow)

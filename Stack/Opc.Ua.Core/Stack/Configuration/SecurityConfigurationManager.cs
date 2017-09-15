@@ -71,7 +71,7 @@ namespace Opc.Ua.Security
                         "Cannot find the configuration file for the executable: {0}",
                         filePath);
                 }
-                
+
                 if (!File.Exists(configFilePath))
                 {
                     throw ServiceResultException.Create(
@@ -83,11 +83,12 @@ namespace Opc.Ua.Security
 
             SecuredApplication application = null;
             ApplicationConfiguration applicationConfiguration = null;
-            
+
             try
             {
-                FileStream reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read);
-                
+                FileStream reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+
                 try
                 {
                     byte[] data = new byte[reader.Length];
@@ -107,7 +108,7 @@ namespace Opc.Ua.Security
                     else
                     {
                         reader.Dispose();
-                        reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read);
+                        reader = File.Open(configFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                         DataContractSerializer serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
                         applicationConfiguration = serializer.ReadObject(reader) as ApplicationConfiguration;
                     }
@@ -131,7 +132,7 @@ namespace Opc.Ua.Security
             {
                 return application;
             }
-            
+
             application = new SecuredApplication();
 
             // copy application info.
@@ -148,7 +149,7 @@ namespace Opc.Ua.Security
             if (applicationConfiguration.SecurityConfiguration != null)
             {
                 application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
-                
+
                 if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
                 {
                     application.IssuerCertificateStore = SecuredApplication.ToCertificateStoreIdentifier(applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates);
@@ -254,7 +255,7 @@ namespace Opc.Ua.Security
                 configuration.LastExportTime = DateTime.UtcNow;
                 element.InnerXml = SetObject(typeof(SecuredApplication), configuration);
             }
-            
+
             // update application configuration.
             else
             {
@@ -266,7 +267,7 @@ namespace Opc.Ua.Security
                 // update configuration file.
                 Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.Write);
                 StreamWriter writer = new StreamWriter(ostrm, System.Text.Encoding.UTF8);
-                
+
                 try
                 {
                     document.Save(writer);
@@ -373,7 +374,7 @@ namespace Opc.Ua.Security
             {
                 DataContractSerializer serializer = new DataContractSerializer(value.GetType());
                 serializer.WriteObject(memoryStream, value);
-                
+
                 // must extract the inner xml.
                 XmlDocument document = new XmlDocument();
                 document.InnerXml = Encoding.UTF8.GetString(memoryStream.ToArray());
