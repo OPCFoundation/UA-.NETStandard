@@ -345,6 +345,14 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Public Interface
+
+        public string StatusText
+        {
+            get
+            {
+                return m_statusObject.StatusString;
+            }
+        }
         public EndpointDescriptionCollection AvailableEnpoints
         {
             get { return m_availableEndpoints; }
