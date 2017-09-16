@@ -1,115 +1,160 @@
-﻿using Opc.Ua;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+using Opc.Ua;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// Defines the connection information 
+    /// </summary>
     public class Connection : PubSubConfiguationBase
-    { 
-        private string _address = String.Empty;
+    {
+        #region Private Fields
+        private string m_address = String.Empty;
+        private object m_publisherId;
+        int m_publisherDataType = 0;
+        private int m_connectionType;
+        private NodeId m_connectionNodeId;
+        #endregion
 
+        #region Public Propertiess 
+        /// <summary>
+        /// Defines the coonnection address 
+        /// </summary>
         public string Address
         {
             get
             {
-                return _address;
+                return m_address;
             }
             set
             {
-                _address = value;
+                m_address = value;
                 OnPropertyChanged("Address");
             }
         }
-
-        private object _publisherId;
-
+        /// <summary>
+        /// defines the connection publisher ID
+        /// </summary>
         public object PublisherId
         {
             get
             {
-                return _publisherId;
+                return m_publisherId;
             }
             set
             {
-                _publisherId = value;
+                m_publisherId = value;
                 OnPropertyChanged("PublisherId");
             }
         }
-        int _PublisherDataType = 0;
+        /// <summary>
+        /// defines the publisher data type 
+        /// </summary>
         public int PublisherDataType
         {
             get
             {
-                return _PublisherDataType;
+                return m_publisherDataType;
             }
             set
             {
-                _PublisherDataType = value;
+                m_publisherDataType = value;
                 OnPropertyChanged("PublisherDataType");
             }
         }
-        private int _ConnectionType; 
+        /// <summary>
+        /// defines the connection type of the current connection
+        /// </summary>
         public int ConnectionType
         {
             get
             {
-                return _ConnectionType;
+                return m_connectionType;
             }
             set
             {
-                _ConnectionType = value;
+                m_connectionType = value;
                 OnPropertyChanged("ConnectionType");
             }
         }
-        private NodeId _ConnectionNodeId;
+        /// <summary>
+        /// defines the connection ID
+        /// </summary>
         public NodeId ConnectionNodeId
         {
             get
             {
-                return _ConnectionNodeId;
+                return m_connectionNodeId;
             }
             set
             {
-                _ConnectionNodeId = value;
+                m_connectionNodeId = value;
                 OnPropertyChanged("ConnectionNodeId");
             }
         }
+        #endregion
     }
-     
 
-
+    /// <summary>
+    /// Base class of configuration
+    /// </summary>
     public class PubSubConfiguationBase : BaseViewModel
     {
-        private string _Name;
+        #region Private Fields
+        private string m_name;
+        private ObservableCollection<PubSubConfiguationBase> m_children = new ObservableCollection<PubSubConfiguationBase>();
+
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Defines the Name of the configuration
+        /// </summary>
         public string Name
         {
             get
             {
-                return _Name;
+                return m_name;
             }
             set
             {
-                _Name = value;
+                m_name = value;
                 OnPropertyChanged("Name");
             }
         }
-
-        private ObservableCollection<PubSubConfiguationBase> _Children = new ObservableCollection<PubSubConfiguationBase>();
-
+        /// <summary>
+        /// collection of childrens of the target configuration
+        /// </summary>
         public ObservableCollection<PubSubConfiguationBase> Children
         {
-            get { return _Children; }
+            get { return m_children; }
             set
             {
-                _Children = value;
+                m_children = value;
                 OnPropertyChanged("Children");
             }
         }
+        /// <summary>
+        /// Parent node of the target node
+        /// </summary>
         public PubSubConfiguationBase ParentNode { get; set; }
+        #endregion
     }
 
 }

@@ -7,7 +7,7 @@ namespace PubSubConfigurationUI.Views
     /// </summary>
     public partial class AddDataSetMirror : Window
     {
-        #region Private Methods
+        #region Event Handlers
 
         private void Apply_Click( object sender, RoutedEventArgs e )
         {

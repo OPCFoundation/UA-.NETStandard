@@ -271,7 +271,7 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append)))
+                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
                         {
                             if (truncated)
                             {
@@ -1389,18 +1389,46 @@ namespace Opc.Ua
                 return value;
             }
 
-            // copy arrays.
+            // copy arrays, any dimension.
             Array array = value as Array;
             if (array != null)
             {
-                Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
-
-                for (int ii = 0; ii < array.Length; ii++)
+                if (array.Rank == 1)
                 {
-                    clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
+                    Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
+                    for (int ii = 0; ii < array.Length; ii++)
+                    {
+                        clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
+                    }
+                    return clone;
                 }
+                else
+                {
+                    int[] arrayRanks = new int[array.Rank];
+                    int[] arrayIndex = new int[array.Rank];
+                    for (int ii=0; ii<array.Rank; ii++)
+                    {
+                        arrayRanks[ii] = array.GetLength(ii);
+                        arrayIndex[ii] = 0;
+                    }
+                    Array clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
+                    for (int ii = 0; ii < array.Length; ii++)
+                    {
+                        clone.SetValue(Utils.Clone(array.GetValue(arrayIndex)), arrayIndex);
 
-                return clone;
+                        // iterate the index array
+                        for (int ix = 0; ix < array.Rank; ix++)
+                        {
+                            arrayIndex[ix]++;
+                            if (arrayIndex[ix] < arrayRanks[ix])
+                            {
+                                break;
+                            }
+                            arrayIndex[ix] = 0;
+                        }
+                    }
+                    return clone;
+                }
             }
 
             // copy XmlNode.
@@ -1691,6 +1719,14 @@ namespace Opc.Ua
             // copy Opc.Ua.DataValue
             {
                 Opc.Ua.DataValue castedObject = value as Opc.Ua.DataValue;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.ExpandedNodeId
+            {
+                ExpandedNodeId castedObject = value as ExpandedNodeId;
                 if (castedObject != null)
                 {
                     return castedObject.MemberwiseClone();

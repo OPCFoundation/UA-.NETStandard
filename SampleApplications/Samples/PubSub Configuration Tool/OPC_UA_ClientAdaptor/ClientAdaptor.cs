@@ -1,4 +1,20 @@
-﻿using System;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,92 +29,130 @@ using Opc.Ua.Client.Controls;
 
 using PubSubBase.Definitions;
 using System.Collections.ObjectModel;
-
 using System.Configuration;
 using System.Threading.Tasks;
 using Opc.Ua.Sample.Controls;
 
 namespace ClientAdaptor
 {
+    /// <summary>
+    /// adaptor between UI and Client
+    /// </summary>
     public class OPCUAClientAdaptor : IOPCUAClientAdaptor, INotifyPropertyChanged
     {
-        #region Private Members
+        #region Private Fields
         private int m_reconnectPeriod = 10;
-        private SessionReconnectHandler _mReconnectHandler;
-        private ApplicationConfiguration _configuration;
-        // Session _ClientSession = null;       
-        private ServiceMessageContext _messageContext;
-        private ConfiguredEndpointCollection _configuredEndpointCollection;
-        private bool _isOpened;
-        private static long sessionCounter;
-        private readonly object _lock = new object();
-        private bool _sessionStatus = false;
-        
+        private SessionReconnectHandler m_reconnectHandler;
+        private ApplicationConfiguration m_configuration;
+        private ServiceMessageContext m_messageContext;
+        private ConfiguredEndpointCollection m_configuredEndpointCollection;
+        private bool m_isOpened;
+        private static long m_sessionCounter = 0;
+        private readonly object m_lock = new object();
+        bool m_refreshOnReconnection = false;
+        bool m_activateTabsonReConnection = false;
+        string m_serverStatus = String.Empty;
 
+        #endregion
 
+        #region Public Properties
+        /// <summary>
+        /// assigning session
+        /// </summary>
         public Session Session
         {
             get;
             set;
         }
 
+        /// <summary>
+        /// selected end point for connection
+        /// </summary>
         public string SelectedEndpoint
         {
             get;
             set;
         }
-        public BrowseNodeControl _browserNodeControl;
-
-        bool _refreshOnReconnection = false;
-        public bool RefreshOnReconnection
-        {
-            get
-            {
-                return _refreshOnReconnection;
-            }
-            set
-            {
-                _refreshOnReconnection = value;
-                OnPropertyChanged("RefreshOnReconnection");
-            }
-        }
-        bool _activateTabsonReConnection = false;
+        /// <summary>
+        /// Activating Tabs on Reconnect
+        /// </summary>
         public bool ActivateTabsonReConnection
         {
             get
             {
-                return _activateTabsonReConnection;
+                return m_activateTabsonReConnection;
             }
             set
             {
-                _activateTabsonReConnection = value;
+                m_activateTabsonReConnection = value;
                 OnPropertyChanged("ActivateTabsonReConnection");
+            }
+        }
+        /// <summary>
+        /// Current server status
+        /// </summary>
+        public string ServerStatus
+        {
+            get { return m_serverStatus; }
+            set
+            {
+                m_serverStatus = value;
+                OnPropertyChanged("ServerStatus");
+            }
+        }
+
+        /// <summary>
+        /// Refresh on Reconnect
+        /// </summary>
+        public bool RefreshOnReconnection
+        {
+            get
+            {
+                return m_refreshOnReconnection;
+            }
+            set
+            {
+                m_refreshOnReconnection = value;
+                OnPropertyChanged("RefreshOnReconnection");
             }
         }
         #endregion
 
+        #region Constructors
+        /// <summary>
+        /// Defining instance of Client adaptor
+        /// </summary>
         public OPCUAClientAdaptor()
         {
             Constants.Initialize();
             LoadApplicationInstance();
         }
-      
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Method to add security group
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="securityGroup"></param>
+        /// <returns></returns>
         public string AddNewSecurityGroup(string name, out SecurityGroup securityGroup)
         {
             string errorMessage = string.Empty;
-              securityGroup = null;
+            securityGroup = null;
             try
             {
-                     
                 IList<object> lstResponse = Session.Call(Constants.SecurityGroupObjectId,
-                    Constants.SecurityGroupAddMethodId, new object[] {name});
-                securityGroup = new SecurityGroup();
-                securityGroup.GroupName = name;
-
-                securityGroup.SecurityGroupId = lstResponse[0].ToString();
-                securityGroup.GroupNodeId = lstResponse[1] as NodeId;
-                Utils.Trace(String.Format("AddNewSecurityGroup API with name {0} was Successfull", name)); 
-            } 
+                    Constants.SecurityGroupAddMethodId, new object[] { name });
+                securityGroup = new SecurityGroup
+                {
+                    GroupName = name,
+                    SecurityGroupId = lstResponse[0].ToString(),
+                    GroupNodeId = lstResponse[1] as NodeId
+                };
+                Utils.Trace(String.Format("AddNewSecurityGroup API with name {0} was Successfull", name));
+            }
             catch (Exception e)
             {
                 errorMessage = e.Message;
@@ -106,16 +160,20 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
-        public string AddAMQPConnection(Connection connection,out NodeId connectionId)
+        /// <summary>
+        /// Method to add new AMQP connection
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="connectionId"></param>
+        /// <returns></returns>
+        public string AddAMQPConnection(Connection connection, out NodeId connectionId)
         {
             string errorMessage = string.Empty;
-            
             connectionId = null;
             try
             {
                 IList<object> lstResponse = Session.Call(Constants.PublishSubscribeObjectId,
-                    Constants.BrokerConnectionMethodId, new object[] { connection.Name,connection.Address,connection.PublisherId});
-                 
+                    Constants.BrokerConnectionMethodId, new object[] { connection.Name, connection.Address, connection.PublisherId });
                 connectionId = lstResponse[0] as NodeId;
             }
             catch (Exception e)
@@ -124,16 +182,22 @@ namespace ClientAdaptor
             }
             return errorMessage;
         }
+
+        /// <summary>
+        /// Method to add new UADP Connection
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="connectionId"></param>
+        /// <returns></returns>
         public string AddUADPConnection(Connection connection, out NodeId connectionId)
         {
             string errorMessage = string.Empty;
-
             connectionId = null;
             try
             {
                 IList<object> lstResponse = Session.Call(Constants.PublishSubscribeObjectId,
                     Constants.UADPConnectionMethodId, new object[] { connection.Name, connection.Address, connection.PublisherId });
-                 
+
                 connectionId = lstResponse[0] as NodeId;
             }
             catch (Exception e)
@@ -143,6 +207,12 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
+
+        /// <summary>
+        /// Method to remove Connection
+        /// </summary>
+        /// <param name="connectionId"></param>
+        /// <returns></returns>
         public string RemoveConnection(NodeId connectionId)
         {
             string errorMessage = string.Empty;
@@ -150,19 +220,18 @@ namespace ClientAdaptor
             {
                 IList<object> lstResponse = Session.Call(Constants.PublishSubscribeObjectId,
                     Constants.RemoveConnectionMethodId, new object[] { connectionId });
-
             }
-            //catch (ServiceResultException e)
-            //{
-            //    errorMessage = e.LocalizedText.Text;
-            //}
             catch (Exception e)
             {
                 errorMessage = e.Message;
             }
             return errorMessage;
         }
-         
+
+        /// <summary>
+        /// Method which returns available security Groups.
+        /// </summary>
+        /// <returns></returns>
         public ObservableCollection<SecurityGroup> GetSecurityGroups()
         {
             ObservableCollection<SecurityGroup> securityGroups = new ObservableCollection<SecurityGroup>();
@@ -170,7 +239,7 @@ namespace ClientAdaptor
             {
                 try
                 {
-                    ReferenceDescriptionCollection referenceDescriptionCollection = _browserNodeControl.Browser.Browse(Constants.SecurityGroups);
+                    ReferenceDescriptionCollection referenceDescriptionCollection = BrowserNodeControl.Browser.Browse(Constants.SecurityGroups);
 
                     foreach (ReferenceDescription referenceDescription in referenceDescriptionCollection)
                     {
@@ -178,7 +247,7 @@ namespace ClientAdaptor
                         {
                             try
                             {
-                                ReferenceDescriptionCollection refDescriptionCollection = _browserNodeControl.Browser.Browse((NodeId)referenceDescription.NodeId);
+                                ReferenceDescriptionCollection refDescriptionCollection = BrowserNodeControl.Browser.Browse((NodeId)referenceDescription.NodeId);
                                 ReferenceDescription refDescription = refDescriptionCollection.Where(i => i.BrowseName.Name == "SecurityGroupId").FirstOrDefault();
                                 securityGroups.Add(
                                                     new SecurityGroup()
@@ -189,25 +258,26 @@ namespace ClientAdaptor
                                                     }
                                                   );
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
-                                Utils.Trace(ex,"OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
+                                Utils.Trace(ex, "OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
                             }
 
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.GetSecurityGroups API" + ex.Message);
                 }
-
             }
-            
-
             return securityGroups;
         }
 
+        /// <summary>
+        /// Method which returns current PubSubConfigurations
+        /// </summary>
+        /// <returns></returns>
         public ObservableCollection<PubSubConfiguationBase> GetPubSubConfiguation()
         {
             ObservableCollection<PubSubConfiguationBase> pubSubConfiguation = new ObservableCollection<PubSubConfiguationBase>();
@@ -223,9 +293,11 @@ namespace ClientAdaptor
                             continue;
 
                         }
-                        Connection connection = new Connection();
-                        connection.ConnectionNodeId = (NodeId)_ReferenceDescription.NodeId;
-                        connection.Name = _ReferenceDescription.DisplayName.Text;
+                        Connection connection = new Connection
+                        {
+                            ConnectionNodeId = (NodeId)_ReferenceDescription.NodeId,
+                            Name = _ReferenceDescription.DisplayName.Text
+                        };
                         ReferenceDescriptionCollection refDescriptionCollection = Browse((NodeId)_ReferenceDescription.NodeId);
                         if (refDescriptionCollection != null)
                         {
@@ -242,7 +314,7 @@ namespace ClientAdaptor
                                         if (_RefDescription.BrowseName.Name == "PublisherId")
                                         {
                                             object value = Session.ReadValue((NodeId)_RefDescription.NodeId).Value;
-                                          Type type=  value.GetType();
+                                            Type type = value.GetType();
                                             connection.PublisherDataType = 0;
                                             switch (type.Name.ToLower())
                                             {
@@ -265,7 +337,6 @@ namespace ClientAdaptor
                                                     connection.PublisherDataType = 5;
                                                     break;
                                             }
-                                            //  UInt16.TryParse(value.ToString(), out PublisherId);
                                             connection.PublisherId = value;
                                         }
                                     }
@@ -285,16 +356,18 @@ namespace ClientAdaptor
                                                 if (refDesc.TypeDefinition == Constants.DataSetReaderTypeId)
                                                 {
                                                     DataSetReaderDefinition dataSetReaderDefinition =
-                                                        new DataSetReaderDefinition();
-                                                    dataSetReaderDefinition.DataSetReaderNodeId =
-                                                        (NodeId) refDesc.NodeId;
+                                                        new DataSetReaderDefinition
+                                                        {
+                                                            DataSetReaderNodeId =
+                                                        (NodeId)refDesc.NodeId
+                                                        };
                                                     dataSetReaderDefinition.Name =
                                                         dataSetReaderDefinition.DataSetReaderName =
                                                             refDesc.DisplayName.Text;
                                                     dataSetReaderDefinition.ParentNode = readerGroup;
                                                     ReferenceDescriptionCollection
                                                         refDescriptionDataSetReaderCollection =
-                                                            Browse((NodeId) refDesc.NodeId);
+                                                            Browse((NodeId)refDesc.NodeId);
 
 
                                                     foreach (ReferenceDescription refDsrDesc in
@@ -304,7 +377,7 @@ namespace ClientAdaptor
                                                         {
                                                             ReferenceDescriptionCollection
                                                                 refDescriptionDataSetReaderGroupCollection =
-                                                                    Browse((NodeId) refDsrDesc.NodeId);
+                                                                    Browse((NodeId)refDsrDesc.NodeId);
 
 
                                                             foreach (ReferenceDescription refDsDesc in
@@ -315,14 +388,14 @@ namespace ClientAdaptor
                                                                 {
                                                                     dataSetReaderDefinition.DataSetContentMask =
                                                                         Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name == "DataSetWriterId")
                                                                 {
                                                                     dataSetReaderDefinition.DataSetWriterId =
                                                                         Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name ==
@@ -330,14 +403,14 @@ namespace ClientAdaptor
                                                                 {
                                                                     dataSetReaderDefinition.NetworkMessageContentMask =
                                                                         Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name == "PublisherId")
                                                                 {
                                                                     dataSetReaderDefinition.PublisherId =
                                                                         Convert.ToString(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name ==
@@ -345,7 +418,7 @@ namespace ClientAdaptor
                                                                 {
                                                                     dataSetReaderDefinition.PublishingInterval =
                                                                         Convert.ToDouble(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                             }
@@ -354,7 +427,7 @@ namespace ClientAdaptor
                                                         {
                                                             ReferenceDescriptionCollection
                                                                 refDescriptionDataSetReaderGroupCollection =
-                                                                    Browse((NodeId) refDsrDesc.NodeId);
+                                                                    Browse((NodeId)refDsrDesc.NodeId);
 
 
                                                             foreach (ReferenceDescription refDsDesc in
@@ -365,7 +438,7 @@ namespace ClientAdaptor
                                                                 {
                                                                     dataSetReaderDefinition.MessageReceiveTimeOut =
                                                                         Convert.ToDouble(Session
-                                                                            .ReadValue((NodeId) refDsDesc.NodeId)
+                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
                                                                             .Value);
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name == "DataSetMetaData")
@@ -377,23 +450,25 @@ namespace ClientAdaptor
                                                                                 (NodeId)refDsDesc.NodeId,
                                                                                 typeof(DataSetMetaDataType)));
                                                                     }
-                                                                    catch(Exception ex)
+                                                                    catch (Exception ex)
                                                                     {
-
+                                                                        Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration-DataSetMetaData API" + ex.Message);
                                                                     }
                                                                 }
                                                                 else if (refDsDesc.BrowseName.Name == "TargetVariables")
                                                                 {
                                                                     SubscribedDataSetDefinition
                                                                         subscribedDataSetDefinition =
-                                                                            new SubscribedDataSetDefinition();
-                                                                    subscribedDataSetDefinition.Name =
-                                                                        "SubscribedDataSet";
-                                                                    subscribedDataSetDefinition.ParentNode =
-                                                                        dataSetReaderDefinition;
+                                                                            new SubscribedDataSetDefinition
+                                                                            {
+                                                                                Name =
+                                                                        "SubscribedDataSet",
+                                                                                ParentNode =
+                                                                        dataSetReaderDefinition
+                                                                            };
 
                                                                     var fields =
-                                                                        Session.ReadValue((NodeId) refDsDesc.NodeId);
+                                                                        Session.ReadValue((NodeId)refDsDesc.NodeId);
                                                                     if (fields.Value == null)
                                                                     {
                                                                         continue;
@@ -406,36 +481,34 @@ namespace ClientAdaptor
                                                                             eobj.Body as FieldTargetDataType;
                                                                         FieldTargetVariableDefinition
                                                                             fieldTargetVariableDefinition =
-                                                                                new FieldTargetVariableDefinition();
-                                                                        fieldTargetVariableDefinition.ParentNode =
-                                                                            subscribedDataSetDefinition;
-                                                                        fieldTargetVariableDefinition.AttributeId =
-                                                                            fieldTargetDataType.AttributeId;
-                                                                        fieldTargetVariableDefinition.DataSetFieldId =
+                                                                                new FieldTargetVariableDefinition
+                                                                                {
+                                                                                    ParentNode =
+                                                                            subscribedDataSetDefinition,
+                                                                                    AttributeId =
+                                                                            fieldTargetDataType.AttributeId,
+                                                                                    DataSetFieldId =
                                                                             fieldTargetDataType.DataSetFieldId
-                                                                                .GuidString;
-                                                                        fieldTargetVariableDefinition.Name =
+                                                                                .GuidString,
+                                                                                    Name =
                                                                             fieldTargetDataType.TargetNodeId.Identifier
-                                                                                .ToString();
-                                                                        fieldTargetVariableDefinition.OverrideValue =
-                                                                            fieldTargetDataType.OverrideValue;
-                                                                        fieldTargetVariableDefinition
-                                                                                .OverrideValueHandling =
-                                                                            (int) fieldTargetDataType
-                                                                                .OverrideValueHandling;
-                                                                        fieldTargetVariableDefinition
-                                                                            .ReceiverIndexRange = fieldTargetDataType
-                                                                            .ReceiverIndexRange;
-                                                                        fieldTargetVariableDefinition
-                                                                            .TargetFieldNodeId = fieldTargetDataType
-                                                                            .TargetNodeId;
-                                                                        fieldTargetVariableDefinition.TargetNodeId =
+                                                                                .ToString(),
+                                                                                    OverrideValue =
+                                                                            fieldTargetDataType.OverrideValue,
+                                                                                    OverrideValueHandling =
+                                                                            (int)fieldTargetDataType
+                                                                                .OverrideValueHandling,
+                                                                                    ReceiverIndexRange = fieldTargetDataType
+                                                                            .ReceiverIndexRange,
+                                                                                    TargetFieldNodeId = fieldTargetDataType
+                                                                            .TargetNodeId,
+                                                                                    TargetNodeId =
                                                                             fieldTargetDataType.TargetNodeId
-                                                                                .ToString();
-                                                                        fieldTargetVariableDefinition.WriteIndexRange =
-                                                                            fieldTargetDataType.WriteIndexRange;
-                                                                        fieldTargetVariableDefinition
-                                                                            .FieldTargetDataType = fieldTargetDataType;
+                                                                                .ToString(),
+                                                                                    WriteIndexRange =
+                                                                            fieldTargetDataType.WriteIndexRange,
+                                                                                    FieldTargetDataType = fieldTargetDataType
+                                                                                };
                                                                         subscribedDataSetDefinition.Children.Add(
                                                                             fieldTargetVariableDefinition);
                                                                     }
@@ -450,23 +523,27 @@ namespace ClientAdaptor
 
                                                                     MirrorSubscribedDataSetDefinition
                                                                         mirrorSubscribedDataSetDefinition =
-                                                                            new MirrorSubscribedDataSetDefinition();
-                                                                    mirrorSubscribedDataSetDefinition.Name =
-                                                                        "SubscribedDataSet";
-                                                                    mirrorSubscribedDataSetDefinition.ParentNode =
-                                                                        dataSetReaderDefinition;
+                                                                            new MirrorSubscribedDataSetDefinition
+                                                                            {
+                                                                                Name =
+                                                                        "SubscribedDataSet",
+                                                                                ParentNode =
+                                                                        dataSetReaderDefinition
+                                                                            };
                                                                     ReferenceDescriptionCollection refDesCollection =
-                                                                        Browse((NodeId) refDsDesc.NodeId);
+                                                                        Browse((NodeId)refDsDesc.NodeId);
                                                                     foreach (ReferenceDescription _RefDesc in
                                                                         refDesCollection)
                                                                     {
                                                                         MirrorVariableDefinition
                                                                             mirrorVariableDefinition =
-                                                                                new MirrorVariableDefinition();
-                                                                        mirrorVariableDefinition.Name = _RefDesc
-                                                                            .DisplayName.Text;
-                                                                        mirrorVariableDefinition.ParentNode =
-                                                                            mirrorSubscribedDataSetDefinition;
+                                                                                new MirrorVariableDefinition
+                                                                                {
+                                                                                    Name = _RefDesc
+                                                                            .DisplayName.Text,
+                                                                                    ParentNode =
+                                                                            mirrorSubscribedDataSetDefinition
+                                                                                };
                                                                         mirrorSubscribedDataSetDefinition.Children.Add(
                                                                             mirrorVariableDefinition);
                                                                     }
@@ -487,24 +564,24 @@ namespace ClientAdaptor
                                                     if (refDesc.BrowseName.Name == "SecurityGroupId")
                                                     {
                                                         readerGroup.SecurityGroupId =
-                                                            Session.ReadValue((NodeId) refDesc.NodeId).Value.ToString();
+                                                            Session.ReadValue((NodeId)refDesc.NodeId).Value.ToString();
                                                     }
                                                     if (refDesc.BrowseName.Name == "SecurityMode")
                                                     {
                                                         readerGroup.SecurityMode =
-                                                            Convert.ToInt32(Session.ReadValue((NodeId) refDesc.NodeId)
+                                                            Convert.ToInt32(Session.ReadValue((NodeId)refDesc.NodeId)
                                                                 .Value);
                                                     }
                                                     if (refDesc.BrowseName.Name == "MaxNetworkMessageSize")
                                                     {
                                                         readerGroup.MaxNetworkMessageSize =
-                                                            Convert.ToInt32(Session.ReadValue((NodeId) refDesc.NodeId)
+                                                            Convert.ToInt32(Session.ReadValue((NodeId)refDesc.NodeId)
                                                                 .Value);
                                                     }
                                                     if (refDesc.BrowseName.Name == "QueueName")
                                                     {
                                                         readerGroup.QueueName =
-                                                            Session.ReadValue((NodeId) refDesc.NodeId).Value.ToString();
+                                                            Session.ReadValue((NodeId)refDesc.NodeId).Value.ToString();
                                                     }
                                                 }
 
@@ -512,7 +589,7 @@ namespace ClientAdaptor
                                             }
                                             catch (Exception ex)
                                             {
-                                                Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
+                                                Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                             }
                                         }
 
@@ -562,14 +639,14 @@ namespace ClientAdaptor
                                                                 {
                                                                     if (refDescription.TypeDefinition == Constants.PropertyNodeId)
                                                                     {
-                                                                       
+
                                                                         if (refDescription.BrowseName.Name == "DataSetWriterId")
                                                                         {
                                                                             dataSetWriterDefinition.DataSetWriterId =
                                                                                 Convert.ToInt32(Session
                                                                                     .ReadValue((NodeId)refDescription.NodeId).Value);
                                                                         }
-                                                                       
+
                                                                         else if (refDescription.BrowseName.Name == "KeyFrameCount")
                                                                         {
                                                                             dataSetWriterDefinition.KeyFrameCount =
@@ -602,9 +679,9 @@ namespace ClientAdaptor
                                                                         }
                                                                     }
                                                                 }
-                                                                catch(Exception ex)
+                                                                catch (Exception ex)
                                                                 {
-                                                                    Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API"+ ex.Message);
+                                                                    Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                                                 }
                                                             }
                                                         }
@@ -654,16 +731,15 @@ namespace ClientAdaptor
                                                     else if (referenceDescription.BrowseName.Name == "SecurityGroupId")
                                                     {
                                                         object val = Session.ReadValue((NodeId)referenceDescription.NodeId).Value;
-                                                        // dataSetWriterGroup.SecurityGroupId = !string.IsNullOrWhiteSpace(val.ToString()) ? Convert.ToInt32(val) : 0;
                                                         dataSetWriterGroup.SecurityGroupId = val.ToString();
 
                                                     }
 
                                                 }
                                             }
-                                            catch(Exception ex)
+                                            catch (Exception ex)
                                             {
-                                                Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
+                                                Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                             }
                                         }
 
@@ -672,40 +748,37 @@ namespace ClientAdaptor
                                         connection.Children.Add((dataSetWriterGroup));
                                     }
                                 }
-                                catch(Exception ex)
+                                catch (Exception ex)
                                 {
-                                    Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" +  ex.Message);
+                                    Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                 }
-                              
-
                             }
-
                         }
-
-
-
                         if (_ReferenceDescription.TypeDefinition == Constants.AMQPTypeDefinitionNodeId)
                         {
                             connection.ConnectionType = 1;
                         }
-                       
+
                         else if (_ReferenceDescription.TypeDefinition == Constants.UADPTypeDefinitionNodeId)
                         {
                             connection.ConnectionType = 0;
                         }
-
-
                         pubSubConfiguation.Add(connection);
-
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex,"ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
+                        Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                     }
                 }
             }
             return pubSubConfiguation;
         }
+
+        /// <summary>
+        /// Method to remove selected security group.
+        /// </summary>
+        /// <param name="securityGroupId"></param>
+        /// <returns></returns>
         public string RemoveSecurityGroup(NodeId securityGroupId)
         {
             string errorMessage = string.Empty;
@@ -714,7 +787,7 @@ namespace ClientAdaptor
             {
                 IList<object> lstResponse = Session.Call(Constants.SecurityGroupObjectId,
                     Constants.SecurityGroupRemoveMethodId, new object[] { securityGroupId });
-               
+
             }
             catch (ServiceResultException e)
             {
@@ -727,21 +800,24 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
-        public string RemoveGroup(Connection connection,NodeId groupId)
-        { 
+        /// <summary>
+        /// Method to remove selected group.
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="groupId"></param>
+        /// <returns></returns>
+        public string RemoveGroup(Connection connection, NodeId groupId)
+        {
             string errorMessage = string.Empty;
             NodeId connectionId = connection.ConnectionNodeId;
-          
+
             string removeGroupId = string.Format("{0}.{1}.{2}", "PubSub", connection.Name, "RemoveGroup");
 
-            NodeId removeGroupNodeId = new NodeId(removeGroupId,1);
-
-
+            NodeId removeGroupNodeId = new NodeId(removeGroupId, 1);
             try
             {
                 IList<object> lstResponse = Session.Call(connectionId,
                     removeGroupNodeId, new object[] { groupId });
-
             }
             catch (Exception e)
             {
@@ -750,21 +826,25 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
+        /// <summary>
+        /// Method to remove selected DataSetWriter.
+        /// </summary>
+        /// <param name="dataSetWriterGroup"></param>
+        /// <param name="writerNodeId"></param>
+        /// <returns></returns>
         public string RemoveDataSetWriter(DataSetWriterGroup dataSetWriterGroup, NodeId writerNodeId)
         {
             string errorMessage = string.Empty;
             Connection connection = dataSetWriterGroup.ParentNode as Connection;
             NodeId dataSetWriterGroupId = dataSetWriterGroup.GroupId;
-            if ( connection != null )
+            if (connection != null)
             {
-                string removeDataSetWriter = string.Format("{0}.{1}.{2}.{3}", "PubSub", connection.Name, dataSetWriterGroup.Name,"RemoveDataSetWriter");
-                NodeId removeDataSetWriterNodeId = new NodeId(removeDataSetWriter,1);
+                string removeDataSetWriter = string.Format("{0}.{1}.{2}.{3}", "PubSub", connection.Name, dataSetWriterGroup.Name, "RemoveDataSetWriter");
+                NodeId removeDataSetWriterNodeId = new NodeId(removeDataSetWriter, 1);
                 try
                 {
                     IList<object> lstResponse = Session.Call(dataSetWriterGroupId,
                                                              removeDataSetWriterNodeId, new object[] { writerNodeId });
-
-
                 }
                 catch (Exception e)
                 {
@@ -775,12 +855,18 @@ namespace ClientAdaptor
 
         }
 
+        /// <summary>
+        /// Method to remove selected DataSetReader
+        /// </summary>
+        /// <param name="readerGroupDefinition"></param>
+        /// <param name="readerNodeId"></param>
+        /// <returns></returns>
         public string RemoveDataSetReader(ReaderGroupDefinition readerGroupDefinition, NodeId readerNodeId)
         {
             string errorMessage = string.Empty;
             Connection connection = readerGroupDefinition.ParentNode as Connection;
             NodeId readerGroupDefinitionNodeId = readerGroupDefinition.GroupId;
-            if ( connection != null )
+            if (connection != null)
             {
                 string removeDataSetReader = string.Format("{0}.{1}.{2}.{3}", "PubSub", connection.Name, readerGroupDefinition.Name, "RemoveDataSetReader");
                 NodeId removeDataSetReaderNodeId = new NodeId(removeDataSetReader, 1);
@@ -788,8 +874,6 @@ namespace ClientAdaptor
                 {
                     IList<object> lstResponse = Session.Call(readerGroupDefinitionNodeId,
                                                              removeDataSetReaderNodeId, new object[] { readerNodeId });
-
-
                 }
                 catch (Exception e)
                 {
@@ -800,54 +884,19 @@ namespace ClientAdaptor
 
         }
 
-
-        //public bool UpdateSecurityGroup(string name,NodeId nodeId)
-        //{
-        //    bool isSuccess = true;
-        //    try
-        //    {
-        //        WriteValueCollection ValueCollection = new WriteValueCollection();
-        //        WriteValue w_Value = new WriteValue();
-        //        w_Value.NodeId = nodeId;
-        //        w_Value.Value = new DataValue() { Value = new QualifiedName(name, nodeId.NamespaceIndex) };
-        //        w_Value.AttributeId = Attributes.BrowseName;
-        //        ValueCollection.Add(w_Value);
-
-        //        w_Value = new WriteValue();
-        //        w_Value.NodeId = nodeId;
-        //        w_Value.Value = new DataValue() { Value = new LocalizedText(name) };
-        //        w_Value.AttributeId = Attributes.DisplayName;
-        //        ValueCollection.Add(w_Value);
-        //        StatusCodeCollection Results;
-        //        DiagnosticInfoCollection diagnosticInfos;
-        //        Session.Write(new RequestHeader(), ValueCollection, out Results, out diagnosticInfos);
-        //        if(Results!=null)
-        //        {
-
-        //            foreach (StatusCode code in Results)
-        //            {
-        //                if(!StatusCode.IsGood(code))
-        //                {
-        //                    isSuccess = false;
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //    }
-        //    catch(Exception ex)
-        //    {
-        //        isSuccess = false;
-        //    }
-        //    return isSuccess;
-        //}
+        /// <summary>
+        /// Method to set Security keys.
+        /// </summary>
+        /// <param name="securityKeys"></param>
+        /// <returns></returns>
         public string SetSecurityKeys(SecurityKeys securityKeys)
         {
             string errorMessage = string.Empty;
             try
             {
-                byte[] currentkey =Encoding.UTF8.GetBytes( securityKeys.CurrentKey);
+                byte[] currentkey = Encoding.UTF8.GetBytes(securityKeys.CurrentKey);
                 List<Byte[]> lstFeaturekeys = new List<byte[]>();
-                foreach(string fKeys in securityKeys.FeatureKeys)
+                foreach (string fKeys in securityKeys.FeatureKeys)
                 {
                     lstFeaturekeys.Add(Encoding.UTF8.GetBytes(fKeys));
                 }
@@ -866,16 +915,24 @@ namespace ClientAdaptor
             return errorMessage;
 
         }
-        public string GetSecurityKeys(string securityGroupId,uint FeatureKeyCount, out SecurityKeys securityKeys)
+
+        /// <summary>
+        /// Method which returns security keys for selected groupId
+        /// </summary>
+        /// <param name="securityGroupId"></param>
+        /// <param name="featureKeyCount"></param>
+        /// <param name="securityKeys"></param>
+        /// <returns></returns>
+        public string GetSecurityKeys(string securityGroupId, uint featureKeyCount, out SecurityKeys securityKeys)
         {
             string errorMessage = string.Empty;
             securityKeys = new SecurityKeys();
             try
             {
                 IList<object> lstResponse = Session.Call(Constants.SecurityKeysObjectId,
-                    Constants.GetSecurityKeysMethodId, new object[] { securityGroupId, FeatureKeyCount });
+                Constants.GetSecurityKeysMethodId, new object[] { securityGroupId, featureKeyCount });
                 securityKeys.SecurityGroupId = securityGroupId;
-                securityKeys.SecurityPolicyUri =Convert.ToString( lstResponse[0]);
+                securityKeys.SecurityPolicyUri = Convert.ToString(lstResponse[0]);
                 securityKeys.CurrentTokenId = Convert.ToUInt32(lstResponse[1]);
                 securityKeys.CurrentKey = Encoding.UTF8.GetString(lstResponse[2] as Byte[]);
                 var array = (lstResponse[3] as IEnumerable).Cast<object>().Select(x => x as byte[]).ToArray();
@@ -884,7 +941,7 @@ namespace ClientAdaptor
                     securityKeys.FeatureKeys.Add(Encoding.UTF8.GetString(featurekeybytearray as Byte[]));
                 }
                 securityKeys.TimeToNextKey = Convert.ToDouble(lstResponse[4]);
-                securityKeys.KeyLifetime= Convert.ToDouble(lstResponse[5]);
+                securityKeys.KeyLifetime = Convert.ToDouble(lstResponse[5]);
             }
             catch (ServiceResultException e)
             {
@@ -892,48 +949,65 @@ namespace ClientAdaptor
             }
             catch (Exception e)
             {
-                Utils.Trace(e,"ClientAdaptor:GetSecurityKeys API"+ e.Message);
+                Utils.Trace(e, "ClientAdaptor:GetSecurityKeys API" + e.Message);
             }
             return errorMessage;
         }
 
+        /// <summary>
+        /// Method to Enable PubSub State for selected node.
+        /// </summary>
+        /// <param name="monitorNode"></param>
+        /// <returns></returns>
         public string EnablePubSubState(MonitorNode monitorNode)
         {
             string errorMessage = string.Empty;
             try
             {
-                IList<object> lstResponse = Session.Call(monitorNode.ParantNodeId,
-                      monitorNode.EnableNodeId, new object[] { } ); 
+                IList<object> lstResponse = Session.Call(monitorNode.ParentNodeId,
+                      monitorNode.EnableNodeId, new object[] { });
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"ClientAdaptor:EnablePubSubState API" + ex.Message);
+                Utils.Trace(ex, "ClientAdaptor:EnablePubSubState API" + ex.Message);
             }
             return errorMessage;
         }
+
+        /// <summary>
+        /// Method to disable PubSub State for selected node.
+        /// </summary>
+        /// <param name="monitorNode"></param>
+        /// <returns></returns>
         public string DisablePubSubState(MonitorNode monitorNode)
         {
             string errorMessage = string.Empty;
             try
             {
-                IList<object> lstResponse = Session.Call(monitorNode.ParantNodeId,
+                IList<object> lstResponse = Session.Call(monitorNode.ParentNodeId,
                     monitorNode.DisableNodeId, new object[] { });
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"ClientAdaptor:DisablePubSubState API" + ex.Message);
+                Utils.Trace(ex, "ClientAdaptor:DisablePubSubState API" + ex.Message);
             }
             return errorMessage;
 
         }
 
+        /// <summary>
+        /// Method to add new writer group.
+        /// </summary>
+        /// <param name="dataSetWriterGroup"></param>
+        /// <param name="groupId"></param>
+        /// <returns></returns>
         public string AddWriterGroup(DataSetWriterGroup dataSetWriterGroup, out NodeId groupId)
         {
             string errorMessage = string.Empty;
             groupId = null;
 
             Connection connection = dataSetWriterGroup.ParentNode as Connection;
-            if ( connection != null )
+            if (connection != null)
             {
                 string name = connection.Name;
             }
@@ -947,22 +1021,21 @@ namespace ClientAdaptor
                         writerGroupNodeId,
                         new object[]
                         {
-                            dataSetWriterGroup.GroupName, dataSetWriterGroup.PublishingInterval,
-                            dataSetWriterGroup.PublishingOffset, dataSetWriterGroup.KeepAliveTime,
-                            dataSetWriterGroup.Priority, dataSetWriterGroup.MessageSecurityMode,
-                            dataSetWriterGroup.SecurityGroupId, dataSetWriterGroup.WriterGroupId,
-                            dataSetWriterGroup.MaxNetworkMessageSize,dataSetWriterGroup.NetworkMessageContentMask
+                                dataSetWriterGroup.GroupName, dataSetWriterGroup.PublishingInterval,
+                                dataSetWriterGroup.PublishingOffset, dataSetWriterGroup.KeepAliveTime,
+                                dataSetWriterGroup.Priority, dataSetWriterGroup.MessageSecurityMode,
+                                dataSetWriterGroup.SecurityGroupId, dataSetWriterGroup.WriterGroupId,
+                                dataSetWriterGroup.MaxNetworkMessageSize,dataSetWriterGroup.NetworkMessageContentMask
 
                         });
                     groupId = lstResponse[0] as NodeId;
-                
-            }
-            catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     errorMessage = ex.Message;
                 }
             }
-            else if(connection != null && connection.ConnectionType == 1)
+            else if (connection != null && connection.ConnectionType == 1)
             {
                 try
                 {
@@ -971,10 +1044,10 @@ namespace ClientAdaptor
                         writerGroupNodeId,
                         new object[]
                         {
-                            dataSetWriterGroup.GroupName, dataSetWriterGroup.KeepAliveTime,
-                            dataSetWriterGroup.MessageSecurityMode, dataSetWriterGroup.EncodingMimeType,
-                            dataSetWriterGroup.QueueName, dataSetWriterGroup.Priority,
-                            dataSetWriterGroup.PublishingInterval, dataSetWriterGroup.SecurityGroupId
+                                dataSetWriterGroup.GroupName, dataSetWriterGroup.KeepAliveTime,
+                                dataSetWriterGroup.MessageSecurityMode, dataSetWriterGroup.EncodingMimeType,
+                                dataSetWriterGroup.QueueName, dataSetWriterGroup.Priority,
+                                dataSetWriterGroup.PublishingInterval, dataSetWriterGroup.SecurityGroupId
                         });
 
                     groupId = lstResponse[0] as NodeId;
@@ -987,22 +1060,28 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
+        /// <summary>
+        /// Method to add new reader group.
+        /// </summary>
+        /// <param name="readerGroupDefinition"></param>
+        /// <param name="groupId"></param>
+        /// <returns></returns>
         public string AddReaderGroup(ReaderGroupDefinition readerGroupDefinition, out NodeId groupId)
         {
             string errorMessage = string.Empty;
             groupId = null;
 
             Connection connection = readerGroupDefinition.ParentNode as Connection;
-            if ( connection != null )
+            if (connection != null)
             {
                 string name = connection.Name;
             }
 
-            if ( connection != null )
+            if (connection != null)
             {
                 NodeId connectionNodeId = connection.ConnectionNodeId;
                 NodeId readerGroupNodeId = null;
-                ReferenceDescriptionCollection referenceDescriptionReaderCollection = _browserNodeControl.Browser.Browse(connectionNodeId);
+                ReferenceDescriptionCollection referenceDescriptionReaderCollection = BrowserNodeControl.Browser.Browse(connectionNodeId);
                 foreach (ReferenceDescription referenceReaderDescription in referenceDescriptionReaderCollection)
                 {
                     if (referenceReaderDescription.BrowseName == "AddReaderGroup")
@@ -1018,8 +1097,8 @@ namespace ClientAdaptor
                                                                  readerGroupNodeId,
                                                                  new object[]
                                                                  {
-                                                                     readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
-                                                                     readerGroupDefinition.SecurityGroupId,readerGroupDefinition.MaxNetworkMessageSize
+                                                                         readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
+                                                                         readerGroupDefinition.SecurityGroupId,readerGroupDefinition.MaxNetworkMessageSize
                                                                  });
                         groupId = lstResponse[0] as NodeId;
                     }
@@ -1036,8 +1115,8 @@ namespace ClientAdaptor
                                                                  readerGroupNodeId,
                                                                  new object[]
                                                                  {
-                                                                     readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
-                                                                     readerGroupDefinition.SecurityGroupId,readerGroupDefinition.QueueName
+                                                                         readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
+                                                                         readerGroupDefinition.SecurityGroupId,readerGroupDefinition.QueueName
                                                                  });
                         readerGroupDefinition.GroupId = lstResponse[0] as NodeId;
                     }
@@ -1052,47 +1131,62 @@ namespace ClientAdaptor
 
         }
 
-      public  string AddDataSetReader(NodeId dataSetReaderGroupNodeId, DataSetReaderDefinition dataSetReaderDefinition)
+        /// <summary>
+        /// Method to add new data set reader.
+        /// </summary>
+        /// <param name="dataSetReaderGroupNodeId"></param>
+        /// <param name="dataSetReaderDefinition"></param>
+        /// <returns></returns>
+        public string AddDataSetReader(NodeId dataSetReaderGroupNodeId, DataSetReaderDefinition dataSetReaderDefinition)
         {
             string retMsg = string.Empty;
             try
             {
-                NodeId addDataSetReaderMethodNodeId = new NodeId(dataSetReaderGroupNodeId.Identifier.ToString() + ".AddDataSetReader",1);
+                NodeId addDataSetReaderMethodNodeId = new NodeId(dataSetReaderGroupNodeId.Identifier.ToString() + ".AddDataSetReader", 1);
                 IList<object> lstResponse = Session.Call(dataSetReaderGroupNodeId,
                        addDataSetReaderMethodNodeId,
                        new object[]
                        {
-                        dataSetReaderDefinition.DataSetReaderName,dataSetReaderDefinition.PublisherId,dataSetReaderDefinition.DataSetWriterId,dataSetReaderDefinition.DataSetMetaDataType,dataSetReaderDefinition.MessageReceiveTimeOut,dataSetReaderDefinition.NetworkMessageContentMask,dataSetReaderDefinition.DataSetContentMask,dataSetReaderDefinition.PublishingInterval
+                            dataSetReaderDefinition.DataSetReaderName,dataSetReaderDefinition.PublisherId,dataSetReaderDefinition.DataSetWriterId,dataSetReaderDefinition.DataSetMetaDataType,dataSetReaderDefinition.MessageReceiveTimeOut,dataSetReaderDefinition.NetworkMessageContentMask,dataSetReaderDefinition.DataSetContentMask,dataSetReaderDefinition.PublishingInterval
 
                        });
 
                 dataSetReaderDefinition.DataSetReaderNodeId = lstResponse[0] as NodeId;
                 dataSetReaderDefinition.MessageReceiveTimeOut = Convert.ToInt32(lstResponse[1]);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 retMsg = ex.Message;
 
             }
             return retMsg;
         }
+
+        /// <summary>
+        /// Method to add new UADP DataSetWriter.
+        /// </summary>
+        /// <param name="dataSetWriterGroupNodeId"></param>
+        /// <param name="dataSetWriterDefinition"></param>
+        /// <param name="writerNodeId"></param>
+        /// <param name="revisedKeyFrameCount"></param>
+        /// <returns></returns>
         public string AddUADPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
             out int revisedKeyFrameCount)
         {
             string errorMessage = string.Empty;
             writerNodeId = null;
             revisedKeyFrameCount = 0;
-         
+
             try
             {
-               
-                NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString() + ".AddDataSetWriter",1);
+
+                NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString() + ".AddDataSetWriter", 1);
 
                 IList<object> lstResponse = Session.Call(dataSetWriterGroupNodeId,
                     addDataSetWriterNodeId,
                     new object[]
                     {
-                        dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.DataSetWriterId,dataSetWriterDefinition.PublisherDataSetNodeId,dataSetWriterDefinition.DataSetContentMask,dataSetWriterDefinition.KeyFrameCount
+                            dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.DataSetWriterId,dataSetWriterDefinition.PublisherDataSetNodeId,dataSetWriterDefinition.DataSetContentMask,dataSetWriterDefinition.KeyFrameCount
 
                     });
 
@@ -1103,13 +1197,21 @@ namespace ClientAdaptor
             catch (Exception ex)
             {
                 errorMessage = ex.Message;
-                
+
             }
 
             return errorMessage;
 
         }
 
+        /// <summary>
+        /// Method to add new AMQP DataSetWriter.
+        /// </summary>
+        /// <param name="dataSetWriterGroupNodeId"></param>
+        /// <param name="dataSetWriterDefinition"></param>
+        /// <param name="writerNodeId"></param>
+        /// <param name="revisedMaxMessageSize"></param>
+        /// <returns></returns>
         public string AddAMQPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
             out int revisedMaxMessageSize)
         {
@@ -1117,34 +1219,35 @@ namespace ClientAdaptor
             writerNodeId = null;
             revisedMaxMessageSize = 0;
 
-             
-                try
-                {
-                NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString()+ ".AddDataSetwriter", 1);
-                    IList<object> lstResponse = Session.Call(dataSetWriterGroupNodeId,
-                        addDataSetWriterNodeId,
-                        new object[]
-                        {
-                            dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.PublisherDataSetId,dataSetWriterDefinition.QueueName,dataSetWriterDefinition.MetadataQueueName,dataSetWriterDefinition.MetadataUpdataTime,dataSetWriterDefinition.MaxMessageSize
-                        });
 
-                    writerNodeId = lstResponse[0] as NodeId;
-                    revisedMaxMessageSize = Convert.ToInt32(lstResponse[1]);
-                }
-                catch (Exception ex)
-                {
-                    errorMessage = ex.Message;
+            try
+            {
+                NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString() + ".AddDataSetwriter", 1);
+                IList<object> lstResponse = Session.Call(dataSetWriterGroupNodeId,
+                    addDataSetWriterNodeId,
+                    new object[]
+                    {
+                                dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.PublisherDataSetId,dataSetWriterDefinition.QueueName,dataSetWriterDefinition.MetadataQueueName,dataSetWriterDefinition.MetadataUpdataTime,dataSetWriterDefinition.MaxMessageSize
+                    });
 
-                }
-             
-
+                writerNodeId = lstResponse[0] as NodeId;
+                revisedMaxMessageSize = Convert.ToInt32(lstResponse[1]);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+            }
             return errorMessage;
-                          
+
         }
 
+        /// <summary>
+        /// Method which finds available servers in selected host.
+        /// </summary>
+        /// <param name="hostName"></param>
+        /// <returns></returns>
         public ApplicationDescriptionCollection FindServers(string hostName)
         {
-
             try
             {
                 // Cursor = Cursors.WaitCursor;
@@ -1158,8 +1261,6 @@ namespace ClientAdaptor
                                                              configuration))
                 {
                     return client.FindServers(null);
-
-
                 }
             }
             catch (Exception ex)
@@ -1168,14 +1269,21 @@ namespace ClientAdaptor
             }
             return null;
         }
-        public Session Connect(string endpointUrl, out string errorMessage,  out TreeViewNode node)
+
+        /// <summary>
+        /// Method to connect the server.
+        /// </summary>
+        /// <param name="endpointUrl"></param>
+        /// <param name="errorMessage"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public Session Connect(string endpointUrl, out string errorMessage, out TreeViewNode node)
         {
-           
-                node = new TreeViewNode();
+
+            node = new TreeViewNode();
             errorMessage = string.Empty;
             try
             {
-                
                 var endpoint = CreateConfiguredEndpoint(endpointUrl);
 
                 if (endpoint == null)
@@ -1183,11 +1291,10 @@ namespace ClientAdaptor
                     errorMessage = "Couldn't open endpoint";
                     return null;
                 }
-                // SelectedEndpoint = endpoint.ToString();
                 if (endpoint.UpdateBeforeConnect)
                 {
                     ConfiguredServerDlg configuredServerDlg = new ConfiguredServerDlg();
-                    endpoint = configuredServerDlg.ShowDialog(endpoint, _configuration);
+                    endpoint = configuredServerDlg.ShowDialog(endpoint, m_configuration);
 
                     if (endpoint == null)
                     {
@@ -1195,20 +1302,18 @@ namespace ClientAdaptor
                         return null;
                     }
                     SelectedEndpoint = endpoint.ToString();
-
-
                 }
 
-                X509Certificate2  clientCertificate = null;
+                X509Certificate2 clientCertificate = null;
                 if (endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
                 {
-                    if (_configuration.SecurityConfiguration.ApplicationCertificate == null)
+                    if (m_configuration.SecurityConfiguration.ApplicationCertificate == null)
                     {
                         errorMessage = "Application certificate is empty";
                         return null;
                     }
 
-                    Task<X509Certificate2> taskclientCertificate =   _configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+                    Task<X509Certificate2> taskclientCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
                     if (taskclientCertificate == null)
                     {
                         errorMessage = "Couldn't able to find the client certificate";
@@ -1216,137 +1321,119 @@ namespace ClientAdaptor
                     }
                     clientCertificate = taskclientCertificate.Result as X509Certificate2;
                 }
-                
-                var channel = SessionChannel.Create(_configuration, endpoint.Description, endpoint.Configuration,
-                                                   clientCertificate, _messageContext);
-                Session = new Session(channel, _configuration, endpoint, clientCertificate);
-                Session.ReturnDiagnostics = DiagnosticsMasks.All;
+
+                var channel = SessionChannel.Create(m_configuration, endpoint.Description, endpoint.Configuration,
+                                                   clientCertificate, m_messageContext);
+                Session = new Session(channel, m_configuration, endpoint, clientCertificate)
+                {
+                    ReturnDiagnostics = DiagnosticsMasks.All
+                };
                 if (!new SessionOpenDlg().ShowDialog(Session, null))
                 {
                     return null;
                 }
-
                 Session.KeepAliveInterval = 10000;
                 Session.KeepAlive += Session_KeepAlive;
                 errorMessage = string.Empty;
 
-                _browserNodeControl = new BrowseNodeControl(Session);
-                _browserNodeControl.InitializeBrowserView(BrowseViewType.Objects, null);
+                BrowserNodeControl = new BrowseNodeControl(Session);
+                BrowserNodeControl.InitializeBrowserView(BrowseViewType.Objects, null);
 
                 node.IsRoot = true;
-                _browserNodeControl.Browse(ref node);
+                BrowserNodeControl.Browse(ref node);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.Connect API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.Connect API" + ex.Message);
             }
             //  channel = null; ToDO: Do we need to close the channel
             return Session;
         }
 
+        /// <summary>
+        /// Rebrowse the selected node in the tree.
+        /// </summary>
+        /// <param name="node"></param>
         public void Rebrowse(ref TreeViewNode node)
         {
-            _browserNodeControl.Browse(ref node);
+            BrowserNodeControl.Browse(ref node);
         }
 
+        /// <summary>
+        /// Creates configures endpoint
+        /// </summary>
+        /// <param name="serviceUrl"></param>
+        /// <returns></returns>
         private ConfiguredEndpoint CreateConfiguredEndpoint(string serviceUrl)
         {
-           
             //Check for security parameters appended to the URL
-            string parameters = null;
-            var index = serviceUrl.IndexOf("- [", StringComparison.Ordinal);
-            if (index != -1)
+            string m_parameters = null;
+            var m_index = serviceUrl.IndexOf("- [", StringComparison.Ordinal);
+            if (m_index != -1)
             {
-                parameters = serviceUrl.Substring(index + 3);
-                serviceUrl = serviceUrl.Substring(0, index).Trim();
+                m_parameters = serviceUrl.Substring(m_index + 3);
+                serviceUrl = serviceUrl.Substring(0, m_index).Trim();
             }
 
-            var useBinaryEncoding = true;
-            if (!string.IsNullOrEmpty(parameters))
+            var m_useBinaryEncoding = true;
+            if (!string.IsNullOrEmpty(m_parameters))
             {
-                var fields = parameters.Split(new[] { '-', '[', ':', ']' }, StringSplitOptions.RemoveEmptyEntries);
+                var fields = m_parameters.Split(new[] { '-', '[', ':', ']' }, StringSplitOptions.RemoveEmptyEntries);
 
                 try
                 {
-                    if (fields.Length > 2) useBinaryEncoding = fields[2] == "Binary";
-                    else useBinaryEncoding = false;
+                    if (fields.Length > 2) m_useBinaryEncoding = fields[2] == "Binary";
+                    else m_useBinaryEncoding = false;
                 }
                 catch
                 {
-                    useBinaryEncoding = false;
+                    m_useBinaryEncoding = false;
                 }
             }
-            Uri uri = null;
+            Uri m_uri = null;
             try
             {
-                uri = new Uri(serviceUrl);
+                m_uri = new Uri(serviceUrl);
             }
             catch (Exception ex)
             {
-                
+                Utils.Trace(ex, "OPCUAClientAdaptor.CreateConfiguredEndpoint API" + ex.Message);
                 return null;
-                ;
             }
-            var description = new EndpointDescription();
-            description.EndpointUrl = uri.ToString();
-            description.SecurityMode = MessageSecurityMode.None;
-            description.SecurityPolicyUri = SecurityPolicies.None;
-
-            description.Server.ApplicationUri = Utils.UpdateInstanceUri(uri.ToString());
-            description.Server.ApplicationName = uri.AbsolutePath;
-
-            if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            var m_description = new EndpointDescription
             {
-                description.TransportProfileUri = Profiles.UaTcpTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
-            }
-            else if (description.EndpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
-            {
-                description.TransportProfileUri = Profiles.HttpsBinaryTransport;
-                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
-            }
-            //else
-            //{
-            //    description.TransportProfileUri = Profiles.WsHttpXmlOrBinaryTransport;
-            //    description.Server.DiscoveryUrls.Add(description.EndpointUrl + "/discovery");
-            //}
+                EndpointUrl = m_uri.ToString(),
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
 
-            var configuredEndpointCollection = new ConfiguredEndpointCollection();
-            var endpoint = new ConfiguredEndpoint(configuredEndpointCollection, description, null);
-            endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
-            endpoint.UpdateBeforeConnect = true;
-            return endpoint;
+            m_description.Server.ApplicationUri = Utils.UpdateInstanceUri(m_uri.ToString());
+            m_description.Server.ApplicationName = m_uri.AbsolutePath;
+
+            if (m_description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            {
+                m_description.TransportProfileUri = Profiles.UaTcpTransport;
+                m_description.Server.DiscoveryUrls.Add(m_description.EndpointUrl);
+            }
+            else if (m_description.EndpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
+            {
+                m_description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+                m_description.Server.DiscoveryUrls.Add(m_description.EndpointUrl);
+            }
+
+            var m_configuredEndpointCollection = new ConfiguredEndpointCollection();
+            var m_endpoint = new ConfiguredEndpoint(m_configuredEndpointCollection, m_description, null);
+            m_endpoint.Configuration.UseBinaryEncoding = m_useBinaryEncoding;
+            m_endpoint.UpdateBeforeConnect = true;
+            return m_endpoint;
         }
-
-        //private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
-        //{
-        //    Utils.Trace("OPC Session Alive.");
-        //    if (e.CurrentState != ServerState.Running && session.KeepAliveStopped)
-        //    {
-        //        ServerStatus = e.Status.ToString();
-        //        Reconnect();
-        //    }
-        //    else if (e.CurrentState == ServerState.Running)
-        //    {
-        //        ServerStatus = e.CurrentState.ToString();
-        //    }
-        //}
-
-        //private void Reconnect()
-        //{ 
-        //    Session.Reconnect();
-        //    if (!Session.KeepAliveStopped)
-        //    {
-        //        ServerStatus = ServerState.Running.ToString();
-        //    }
-        //}
 
         /// <summary>
         /// Handles a keep alive event from a session.
         /// </summary>
         private void Session_KeepAlive(Session session, KeepAliveEventArgs e)
         {
-            
+
             try
             {
                 // check for events from discarded sessions.
@@ -1358,23 +1445,21 @@ namespace ClientAdaptor
                 // start reconnect sequence on communication error.
                 if (ServiceResult.IsBad(e.Status))
                 {
-                     
                     UpdateStatus(true, e.CurrentTime, "Communication Error ({0}), Reconnecting in {1}s", e.Status, m_reconnectPeriod);
-                  
-                    if (_mReconnectHandler == null)
+
+                    if (m_reconnectHandler == null)
                     {
                         ActivateTabsonReConnection = false;
                         RefreshOnReconnection = false;
-                        _mReconnectHandler = new SessionReconnectHandler();
-                        _mReconnectHandler.BeginReconnect(Session, m_reconnectPeriod * 1000, Server_ReconnectComplete);
+                        m_reconnectHandler = new SessionReconnectHandler();
+                        m_reconnectHandler.BeginReconnect(Session, m_reconnectPeriod * 1000, Server_ReconnectComplete);
                     }
 
                     return;
                 }
-
                 // update status.
                 UpdateStatus(false, e.CurrentTime, "Connected [{0}]", session.Endpoint.EndpointUrl);
-              
+
 
 
 
@@ -1384,6 +1469,7 @@ namespace ClientAdaptor
                 ClientUtils.HandleException("OPC UA PubSub Client", exception);
             }
         }
+
         /// <summary>
         /// Handles a reconnect event complete from the reconnect handler.
         /// </summary>
@@ -1392,48 +1478,60 @@ namespace ClientAdaptor
             try
             {
                 // ignore callbacks from discarded objects.
-                if (!Object.ReferenceEquals(sender, _mReconnectHandler))
+                if (!Object.ReferenceEquals(sender, m_reconnectHandler))
                 {
                     return;
                 }
-
-                Session = _mReconnectHandler.Session;
+                Session = m_reconnectHandler.Session;
                 Session.KeepAlive += Session_KeepAlive;
-                _mReconnectHandler.Dispose();
-                _mReconnectHandler = null;
-                _browserNodeControl = new BrowseNodeControl(Session);
-                _browserNodeControl.InitializeBrowserView(BrowseViewType.Objects, null);
+                m_reconnectHandler.Dispose();
+                m_reconnectHandler = null;
+                BrowserNodeControl = new BrowseNodeControl(Session);
+                BrowserNodeControl.InitializeBrowserView(BrowseViewType.Objects, null);
                 try
                 {
                     RefreshOnReconnection = true;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
                 }
                 try
                 {
                     ActivateTabsonReConnection = true;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.Server_ReconnectComplete API" + ex.Message);
                 }
-                    
-               
+
+
 
             }
             catch (Exception exception)
             {
-                ClientUtils.HandleException("OPC UA PubSub Client",exception);
+                ClientUtils.HandleException("OPC UA PubSub Client", exception);
             }
         }
 
+        /// <summary>
+        /// updates the server status.
+        /// </summary>
+        /// <param name="error"></param>
+        /// <param name="time"></param>
+        /// <param name="status"></param>
+        /// <param name="args"></param>
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
             ServerStatus = String.Format(status, args);
         }
 
+        /// <summary>
+        /// Method to select the endpoint
+        /// </summary>
+        /// <param name="discoveryUrl"></param>
+        /// <param name="useSecurity"></param>
+        /// <returns></returns>
         private static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
@@ -1447,17 +1545,17 @@ namespace ClientAdaptor
             var configuration = EndpointConfiguration.Create();
             configuration.OperationTimeout = 5000;
 
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription m_selectedEndpoint = null;
 
             // Connect to the server's discovery endpoint and find the available configuration.
-            using (var client = DiscoveryClient.Create(uri, configuration))
+            using (var m_client = DiscoveryClient.Create(uri, configuration))
             {
-                var endpoints = client.GetEndpoints(null);
+                var m_endpoints = m_client.GetEndpoints(null);
 
                 // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
-                for (var ii = 0; ii < endpoints.Count; ii++)
+                for (var ii = 0; ii < m_endpoints.Count; ii++)
                 {
-                    var endpoint = endpoints[ii];
+                    var endpoint = m_endpoints[ii];
 
                     // check for a match on the URL scheme.
                     if (endpoint.EndpointUrl.StartsWith(uri.Scheme))
@@ -1473,17 +1571,17 @@ namespace ClientAdaptor
                         }
 
                         // pick the first available endpoint by default.
-                        if (selectedEndpoint == null) selectedEndpoint = endpoint;
+                        if (m_selectedEndpoint == null) m_selectedEndpoint = endpoint;
 
                         // The security level is a relative measure assigned by the server to the 
                         // endpoints that it returns. Clients should always pick the highest level
                         // unless they have a reason not too.
-                        if (endpoint.SecurityLevel > selectedEndpoint.SecurityLevel) selectedEndpoint = endpoint;
+                        if (endpoint.SecurityLevel > m_selectedEndpoint.SecurityLevel) m_selectedEndpoint = endpoint;
                     }
                 }
 
                 // pick the first available endpoint by default.
-                if (selectedEndpoint == null && endpoints.Count > 0) selectedEndpoint = endpoints[2];
+                if (m_selectedEndpoint == null && m_endpoints.Count > 0) m_selectedEndpoint = m_endpoints[2];
             }
 
             // if a server is behind a firewall it may return URLs that are not accessible to the client.
@@ -1491,23 +1589,29 @@ namespace ClientAdaptor
             // GetEndpoints can be used to access any of the endpoints. This code makes that conversion.
             // Note that the conversion only makes sense if discovery uses the same protocol as the endpoint.
 
-            if ( selectedEndpoint != null )
+            if (m_selectedEndpoint != null)
             {
-                var endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+                var m_endpointUrl = Utils.ParseUri(m_selectedEndpoint.EndpointUrl);
 
-                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
+                if (m_endpointUrl != null && m_endpointUrl.Scheme == uri.Scheme)
                 {
-                    var builder = new UriBuilder(endpointUrl);
-                    builder.Host = uri.DnsSafeHost;
-                    builder.Port = uri.Port;
-                    selectedEndpoint.EndpointUrl = builder.ToString();
+                    var m_builder = new UriBuilder(m_endpointUrl)
+                    {
+                        Host = uri.DnsSafeHost,
+                        Port = uri.Port
+                    };
+                    m_selectedEndpoint.EndpointUrl = m_builder.ToString();
                 }
             }
 
             // return the selected endpoint.
-            return selectedEndpoint;
+            return m_selectedEndpoint;
         }
 
+        /// <summary>
+        /// Disconnect the session and delete the subscription in the session
+        /// </summary>
+        /// <returns></returns>
         public bool Disconnect()
         {
             if (Session != null)
@@ -1516,16 +1620,16 @@ namespace ClientAdaptor
                 {
                     if (Session.Subscriptions != null)
                     {
-                        List<Subscription> subscriptionCollection= Session.Subscriptions.ToList();
-                        foreach (var item in subscriptionCollection)
+                        List<Subscription> m_subscriptionCollection = Session.Subscriptions.ToList();
+                        foreach (var m_item in m_subscriptionCollection)
                         {
-                            DeleteSubscription(item);
+                            DeleteSubscription(m_item);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.Disconnect API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.Disconnect API" + ex.Message);
                 }
                 try
                 {
@@ -1534,23 +1638,28 @@ namespace ClientAdaptor
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.Disconnect API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.Disconnect API" + ex.Message);
                 }
-            } 
+            }
             return false;
         }
 
-
+        /// <summary>
+        /// Method to create session
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="preferredLocales"></param>
+        /// <returns></returns>
         private bool CreateSession(Session session, IList<string> preferredLocales)
         {
-            _isOpened = false;
+            m_isOpened = false;
             try
             {
-                var identity = new UserIdentity();
-                var sessionName = Utils.Format("MySession {0}", Utils.IncrementIdentifier(ref sessionCounter));
+                var m_identity = new UserIdentity();
+                var m_sessionName = Utils.Format("MySession {0}", Utils.IncrementIdentifier(ref m_sessionCounter));
 
                 if (session.ConfiguredEndpoint.SelectedUserTokenPolicy.TokenType == UserTokenType.Anonymous)
-                    identity = new UserIdentity();
+                    m_identity = new UserIdentity();
 
                 else if (session.ConfiguredEndpoint.SelectedUserTokenPolicy.TokenType == UserTokenType.UserName)
                     if (session.ConfiguredEndpoint.UserIdentity != null)
@@ -1558,64 +1667,72 @@ namespace ClientAdaptor
                         if ((session.ConfiguredEndpoint.UserIdentity as UserNameIdentityToken).Password != null &&
                              (session.ConfiguredEndpoint.UserIdentity as UserNameIdentityToken).UserName != null)
                         {
-                            var password =
+                            var m_password =
                             Encoding.UTF8.GetString((session.ConfiguredEndpoint.UserIdentity as UserNameIdentityToken)
                                                      .Password);
-                            var username = (session.ConfiguredEndpoint.UserIdentity as UserNameIdentityToken).UserName;
-                            identity = new UserIdentity(username, password);
+                            var m_username = (session.ConfiguredEndpoint.UserIdentity as UserNameIdentityToken).UserName;
+                            m_identity = new UserIdentity(m_username, m_password);
                         }
                         else
                         {
-                            System.Windows.MessageBox.Show("UserName or Password is incorrect.", "OPC PubSub Configuration Tool",
+                            MessageBox.Show("UserName or Password is incorrect.", "OPC PubSub Configuration Tool",
                                              MessageBoxButton.OK, MessageBoxImage.Error);
-                            _isOpened = false;
-                            return _isOpened;
+                            m_isOpened = false;
+                            return m_isOpened;
                         }
                     }
                     else
                     {
-                        System.Windows.MessageBox.Show("UserIdentity not Provided.", "OPC PubSub Configuration Tool", MessageBoxButton.OK,
+                        MessageBox.Show("UserIdentity not Provided.", "OPC PubSub Configuration Tool", MessageBoxButton.OK,
                                          MessageBoxImage.Error);
-                        _isOpened = false;
-                        return _isOpened;
+                        m_isOpened = false;
+                        return m_isOpened;
                     }
 
-                object[] dataList = { session, sessionName, identity, preferredLocales };
+                object[] m_dataList = { session, m_sessionName, m_identity, preferredLocales };
 
 
 
-                Open(dataList);
+                Open(m_dataList);
             }
             catch (NullReferenceException exe)
             {
-                Utils.Trace(exe,"OPCUAClientAdaptor.CreateSession API" + exe.Message);
+                Utils.Trace(exe, "OPCUAClientAdaptor.CreateSession API" + exe.Message);
             }
             finally
             {
 
             }
-            return _isOpened;
+            return m_isOpened;
         }
 
+        /// <summary>
+        /// Method to open session
+        /// </summary>
+        /// <param name="state"></param>
         private void Open(object state)
         {
-            var session = ((object[])state)[0] as Session;
-            var sessionName = ((object[])state)[1] as string;
-            var identity = ((object[])state)[2] as UserIdentity;
-            var preferredLocales = ((object[])state)[3] as IList<string>;
+            var m_session = ((object[])state)[0] as Session;
+            var m_sessionName = ((object[])state)[1] as string;
+            var m_identity = ((object[])state)[2] as UserIdentity;
+            var m_preferredLocales = ((object[])state)[3] as IList<string>;
 
             try
             {
-                session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales);
-                _isOpened = true;
+                m_session.Open(m_sessionName, (uint)m_session.SessionTimeout, m_identity, m_preferredLocales);
+                m_isOpened = true;
             }
             catch (Exception exp)
             {
-                System.Windows.MessageBox.Show(exp.Message, "OPC PubSub Configuration Tool", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(exp.Message, "OPC PubSub Configuration Tool", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-
+        /// <summary>
+        /// Method to delete subscription.
+        /// </summary>
+        /// <param name="subscription"></param>
+        /// <returns></returns>
         public bool DeleteSubscription(Subscription subscription)
         {
             if (subscription != null)
@@ -1625,58 +1742,75 @@ namespace ClientAdaptor
             }
             return false;
         }
+        /// <summary>
+        /// Method to get subscription state for selected subscription.
+        /// </summary>
+        /// <param name="subscriptionName"></param>
+        /// <returns></returns>
         public Subscription GetPubSubStateSubscription(string subscriptionName)
         {
-            List<Subscription> SubscriptionCollection = Session.Subscriptions.ToList();
-            Subscription subscription= SubscriptionCollection.Where(i => i.DisplayName == subscriptionName).FirstOrDefault();
-            if(subscription!=null)
+            List<Subscription> m_SubscriptionCollection = Session.Subscriptions.ToList();
+            Subscription m_subscription = m_SubscriptionCollection.Where(i => i.DisplayName == subscriptionName).FirstOrDefault();
+            if (m_subscription != null)
             {
-                return subscription; 
-                
+                return m_subscription;
             }
             return null;
         }
+
+        /// <summary>
+        /// Method to create Subscription.
+        /// </summary>
+        /// <param name="subscriptionName"></param>
+        /// <param name="subscriptionInterval"></param>
+        /// <returns></returns>
         public Subscription CreateSubscription(string subscriptionName, int subscriptionInterval)
         {
-            Subscription subscription = new Subscription();
-            subscription.DisplayName = subscriptionName;
-            subscription.PublishingInterval = subscriptionInterval;
-            subscription.PublishingEnabled = true;
-            subscription.Priority = 0;
-            subscription.KeepAliveCount = 1000;
-            subscription.LifetimeCount = 1000;
-            subscription.MaxNotificationsPerPublish = 1000;
-
-            if (subscription.Created == false)
+            Subscription m_subscription = new Subscription
             {
-                Session.AddSubscription(subscription);
+                DisplayName = subscriptionName,
+                PublishingInterval = subscriptionInterval,
+                PublishingEnabled = true,
+                Priority = 0,
+                KeepAliveCount = 1000,
+                LifetimeCount = 1000,
+                MaxNotificationsPerPublish = 1000
+            };
+
+            if (m_subscription.Created == false)
+            {
+                Session.AddSubscription(m_subscription);
                 try
                 {
-                    subscription.Create();
+                    m_subscription.Create();
                 }
                 catch (Exception exe)
                 {
-                    Utils.Trace(exe,"OPCUAClientAdaptor.CreateSubscription API" + exe.Message);
+                    Utils.Trace(exe, "OPCUAClientAdaptor.CreateSubscription API" + exe.Message);
                 }
                 //AddLog("New subscription " + "'" + subscriptionName + "'" + " created successfully.");
             }
 
-            return subscription;
+            return m_subscription;
         }
 
-         
+        /// <summary>
+        /// Method to load application instance.
+        /// </summary>
         private void LoadApplicationInstance()
         {
-            ApplicationInstance applicationInst = new ApplicationInstance();
-            applicationInst.ApplicationName = "OPCUA_PubSub_Client";
-            applicationInst.ApplicationType = ApplicationType.Client;
-            applicationInst.ConfigSectionName = "OPCUAClient_PubSubConfig";
+            ApplicationInstance m_applicationInst = new ApplicationInstance
+            {
+                ApplicationName = "OPCUA_PubSub_Client",
+                ApplicationType = ApplicationType.Client,
+                ConfigSectionName = "OPCUAClient_PubSubConfig"
+            };
 
             try
             {
-                applicationInst.LoadApplicationConfiguration(false).Wait(); 
-                bool certOK = applicationInst.CheckApplicationInstanceCertificate(false, 0).Result;
-                if (!certOK)
+                m_applicationInst.LoadApplicationConfiguration(false).Wait();
+                bool m_certOK = m_applicationInst.CheckApplicationInstanceCertificate(false, 0).Result;
+                if (!m_certOK)
                 {
                     //log
                     throw new Exception("Application instance certificate invalid!");
@@ -1684,258 +1818,319 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.LoadApplicationInstance API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.LoadApplicationInstance API" + ex.Message);
             }
 
             //ApplicationInstance.SetUaValidationForHttps(applicationInst
             //                                             .ApplicationConfiguration.CertificateValidator);
             // ApplicationTitle = ApplicationInst.ApplicationName;
 
-            _configuration = applicationInst.ApplicationConfiguration;
-            _configuredEndpointCollection = _configuration.LoadCachedEndpoints(true);
-            _configuredEndpointCollection.DiscoveryUrls = _configuration.ClientConfiguration.WellKnownDiscoveryUrls;
-            _messageContext = _configuration.CreateMessageContext();
+            m_configuration = m_applicationInst.ApplicationConfiguration;
+            m_configuredEndpointCollection = m_configuration.LoadCachedEndpoints(true);
+            m_configuredEndpointCollection.DiscoveryUrls = m_configuration.ClientConfiguration.WellKnownDiscoveryUrls;
+            m_messageContext = m_configuration.CreateMessageContext();
 
-            if (!_configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
-                _configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+            if (!m_configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                m_configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
         }
 
+        /// <summary>
+        /// Method to validate certificate.
+        /// </summary>
+        /// <param name="validator"></param>
+        /// <param name="e"></param>
         private void OnCertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             e.Accept = true;
         }
 
+        /// <summary>
+        /// Method to browse the selected node
+        /// </summary>
+        /// <param name="nodeId"></param>
+        /// <returns></returns>
         public ReferenceDescriptionCollection Browse(NodeId nodeId)
         {
-            ReferenceDescriptionCollection _ReferenceDescriptionCollection = null;
-            if (_browserNodeControl != null)
+            ReferenceDescriptionCollection m_referenceDescriptionCollection = null;
+            if (BrowserNodeControl != null)
             {
-                _ReferenceDescriptionCollection = _browserNodeControl.Browser.Browse(nodeId);
+                m_referenceDescriptionCollection = BrowserNodeControl.Browser.Browse(nodeId);
             }
-            return _ReferenceDescriptionCollection;
-        }
-        public ReferenceDescriptionCollection Browse(NodeId nodeId, BrowseDirection Direction )
-        {
-            ReferenceDescriptionCollection _ReferenceDescriptionCollection = null;
-            if (_browserNodeControl != null)
-            {
-                _browserNodeControl.Browser.BrowseDirection = Direction;
-                _ReferenceDescriptionCollection = _browserNodeControl.Browser.Browse(nodeId);
-                _browserNodeControl.Browser.BrowseDirection = BrowseDirection.Forward;
-            }
-            return _ReferenceDescriptionCollection;
+            return m_referenceDescriptionCollection;
         }
 
-
-        public  ObservableCollection<PublishedDataSetBase> GetPublishedDataSets()
+        /// <summary>
+        /// Method to browse the node based on the direction specified.
+        /// </summary>
+        /// <param name="nodeId"></param>
+        /// <param name="Direction"></param>
+        /// <returns></returns>
+        public ReferenceDescriptionCollection Browse(NodeId nodeId, BrowseDirection Direction)
         {
-            ObservableCollection<PublishedDataSetBase> PublishedDataSetBaseCollection = new ObservableCollection<PublishedDataSetBase>();
-            ReferenceDescriptionCollection _ReferenceDescriptionCollection=  Browse(Constants.PublishedDataSetsNodeId);
-            foreach(ReferenceDescription _ReferenceDescription in _ReferenceDescriptionCollection)
+            ReferenceDescriptionCollection m_referenceDescriptionCollection = null;
+            if (BrowserNodeControl != null)
             {
-                if (_ReferenceDescription.TypeDefinition == ObjectTypeIds.PublishedDataItemsType)
-                { 
-                    PublishedDataSetBaseCollection.Add(LoadPublishedData(_ReferenceDescription.DisplayName.Text,(NodeId)_ReferenceDescription.NodeId));
+                BrowserNodeControl.Browser.BrowseDirection = Direction;
+                m_referenceDescriptionCollection = BrowserNodeControl.Browser.Browse(nodeId);
+                BrowserNodeControl.Browser.BrowseDirection = BrowseDirection.Forward;
+            }
+            return m_referenceDescriptionCollection;
+        }
+
+        /// <summary>
+        /// Method to get published DataSets.
+        /// </summary>
+        /// <returns></returns>
+        public ObservableCollection<PublishedDataSetBase> GetPublishedDataSets()
+        {
+            ObservableCollection<PublishedDataSetBase> m_publishedDataSetBaseCollection = new ObservableCollection<PublishedDataSetBase>();
+            ReferenceDescriptionCollection m_referenceDescriptionCollection = Browse(Constants.PublishedDataSetsNodeId);
+            foreach (ReferenceDescription m_referenceDescription in m_referenceDescriptionCollection)
+            {
+                if (m_referenceDescription.TypeDefinition == ObjectTypeIds.PublishedDataItemsType)
+                {
+                    m_publishedDataSetBaseCollection.Add(LoadPublishedData(m_referenceDescription.DisplayName.Text, (NodeId)m_referenceDescription.NodeId));
                 }
             }
-            return PublishedDataSetBaseCollection;
+            return m_publishedDataSetBaseCollection;
         }
- 
-        private PublishedDataSetDefinition LoadPublishedData(string PublisherName,NodeId PublisherNodeId)
+
+        /// <summary>
+        /// Method to load published data with configuration version and DataSetMetadata.
+        /// </summary>
+        /// <param name="publisherName"></param>
+        /// <param name="publisherNodeId"></param>
+        /// <returns></returns>
+        private PublishedDataSetDefinition LoadPublishedData(string publisherName, NodeId publisherNodeId)
         {
-            PublishedDataSetDefinition _PublishedDataSetDefinition = new PublishedDataSetDefinition();
-            _PublishedDataSetDefinition.Name = PublisherName;
-            _PublishedDataSetDefinition.PublishedDataSetNodeId = (NodeId)PublisherNodeId;
-            DataSetMetaDataDefinition _DataSetMetaDataDefinition = new DataSetMetaDataDefinition(_PublishedDataSetDefinition) { Name = "DataSetMetaData" };
-            PublishedDataDefinition _PublishedDataDefinition = new PublishedDataDefinition(_PublishedDataSetDefinition) { Name = "PublishedData" };
-            _PublishedDataSetDefinition.Children.Add(_DataSetMetaDataDefinition);
-            _PublishedDataSetDefinition.Children.Add(_PublishedDataDefinition);
-            ReferenceDescriptionCollection _RefDescriptionCollection = Browse(PublisherNodeId);
-            foreach (ReferenceDescription _RefDescription in _RefDescriptionCollection)
+            PublishedDataSetDefinition m_publishedDataSetDefinition = new PublishedDataSetDefinition
+            {
+                Name = publisherName,
+                PublishedDataSetNodeId = (NodeId)publisherNodeId
+            };
+            DataSetMetaDataDefinition m_dataSetMetaDataDefinition = new DataSetMetaDataDefinition(m_publishedDataSetDefinition) { Name = "DataSetMetaData" };
+            PublishedDataDefinition m_publishedDataDefinition = new PublishedDataDefinition(m_publishedDataSetDefinition) { Name = "PublishedData" };
+            m_publishedDataSetDefinition.Children.Add(m_dataSetMetaDataDefinition);
+            m_publishedDataSetDefinition.Children.Add(m_publishedDataDefinition);
+            ReferenceDescriptionCollection m_refDescriptionCollection = Browse(publisherNodeId);
+            foreach (ReferenceDescription m_refDescription in m_refDescriptionCollection)
             {
                 try
                 {
-                    if (_RefDescription.BrowseName.Name == "ConfigurationVersion")
+                    if (m_refDescription.BrowseName.Name == "ConfigurationVersion")
                     {
-                        ConfigurationVersionDataType _ConfigurationVersionDataType = (ConfigurationVersionDataType)Session.ReadValue((NodeId)_RefDescription.NodeId, typeof(ConfigurationVersionDataType));
-                        if (_ConfigurationVersionDataType != null)
+                        ConfigurationVersionDataType m_configurationVersionDataType = (ConfigurationVersionDataType)Session.ReadValue((NodeId)m_refDescription.NodeId, typeof(ConfigurationVersionDataType));
+                        if (m_configurationVersionDataType != null)
                         {
-                            _PublishedDataSetDefinition.ConfigurationVersionDataType = _ConfigurationVersionDataType;
+                            m_publishedDataSetDefinition.ConfigurationVersionDataType = m_configurationVersionDataType;
                         }
                     }
-                    else if (_RefDescription.BrowseName.Name == "DataSetMetaData")
+                    else if (m_refDescription.BrowseName.Name == "DataSetMetaData")
                     {
                         try
                         {
-                            DataSetMetaDataType _DataSetMetaDataType = (DataSetMetaDataType)Session.ReadValue((NodeId)_RefDescription.NodeId, typeof(DataSetMetaDataType));
-                            if (_DataSetMetaDataType != null)
+                            DataSetMetaDataType m_dataSetMetaDataType = (DataSetMetaDataType)Session.ReadValue((NodeId)m_refDescription.NodeId, typeof(DataSetMetaDataType));
+                            if (m_dataSetMetaDataType != null)
                             {
-                                _DataSetMetaDataDefinition.DataSetMetaDataType = _DataSetMetaDataType;
+                                m_dataSetMetaDataDefinition.DataSetMetaDataType = m_dataSetMetaDataType;
                             }
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
-
+                            Utils.Trace(ex, "ClientAdaptor:LoadPublishedData-DataSetMetaData API" + ex.Message);
                         }
                     }
-                    else if (_RefDescription.BrowseName.Name == "PublishedData")
+                    else if (m_refDescription.BrowseName.Name == "PublishedData")
                     {
-                        DataValue datavalue = Session.ReadValue((NodeId)_RefDescription.NodeId);
-                        if (datavalue == null || datavalue.Value == null)
+                        DataValue m_datavalue = Session.ReadValue((NodeId)m_refDescription.NodeId);
+                        if (m_datavalue == null || m_datavalue.Value == null)
                         {
                             continue;
                         }
-                        ExtensionObject[] ExtensionObjectArray = datavalue.Value as ExtensionObject[];
-                        PublishedVariableDataTypeCollection PublishedVariableDataTypeArray = new PublishedVariableDataTypeCollection();
-                        foreach (ExtensionObject ex_object in ExtensionObjectArray)
+                        ExtensionObject[] m_extensionObjectArray = m_datavalue.Value as ExtensionObject[];
+                        PublishedVariableDataTypeCollection m_publishedVariableDataTypeArray = new PublishedVariableDataTypeCollection();
+                        foreach (ExtensionObject ex_object in m_extensionObjectArray)
                         {
-                            PublishedVariableDataTypeArray.Add(ex_object.Body as PublishedVariableDataType);
+                            m_publishedVariableDataTypeArray.Add(ex_object.Body as PublishedVariableDataType);
                         }
-                        if (PublishedVariableDataTypeArray != null)
+                        if (m_publishedVariableDataTypeArray != null)
                         {
-                            int count = 0;
-                            List<FieldMetaData> LstfieldmetaData = _DataSetMetaDataDefinition.DataSetMetaDataType.Fields.ToList();
-                            foreach (PublishedVariableDataType _PublishedVariableDataType in PublishedVariableDataTypeArray)
+                            // int count = 0;
+                            List<FieldMetaData> m_lstfieldmetaData = m_dataSetMetaDataDefinition.DataSetMetaDataType.Fields.ToList();
+                            foreach (PublishedVariableDataType _PublishedVariableDataType in m_publishedVariableDataTypeArray)
                             {
-                                PublishedDataSetItemDefinition _PublishedDataSetItemDefinition = new PublishedDataSetItemDefinition(_PublishedDataDefinition) { PublishedVariableDataType = _PublishedVariableDataType };
-
+                                PublishedDataSetItemDefinition m_publishedDataSetItemDefinition = new PublishedDataSetItemDefinition(m_publishedDataDefinition) { PublishedVariableDataType = _PublishedVariableDataType };
                                 try
                                 {
-                                     _PublishedDataSetItemDefinition.PublishVariableNodeId = _PublishedVariableDataType.PublishedVariable;
-                                    _PublishedDataSetItemDefinition.Name = _PublishedVariableDataType.PublishedVariable.Identifier.ToString();
-                                    _PublishedDataSetItemDefinition.Attribute = _PublishedVariableDataType.AttributeId;
-                                    _PublishedDataSetItemDefinition.SamplingInterval = _PublishedVariableDataType.SamplingIntervalHint;
-                                    _PublishedDataSetItemDefinition.DeadbandType = _PublishedVariableDataType.DeadbandType;
-                                    _PublishedDataSetItemDefinition.DeadbandValue = _PublishedVariableDataType.DeadbandValue;
-                                    _PublishedDataSetItemDefinition.Indexrange = _PublishedVariableDataType.IndexRange;
-                                    _PublishedDataSetItemDefinition.SubstituteValue = _PublishedVariableDataType.SubstituteValue;
-                                    _PublishedDataSetItemDefinition.FieldMetaDataProperties = _PublishedVariableDataType.MetaDataProperties;
-                                   
+                                    m_publishedDataSetItemDefinition.PublishVariableNodeId = _PublishedVariableDataType.PublishedVariable;
+                                    m_publishedDataSetItemDefinition.Name = _PublishedVariableDataType.PublishedVariable.Identifier.ToString();
+                                    m_publishedDataSetItemDefinition.Attribute = _PublishedVariableDataType.AttributeId;
+                                    m_publishedDataSetItemDefinition.SamplingInterval = _PublishedVariableDataType.SamplingIntervalHint;
+                                    m_publishedDataSetItemDefinition.DeadbandType = _PublishedVariableDataType.DeadbandType;
+                                    m_publishedDataSetItemDefinition.DeadbandValue = _PublishedVariableDataType.DeadbandValue;
+                                    m_publishedDataSetItemDefinition.Indexrange = _PublishedVariableDataType.IndexRange;
+                                    m_publishedDataSetItemDefinition.SubstituteValue = _PublishedVariableDataType.SubstituteValue;
+                                    m_publishedDataSetItemDefinition.FieldMetaDataProperties = _PublishedVariableDataType.MetaDataProperties;
+
                                 }
-                                catch(Exception ex)
+                                catch (Exception ex)
                                 {
-                                    Utils.Trace(ex,"OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
+                                    Utils.Trace(ex, "OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
                                 }
-                                _PublishedDataDefinition.Children.Add(_PublishedDataSetItemDefinition);
+                                m_publishedDataDefinition.Children.Add(m_publishedDataSetItemDefinition);
                             }
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Utils.Trace(ex,"OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
+                    Utils.Trace(ex, "OPCUAClientAdaptor.LoadPublishedData API" + ex.Message);
                 }
             }
-            return _PublishedDataSetDefinition;
+            return m_publishedDataSetDefinition;
         }
-     public PublishedDataSetBase AddPublishedDataSet(string PublisherName, ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection)
+
+        /// <summary>
+        /// Method to add published dataSet.
+        /// </summary>
+        /// <param name="PublisherName"></param>
+        /// <param name="VariableListDefinitionCollection"></param>
+        /// <returns></returns>
+        public PublishedDataSetBase AddPublishedDataSet(string publisherName, ObservableCollection<PublishedDataSetItemDefinition> variableListDefinitionCollection)
         {
             PublishedDataSetBase _PublishedDataSetBase = null;
             try
             {
-                List<string> FieldNameAliases = new List<string>();
-                List<bool> PromotedFields = new List<bool>();
-                List<PublishedVariableDataType> VariablesToAdd = new List<PublishedVariableDataType>();
-                foreach(PublishedDataSetItemDefinition _PublishedDataSetItemDefinition in VariableListDefinitionCollection)
-                { 
-                    FieldNameAliases.Add(_PublishedDataSetItemDefinition.Name);
-                    PromotedFields.Add(false);
-                    PublishedVariableDataType _PublishedVariableDataType = new PublishedVariableDataType();
-                    _PublishedVariableDataType.AttributeId = _PublishedDataSetItemDefinition.Attribute;
-                    _PublishedVariableDataType.DeadbandType = _PublishedDataSetItemDefinition.DeadbandType;
-                    _PublishedVariableDataType.DeadbandValue = _PublishedDataSetItemDefinition.DeadbandValue;
-                    _PublishedVariableDataType.IndexRange = _PublishedDataSetItemDefinition.Indexrange;
-                    _PublishedVariableDataType.MetaDataProperties = _PublishedDataSetItemDefinition.FieldMetaDataProperties;
-                    _PublishedVariableDataType.PublishedVariable = _PublishedDataSetItemDefinition.PublishVariableNodeId;
-                    _PublishedVariableDataType.SamplingIntervalHint = _PublishedDataSetItemDefinition.SamplingInterval;
-                    _PublishedVariableDataType.SubstituteValue = _PublishedDataSetItemDefinition.SubstituteValue;
-                     
-                    VariablesToAdd.Add(_PublishedVariableDataType);
+                List<string> fieldNameAliases = new List<string>();
+                List<bool>  promotedFields = new List<bool>();
+                List<PublishedVariableDataType>  variablesToAdd = new List<PublishedVariableDataType>();
+                foreach (PublishedDataSetItemDefinition  publishedDataSetItemDefinition in variableListDefinitionCollection)
+                {
+                     fieldNameAliases.Add(publishedDataSetItemDefinition.Name);
+                     promotedFields.Add(false);
+                    PublishedVariableDataType publishedVariableDataType = new PublishedVariableDataType
+                    {
+                        AttributeId = publishedDataSetItemDefinition.Attribute,
+                        DeadbandType = publishedDataSetItemDefinition.DeadbandType,
+                        DeadbandValue = publishedDataSetItemDefinition.DeadbandValue,
+                        IndexRange = publishedDataSetItemDefinition.Indexrange,
+                        MetaDataProperties = publishedDataSetItemDefinition.FieldMetaDataProperties,
+                        PublishedVariable = publishedDataSetItemDefinition.PublishVariableNodeId,
+                        SamplingIntervalHint = publishedDataSetItemDefinition.SamplingInterval,
+                        SubstituteValue = publishedDataSetItemDefinition.SubstituteValue
+                    };
+
+                    variablesToAdd.Add(publishedVariableDataType);
                 }
                 IList<object> lstResponse = Session.Call(Constants.PublishedDataSetsNodeId,
-                    Constants.AddPublishedDataSetsNodeId, new object[] { PublisherName, FieldNameAliases, PromotedFields, VariablesToAdd });
+                    Constants.AddPublishedDataSetsNodeId, new object[] { publisherName, fieldNameAliases, promotedFields, variablesToAdd });
 
-              NodeId PublisherId=  lstResponse[0] as NodeId;
-               return LoadPublishedData(PublisherName, PublisherId);
+                NodeId publisherId = lstResponse[0] as NodeId;
+                return LoadPublishedData(publisherName, publisherId);
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.AddPublishedDataSet API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.AddPublishedDataSet API" + ex.Message);
             }
             return _PublishedDataSetBase;
         }
 
-      public  string AddVariableToPublisher(string publisherName, NodeId PublisherNodeId, ConfigurationVersionDataType configurationVersionDataType, ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection, out ConfigurationVersionDataType NewConfigurationVersion)
+        /// <summary>
+        /// Method to add variable to selected publisher.
+        /// </summary>
+        /// <param name="publisherName"></param>
+        /// <param name="PublisherNodeId"></param>
+        /// <param name="configurationVersionDataType"></param>
+        /// <param name="VariableListDefinitionCollection"></param>
+        /// <param name="NewConfigurationVersion"></param>
+        /// <returns></returns>
+        public string AddVariableToPublisher(string publisherName, NodeId PublisherNodeId, ConfigurationVersionDataType configurationVersionDataType, ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection, out ConfigurationVersionDataType NewConfigurationVersion)
         {
             string errorMessage = string.Empty;
             NewConfigurationVersion = null;
             try
             {
-                List<string> FieldNameAliases = new List<string>();
+                List<string> fieldNameAliases = new List<string>();
                 List<bool> promotedFields = new List<bool>();
                 List<PublishedVariableDataType> variablesToAdd = new List<PublishedVariableDataType>();
                 foreach (PublishedDataSetItemDefinition publishedDataSetItemDefinition in VariableListDefinitionCollection)
                 {
                     try
                     {
-                        FieldNameAliases.Add(publishedDataSetItemDefinition.Name);
+                        fieldNameAliases.Add(publishedDataSetItemDefinition.Name);
                         promotedFields.Add(false);
-                        PublishedVariableDataType publishedVariableDataType = new PublishedVariableDataType();
-                        publishedVariableDataType.AttributeId = publishedDataSetItemDefinition.Attribute;
-                        publishedVariableDataType.DeadbandType = publishedDataSetItemDefinition.DeadbandType;
-                        publishedVariableDataType.DeadbandValue = publishedDataSetItemDefinition.DeadbandValue;
-                        publishedVariableDataType.IndexRange = publishedDataSetItemDefinition.Indexrange;
-                        publishedVariableDataType.MetaDataProperties = publishedDataSetItemDefinition.FieldMetaDataProperties;
-                        publishedVariableDataType.PublishedVariable = new NodeId(publishedDataSetItemDefinition.Name, 1);
-                        publishedVariableDataType.SamplingIntervalHint = publishedDataSetItemDefinition.SamplingInterval;
-                        publishedVariableDataType.SubstituteValue = publishedDataSetItemDefinition.SubstituteValue;
+                        PublishedVariableDataType publishedVariableDataType = new PublishedVariableDataType
+                        {
+                            AttributeId = publishedDataSetItemDefinition.Attribute,
+                            DeadbandType = publishedDataSetItemDefinition.DeadbandType,
+                            DeadbandValue = publishedDataSetItemDefinition.DeadbandValue,
+                            IndexRange = publishedDataSetItemDefinition.Indexrange,
+                            MetaDataProperties = publishedDataSetItemDefinition.FieldMetaDataProperties,
+                            PublishedVariable = new NodeId(publishedDataSetItemDefinition.Name, 1),
+                            SamplingIntervalHint = publishedDataSetItemDefinition.SamplingInterval,
+                            SubstituteValue = publishedDataSetItemDefinition.SubstituteValue
+                        };
 
                         variablesToAdd.Add(publishedVariableDataType);
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex,"OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
+                        Utils.Trace(ex, "OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
                     }
 
                 }
-                NodeId AddVariableToPublisherNodeId = new NodeId(string.Format("PubSub.DataSets.{0}.AddVariables",publisherName), 1);
+                NodeId addVariableToPublisherNodeId = new NodeId(string.Format("PubSub.DataSets.{0}.AddVariables", publisherName), 1);
                 IList<object> lstResponse = Session.Call(PublisherNodeId,
-                       AddVariableToPublisherNodeId, new object[] { configurationVersionDataType,FieldNameAliases, promotedFields, variablesToAdd });
+                       addVariableToPublisherNodeId, new object[] { configurationVersionDataType, fieldNameAliases, promotedFields, variablesToAdd });
                 NewConfigurationVersion = lstResponse[0] as ConfigurationVersionDataType;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.AddVariableToPublisher API" + ex.Message);
                 errorMessage = ex.Message;
 
             }
 
             return errorMessage;
         }
+
+        /// <summary>
+        /// Method to remove Published dataset.
+        /// </summary>
+        /// <param name="PublishedDataSetNodeId"></param>
+        /// <returns></returns>
         public string RemovePublishedDataSet(NodeId PublishedDataSetNodeId)
         {
-            string errorMessage=string.Empty;
+            string errorMessage = string.Empty;
             try
             {
                 IList<object> lstResponse = Session.Call(Constants.PublishedDataSetsNodeId,
                   Constants.RemovePublishedDataSetsNodeId, new object[] { PublishedDataSetNodeId });
-
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.RemovePublishedDataSet API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.RemovePublishedDataSet API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
         }
-        public string RemovePublishedDataSetVariables(string PublisherName,NodeId PublisherNodeId, ConfigurationVersionDataType ConfigurationVersionDataType, List<UInt32> variableIndexs,out  ConfigurationVersionDataType NewConfigurationVersion)
+
+        /// <summary>
+        /// Method to remove published dataset variables.
+        /// </summary>
+        /// <param name="PublisherName"></param>
+        /// <param name="PublisherNodeId"></param>
+        /// <param name="ConfigurationVersionDataType"></param>
+        /// <param name="variableIndexs"></param>
+        /// <param name="NewConfigurationVersion"></param>
+        /// <returns></returns>
+        public string RemovePublishedDataSetVariables(string PublisherName, NodeId PublisherNodeId, ConfigurationVersionDataType ConfigurationVersionDataType, List<UInt32> variableIndexs, out ConfigurationVersionDataType NewConfigurationVersion)
         {
             string errorMessage = string.Empty;
             NewConfigurationVersion = null;
             try
             {
-                 
                 NodeId RemoveVariables_PublisherNodeId = new NodeId(string.Format("PubSub.DataSets.{0}.RemoveVariables", PublisherName), 1);
                 IList<object> lstResponse = Session.Call(PublisherNodeId,
                   RemoveVariables_PublisherNodeId, new object[] { ConfigurationVersionDataType, variableIndexs });
@@ -1943,156 +2138,187 @@ namespace ClientAdaptor
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.RemovePublishedDataSetVariables API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.RemovePublishedDataSetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
         }
-       public string AddTargetVariables(NodeId dataSetReaderNodeId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection)
+
+        /// <summary>
+        /// Method to add Target Variables.
+        /// </summary>
+        /// <param name="dataSetReaderNodeId"></param>
+        /// <param name="minorVersion"></param>
+        /// <param name="majorVersion"></param>
+        /// <param name="variableListDefinitionCollection"></param>
+        /// <returns></returns>
+        public string AddTargetVariables(NodeId dataSetReaderNodeId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection)
         {
             string errorMessage = string.Empty;
-           
             try
             {
-                ConfigurationVersionDataType _ConfigurationVersionDataType = new ConfigurationVersionDataType() { MinorVersion = minorVersion, MajorVersion = majorVersion };
-                FieldTargetDataTypeCollection _FieldTargetDataTypeCollection = new FieldTargetDataTypeCollection();
-                 foreach(FieldTargetVariableDefinition _FieldTargetVariableDefinition in variableListDefinitionCollection)
+                ConfigurationVersionDataType configurationVersionDataType = new ConfigurationVersionDataType() { MinorVersion = minorVersion, MajorVersion = majorVersion };
+                FieldTargetDataTypeCollection fieldTargetDataTypeCollection = new FieldTargetDataTypeCollection();
+                foreach (FieldTargetVariableDefinition fieldTargetVariableDefinition in variableListDefinitionCollection)
                 {
-                    FieldTargetDataType _FieldTargetDataType = new FieldTargetDataType();
-                    _FieldTargetDataType.AttributeId = _FieldTargetVariableDefinition.AttributeId;
-                    _FieldTargetDataType.DataSetFieldId =new Uuid(new Guid( _FieldTargetVariableDefinition.DataSetFieldId));
-                    _FieldTargetDataType.OverrideValue = new Variant(_FieldTargetVariableDefinition.OverrideValue);
-                    _FieldTargetDataType.OverrideValueHandling = _FieldTargetVariableDefinition.OverrideValueHandling==0? OverrideValueHandling.Disabled: _FieldTargetVariableDefinition.OverrideValueHandling ==1? OverrideValueHandling.LastUseableValue: OverrideValueHandling.OverrideValue;
-                    _FieldTargetDataType.ReceiverIndexRange = _FieldTargetVariableDefinition.ReceiverIndexRange;
-                    _FieldTargetDataType.TargetNodeId = _FieldTargetVariableDefinition.TargetNodeId;
-                    _FieldTargetDataType.WriteIndexRange = _FieldTargetVariableDefinition.WriteIndexRange;
-                    _FieldTargetDataTypeCollection.Add(_FieldTargetDataType);
+                    FieldTargetDataType fieldTargetDataType = new FieldTargetDataType
+                    {
+                        AttributeId = fieldTargetVariableDefinition.AttributeId,
+                        DataSetFieldId = new Uuid(new Guid(fieldTargetVariableDefinition.DataSetFieldId)),
+                        OverrideValue = new Variant(fieldTargetVariableDefinition.OverrideValue),
+                        OverrideValueHandling = fieldTargetVariableDefinition.OverrideValueHandling == 0 ? OverrideValueHandling.Disabled : fieldTargetVariableDefinition.OverrideValueHandling == 1 ? OverrideValueHandling.LastUseableValue : OverrideValueHandling.OverrideValue,
+                        ReceiverIndexRange = fieldTargetVariableDefinition.ReceiverIndexRange,
+                        TargetNodeId = fieldTargetVariableDefinition.TargetNodeId,
+                        WriteIndexRange = fieldTargetVariableDefinition.WriteIndexRange
+                    };
+                    fieldTargetDataTypeCollection.Add(fieldTargetDataType);
                 }
-                  NodeId AddTargetVariablesMethodNodeId = new NodeId(dataSetReaderNodeId.Identifier.ToString() + ".CreateTargetVariables", 1);
+                NodeId addTargetVariablesMethodNodeId = new NodeId(dataSetReaderNodeId.Identifier.ToString() + ".CreateTargetVariables", 1);
                 IList<object> lstResponse = Session.Call(dataSetReaderNodeId,
-                  AddTargetVariablesMethodNodeId, new object[] { _ConfigurationVersionDataType, _FieldTargetDataTypeCollection });
-               
+                  addTargetVariablesMethodNodeId, new object[] { configurationVersionDataType, fieldTargetDataTypeCollection });
+
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.AddTargetVariables API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.AddTargetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
         }
-       public string AddDataSetMirror(DataSetReaderDefinition _DataSetReaderDefinition, string parentName)
+
+        /// <summary>
+        /// Method to add DataSetMirror to DataSetReader
+        /// </summary>
+        /// <param name="_DataSetReaderDefinition"></param>
+        /// <param name="parentName"></param>
+        /// <returns></returns>
+        public string AddDataSetMirror(DataSetReaderDefinition _DataSetReaderDefinition, string parentName)
         {
             string errMsg = string.Empty;
-            NodeId MethodId = new NodeId(_DataSetReaderDefinition.DataSetReaderNodeId.Identifier + ".CreateDataSetMirror", 1);
+            NodeId methodId = new NodeId(_DataSetReaderDefinition.DataSetReaderNodeId.Identifier + ".CreateDataSetMirror", 1);
             try
             {
-                List<RolePermissionType> LstRolepermission = new List<RolePermissionType>();
+                List<RolePermissionType> lstRolepermission = new List<RolePermissionType>();
                 IList<object> lstResponse = Session.Call(_DataSetReaderDefinition.DataSetReaderNodeId,
-                     MethodId, new object[] { parentName, LstRolepermission });
+                     methodId, new object[] { parentName, lstRolepermission });
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.AddDataSetMirror API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.AddDataSetMirror API" + ex.Message);
                 errMsg = ex.Message;
             }
             return errMsg;
         }
+
+        /// <summary>
+        /// Method to add additional TargetVariables.
+        /// </summary>
+        /// <param name="ObjectId"></param>
+        /// <param name="minorVersion"></param>
+        /// <param name="majorVersion"></param>
+        /// <param name="variableListDefinitionCollection"></param>
+        /// <returns></returns>
         public string AddAdditionalTargetVariables(NodeId ObjectId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection)
         {
             string errorMessage = string.Empty;
-
             try
             {
-                ConfigurationVersionDataType _ConfigurationVersionDataType = new ConfigurationVersionDataType() { MinorVersion = minorVersion, MajorVersion = majorVersion };
-                FieldTargetDataTypeCollection _FieldTargetDataTypeCollection = new FieldTargetDataTypeCollection();
-                foreach (FieldTargetVariableDefinition _FieldTargetVariableDefinition in variableListDefinitionCollection)
+                ConfigurationVersionDataType configurationVersionDataType = new ConfigurationVersionDataType() { MinorVersion = minorVersion, MajorVersion = majorVersion };
+                FieldTargetDataTypeCollection fieldTargetDataTypeCollection = new FieldTargetDataTypeCollection();
+                foreach (FieldTargetVariableDefinition fieldTargetVariableDefinition in variableListDefinitionCollection)
                 {
-                    FieldTargetDataType _FieldTargetDataType = new FieldTargetDataType();
-                    _FieldTargetDataType.AttributeId = _FieldTargetVariableDefinition.AttributeId;
-                    _FieldTargetDataType.DataSetFieldId = new Uuid(new Guid(_FieldTargetVariableDefinition.DataSetFieldId));
-                    _FieldTargetDataType.OverrideValue = new Variant(_FieldTargetVariableDefinition.OverrideValue);
-                    _FieldTargetDataType.OverrideValueHandling = _FieldTargetVariableDefinition.OverrideValueHandling == 0 ? OverrideValueHandling.Disabled : _FieldTargetVariableDefinition.OverrideValueHandling == 1 ? OverrideValueHandling.LastUseableValue : OverrideValueHandling.OverrideValue;
-                    _FieldTargetDataType.ReceiverIndexRange = _FieldTargetVariableDefinition.ReceiverIndexRange;
-                    _FieldTargetDataType.TargetNodeId = _FieldTargetVariableDefinition.TargetNodeId;
-                    _FieldTargetDataType.WriteIndexRange = _FieldTargetVariableDefinition.WriteIndexRange;
-                    _FieldTargetDataTypeCollection.Add(_FieldTargetDataType);
+                    FieldTargetDataType fieldTargetDataType = new FieldTargetDataType
+                    {
+                        AttributeId = fieldTargetVariableDefinition.AttributeId,
+                        DataSetFieldId = new Uuid(new Guid(fieldTargetVariableDefinition.DataSetFieldId)),
+                        OverrideValue = new Variant(fieldTargetVariableDefinition.OverrideValue),
+                        OverrideValueHandling = fieldTargetVariableDefinition.OverrideValueHandling == 0 ? OverrideValueHandling.Disabled : fieldTargetVariableDefinition.OverrideValueHandling == 1 ? OverrideValueHandling.LastUseableValue : OverrideValueHandling.OverrideValue,
+                        ReceiverIndexRange = fieldTargetVariableDefinition.ReceiverIndexRange,
+                        TargetNodeId = fieldTargetVariableDefinition.TargetNodeId,
+                        WriteIndexRange = fieldTargetVariableDefinition.WriteIndexRange
+                    };
+                    fieldTargetDataTypeCollection.Add(fieldTargetDataType);
                 }
-                NodeId AddTargetVariablesMethodNodeId = new NodeId(ObjectId.Identifier.ToString() + ".AddTargetVariables", 1);
+                NodeId addTargetVariablesMethodNodeId = new NodeId(ObjectId.Identifier.ToString() + ".AddTargetVariables", 1);
                 IList<object> lstResponse = Session.Call(ObjectId,
-                  AddTargetVariablesMethodNodeId, new object[] { _ConfigurationVersionDataType, _FieldTargetDataTypeCollection });
-
+                  addTargetVariablesMethodNodeId, new object[] { configurationVersionDataType, fieldTargetDataTypeCollection });
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.AddAdditionalTargetVariables API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.AddAdditionalTargetVariables API" + ex.Message);
                 errorMessage = ex.Message;
             }
             return errorMessage;
         }
-      public string  RemoveTargetVariable(NodeId ObjectId, ConfigurationVersionDataType VersionType, List<UInt32> TargetsToremove)
+
+        /// <summary>
+        /// Method to remove target variable.
+        /// </summary>
+        /// <param name="ObjectId"></param>
+        /// <param name="VersionType"></param>
+        /// <param name="TargetsToremove"></param>
+        /// <returns></returns>
+        public string RemoveTargetVariable(NodeId ObjectId, ConfigurationVersionDataType VersionType, List<UInt32> TargetsToremove)
         {
             string errmsg = string.Empty;
             try
             {
-                NodeId MethodId = new NodeId(ObjectId.Identifier.ToString() + "." + "RemoveTargetVariables",1);
+                NodeId methodId = new NodeId(ObjectId.Identifier.ToString() + "." + "RemoveTargetVariables", 1);
                 IList<object> lstResponse = Session.Call(ObjectId,
-                 MethodId, new object[] { VersionType, TargetsToremove });
-
+                 methodId, new object[] { VersionType, TargetsToremove });
             }
             catch (Exception e)
             {
-                Utils.Trace(e,"OPCUAClientAdaptor.RemoveTargetVariable API" + e.Message);
+                Utils.Trace(e, "OPCUAClientAdaptor.RemoveTargetVariable API" + e.Message);
                 errmsg = e.Message;
             }
             return errmsg;
         }
 
-      public  StatusCodeCollection WriteValue(WriteValueCollection writeValueCollection)
+        /// <summary>
+        /// Method to write value for node.
+        /// </summary>
+        /// <param name="writeValueCollection"></param>
+        /// <returns></returns>
+        public StatusCodeCollection WriteValue(WriteValueCollection writeValueCollection)
         {
             StatusCodeCollection results = new StatusCodeCollection();
             try
             {
-                 
-                DiagnosticInfoCollection diagnosticsInfo;
-                Session.Write(new RequestHeader(), writeValueCollection, out results, out diagnosticsInfo);
-               
-             
+                Session.Write(new RequestHeader(), writeValueCollection, out results, out DiagnosticInfoCollection diagnosticsInfo);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.WriteValue API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.WriteValue API" + ex.Message);
             }
             return results;
-             
         }
-       public object ReadValue(NodeId nodeId)
+
+        /// <summary>
+        /// Method to read value for node
+        /// </summary>
+        /// <param name="nodeId"></param>
+        /// <returns></returns>
+        public object ReadValue(NodeId nodeId)
         {
             try
             {
-              DataValue datavalue=  Session.ReadValue(nodeId);
-                if(datavalue!=null)
+                DataValue datavalue = Session.ReadValue(nodeId);
+                if (datavalue != null)
                 {
-                   return datavalue.Value;
+                    return datavalue.Value;
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace(ex,"OPCUAClientAdaptor.ReadValue API" + ex.Message);
+                Utils.Trace(ex, "OPCUAClientAdaptor.ReadValue API" + ex.Message);
             }
             return null;
         }
-        #region Public Members
-        string _serverStatus =String.Empty;
-        public string ServerStatus
-        {
-            get { return _serverStatus; }
-            set
-            {
-                _serverStatus = value;
-                OnPropertyChanged("ServerStatus");
-            }
-        }
+        #endregion
 
+        #region Public Fields
+        public BrowseNodeControl BrowserNodeControl;
         #endregion
 
         #region INotifyPropertyChanged Members
@@ -2114,23 +2340,32 @@ namespace ClientAdaptor
             _handler?.Invoke(this, new PropertyChangedEventArgs(info));
         }
 
-      
+
         #endregion
     }
 
+    /// <summary>
+    ///  Class for Constants declaration
+    /// </summary>
     public static class Constants
     {
-        public static Dictionary<string, NodeId> _dicNodeId = new Dictionary<string, NodeId>();
+        #region Private fields
+        private static Dictionary<string, NodeId> m_dicNodeId = new Dictionary<string, NodeId>();
+        #endregion
 
+        #region Public Method
         public static void Initialize()
         {
 
         }
+        #endregion
+
+        #region Public Constructor
         static Constants()
         {
             //"SecurityGroupAddMethodId", "SecurityGroupRemoveMethodId", "SecurityGroups", "SecurityGroupNameTypeDefinitionId", "SecurityKeysObjectId", "SetSecurityKeysMethodId", "GetSecurityKeysMethodId", "PubSubStateNodeId", "PubSubStateObjectId", "PubSubStateEnableMethodId", "PubSubStateDisableMethodId",
             //"PublishSubscribeObjectId","BrokerConnectionMethodId","UADPConnectionMethodId","RemoveConnectionMethodId","UADPTypeDefinitionNodeId","AMQPTypeDefinitionNodeId",
-            foreach (string nodeId in ConfigurationManager.AppSettings.Keys )
+            foreach (string nodeId in ConfigurationManager.AppSettings.Keys)
             {
                 string id = ConfigurationManager.AppSettings[nodeId];
                 if (id != null)
@@ -2143,286 +2378,386 @@ namespace ClientAdaptor
                     string[] identifierarray = identifier.Split('=');
                     if (identifierarray[0] == "i")
                     {
-                        _dicNodeId[nodeId] = new NodeId(Convert.ToUInt16(identifierarray[1]), namespaceIndex);
-                        
+                        m_dicNodeId[nodeId] = new NodeId(Convert.ToUInt16(identifierarray[1]), namespaceIndex);
+
                     }
                     else
                     {
-                        _dicNodeId[nodeId] = new NodeId(identifierarray[1], namespaceIndex);
+                        m_dicNodeId[nodeId] = new NodeId(identifierarray[1], namespaceIndex);
                     }
 
 
                 }
             }
         }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Unique Security Group Object ID 
+        /// </summary>
         public static NodeId SecurityGroupObjectId
         {
             get
             {
-                return _dicNodeId["SecurityGroupObjectId"];
+                return m_dicNodeId["SecurityGroupObjectId"];
                 //return new NodeId(15443, 0);
             }
         }
+        /// <summary>
+        /// Unique Security Group Method ID
+        /// </summary>
         public static NodeId SecurityGroupAddMethodId
         {
             get
             {
-                return _dicNodeId["SecurityGroupAddMethodId"];
-                
+                return m_dicNodeId["SecurityGroupAddMethodId"];
+
             }
         }
+        /// <summary>
+        /// Unique Security Group Method Remove ID
+        /// </summary>
         public static NodeId SecurityGroupRemoveMethodId
         {
             get
             {
-                return _dicNodeId["SecurityGroupRemoveMethodId"];
-                
+                return m_dicNodeId["SecurityGroupRemoveMethodId"];
+
             }
         }
+        /// <summary>
+        /// Security Groups
+        /// </summary>
         public static NodeId SecurityGroups
         {
             get
             {
-                return _dicNodeId["SecurityGroups"];
-                
+                return m_dicNodeId["SecurityGroups"];
+
             }
         }
+        /// <summary>
+        /// Security Group Type Definition ID
+        /// </summary>
         public static NodeId SecurityGroupNameTypeDefinitionId
         {
             get
             {
-                return _dicNodeId["SecurityGroupNameTypeDefinitionId"];
+                return m_dicNodeId["SecurityGroupNameTypeDefinitionId"];
 
             }
         }
+        /// <summary>
+        /// Security key Object ID
+        /// </summary>
         public static NodeId SecurityKeysObjectId
         {
             get
             {
-                return _dicNodeId["SecurityKeysObjectId"];
+                return m_dicNodeId["SecurityKeysObjectId"];
 
             }
         }
+        /// <summary>
+        /// Security key set method ID
+        /// </summary>
         public static NodeId SetSecurityKeysMethodId
         {
             get
             {
-                return _dicNodeId["SetSecurityKeysMethodId"];
+                return m_dicNodeId["SetSecurityKeysMethodId"];
 
             }
         }
+        /// <summary>
+        /// Security key get method ID
+        /// </summary>
         public static NodeId GetSecurityKeysMethodId
         {
             get
             {
-                return _dicNodeId["GetSecurityKeysMethodId"];
+                return m_dicNodeId["GetSecurityKeysMethodId"];
 
             }
         }
+        /// <summary>
+        /// Pub Sub state node ID
+        /// </summary>
         public static NodeId PubSubStateNodeId
         {
             get
             {
-                return _dicNodeId["PubSubStateNodeId"];
+                return m_dicNodeId["PubSubStateNodeId"];
 
             }
         }
+        /// <summary>
+        /// Pub Sub State Object ID
+        /// </summary>
         public static NodeId PubSubStateObjectId
         {
             get
             {
-                return _dicNodeId["PubSubStateObjectId"];
+                return m_dicNodeId["PubSubStateObjectId"];
 
             }
         }
+        /// <summary>
+        /// Pub Sub State Enabled Method ID
+        /// </summary>
         public static NodeId PubSubStateEnableMethodId
         {
             get
             {
-                return _dicNodeId["PubSubStateEnableMethodId"];
+                return m_dicNodeId["PubSubStateEnableMethodId"];
 
             }
         }
+        /// <summary>
+        /// Pu Sub State Disable Method ID
+        /// </summary>
         public static NodeId PubSubStateDisableMethodId
         {
             get
             {
-                return _dicNodeId["PubSubStateDisableMethodId"];
+                return m_dicNodeId["PubSubStateDisableMethodId"];
 
             }
         }
+        /// <summary>
+        /// Publish Subscriber Object ID
+        /// </summary>
         public static NodeId PublishSubscribeObjectId
         {
             get
             {
-                return _dicNodeId["PublishSubscribeObjectId"];
+                return m_dicNodeId["PublishSubscribeObjectId"];
 
             }
         }
+        /// <summary>
+        /// Broker Connection Method ID
+        /// </summary>
         public static NodeId BrokerConnectionMethodId
         {
             get
             {
-                return _dicNodeId["BrokerConnectionMethodId"];
+                return m_dicNodeId["BrokerConnectionMethodId"];
 
             }
         }
+        /// <summary>
+        /// UADP Connection Method ID
+        /// </summary>
         public static NodeId UADPConnectionMethodId
         {
             get
             {
-                return _dicNodeId["UADPConnectionMethodId"];
+                return m_dicNodeId["UADPConnectionMethodId"];
 
             }
         }
+        /// <summary>
+        /// Remove Connection Method ID
+        /// </summary>
         public static NodeId RemoveConnectionMethodId
         {
             get
             {
-                return _dicNodeId["RemoveConnectionMethodId"];
+                return m_dicNodeId["RemoveConnectionMethodId"];
 
             }
         }
+        /// <summary>
+        /// UADP Type Definition Node ID
+        /// </summary>
         public static NodeId UADPTypeDefinitionNodeId
         {
             get
             {
-                return _dicNodeId["UADPTypeDefinitionNodeId"];
+                return m_dicNodeId["UADPTypeDefinitionNodeId"];
 
             }
         }
+        /// <summary>
+        /// AMQP type Definition Node ID
+        /// </summary>
         public static NodeId AMQPTypeDefinitionNodeId
         {
             get
             {
-                return _dicNodeId["AMQPTypeDefinitionNodeId"];
+                return m_dicNodeId["AMQPTypeDefinitionNodeId"];
 
             }
         }
+        /// <summary>
+        /// Connection Type Definition Node Id
+        /// </summary>
         public static NodeId ConnectionTypeDefinitionNodeId
         {
             get
             {
-                return _dicNodeId["ConnectionTypeDefinitionNodeId"];
+                return m_dicNodeId["ConnectionTypeDefinitionNodeId"];
 
             }
         }
+        /// <summary>
+        /// Property Node ID
+        /// </summary>
         public static NodeId PropertyNodeId
         {
             get
             {
-                return _dicNodeId["PropertyNodeId"];
+                return m_dicNodeId["PropertyNodeId"];
 
             }
         }
+        /// <summary>
+        /// Writer Group Type ID
+        /// </summary>
         public static NodeId WriterGroupTypeId
         {
             get
             {
-                return _dicNodeId["WriterGroupTypeId"];
+                return m_dicNodeId["WriterGroupTypeId"];
 
             }
         }
+        /// <summary>
+        /// Reader Group Type ID
+        /// </summary>
         public static NodeId ReaderGroupTypeId
         {
             get
             {
-                return _dicNodeId["ReaderGroupTypeId"];
+                return m_dicNodeId["ReaderGroupTypeId"];
 
             }
         }
+        /// <summary>
+        /// Data Set Writer Type ID
+        /// </summary>
         public static NodeId DataSetWriterTypeId
         {
             get
             {
-                return _dicNodeId["DataSetWriterTypeId"];
+                return m_dicNodeId["DataSetWriterTypeId"];
 
             }
         }
+        /// <summary>
+        /// Pub Sub Type Defintion ID
+        /// </summary>
         public static NodeId PubSubTypeDefinitionId
         {
             get
             {
-                return _dicNodeId["PubSubTypeDefinitionId"];
+                return m_dicNodeId["PubSubTypeDefinitionId"];
 
             }
         }
+        /// <summary>
+        /// Published Data Sets Node ID
+        /// </summary>
         public static NodeId PublishedDataSetsNodeId
         {
             get
             {
-                return _dicNodeId["PublishedDataSetsNodeId"];
+                return m_dicNodeId["PublishedDataSetsNodeId"];
 
             }
         }
+        /// <summary>
+        /// Added Published Data Set Node ID
+        /// </summary>
         public static NodeId AddPublishedDataSetsNodeId
         {
             get
             {
-                return _dicNodeId["AddPublishedDataSetsNodeId"];
+                return m_dicNodeId["AddPublishedDataSetsNodeId"];
 
             }
         }
+        /// <summary>
+        /// Removed Published Data Set Node ID
+        /// </summary>
         public static NodeId RemovePublishedDataSetsNodeId
         {
             get
             {
-                return _dicNodeId["RemovePublishedDataSetsNodeId"];
+                return m_dicNodeId["RemovePublishedDataSetsNodeId"];
 
             }
         }
+        /// <summary>
+        /// Removing group ID
+        /// </summary>
         public static NodeId RemoveGroupID
         {
             get
             {
-                return _dicNodeId["RemoveGroupID"];
+                return m_dicNodeId["RemoveGroupID"];
 
             }
         }
+        /// <summary>
+        /// Writer to DataSet Type Definition ID
+        /// </summary>
         public static NodeId WriterToDataSetTypeDefinition
         {
             get
             {
-                return _dicNodeId["WriterToDataSetTypeDefinition"];
+                return m_dicNodeId["WriterToDataSetTypeDefinition"];
 
             }
         }
+        /// <summary>
+        /// Data set Reader Type ID
+        /// </summary>
         public static NodeId DataSetReaderTypeId
         {
             get
             {
-                return _dicNodeId["DataSetReaderTypeId"];
+                return m_dicNodeId["DataSetReaderTypeId"];
 
             }
         }
+        /// <summary>
+        /// Transport Settings Type Definition ID
+        /// </summary>
         public static NodeId TransPortSettingsTypeDefinition
         {
             get
             {
-                return _dicNodeId["TransPortSettingsTypeDefinition"];
+                return m_dicNodeId["TransPortSettingsTypeDefinition"];
 
             }
         }
+        /// <summary>
+        /// Pub Sub State Type ID
+        /// </summary>
         public static NodeId PubSubStateTypeId
         {
             get
             {
-                return _dicNodeId["PubSubStateTypeId"];
+                return m_dicNodeId["PubSubStateTypeId"];
 
             }
         }
+        /// <summary>
+        /// Base Data Variable Type
+        /// </summary>
         public static NodeId BaseDataVariableType
         {
             get
             {
-                return _dicNodeId["BaseDataVariableType"];
+                return m_dicNodeId["BaseDataVariableType"];
 
             }
         }
 
-
+        #endregion
     }
-
-
 
 }

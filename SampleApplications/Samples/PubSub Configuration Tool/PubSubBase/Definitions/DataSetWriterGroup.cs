@@ -1,204 +1,238 @@
-﻿using Opc.Ua;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using Opc.Ua;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// Defines Data Set writer group information.
+    /// </summary>
     public class DataSetWriterGroup : PubSubConfiguationBase
     {
+        #region Private Fields
 
-        private string _groupName;
+        private string m_groupName;
+        private string m_queueName = string.Empty;
+        private string m_encodingMimeType = string.Empty;
+        private double m_publishingInterval;
+        private double m_publishingOffset;
+        private double m_keepAliveTime;
+        private int m_priority;
+        private string m_securityGroupId;
+        private int m_maxNetworkMessageSize = 1500;
+        private int m_writerGroupId;
+        private NodeId m_groupId;
+        private int m_messageSecurityMode;
+        private int m_netWorkMessageContentMask;
 
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// defines Group Name
+        /// </summary>
         public string GroupName
         {
             get
             {
-                return _groupName;
+                return m_groupName;
             }
             set
             {
-               Name = _groupName = value;
+                Name = m_groupName = value;
                 OnPropertyChanged("GroupName");
             }
         }
-
-        private string _QueueName =string.Empty;
+        /// <summary>
+        /// Defines Queue Name
+        /// </summary>
         public string QueueName
         {
             get
             {
-                return _QueueName;
+                return m_queueName;
             }
             set
             {
-                _QueueName = value;
+                m_queueName = value;
                 OnPropertyChanged("QueueName");
             }
         }
-
-        private string _EncodingMimeType = string.Empty;
+        /// <summary>
+        /// defines Encoding Mime Type
+        /// </summary>
         public string EncodingMimeType
         {
             get
             {
-                return _EncodingMimeType;
+                return m_encodingMimeType;
             }
             set
             {
-                _EncodingMimeType = value;
+                m_encodingMimeType = value;
                 OnPropertyChanged("EncodingMimeType");
             }
         }
-
-        private double _publishingInterval;
-
+        /// <summary>
+        /// Defines publishing interval 
+        /// </summary>
         public double PublishingInterval
         {
             get
             {
-                return _publishingInterval;
+                return m_publishingInterval;
             }
             set
             {
-                _publishingInterval = value;
+                m_publishingInterval = value;
                 OnPropertyChanged("PublishingInterval");
             }
         }
-
-        private double _publishingOffset;
-
+        /// <summary>
+        /// defines publishing offset
+        /// </summary>
         public double PublishingOffset
         {
             get
             {
-                return _publishingOffset;
+                return m_publishingOffset;
             }
             set
             {
-                _publishingOffset = value;
+                m_publishingOffset = value;
                 OnPropertyChanged("PublishingOffset");
             }
         }
-
-        private double _keepAliveTime;
-
+        /// <summary>
+        /// defines keepAliveTime
+        /// </summary>
         public double KeepAliveTime
         {
             get
             {
-                return _keepAliveTime;
+                return m_keepAliveTime;
             }
             set
             {
-                _keepAliveTime = value;
+                m_keepAliveTime = value;
                 OnPropertyChanged("KeepAliveTime");
             }
         }
-
-        private int _priority;
-
+        /// <summary>
+        /// defines priority of the target group
+        /// </summary>
         public int Priority
         {
             get
             {
-                return _priority;
+                return m_priority;
             }
             set
             {
-                _priority = value;
+                m_priority = value;
                 OnPropertyChanged("Priority");
             }
         }
-
-        private string _securityGroupId;
-
+        /// <summary>
+        /// defines security group ID for target group
+        /// </summary>
         public string SecurityGroupId
         {
             get
             {
-                return _securityGroupId;
+                return m_securityGroupId;
             }
             set
             {
-                _securityGroupId = value;
+                m_securityGroupId = value;
                 OnPropertyChanged("SecurityGroupId");
             }
         }
-
-
-        private int _maxNetworkMessageSize=1500;
-
+        /// <summary>
+        /// defines maximum network message size node 
+        /// </summary>
         public int MaxNetworkMessageSize
         {
             get
             {
-                return _maxNetworkMessageSize;
+                return m_maxNetworkMessageSize;
             }
             set
             {
-                _maxNetworkMessageSize = value;
+                m_maxNetworkMessageSize = value;
                 OnPropertyChanged("MaxNetworkMessageSize");
             }
         }
-
-
-        private int _writerGroupId;
-
+        /// <summary>
+        /// defines writer group ID
+        /// </summary>
         public int WriterGroupId
         {
             get
             {
-                return _writerGroupId;
+                return m_writerGroupId;
             }
             set
             {
-                _writerGroupId = value;
+                m_writerGroupId = value;
                 OnPropertyChanged("WriterGroupId");
             }
         }
-
-        private NodeId _groupId;
+        /// <summary>
+        /// defines group ID
+        /// </summary>
         public NodeId GroupId
         {
             get
             {
-                return _groupId;
-               
+                return m_groupId;
+
             }
             set
             {
-                _groupId = value;
+                m_groupId = value;
                 OnPropertyChanged("GroupId");
             }
         }
-
-        private int _messageSecurityMode;
-
+        /// <summary>
+        /// Defines Message Security Mode
+        /// </summary>
         public int MessageSecurityMode
         {
-            get { return _messageSecurityMode; }
+            get { return m_messageSecurityMode; }
             set
             {
-                _messageSecurityMode = value;
+                m_messageSecurityMode = value;
                 OnPropertyChanged("MessageSecurityMode");
             }
         }
-
-        private int _netWorkMessageContentMask;
-
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
         public int NetworkMessageContentMask
         {
-            get { return _netWorkMessageContentMask; }
+            get { return m_netWorkMessageContentMask; }
             set
             {
-                _netWorkMessageContentMask = value;
+                m_netWorkMessageContentMask = value;
                 OnPropertyChanged("NetworkMessageContentMask");
             }
         }
 
-       
+        #endregion
     }
 }

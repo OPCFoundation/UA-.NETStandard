@@ -127,11 +127,9 @@
     <Compile Include="UserControls\SecurityUserControl.xaml.cs">
       <DependentUpon>SecurityUserControl.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ViewModels\AddDataSetWriterViewModel.cs" />
     <Compile Include="ViewModels\AddPublishedDataSetViewModel.cs" />
     <Compile Include="ViewModels\AddSecurityGroupViewModel.cs" />
     <Compile Include="ViewModels\ConnectionEditViewModel.cs" />
-    <Compile Include="ViewModels\ConnectionViewModel.cs" />
     <Compile Include="ViewModels\DataSetMetaDataEditViewModel.cs" />
     <Compile Include="ViewModels\DataSetReaderEditViewModel.cs" />
     <Compile Include="ViewModels\DataSetWriterEditViewModel.cs" />

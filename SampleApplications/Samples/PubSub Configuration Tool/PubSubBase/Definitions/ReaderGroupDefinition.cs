@@ -1,97 +1,131 @@
-﻿using Opc.Ua;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+using Opc.Ua;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// defines reader group definition
+    /// </summary>
     public class ReaderGroupDefinition : PubSubConfiguationBase
     {
-        private string _GroupName;
+        #region Private Fields
 
+        private string m_groupName;
+        private string m_securityGroupId;
+        private int m_maxNetworkMessageSize = 1500;
+        private int m_securityMode;
+        private string m_queueName;
+        private NodeId m_groupId;
+
+        #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// defines group name 
+        /// </summary>
         public string GroupName
         {
             get
             {
-                return _GroupName;
+                return m_groupName;
             }
             set
             {
-               Name= _GroupName = value;
+                Name = m_groupName = value;
                 OnPropertyChanged("GroupName");
             }
         }
 
-        private string _SecurityGroupId;
-
+        /// <summary>
+        /// defines security group ID
+        /// </summary>
         public string SecurityGroupId
         {
             get
             {
-                return _SecurityGroupId;
+                return m_securityGroupId;
             }
             set
             {
-                _SecurityGroupId = value;
+                m_securityGroupId = value;
                 OnPropertyChanged("SecurityGroupId");
             }
         }
 
-        private int _MaxNetworkMessageSize=1500;
-
+        /// <summary>
+        /// defines maximum network message size
+        /// </summary>
         public int MaxNetworkMessageSize
         {
             get
             {
-                return _MaxNetworkMessageSize;
+                return m_maxNetworkMessageSize;
             }
             set
             {
-                _MaxNetworkMessageSize = value;
+                m_maxNetworkMessageSize = value;
                 OnPropertyChanged("MaxNetworkMessageSize");
             }
         }
 
-        private int _securityMode;
-
+        /// <summary>
+        /// defines  security mode
+        /// </summary>
         public int SecurityMode
         {
-            get { return _securityMode; }
+            get { return m_securityMode; }
             set
             {
-                _securityMode = value;
+                m_securityMode = value;
                 OnPropertyChanged("SecurityMode");
             }
         }
 
-        private string _QueueName;
+        /// <summary>
+        /// defines queue name
+        /// </summary>
         public string QueueName
         {
-            get { return _QueueName; }
+            get { return m_queueName; }
             set
             {
-                _QueueName = value;
+                m_queueName = value;
                 OnPropertyChanged("QueueName");
             }
         }
 
-        private NodeId _groupId;
+        /// <summary>
+        /// defines group ID 
+        /// </summary>
         public NodeId GroupId
         {
             get
             {
-                return _groupId;
+                return m_groupId;
 
             }
             set
             {
-                _groupId = value;
+                m_groupId = value;
                 OnPropertyChanged("GroupId");
             }
         }
 
-
+        #endregion
     }
 }

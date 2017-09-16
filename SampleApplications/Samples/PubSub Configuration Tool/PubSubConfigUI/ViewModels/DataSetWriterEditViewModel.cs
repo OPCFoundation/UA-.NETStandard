@@ -1,163 +1,220 @@
-﻿using System.Windows;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System.Windows;
 using Opc.Ua;
 using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for Data set writer view
+    /// </summary>
     public class DataSetWriterEditViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private int _dataSetContentMask;
-        private int _dataSetWriterId;
-        private string _dataSetWriterName;
-        private Visibility _IsAMQP = Visibility.Collapsed;
-        private Visibility _IsUADP = Visibility.Visible;
-        private int _keyFrameCount;
-        private int _maxMessageSize;
-        private string _metadataQueueName;
-        private int _metadataUpdateTime;
-        private string _publisherDataSetId;
-        private NodeId _publisherDataSetNodeId;
-        private string _queueName;
+        private int m_dataSetContentMask;
+        private int m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private Visibility m_isAMQP = Visibility.Collapsed;
+        private Visibility m_isUADP = Visibility.Visible;
+        private int m_keyFrameCount;
+        private int m_maxMessageSize;
+        private string m_metadataQueueName;
+        private int m_metadataUpdateTime;
+        private string m_publisherDataSetId;
+        private NodeId m_publisherDataSetNodeId;
+        private string m_queueName;
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines data set writer name
+        /// </summary>
         public string DataSetWriterName
         {
-            get { return _dataSetWriterName; }
+            get { return m_dataSetWriterName; }
             set
             {
-                _dataSetWriterName = value;
-                OnPropertyChanged( "DataSetWriterName" );
+                m_dataSetWriterName = value;
+                OnPropertyChanged("DataSetWriterName");
             }
         }
 
+        /// <summary>
+        /// defines publisher data set ID
+        /// </summary>
         public string PublisherDataSetId
         {
             get
             {
-                if ( _publisherDataSetNodeId != null ) return _publisherDataSetNodeId.ToString( );
-                return _publisherDataSetId;
+                if (m_publisherDataSetNodeId != null) return m_publisherDataSetNodeId.ToString();
+                return m_publisherDataSetId;
             }
             set
             {
-                _publisherDataSetId = value;
-                OnPropertyChanged( "PublisherDataSetId" );
+                m_publisherDataSetId = value;
+                OnPropertyChanged("PublisherDataSetId");
             }
         }
 
+        /// <summary>
+        /// defines publisher data set node ID
+        /// </summary>
         public NodeId PublisherDataSetNodeId
         {
-            get { return _publisherDataSetNodeId; }
+            get { return m_publisherDataSetNodeId; }
             set
             {
-                _publisherDataSetNodeId = value;
-                OnPropertyChanged( "PublisherDataSetNodeId" );
+                m_publisherDataSetNodeId = value;
+                OnPropertyChanged("PublisherDataSetNodeId");
             }
         }
 
+        /// <summary>
+        /// defines key frame count for target definition
+        /// </summary>
         public int KeyFrameCount
         {
-            get { return _keyFrameCount; }
+            get { return m_keyFrameCount; }
             set
             {
-                _keyFrameCount = value;
-                OnPropertyChanged( "KeyFrameCount" );
+                m_keyFrameCount = value;
+                OnPropertyChanged("KeyFrameCount");
             }
         }
 
+        /// <summary>
+        /// defines data set writer ID
+        /// </summary>
         public int DataSetWriterId
         {
-            get { return _dataSetWriterId; }
+            get { return m_dataSetWriterId; }
             set
             {
-                _dataSetWriterId = value;
-                OnPropertyChanged( "DataSetWriterId" );
+                m_dataSetWriterId = value;
+                OnPropertyChanged("DataSetWriterId");
             }
         }
 
+        /// <summary>
+        /// defines queue name foe data set writer
+        /// </summary>
         public string QueueName
         {
-            get { return _queueName; }
+            get { return m_queueName; }
             set
             {
-                _queueName = value;
-                OnPropertyChanged( "QueueName" );
+                m_queueName = value;
+                OnPropertyChanged("QueueName");
             }
         }
 
+        /// <summary>
+        /// defines metadata queue name of data set writer
+        /// </summary>
         public string MetadataQueueName
         {
-            get { return _metadataQueueName; }
+            get { return m_metadataQueueName; }
             set
             {
-                _metadataQueueName = value;
-                OnPropertyChanged( "MetadataQueueName" );
+                m_metadataQueueName = value;
+                OnPropertyChanged("MetadataQueueName");
             }
         }
 
+        /// <summary>
+        /// defines metadata updata time of target definition
+        /// </summary>
         public int MetadataUpdataTime
         {
-            get { return _metadataUpdateTime; }
+            get { return m_metadataUpdateTime; }
             set
             {
-                _metadataUpdateTime = value;
-                OnPropertyChanged( "MetadataUpdataTime" );
+                m_metadataUpdateTime = value;
+                OnPropertyChanged("MetadataUpdataTime");
             }
         }
 
+        /// <summary>
+        /// defines maximum message size of target definition
+        /// </summary>
         public int MaxMessageSize
         {
-            get { return _maxMessageSize; }
+            get { return m_maxMessageSize; }
             set
             {
-                _maxMessageSize = value;
-                OnPropertyChanged( "MaxMessageSize" );
+                m_maxMessageSize = value;
+                OnPropertyChanged("MaxMessageSize");
             }
         }
 
+        /// <summary>
+        /// defines visibility for connection type menu
+        /// </summary>
         public Visibility IsUADP
         {
-            get { return _IsUADP; }
+            get { return m_isUADP; }
             set
             {
-                _IsUADP = value;
-                OnPropertyChanged( "IsUADP" );
+                m_isUADP = value;
+                OnPropertyChanged("IsUADP");
             }
         }
 
+        /// <summary>
+        /// defines visibility for connection type menu
+        /// </summary>
         public Visibility IsAMQP
         {
-            get { return _IsAMQP; }
+            get { return m_isAMQP; }
             set
             {
-                _IsAMQP = value;
-                OnPropertyChanged( "IsAMQP" );
+                m_isAMQP = value;
+                OnPropertyChanged("IsAMQP");
             }
         }
 
+        /// <summary>
+        /// defines Dataset cotent mask of target defnition
+        /// </summary>
         public int DataSetContentMask
         {
-            get { return _dataSetContentMask; }
+            get { return m_dataSetContentMask; }
             set
             {
-                _dataSetContentMask = value;
-                OnPropertyChanged( "DataSetContentMask" );
+                m_dataSetContentMask = value;
+                OnPropertyChanged("DataSetContentMask");
             }
         }
 
         #endregion
 
         #region Public Methods
-
-        public void Initialize( )
+        /// <summary>
+        /// Initialise method
+        /// 
+        /// </summary>
+        public void Initialize()
         {
             DataSetWriterName = DataSetWriterDefinition.DataSetWriterName;
             PublisherDataSetNodeId = DataSetWriterDefinition.PublisherDataSetNodeId;
-            PublisherDataSetId = PublisherDataSetNodeId.Identifier.ToString( );
+            PublisherDataSetId = PublisherDataSetNodeId.Identifier.ToString();
             KeyFrameCount = DataSetWriterDefinition.KeyFrameCount;
             DataSetWriterId = DataSetWriterDefinition.DataSetWriterId;
             DataSetContentMask = DataSetWriterDefinition.DataSetContentMask;
@@ -169,6 +226,8 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
+        #region Public Member
         public DataSetWriterDefinition DataSetWriterDefinition;
+        #endregion
     }
 }

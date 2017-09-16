@@ -1,167 +1,214 @@
-﻿using System.Windows;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System.Windows;
 using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for Data set writer group view
+    /// </summary>
     public class DataSetWriterGroupViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private string _EncodingMimeType = string.Empty;
-        private string _groupName;
-        private Visibility _IsAMQP = Visibility.Collapsed;
-        private Visibility _IsUADP = Visibility.Visible;
-        private int _keepAliveTime;
-        private int _maxNetworkMessageSize = 1500;
-        private int _messageSecurityMode = 1;
-        private int _netWorkMessageContentMask;
-        private int _priority;
-        private int _publishingInterval;
-        private int _publishingOffset;
-        private string _QueueName = string.Empty;
-        private string _securityGroupId;
-        private int _writerGroupId;
+        private string m_encodingMimeType = string.Empty;
+        private string m_groupName;
+        private Visibility m_isAMQP = Visibility.Collapsed;
+        private Visibility m_isUADP = Visibility.Visible;
+        private int m_keepAliveTime;
+        private int m_maxNetworkMessageSize = 1500;
+        private int m_messageSecurityMode = 1;
+        private int m_priority;
+        private int m_publishingInterval;
+        private int m_publishingOffset;
+        private string m_queueName = string.Empty;
+        private string m_securityGroupId;
+        private int m_writerGroupId;
 
         #endregion
 
-        #region Public Property
+        #region Public Properties
 
+        /// <summary>
+        /// defines group name
+        /// </summary>
         public string GroupName
         {
-            get { return _groupName; }
+            get { return m_groupName; }
             set
             {
-                _groupName = value;
+                m_groupName = value;
                 OnPropertyChanged( "GroupName" );
             }
         }
 
+        /// <summary>
+        /// defines publishing interval
+        /// </summary>
         public int PublishingInterval
         {
-            get { return _publishingInterval; }
+            get { return m_publishingInterval; }
             set
             {
-                _publishingInterval = value;
+                m_publishingInterval = value;
                 OnPropertyChanged( "PublishingInterval" );
             }
         }
 
+        /// <summary>
+        /// defines publishing offset
+        /// </summary>
         public int PublishingOffset
         {
-            get { return _publishingOffset; }
+            get { return m_publishingOffset; }
             set
             {
-                _publishingOffset = value;
+                m_publishingOffset = value;
                 OnPropertyChanged( "PublishingOffset" );
             }
         }
 
+        /// <summary>
+        /// defines keep alive time
+        /// </summary>
         public int KeepAliveTime
         {
-            get { return _keepAliveTime; }
+            get { return m_keepAliveTime; }
             set
             {
-                _keepAliveTime = value;
+                m_keepAliveTime = value;
                 OnPropertyChanged( "KeepAliveTime" );
             }
         }
 
+        /// <summary>
+        /// defines priority
+        /// </summary>
         public int Priority
         {
-            get { return _priority; }
+            get { return m_priority; }
             set
             {
-                _priority = value;
+                m_priority = value;
                 OnPropertyChanged( "Priority" );
             }
         }
 
+        /// <summary>
+        /// defines security group ID
+        /// </summary>
         public string SecurityGroupId
         {
-            get { return _securityGroupId; }
+            get { return m_securityGroupId; }
             set
             {
-                _securityGroupId = value;
+                m_securityGroupId = value;
                 OnPropertyChanged( "SecurityGroupId" );
             }
         }
 
+        /// <summary>
+        /// defines quee name 
+        /// </summary>
         public string QueueName
         {
-            get { return _QueueName; }
+            get { return m_queueName; }
             set
             {
-                _QueueName = value;
+                m_queueName = value;
                 OnPropertyChanged( "QueueName" );
             }
         }
 
+        /// <summary>
+        /// defines encoding mime type
+        /// </summary>
         public string EncodingMimeType
         {
-            get { return _EncodingMimeType; }
+            get { return m_encodingMimeType; }
             set
             {
-                _EncodingMimeType = value;
+                m_encodingMimeType = value;
                 OnPropertyChanged( "EncodingMimeType" );
             }
         }
 
+        /// <summary>
+        /// defines maximum network message size
+        /// </summary>
         public int MaxNetworkMessageSize
         {
-            get { return _maxNetworkMessageSize; }
+            get { return m_maxNetworkMessageSize; }
             set
             {
-                _maxNetworkMessageSize = value;
+                m_maxNetworkMessageSize = value;
                 OnPropertyChanged( "MaxNetworkMessageSize" );
             }
         }
 
+        /// <summary>
+        /// defines writer group ID
+        /// </summary>
         public int WriterGroupId
         {
-            get { return _writerGroupId; }
+            get { return m_writerGroupId; }
             set
             {
-                _writerGroupId = value;
+                m_writerGroupId = value;
                 OnPropertyChanged( "WriterGroupId" );
             }
         }
 
+        /// <summary>
+        /// defines message security mode
+        /// </summary>
         public int MessageSecurityMode
         {
-            get { return _messageSecurityMode; }
+            get { return m_messageSecurityMode; }
             set
             {
-                _messageSecurityMode = value;
+                m_messageSecurityMode = value;
                 OnPropertyChanged( "MessageSecurityMode" );
             }
         }
 
-        public int NetworkMessageContentMask
-        {
-            get { return _netWorkMessageContentMask; }
-            set
-            {
-                _netWorkMessageContentMask = value;
-                OnPropertyChanged( "NetworkMessageContentMask" );
-            }
-        }
-
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsUADP
         {
-            get { return _IsUADP; }
+            get { return m_isUADP; }
             set
             {
-                _IsUADP = value;
+                m_isUADP = value;
                 OnPropertyChanged( "IsUADP" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsAMQP
         {
-            get { return _IsAMQP; }
+            get { return m_isAMQP; }
             set
             {
-                _IsAMQP = value;
+                m_isAMQP = value;
                 OnPropertyChanged( "IsAMQP" );
             }
         }

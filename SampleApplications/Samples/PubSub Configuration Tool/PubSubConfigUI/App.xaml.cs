@@ -28,13 +28,8 @@ namespace PubSubConfigurationUI
 
         private void CurrentDomain_UnhandledException( object sender, UnhandledExceptionEventArgs e )
         {
-            try
-            {
-                var ex = ( Exception ) e.ExceptionObject;
-            }
-            catch ( Exception ex )
-            {
-            }
+            
+            
         }
 
         #endregion
@@ -46,19 +41,6 @@ namespace PubSubConfigurationUI
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             Dispatcher.UnhandledException += Dispatcher_UnhandledException;
             base.OnStartup( e );
-
-            //if (SingleInstance<App>.InitializeAsFirstInstance(Unique))
-            //{
-            //    AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            //    this.Dispatcher.UnhandledException += Dispatcher_UnhandledException;
-            //    base.OnStartup(e);
-            //}
-            //else
-            //{
-
-            //    SingleInstance<App>.Cleanup();
-            //    Environment.Exit(1);
-            //}
         }
 
         public bool SignalExternalCommandLineArgs( IList< string > args )

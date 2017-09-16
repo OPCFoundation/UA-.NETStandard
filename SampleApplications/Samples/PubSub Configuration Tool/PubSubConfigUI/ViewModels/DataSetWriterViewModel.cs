@@ -1,146 +1,183 @@
-﻿using System.Windows;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System.Windows;
 using Opc.Ua;
 using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for data set writer view
+    /// </summary>
     public class DataSetWriterViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private int _dataSetContentMask;
-        private int _dataSetWriterId;
-        private string _dataSetWriterName;
-        private Visibility _IsAMQP = Visibility.Collapsed;
-        private Visibility _IsUADP = Visibility.Visible;
-        private int _keyFrameCount;
-        private int _maxMessageSize;
-        private string _metadataQueueName;
-        private int _metadataUpdateTime;
-        private string _publisherDataSetId;
-        private NodeId _publisherDataSetNodeId;
-        private string _queueName;
+        private int m_dataSetWriterId;
+        private string m_dataSetWriterName;
+        private Visibility m_isAMQP = Visibility.Collapsed;
+        private Visibility m_isUADP = Visibility.Visible;
+        private int m_keyFrameCount;
+        private int m_maxMessageSize;
+        private string m_metadataQueueName;
+        private int m_metadataUpdateTime;
+        private string m_publisherDataSetId;
+        private NodeId m_publisherDataSetNodeId;
+        private string m_queueName;
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines data set writer name
+        /// </summary>
         public string DataSetWriterName
         {
-            get { return _dataSetWriterName; }
+            get { return m_dataSetWriterName; }
             set
             {
-                _dataSetWriterName = value;
+                m_dataSetWriterName = value;
                 OnPropertyChanged( "DataSetWriterName" );
             }
         }
 
+        /// <summary>
+        /// defines publisher data set ID
+        /// </summary>
         public string PublisherDataSetId
         {
-            get { return _publisherDataSetId; }
+            get { return m_publisherDataSetId; }
             set
             {
-                _publisherDataSetId = value;
+                m_publisherDataSetId = value;
                 OnPropertyChanged( "PublisherDataSetId" );
             }
         }
 
+        /// <summary>
+        /// defines publisher data set node ID
+        /// </summary>
         public NodeId PublisherDataSetNodeId
         {
-            get { return _publisherDataSetNodeId; }
+            get { return m_publisherDataSetNodeId; }
             set
             {
-                _publisherDataSetNodeId = value;
+                m_publisherDataSetNodeId = value;
                 OnPropertyChanged( "PublisherDataSetNodeId" );
             }
         }
 
+        /// <summary>
+        /// defines key frame count
+        /// </summary>
         public int KeyFrameCount
         {
-            get { return _keyFrameCount; }
+            get { return m_keyFrameCount; }
             set
             {
-                _keyFrameCount = value;
+                m_keyFrameCount = value;
                 OnPropertyChanged( "KeyFrameCount" );
             }
         }
 
+        /// <summary>
+        /// defines data set writer ID
+        /// </summary>
         public int DataSetWriterId
         {
-            get { return _dataSetWriterId; }
+            get { return m_dataSetWriterId; }
             set
             {
-                _dataSetWriterId = value;
+                m_dataSetWriterId = value;
                 OnPropertyChanged( "DataSetWriterId" );
             }
         }
-
+        /// <summary>
+        /// defines queue name
+        /// </summary>
         public string QueueName
         {
-            get { return _queueName; }
+            get { return m_queueName; }
             set
             {
-                _queueName = value;
+                m_queueName = value;
                 OnPropertyChanged( "QueueName" );
             }
         }
 
+        /// <summary>
+        /// defines metadata queue name
+        /// </summary>
         public string MetadataQueueName
         {
-            get { return _metadataQueueName; }
+            get { return m_metadataQueueName; }
             set
             {
-                _metadataQueueName = value;
+                m_metadataQueueName = value;
                 OnPropertyChanged( "MetadataQueueName" );
             }
         }
 
+        /// <summary>
+        /// defines meta data updata time
+        /// </summary>
         public int MetadataUpdataTime
         {
-            get { return _metadataUpdateTime; }
+            get { return m_metadataUpdateTime; }
             set
             {
-                _metadataUpdateTime = value;
+                m_metadataUpdateTime = value;
                 OnPropertyChanged( "MetadataUpdataTime" );
             }
         }
 
+        /// <summary>
+        /// defines maximum message size
+        /// </summary>
         public int MaxMessageSize
         {
-            get { return _maxMessageSize; }
+            get { return m_maxMessageSize; }
             set
             {
-                _maxMessageSize = value;
+                m_maxMessageSize = value;
                 OnPropertyChanged( "MaxMessageSize" );
             }
         }
-
-        public int DataSetContentMask
-        {
-            get { return _dataSetContentMask; }
-            set
-            {
-                _dataSetContentMask = value;
-                OnPropertyChanged( "DataSetContentMask" );
-            }
-        }
-
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsUADP
         {
-            get { return _IsUADP; }
+            get { return m_isUADP; }
             set
             {
-                _IsUADP = value;
+                m_isUADP = value;
                 OnPropertyChanged( "IsUADP" );
             }
         }
-
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsAMQP
         {
-            get { return _IsAMQP; }
+            get { return m_isAMQP; }
             set
             {
-                _IsAMQP = value;
+                m_isAMQP = value;
                 OnPropertyChanged( "IsAMQP" );
             }
         }

@@ -11,14 +11,7 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -87,7 +80,6 @@ namespace Opc.Ua
             {
                 return base.TypeDefinitionId;
             }
-
             set
             {
                 base.TypeDefinitionId = value;
@@ -103,7 +95,6 @@ namespace Opc.Ua
             { 
                 return m_executable;  
             }
-            
             set
             {
                 if (m_executable != value)
@@ -124,7 +115,6 @@ namespace Opc.Ua
             { 
                 return m_userExecutable;  
             }
-            
             set
             {
                 if (m_userExecutable != value)

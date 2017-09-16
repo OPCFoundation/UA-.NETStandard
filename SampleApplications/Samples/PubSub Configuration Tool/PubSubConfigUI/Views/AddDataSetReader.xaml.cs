@@ -17,16 +17,16 @@ namespace PubSubConfigurationUI.Views
     {
         #region Private Member 
 
-        private readonly ObservableCollection< PubSubConfiguationBase > _localPubSubCollectionItems;
-        private readonly Dictionary< string, int > _dicControlBitPositionmappping = new Dictionary< string, int >( );
+        private readonly ObservableCollection< PubSubConfiguationBase > m_localPubSubCollectionItems;
+        private readonly Dictionary< string, int > m_dicControlBitPositionmappping = new Dictionary< string, int >( );
 
-        private readonly Dictionary< string, int > _dicNetworkMessageControlBitPositionmappping =
+        private readonly Dictionary< string, int > m_dicNetworkMessageControlBitPositionmappping =
         new Dictionary< string, int >( );
 
-        private ObservableCollection< PublishedDataSetBase > _remotePublishedDataSetBaseCollection =
+        private ObservableCollection< PublishedDataSetBase > m_remotePublishedDataSetBaseCollection =
         new ObservableCollection< PublishedDataSetBase >( );
 
-        private ObservableCollection< PubSubConfiguationBase > _remotePubSubCollectionItems =
+        private ObservableCollection< PubSubConfiguationBase > m_remotePubSubCollectionItems =
         new ObservableCollection< PubSubConfiguationBase >( );
 
         private TreeViewNode _rootnode;
@@ -49,7 +49,7 @@ namespace PubSubConfigurationUI.Views
                                  selectedDataSetWriterDefinition.PublisherDataSetNodeId )
                     .FirstOrDefault( ) as PublishedDataSetDefinition;
                 else
-                    publishedDataSetDefinition = _remotePublishedDataSetBaseCollection
+                    publishedDataSetDefinition = m_remotePublishedDataSetBaseCollection
                     .Where( i => (i as PublishedDataSetDefinition).PublishedDataSetNodeId ==
                                  selectedDataSetWriterDefinition.PublisherDataSetNodeId )
                     .FirstOrDefault( ) as PublishedDataSetDefinition;
@@ -122,7 +122,7 @@ namespace PubSubConfigurationUI.Views
                                       } )
             {
                 var shiftNumber = 1;
-                var bitposition = _dicControlBitPositionmappping[ checkbox.Name ];
+                var bitposition = m_dicControlBitPositionmappping[ checkbox.Name ];
                 shiftNumber = 1 << bitposition;
                 checkbox.IsChecked = (_dataSetContentMask & shiftNumber) == shiftNumber ? true : false;
 
@@ -136,7 +136,7 @@ namespace PubSubConfigurationUI.Views
                                       } )
             {
                 var shiftNumber = 1;
-                var bitposition = _dicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
+                var bitposition = m_dicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
                 shiftNumber = 1 << bitposition;
                 checkbox.IsChecked = (_networkMessageContentMask & shiftNumber) == shiftNumber ? true : false;
 
@@ -154,7 +154,7 @@ namespace PubSubConfigurationUI.Views
         {
             ConnectionPanel.IsEnabled = true;
             PubSubTreeView.Items.Clear( );
-            foreach ( var pubSubConfiguationBase in _remotePubSubCollectionItems )
+            foreach ( var pubSubConfiguationBase in m_remotePubSubCollectionItems )
                 PubSubTreeView.Items.Add( pubSubConfiguationBase );
         }
 
@@ -162,7 +162,7 @@ namespace PubSubConfigurationUI.Views
         {
             ConnectionPanel.IsEnabled = false;
             PubSubTreeView.Items.Clear( );
-            foreach ( var pubSubConfiguationBase in _localPubSubCollectionItems )
+            foreach ( var pubSubConfiguationBase in m_localPubSubCollectionItems )
                 PubSubTreeView.Items.Add( pubSubConfiguationBase );
         }
 
@@ -220,31 +220,31 @@ namespace PubSubConfigurationUI.Views
             ClientAdaptor = new OPCUAClientAdaptor( );
             foreach ( var _PubSubConfiguationBase in pubSubCollectionItems )
                 PubSubTreeView.Items.Add( _PubSubConfiguationBase );
-            _localPubSubCollectionItems = pubSubCollectionItems;
-            _dicControlBitPositionmappping[ "Chk_box1" ] = 0;
-            _dicControlBitPositionmappping[ "Chk_box2" ] = 1;
-            _dicControlBitPositionmappping[ "Chk_box3" ] = 2;
-            _dicControlBitPositionmappping[ "Chk_box4" ] = 3;
-            _dicControlBitPositionmappping[ "Chk_box5" ] = 4;
-            _dicControlBitPositionmappping[ "Chk_box6" ] = 5;
-            _dicControlBitPositionmappping[ "Chk_box7" ] = 16;
-            _dicControlBitPositionmappping[ "Chk_box8" ] = 17;
-            _dicControlBitPositionmappping[ "Chk_box9" ] = 18;
-            _dicControlBitPositionmappping[ "Chk_box10" ] = 19;
-            _dicControlBitPositionmappping[ "Chk_box11" ] = 20;
-            _dicControlBitPositionmappping[ "Chk_box12" ] = 21;
+            m_localPubSubCollectionItems = pubSubCollectionItems;
+            m_dicControlBitPositionmappping[ "Chk_box1" ] = 0;
+            m_dicControlBitPositionmappping[ "Chk_box2" ] = 1;
+            m_dicControlBitPositionmappping[ "Chk_box3" ] = 2;
+            m_dicControlBitPositionmappping[ "Chk_box4" ] = 3;
+            m_dicControlBitPositionmappping[ "Chk_box5" ] = 4;
+            m_dicControlBitPositionmappping[ "Chk_box6" ] = 5;
+            m_dicControlBitPositionmappping[ "Chk_box7" ] = 16;
+            m_dicControlBitPositionmappping[ "Chk_box8" ] = 17;
+            m_dicControlBitPositionmappping[ "Chk_box9" ] = 18;
+            m_dicControlBitPositionmappping[ "Chk_box10" ] = 19;
+            m_dicControlBitPositionmappping[ "Chk_box11" ] = 20;
+            m_dicControlBitPositionmappping[ "Chk_box12" ] = 21;
 
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box1" ] = 0;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box2" ] = 1;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box3" ] = 2;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box4" ] = 3;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box5" ] = 4;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box6" ] = 5;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box7" ] = 6;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box8" ] = 7;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box9" ] = 8;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box10" ] = 9;
-            _dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box11" ] = 10;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box1" ] = 0;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box2" ] = 1;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box3" ] = 2;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box4" ] = 3;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box5" ] = 4;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box6" ] = 5;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box7" ] = 6;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box8" ] = 7;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box9" ] = 8;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box10" ] = 9;
+            m_dicNetworkMessageControlBitPositionmappping[ "NM_Chk_box11" ] = 10;
         }
 
         #endregion
@@ -271,11 +271,11 @@ namespace PubSubConfigurationUI.Views
                 MessageBox.Show("Enter the valid URL" ,"Add DataSet Reader");
                 return;
             }
-            _remotePubSubCollectionItems = ClientAdaptor.GetPubSubConfiguation( );
+            m_remotePubSubCollectionItems = ClientAdaptor.GetPubSubConfiguation( );
             PubSubTreeView.Items.Clear( );
-            foreach ( var pubSubConfiguationBase in _remotePubSubCollectionItems )
+            foreach ( var pubSubConfiguationBase in m_remotePubSubCollectionItems )
                 PubSubTreeView.Items.Add( pubSubConfiguationBase );
-            _remotePublishedDataSetBaseCollection = ClientAdaptor.GetPublishedDataSets( );
+            m_remotePublishedDataSetBaseCollection = ClientAdaptor.GetPublishedDataSets( );
         }
 
         public void Disconnect( )
@@ -295,7 +295,7 @@ namespace PubSubConfigurationUI.Views
                 var shiftNumber = 1;
                 if ( checkbox.IsChecked == true )
                 {
-                    var bitposition = _dicControlBitPositionmappping[ checkbox.Name ];
+                    var bitposition = m_dicControlBitPositionmappping[ checkbox.Name ];
                     shiftNumber = 1 << bitposition;
                     dataSetContentMask = dataSetContentMask | shiftNumber;
                 }
@@ -316,7 +316,7 @@ namespace PubSubConfigurationUI.Views
                 var shiftNumber = 1;
                 if ( checkbox.IsChecked == true )
                 {
-                    var bitposition = _dicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
+                    var bitposition = m_dicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
                     shiftNumber = 1 << bitposition;
                     networkMessageContentMask = networkMessageContentMask | shiftNumber;
                 }

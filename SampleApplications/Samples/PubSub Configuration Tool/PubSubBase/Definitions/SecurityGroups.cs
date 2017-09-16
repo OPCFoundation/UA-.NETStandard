@@ -1,91 +1,134 @@
-﻿
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
 using Opc.Ua;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// defines security base definition
+    /// </summary>
     public class SecurityBase : BaseViewModel
     {
-        private string _securityGroupId;
+        #region Private Fields
+
+        private string m_securityGroupId;
+        private string m_name;
+        private ObservableCollection<SecurityBase> m_children = new ObservableCollection<SecurityBase>();
+
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// defines security group ID
+        /// </summary>
         public string SecurityGroupId
         {
             get
             {
-                return _securityGroupId;
+                return m_securityGroupId;
             }
             set
             {
-                _securityGroupId = value;
+                m_securityGroupId = value;
                 OnPropertyChanged("SecurityGroupId");
             }
         }
-        private string _Name;
+        /// <summary>
+        /// defines security group name
+        /// </summary>
         public string Name
         {
             get
             {
-                return _Name;
+                return m_name;
             }
             set
             {
-                _Name = value;
+                m_name = value;
                 OnPropertyChanged("Name");
             }
         }
 
-        private ObservableCollection<SecurityBase> _Children = new ObservableCollection<SecurityBase>();
-
+        /// <summary>
+        /// defines child nodes of security base
+        /// </summary>
         public ObservableCollection<SecurityBase> Children
         {
-            get { return _Children; }
+            get { return m_children; }
             set
             {
-                _Children = value;
+                m_children = value;
                 OnPropertyChanged("Children");
             }
         }
+
+        /// <summary>
+        /// defines parent node of Security base
+        /// </summary>
         public SecurityBase ParentNode { get; set; }
+        #endregion
     }
 
+    /// <summary>
+    /// definition of Security Group
+    /// </summary>
     public class SecurityGroup : SecurityBase
     {
-        private string _groupName;
+        #region Private Fields
+        private string m_groupName;
+        private NodeId m_groupNodeId;
+        #endregion
 
+        #region Public Properties
+        /// <summary>
+        /// Defines Security Group Name
+        /// </summary>
         public string GroupName
         {
             get
             {
-                return _groupName;
+                return m_groupName;
             }
             set
             {
-                Name = _groupName = value;
-               
+                Name = m_groupName = value;
+
                 OnPropertyChanged("GroupName");
             }
         }
-        
 
-        private NodeId _groupNodeId;
+        /// <summary>
+        /// Defines security group node ID
+        /// </summary>
         public NodeId GroupNodeId
         {
             get
             {
-                return _groupNodeId;
+                return m_groupNodeId;
             }
             set
             {
-                _groupNodeId = value;
+                m_groupNodeId = value;
                 OnPropertyChanged("GroupNodeId");
             }
         }
-         
+
+        #endregion
     }
 
-  
 }

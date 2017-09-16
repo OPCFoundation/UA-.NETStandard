@@ -1,103 +1,137 @@
-﻿using System;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PubSubBase.Definitions
 {
-
+    /// <summary>
+    /// definition of Security keys
+    /// </summary>
     public class SecurityKeys : SecurityBase
     {
-        private string _securityPolicyUri;
+        #region Private Fields
 
+        private string m_securityPolicyUri;
+        private uint m_currentTokenId;
+        private double m_timeToNextKey;
+        private double m_keyLifetime;
+        private string m_currentKey;
+        private List<string> m_featureKeys = new List<string>();
+
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// defines security policu uri
+        /// </summary>
         public string SecurityPolicyUri
         {
             get
             {
-                return _securityPolicyUri;
+                return m_securityPolicyUri;
             }
             set
             {
-                _securityPolicyUri = value;
+                m_securityPolicyUri = value;
                 OnPropertyChanged("SecurityPolicyUri");
             }
         }
 
-
-        private uint _currentTokenId;
+        /// <summary>
+        /// defines current token ID
+        /// </summary>
         public uint CurrentTokenId
         {
             get
             {
-                return _currentTokenId;
+                return m_currentTokenId;
             }
             set
             {
-                _currentTokenId = value;
+                m_currentTokenId = value;
                 OnPropertyChanged("CurrentTokenId");
             }
         }
 
-
-        private double _TimeToNextKey;
+        /// <summary>
+        /// defines time for next key
+        /// </summary>
         public double TimeToNextKey
         {
             get
             {
-                return _TimeToNextKey;
+                return m_timeToNextKey;
             }
             set
             {
-                _TimeToNextKey = value;
+                m_timeToNextKey = value;
                 OnPropertyChanged("TimeToNextKey");
             }
         }
 
-        private double _KeyLifetime;
+        /// <summary>
+        /// defines key life time 
+        /// </summary>
         public double KeyLifetime
         {
             get
             {
-                return _KeyLifetime;
+                return m_keyLifetime;
             }
             set
             {
-                _KeyLifetime = value;
+                m_keyLifetime = value;
                 OnPropertyChanged("KeyLifetime");
             }
         }
-        private string _CurrentKey;
+
+        /// <summary>
+        /// defines current key of security
+        /// </summary>
         public string CurrentKey
         {
             get
             {
-                return _CurrentKey;
+                return m_currentKey;
             }
 
             set
             {
-                Name = _CurrentKey = value;
+                Name = m_currentKey = value;
 
                 OnPropertyChanged("CurrentKey");
             }
         }
-        private List<string> _FeatureKeys=new List<string>();
+
+        /// <summary>
+        /// defines Feature keys 
+        /// </summary>
         public List<string> FeatureKeys
         {
             get
             {
-                return _FeatureKeys;
+                return m_featureKeys;
             }
-
             set
             {
-                _FeatureKeys = value;
+                m_featureKeys = value;
                 OnPropertyChanged("FeatureKeys");
             }
         }
-
-        
+        #endregion
     }
 
 }

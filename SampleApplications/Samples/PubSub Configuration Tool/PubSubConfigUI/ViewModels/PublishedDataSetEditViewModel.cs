@@ -1,15 +1,36 @@
-﻿using PubSubBase.Definitions;
+﻿
+/* ========================================================================
+/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for Published Data set edit view
+    /// </summary>
     public class PublishedDataSetEditViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private string _DataSetNodeId = string.Empty;
-        private PublishedDataSetDefinition _Definition;
-        private uint _MaxVersion;
-        private uint _MinVersion;
+        private string m_dataSetNodeId = string.Empty;
+        private PublishedDataSetDefinition m_definition;
+        private uint m_maxVersion;
+        private uint m_minVersion;
 
         #endregion
 
@@ -23,44 +44,56 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
-        #region Public Property
+        #region Public Properties
 
+        /// <summary>
+        /// defines definition of Published data set
+        /// </summary>
         public PublishedDataSetDefinition Definition
         {
-            get { return _Definition; }
+            get { return m_definition; }
             set
             {
-                _Definition = value;
+                m_definition = value;
                 OnPropertyChanged( "Definition" );
             }
         }
 
+        /// <summary>
+        /// defines data set node ID
+        /// </summary>
         public string DataSetNodeId
         {
-            get { return _DataSetNodeId; }
+            get { return m_dataSetNodeId; }
             set
             {
-                _DataSetNodeId = value;
+                m_dataSetNodeId = value;
                 OnPropertyChanged( "DataSetNodeId" );
             }
         }
 
+        /// <summary>
+        /// defines minimum version of published data set
+        /// </summary>
         public uint MinVersion
         {
-            get { return _MinVersion; }
+            get { return m_minVersion; }
             set
             {
-                _MinVersion = value;
+                m_minVersion = value;
                 OnPropertyChanged( "MinVersion" );
             }
         }
 
+        /// <summary>
+        /// defines maixmum version of published data set
+        /// </summary>
         public uint MaxVersion
         {
-            get { return _MaxVersion; }
+            get { return m_maxVersion; }
             set
             {
-                _MaxVersion = value;
+                m_maxVersion = value;
                 OnPropertyChanged( "MaxVersion" );
             }
         }
@@ -69,6 +102,9 @@ namespace PubSubConfigurationUI.ViewModels
 
         #region Public Methods
 
+        /// <summary>
+        /// Initialiser method for PublishedDataSetEdit
+        /// </summary>
         public void Initialize( )
         {
             DataSetNodeId = Definition.DataSetNodeId;

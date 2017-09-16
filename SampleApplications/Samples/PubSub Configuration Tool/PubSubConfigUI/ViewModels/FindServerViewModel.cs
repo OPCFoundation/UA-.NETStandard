@@ -1,4 +1,20 @@
-﻿using System;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -13,12 +29,15 @@ using PubSubConfigurationUI.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for find server view
+    /// </summary>
     internal class FindServerViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private ObservableCollection< SystemNode > _LocalMachineServerNode;
-        private ObservableCollection< SystemNode > _LocalNetworkServerNodes;
+        private ObservableCollection< SystemNode > m_localMachineServerNode;
+        private ObservableCollection< SystemNode > m_localNetworkServerNodes;
 
         #endregion
 
@@ -59,31 +78,31 @@ namespace PubSubConfigurationUI.ViewModels
         /// <param name="hostName">Name of the host.</param>
         private List< ServerNode > GetEndpoints( string hostName )
         {
-            var ServerNodeList = new List< ServerNode >( );
-            var _ApplicationDescriptionCollection = OPCUAClientAdaptor.FindServers( hostName );
-            if ( _ApplicationDescriptionCollection != null )
-                for ( var ii = 0; ii < _ApplicationDescriptionCollection.Count; ii++ )
+            var serverNodeList = new List< ServerNode >( );
+            var applicationDescriptionCollection = OPCUAClientAdaptor.FindServers( hostName );
+            if ( applicationDescriptionCollection != null )
+                for ( var ii = 0; ii < applicationDescriptionCollection.Count; ii++ )
                 {
                     // don't show discovery servers.
-                    if ( _ApplicationDescriptionCollection[ ii ].ApplicationType ==
+                    if ( applicationDescriptionCollection[ ii ].ApplicationType ==
                          ApplicationType.DiscoveryServer ) continue;
 
-                    for ( var jj = 0; jj < _ApplicationDescriptionCollection[ ii ].DiscoveryUrls.Count; jj++ )
+                    for ( var jj = 0; jj < applicationDescriptionCollection[ ii ].DiscoveryUrls.Count; jj++ )
                     {
-                        var discoveryUrl = _ApplicationDescriptionCollection[ ii ].DiscoveryUrls[ jj ];
+                        var discoveryUrl = applicationDescriptionCollection[ ii ].DiscoveryUrls[ jj ];
 
                         // Many servers will use the '/discovery' suffix for the discovery endpoint.
                         // The URL without this prefix should be the base URL for the server. 
                         if ( discoveryUrl.EndsWith( "/discovery" ) )
                             discoveryUrl = discoveryUrl.Substring( 0, discoveryUrl.Length - "/discovery".Length );
 
-                        var _ServerNode = new ServerNode( );
-                        _ServerNode.Name = discoveryUrl;
-                        _ServerNode.UAApplicationDescription = _ApplicationDescriptionCollection[ ii ];
-                        ServerNodeList.Add( _ServerNode );
+                        var serverNode = new ServerNode( );
+                        serverNode.Name = discoveryUrl;
+                        serverNode.UAApplicationDescription = applicationDescriptionCollection[ ii ];
+                        serverNodeList.Add( serverNode );
                     }
                 }
-            return ServerNodeList;
+            return serverNodeList;
         }
 
         #endregion
@@ -99,24 +118,30 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
-        #region Public Property
+        #region Public Properties
 
+        /// <summary>
+        /// collection of server available in local host
+        /// </summary>
         public ObservableCollection< SystemNode > LocalMachineServerNode
         {
-            get { return _LocalMachineServerNode; }
+            get { return m_localMachineServerNode; }
             set
             {
-                _LocalMachineServerNode = value;
+                m_localMachineServerNode = value;
                 OnPropertyChanged( "LocalMachineServerNode" );
             }
         }
 
+        /// <summary>
+        /// collection of server available in local network machines 
+        /// </summary>
         public ObservableCollection< SystemNode > LocalNetworkServerNodes
         {
-            get { return _LocalNetworkServerNodes; }
+            get { return m_localNetworkServerNodes; }
             set
             {
-                _LocalNetworkServerNodes = value;
+                m_localNetworkServerNodes = value;
                 OnPropertyChanged( "LocalNetworkServerNodes" );
             }
         }
@@ -124,7 +149,10 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Method to find available servers in selected host.
+        /// </summary>
+        /// <param name="systemNode"></param>
         public void FindAvailableServers( SystemNode systemNode )
         {
             systemNode.Children.Clear( );
@@ -197,9 +225,8 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
+        #region Public Fields
         public OPCUAClientAdaptor OPCUAClientAdaptor;
-
-        #region Public Properties
 
         #endregion
     }

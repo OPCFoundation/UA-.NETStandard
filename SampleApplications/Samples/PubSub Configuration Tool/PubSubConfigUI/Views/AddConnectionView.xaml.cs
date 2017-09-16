@@ -8,7 +8,7 @@ namespace PubSubConfigurationUI.Views
     /// </summary>
     public partial class AddConnectionView : Window
     {
-        #region Private Methods
+        #region Event Handlers
 
         private void OnApplyClick( object sender, RoutedEventArgs e )
         {

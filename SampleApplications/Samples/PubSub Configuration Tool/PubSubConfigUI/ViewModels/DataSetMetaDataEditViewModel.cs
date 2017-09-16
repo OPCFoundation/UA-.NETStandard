@@ -1,4 +1,20 @@
-﻿using System;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -8,26 +24,33 @@ using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model definition for data set meta data view model
+    /// </summary>
     public class DataSetMetaDataEditViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields
 
-        private string _dataSetClassId;
-        private DataSetMetaDataDefinition _Definition;
-        private string _Description;
+        private string m_dataSetClassId;
+        private DataSetMetaDataDefinition m_definition;
+        private string m_description;
 
-        private ObservableCollection< FieldMetaDataDefinition > _FieldMetaDataDefinitionCollection =
+        private ObservableCollection< FieldMetaDataDefinition > m_fieldMetaDataDefinitionCollection =
         new ObservableCollection< FieldMetaDataDefinition >( );
 
-        private uint _MajorVersion = 1;
-        private uint _MinorVersion = 1;
+        private uint m_majorVersion = 1;
+        private uint m_minorVersion = 1;
         private ConfigurationVersionDataType m_configurationVersion;
-        private StringCollection m_namespaces;
 
         #endregion
 
         #region Private Methods
 
+        /// <summary>
+        /// Method to get Constants list from array
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private List< FieldInfo > GetConstants( Type type )
         {
             var fieldInfos = type.GetFields( BindingFlags.Public | BindingFlags.Static |
@@ -39,7 +62,9 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Constructors
-
+        /// <summary>
+        /// initialising  DataSetMetaDataEditViewModel with new definition
+        /// </summary>
         public DataSetMetaDataEditViewModel( )
         {
             Definition = new DataSetMetaDataDefinition( null );
@@ -47,49 +72,48 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines Data Set Meta Data Definition
+        /// </summary>
         public DataSetMetaDataDefinition Definition
         {
-            get { return _Definition; }
+            get { return m_definition; }
             set
             {
-                _Definition = value;
+                m_definition = value;
                 OnPropertyChanged( "Definition" );
             }
         }
-
+        /// <summary>
+        /// defines description of the  definition
+        /// </summary>
         public string Description
         {
-            get { return _Description; }
+            get { return m_description; }
             set
             {
-                _Description = value;
+                m_description = value;
                 OnPropertyChanged( "Description" );
             }
         }
 
+        /// <summary>
+        /// defines data set class ID data set meta data
+        /// </summary>
         public string DataSetClassId
         {
-            get { return _dataSetClassId; }
+            get { return m_dataSetClassId; }
             set
             {
-                _dataSetClassId = value;
+                m_dataSetClassId = value;
                 OnPropertyChanged( "DataSetClassId" );
             }
         }
 
-        public StringCollection Namespaces
-        {
-            get { return m_namespaces; }
-            set
-            {
-                m_namespaces = value;
-
-                if ( value == null ) m_namespaces = new StringCollection( );
-            }
-        }
-
+        /// <summary>
+        /// defines configuration version of data set meta data
+        /// </summary>
         public ConfigurationVersionDataType ConfigurationVersion
         {
             get { return m_configurationVersion; }
@@ -101,32 +125,40 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
+        /// <summary>
+        /// defines configuration minor version of data set meta data
+        /// </summary>
         public uint MinorVersion
         {
-            get { return _MinorVersion; }
+            get { return m_minorVersion; }
             set
             {
-                _MinorVersion = value;
+                m_minorVersion = value;
                 OnPropertyChanged( "MinorVersion" );
             }
         }
-
+        /// <summary>
+        /// defines configuration major version of data set meta data
+        /// </summary>
         public uint MajorVersion
         {
-            get { return _MajorVersion; }
+            get { return m_majorVersion; }
             set
             {
-                _MajorVersion = value;
+                m_majorVersion = value;
                 OnPropertyChanged( "MajorVersion" );
             }
         }
 
+        /// <summary>
+        /// defines collection of Field Meta Data Definition
+        /// </summary>
         public ObservableCollection< FieldMetaDataDefinition > FieldMetaDataDefinitionCollection
         {
-            get { return _FieldMetaDataDefinitionCollection; }
+            get { return m_fieldMetaDataDefinitionCollection; }
             set
             {
-                _FieldMetaDataDefinitionCollection = value;
+                m_fieldMetaDataDefinitionCollection = value;
                 OnPropertyChanged( "FieldMetaDataDefinitionCollection" );
             }
         }
@@ -134,7 +166,9 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Initialise method with new field meta data definition
+        /// </summary>
         public void Initialize( )
         {
             Description = Definition.DataSetMetaDataType.Description.Text;
@@ -143,51 +177,53 @@ namespace PubSubConfigurationUI.ViewModels
             MajorVersion = Definition.DataSetMetaDataType.ConfigurationVersion.MajorVersion;
             ConfigurationVersion = Definition.DataSetMetaDataType.ConfigurationVersion;
             FieldMetaDataDefinitionCollection.Clear( );
-            foreach ( var _FieldMetaData in Definition.DataSetMetaDataType.Fields )
+            foreach ( var fieldMetaData in Definition.DataSetMetaDataType.Fields )
             {
-                var _FieldMetaDataDefinition = new FieldMetaDataDefinition( );
-                _FieldMetaDataDefinition.ArrayDimensions = _FieldMetaData.ArrayDimensions;
-                _FieldMetaDataDefinition.BuildInType = _FieldMetaData.BuiltInType;
-                _FieldMetaDataDefinition.DataSetFieldFlags = _FieldMetaData.FieldFlags;
-                _FieldMetaDataDefinition.DataSetFieldId = _FieldMetaData.DataSetFieldId.ToString( );
-                _FieldMetaDataDefinition.Description = _FieldMetaData.Description.Text;
-                _FieldMetaDataDefinition.Name = _FieldMetaData.Name;
-                _FieldMetaDataDefinition.DataTypeId = _FieldMetaData.DataType.ToString( );
+                var fieldMetaDataDefinition = new FieldMetaDataDefinition( );
+                fieldMetaDataDefinition.ArrayDimensions = fieldMetaData.ArrayDimensions;
+                fieldMetaDataDefinition.BuildInType = fieldMetaData.BuiltInType;
+                fieldMetaDataDefinition.DataSetFieldFlags = fieldMetaData.FieldFlags;
+                fieldMetaDataDefinition.DataSetFieldId = fieldMetaData.DataSetFieldId.ToString( );
+                fieldMetaDataDefinition.Description = fieldMetaData.Description.Text;
+                fieldMetaDataDefinition.Name = fieldMetaData.Name;
+                fieldMetaDataDefinition.DataTypeId = fieldMetaData.DataType.ToString( );
                 try
                 {
-                    _FieldMetaDataDefinition.ValueRank = GetConstants( typeof( ValueRanks ) )
-                    .Where( i => Convert.ToInt16( i.GetValue( i ) ) == _FieldMetaData.ValueRank ).FirstOrDefault( )
+                    fieldMetaDataDefinition.ValueRank = GetConstants( typeof( ValueRanks ) )
+                    .Where( i => Convert.ToInt16( i.GetValue( i ) ) == fieldMetaData.ValueRank ).FirstOrDefault( )
                     .Name;
                 }
                 catch ( Exception ex )
                 {
                     Utils.Trace( ex,"DataSetMetaDataEditViewModel:Initialize API", ex );
                 }
-
-                FieldMetaDataDefinitionCollection.Add( _FieldMetaDataDefinition );
+                FieldMetaDataDefinitionCollection.Add( fieldMetaDataDefinition );
             }
         }
 
         #endregion
     }
 
+    /// <summary>
+    /// definition for field metadata definition
+    /// </summary>
     public class FieldMetaDataDefinition : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private int _BuildInType = 1;
-        private ObservableCollection< DataItemBinding > _BuildInTypes = new ObservableCollection< DataItemBinding >( );
-        private DataSetFieldFlags _DataSetFieldFlags = DataSetFieldFlags.PromotedField;
+        private int m_buildInType = 1;
+        private ObservableCollection< DataItemBinding > m_buildInTypes = new ObservableCollection< DataItemBinding >( );
+        private DataSetFieldFlags m_dataSetFieldFlags = DataSetFieldFlags.PromotedField;
 
-        private ObservableCollection< DataItemBinding > _DataTypesCollection =
+        private ObservableCollection< DataItemBinding > m_dataTypesCollection =
         new ObservableCollection< DataItemBinding >( );
 
-        private ObservableCollection< DataItemBinding > _FieldsCollection =
+        private ObservableCollection< DataItemBinding > m_fieldsCollection =
         new ObservableCollection< DataItemBinding >( );
 
-        private KeyValuePairDefinition _KeyValuePairDefinition = new KeyValuePairDefinition( );
+        private KeyValuePairDefinition m_keyValuePairDefinition = new KeyValuePairDefinition( );
 
-        private ObservableCollection< DataItemBinding > _ValuerankCollection =
+        private ObservableCollection< DataItemBinding > m_valuerankCollection =
         new ObservableCollection< DataItemBinding >( );
 
         private UInt32Collection m_arrayDimensions = new UInt32Collection( );
@@ -201,7 +237,11 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Private Methods
-
+        /// <summary>
+        ///  Method to get Constants list from array
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private List< FieldInfo > GetConstants( Type type )
         {
             var fieldInfos = type.GetFields( BindingFlags.Public | BindingFlags.Static |
@@ -210,6 +250,11 @@ namespace PubSubConfigurationUI.ViewModels
             return fieldInfos.Where( fi => fi.IsLiteral && !fi.IsInitOnly ).ToList( );
         }
 
+        /// <summary>
+        ///  Method to get Field list
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private List< FieldInfo > GetFields( Type type )
         {
             var fieldInfos = type.GetFields( BindingFlags.Public | BindingFlags.Static |
@@ -261,14 +306,19 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines name of definition
+        /// </summary>
         public string Name
         {
             get { return m_name; }
             set { m_name = value; }
         }
 
+        /// <summary>
+        /// defines description for target definition
+        /// </summary>
         public string Description
         {
             get { return m_description; }
@@ -279,13 +329,13 @@ namespace PubSubConfigurationUI.ViewModels
         {
             get
             {
-                if ( DataTypesCollection != null )
+                if (DataTypesCollection != null)
                     try
                     {
                         return DataTypesCollection
-                        .Where( i => i.Value.ToString( ) == DataTypeId ).FirstOrDefault( ).DisplayName;
+                        .Where(i => i.Value.ToString() == DataTypeId).FirstOrDefault().DisplayName;
                     }
-                    catch ( Exception ex )
+                    catch (Exception)
                     {
                         return DataTypeId;
                     }
@@ -294,50 +344,71 @@ namespace PubSubConfigurationUI.ViewModels
             set { m_dataType = value; }
         }
 
+        /// <summary>
+        /// defines data type ID for target definition
+        /// </summary>
         public string DataTypeId
         {
             get { return m_dataTypeId; }
             set { m_dataTypeId = value; }
         }
 
+        /// <summary>
+        /// defines value rank for target definition
+        /// </summary>
         public string ValueRank
         {
             get { return m_ValueRank; }
             set { m_ValueRank = value; }
         }
 
+        /// <summary>
+        /// defines data set field flags for target definiton
+        /// </summary>
         public DataSetFieldFlags DataSetFieldFlags
         {
-            get { return _DataSetFieldFlags; }
-            set { _DataSetFieldFlags = value; }
+            get { return m_dataSetFieldFlags; }
+            set { m_dataSetFieldFlags = value; }
         }
 
+        /// <summary>
+        /// defines built in type for target definition
+        /// </summary>
         public int BuildInType
         {
-            get { return _BuildInType; }
-            set { _BuildInType = value; }
+            get { return m_buildInType; }
+            set { m_buildInType = value; }
         }
 
+        /// <summary>
+        /// defines Field collection of DataItemBinding
+        /// </summary>
         public ObservableCollection< DataItemBinding > FieldsCollection
         {
-            get { return _FieldsCollection; }
+            get { return m_fieldsCollection; }
             set
             {
-                _FieldsCollection = value;
+                m_fieldsCollection = value;
                 OnPropertyChanged( "FieldsCollection" );
             }
         }
 
+        /// <summary>
+        /// defines BuiltInType collection of type DataItemBinding
+        /// </summary>
         public ObservableCollection< DataItemBinding > BuiltInTypeCollection
         {
-            get { return _BuildInTypes; }
+            get { return m_buildInTypes; }
             set
             {
-                _BuildInTypes = value;
+                m_buildInTypes = value;
                 OnPropertyChanged( "BuiltInType" );
             }
         }
 
+        /// <summary>
+        /// defines array dimensions 
+        /// </summary>
         public UInt32Collection ArrayDimensions
         {
             get { return m_arrayDimensions; }
@@ -349,78 +420,95 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
+        /// <summary>
+        /// defines Data Set Field ID 
+        /// </summary>
         public string DataSetFieldId
         {
             get { return m_dataSetFieldId; }
             set { m_dataSetFieldId = value; }
         }
 
+        /// <summary>
+        /// defines DataTypesCollection  of type DataItemBinding
+        /// </summary>
         public ObservableCollection< DataItemBinding > DataTypesCollection
         {
-            get { return _DataTypesCollection; }
+            get { return m_dataTypesCollection; }
             set
             {
-                _DataTypesCollection = value;
+                m_dataTypesCollection = value;
                 OnPropertyChanged( "DataTypesCollection" );
             }
         }
 
+        /// <summary>
+        /// defines valuerankcollection of type DataIteBinding
+        /// </summary>
         public ObservableCollection< DataItemBinding > ValuerankCollection
         {
-            get { return _ValuerankCollection; }
+            get { return m_valuerankCollection; }
             set
             {
-                _ValuerankCollection = value;
+                m_valuerankCollection = value;
                 OnPropertyChanged( "ValuerankCollection" );
             }
         }
-
-        public KeyValuePairDefinition KeyValuePairItem
-        {
-            get { return _KeyValuePairDefinition; }
-            set
-            {
-                _KeyValuePairDefinition = value;
-                OnPropertyChanged( "KeyValuePairItem" );
-            }
-        }
-
+        //public KeyValuePairDefinition KeyValuePairItem
+        //{
+        //    get { return m_KeyValuePairDefinition; }
+        //    set
+        //    {
+        //        m_KeyValuePairDefinition = value;
+        //        OnPropertyChanged("KeyValuePairItem");
+        //    }
+        //}
         #endregion
     }
 
+    /// <summary>
+    /// defines Data item binding definition
+    /// </summary>
     public class DataItemBinding
     {
-        #region Private Member 
+        #region Private Fields
 
-        private string _Value;
+        private string m_value;
         private string m_displayname;
         private string m_name;
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines name of target definition
+        /// </summary>
         public string Name
         {
             get { return m_name; }
             set { m_name = value; }
         }
 
+        /// <summary>
+        /// defines display name of target definition 
+        /// </summary>
         public string DisplayName
         {
             get { return m_displayname; }
             set { m_displayname = value; }
         }
 
+        /// <summary>
+        /// defines value of target definition
+        /// </summary>
         public string Value
         {
-            get { return _Value; }
-            set { _Value = value; }
+            get { return m_value; }
+            set { m_value = value; }
         }
 
         #endregion
     }
-
     public class KeyValuePairDefinition
     {
         #region Public Property

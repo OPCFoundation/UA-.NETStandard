@@ -1,142 +1,186 @@
-﻿using Opc.Ua;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Sample.Controls;
 using PubSubBase.Definitions;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime;
 
 namespace ClientAdaptor
 {
+    /// <summary>
+    /// Class to browse address space
+    /// </summary>
     public class BrowseNodeControl
     {
-
         #region Contructor
-
+        /// <summary>
+        /// initialise browse control for session
+        /// </summary>
+        /// <param name="session"></param>
         public BrowseNodeControl(Session session)
         {
-            Browser = new Browser(session);
-            Browser.BrowseDirection = BrowseDirection.Forward;
-            Browser.ReferenceTypeId = null;
-            Browser.IncludeSubtypes = true;
-            Browser.NodeClassMask = 0;
-            Browser.ContinueUntilDone = false;
+            Browser = new Browser(session)
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = null,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ContinueUntilDone = false
+            };
         }
 
         #endregion
 
-        #region Public & Private Variables
+        #region Private Fields
 
-        private NodeId _rootId;
-        private Browser _browser;
+        private NodeId m_rootId;
+        private Browser m_browser;
+        private bool m_showReferences;
 
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// browser for Browse control
+        /// </summary>
         public Browser Browser
         {
-            get { return _browser; }
-            set { _browser = value; }
+            get { return m_browser; }
+            set { m_browser = value; }
         }
-
-        private bool _showReferences;
-
         #endregion
 
-        #region Public & Private Functions
+        #region Public methods
 
+        /// <summary>
+        /// Method to browse the selected node.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public bool Browse(ref TreeViewNode node)
         {
             //Fetch references.
             ReferenceDescriptionCollection references;
             try
             {
-                if (!node.IsRoot) references = _browser.Browse(node.Id);
-                else references = _browser.Browse(_rootId);
+                if (!node.IsRoot) references = m_browser.Browse(node.Id);
+                else  references = m_browser.Browse(m_rootId);
 
                 //Add nodes to tree
-                AddReferences(ref node, references);
+                AddReferences(ref node,  references);
                 return true;
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"BrowseNodeControl.Browse API" + ex.Message);
-               
+                Utils.Trace(ex, "BrowseNodeControl.Browse API" + ex.Message);
             }
-
             return false;
         }
 
+        /// <summary>
+        /// Initialize browser.
+        /// </summary>
+        /// <param name="viewType"></param>
+        /// <param name="viewId"></param>
         public void InitializeBrowserView(BrowseViewType viewType, NodeId viewId)
         {
-            _rootId = Objects.RootFolder;
-            _showReferences = false;
+            m_rootId = Objects.RootFolder;
+            m_showReferences = false;
 
             switch (viewType)
             {
                 case BrowseViewType.All:
-                {
-                    _showReferences = true;
-                    break;
-                }
+                    {
+                        m_showReferences = true;
+                        break;
+                    }
 
                 case BrowseViewType.Objects:
-                {
-                    _rootId = Objects.ObjectsFolder;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
-                    break;
-                }
+                    {
+                        m_rootId = Objects.ObjectsFolder;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+                        break;
+                    }
 
                 case BrowseViewType.Types:
-                {
-                    _rootId = Objects.TypesFolder;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
-                    break;
-                }
+                    {
+                        m_rootId = Objects.TypesFolder;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+                        break;
+                    }
 
                 case BrowseViewType.ObjectTypes:
-                {
-                    _rootId = ObjectTypes.BaseObjectType;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
-                    break;
-                }
+                    {
+                        m_rootId = ObjectTypes.BaseObjectType;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
+                        break;
+                    }
 
                 case BrowseViewType.EventTypes:
-                {
-                    _rootId = ObjectTypes.BaseEventType;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
-                    break;
-                }
+                    {
+                        m_rootId = ObjectTypes.BaseEventType;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
+                        break;
+                    }
 
                 case BrowseViewType.DataTypes:
-                {
-                    _rootId = DataTypeIds.BaseDataType;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
-                    break;
-                }
+                    {
+                        m_rootId = DataTypeIds.BaseDataType;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
+                        break;
+                    }
 
                 case BrowseViewType.ReferenceTypes:
-                {
-                    _rootId = ReferenceTypeIds.References;
-                    Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
-                    break;
-                }
+                    {
+                        m_rootId = ReferenceTypeIds.References;
+                        Browser.ReferenceTypeId = ReferenceTypeIds.HasChild;
+                        break;
+                    }
 
                 case BrowseViewType.ServerDefinedView:
-                {
-                    _rootId = viewId;
-                    Browser.View = new ViewDescription();
-                    Browser.View.ViewId = viewId;
-                    _showReferences = true;
-                    break;
-                }
+                    {
+                        m_rootId = viewId;
+                        Browser.View = new ViewDescription
+                        {
+                            ViewId = viewId
+                        };
+                        m_showReferences = true;
+                        break;
+                    }
             }
         }
 
+
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Metod to add reference 
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="references"></param>
         private void AddReferences(ref TreeViewNode parent, ReferenceDescriptionCollection references)
         {
             if (references.Count != 0)
                 foreach (var reference in references)
                 {
-                    if (!_showReferences)
+                    if (!m_showReferences)
                     {
                         var exists = false;
                         if (parent != null)
@@ -154,10 +198,12 @@ namespace ClientAdaptor
                         if (exists) continue;
                     }
 
-                    if (_showReferences) FindReferenceTypeContainer(parent, reference);
-                    var treeViewNode = new TreeViewNode();
-                    treeViewNode.Header = GetTargetText(reference);
-                    treeViewNode.Id = reference.NodeId.ToString();
+                    if (m_showReferences) FindReferenceTypeContainer(parent, reference);
+                    var treeViewNode = new TreeViewNode
+                    {
+                        Header = GetTargetText(reference),
+                        Id = reference.NodeId.ToString()
+                    };
                     treeViewNode.Reference.BrowseName = reference.BrowseName.Name;
                     treeViewNode.Reference.IsForward = reference.IsForward;
                     treeViewNode.Reference.NodeId = reference.NodeId.ToString();
@@ -170,14 +216,17 @@ namespace ClientAdaptor
 
                     if (!reference.NodeId.IsAbsolute)
                     {
-                        //if (reference.NodeClass == NodeClass.Variable && !reference.NodeId.IsAbsolute)
-                        //    continue;
                         Browse(ref treeViewNode);
                     }
 
                 }
         }
 
+        /// <summary>
+        /// Method to get name of selected node.
+        /// </summary>
+        /// <param name="reference"></param>
+        /// <returns></returns>
         private string GetTargetText(ReferenceDescription reference)
         {
             if (reference != null)
@@ -191,11 +240,16 @@ namespace ClientAdaptor
             return null;
         }
 
+        /// <summary>
+        /// Method to find reference container type.
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="reference"></param>
         private void FindReferenceTypeContainer(TreeViewNode parent, ReferenceDescription reference)
         {
             if (parent == null) return;
 
-            var typeNode = _browser.Session.NodeCache.Find(reference.ReferenceTypeId) as ReferenceTypeNode;
+            var typeNode = m_browser.Session.NodeCache.Find(reference.ReferenceTypeId) as ReferenceTypeNode;
             foreach (var child in parent.Children)
                 if (typeNode != null && typeNode.NodeId == child.Reference.NodeId) //ToDO: covert to nodeId 
                 {
@@ -210,10 +264,6 @@ namespace ClientAdaptor
                         if (child.Reference.DisplayName == typeNode.InverseName.Text) return;
                     }
                 }
-
-            if (typeNode != null && (!reference.IsForward && typeNode.InverseName != null))
-            {
-            }
         }
 
         #endregion

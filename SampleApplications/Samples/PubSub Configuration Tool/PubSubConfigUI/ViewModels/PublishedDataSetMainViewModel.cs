@@ -1,4 +1,20 @@
-﻿using System.Collections.Generic;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
@@ -9,28 +25,31 @@ using PubSubConfigurationUI.Views;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for published data set main view
+    /// </summary>
     public class PublishedDataSetMainViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private readonly IOPCUAClientAdaptor _ClientAdaptor;
-        private Visibility _IsAddEventsVisible = Visibility.Collapsed;
-        private Visibility _IsAddVariableVisible = Visibility.Collapsed;
-        private Visibility _IsCancelVisible = Visibility.Collapsed;
-        private Visibility _IsPublishedDataSetVisible = Visibility.Collapsed;
-        private Visibility _IsPublishedEventsVisible = Visibility.Collapsed;
-        private Visibility _IsRemoveEventsVisible = Visibility.Collapsed;
-        private Visibility _IsRemovePublishedDataSetVisible = Visibility.Collapsed;
-        private Visibility _IsRemovePublishedEventsVisible = Visibility.Collapsed;
-        private Visibility _IsRemoveVariablesVisible = Visibility.Collapsed;
-        private Visibility _IsRemoveVariableVisible = Visibility.Collapsed;
-        private Visibility _IsUpdateVisible = Visibility.Collapsed;
+        private readonly IOPCUAClientAdaptor m_clientAdaptor;
+        private Visibility m_isAddEventsVisible = Visibility.Collapsed;
+        private Visibility m_isAddVariableVisible = Visibility.Collapsed;
+        private Visibility m_isCancelVisible = Visibility.Collapsed;
+        private Visibility m_isPublishedDataSetVisible = Visibility.Collapsed;
+        private Visibility m_isPublishedEventsVisible = Visibility.Collapsed;
+        private Visibility m_isRemoveEventsVisible = Visibility.Collapsed;
+        private Visibility m_isRemovePublishedDataSetVisible = Visibility.Collapsed;
+        private Visibility m_isRemovePublishedEventsVisible = Visibility.Collapsed;
+        private Visibility m_isRemoveVariablesVisible = Visibility.Collapsed;
+        private Visibility m_isRemoveVariableVisible = Visibility.Collapsed;
+        private Visibility m_isUpdateVisible = Visibility.Collapsed;
 
-        private ObservableCollection< PublishedDataSetBase > _PublishedDataSetCollection =
+        private ObservableCollection< PublishedDataSetBase > m_publishedDataSetCollection =
         new ObservableCollection< PublishedDataSetBase >( );
 
-        private PublishedDataDefinition AddPublisherVaraibleParentNode;
-        private TreeViewNode RootNode;
+        private PublishedDataDefinition m_addPublisherVaraibleParentNode;
+        private TreeViewNode m_rootNode;
 
         #endregion
 
@@ -38,41 +57,41 @@ namespace PubSubConfigurationUI.ViewModels
 
         private void AddPublishedDataView_Closing( object sender, CancelEventArgs e )
         {
-            var _AddPublishedData = sender as AddPublishedDataSetDialog;
-            if ( _AddPublishedData._isApplied )
+            var addPublishedData = sender as AddPublishedDataSetDialog;
+            if ( addPublishedData._isApplied )
             {
-                var _PublishedDataSetBase =
-                _ClientAdaptor.AddPublishedDataSet( _AddPublishedData.PublisherName.Text,
-                                                    _AddPublishedData
+                var publishedDataSetBase =
+                m_clientAdaptor.AddPublishedDataSet( addPublishedData.PublisherName.Text,
+                                                    addPublishedData
                                                     .AddPublishedDataSetViewModel.VariableListDefinitionCollection );
-                if ( _PublishedDataSetBase != null ) PublishedDataSetCollection.Add( _PublishedDataSetBase );
+                if (publishedDataSetBase != null ) PublishedDataSetCollection.Add(publishedDataSetBase);
             }
         }
 
         private void AddVariableDataView_Closing( object sender, CancelEventArgs e )
         {
-            var _AddPublishedData = sender as AddPublishedDataSetDialog;
-            if ( _AddPublishedData._isApplied )
+            var addPublishedData = sender as AddPublishedDataSetDialog;
+            if ( addPublishedData._isApplied )
             {
-                var _PublishedDataSetDefinition =
-                AddPublisherVaraibleParentNode.ParentNode as PublishedDataSetDefinition;
-                ConfigurationVersionDataType _NewConfigurationVersion;
+                var publishedDataSetDefinition =
+                m_addPublisherVaraibleParentNode.ParentNode as PublishedDataSetDefinition;
+                ConfigurationVersionDataType newConfigurationVersion;
                 var errMsg =
-                _ClientAdaptor.AddVariableToPublisher( _PublishedDataSetDefinition.Name,
-                                                       _PublishedDataSetDefinition.PublishedDataSetNodeId,
-                                                       _PublishedDataSetDefinition.ConfigurationVersionDataType,
-                                                       _AddPublishedData
+                m_clientAdaptor.AddVariableToPublisher( publishedDataSetDefinition.Name,
+                                                       publishedDataSetDefinition.PublishedDataSetNodeId,
+                                                       publishedDataSetDefinition.ConfigurationVersionDataType,
+                                                       addPublishedData
                                                        .AddPublishedDataSetViewModel.VariableListDefinitionCollection,
-                                                       out _NewConfigurationVersion );
+                                                       out newConfigurationVersion );
                 if ( !string.IsNullOrWhiteSpace( errMsg ) )
                 {
                     MessageBox.Show( errMsg, "Add Variables" );
-                    _AddPublishedData._isApplied = false;
+                    addPublishedData._isApplied = false;
                     e.Cancel = true;
                     return;
                 }
-                (AddPublisherVaraibleParentNode.ParentNode as PublishedDataSetDefinition).ConfigurationVersionDataType =
-                _NewConfigurationVersion;
+                (m_addPublisherVaraibleParentNode.ParentNode as PublishedDataSetDefinition).ConfigurationVersionDataType =
+                newConfigurationVersion;
             }
         }
 
@@ -82,130 +101,163 @@ namespace PubSubConfigurationUI.ViewModels
 
         public PublishedDataSetMainViewModel( IOPCUAClientAdaptor OPCUAClientAdaptor )
         {
-            _ClientAdaptor = OPCUAClientAdaptor;
+            m_clientAdaptor = OPCUAClientAdaptor;
             PublishedDataSetCollection = new ObservableCollection< PublishedDataSetBase >( );
         }
 
         #endregion
 
-        #region Public Property
+        #region Public Properties
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsPublishedDataSetVisible
         {
-            get { return _IsPublishedDataSetVisible; }
+            get { return m_isPublishedDataSetVisible; }
             set
             {
-                _IsPublishedDataSetVisible = value;
+                m_isPublishedDataSetVisible = value;
                 OnPropertyChanged( "IsPublishedDataSetVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsPublishedEventsVisible
         {
-            get { return _IsPublishedEventsVisible; }
+            get { return m_isPublishedEventsVisible; }
             set
             {
-                _IsPublishedEventsVisible = value;
+                m_isPublishedEventsVisible = value;
                 OnPropertyChanged( "IsPublishedEventsVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsAddVariableVisible
         {
-            get { return _IsAddVariableVisible; }
+            get { return m_isAddVariableVisible; }
             set
             {
-                _IsAddVariableVisible = value;
+                m_isAddVariableVisible = value;
                 OnPropertyChanged( "IsAddVariableVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsRemoveVariablesVisible
         {
-            get { return _IsRemoveVariablesVisible; }
+            get { return m_isRemoveVariablesVisible; }
             set
             {
-                _IsRemoveVariablesVisible = value;
+                m_isRemoveVariablesVisible = value;
                 OnPropertyChanged( "IsRemoveVariablesVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsUpdateVisible
         {
-            get { return _IsUpdateVisible; }
+            get { return m_isUpdateVisible; }
             set
             {
-                _IsUpdateVisible = value;
+                m_isUpdateVisible = value;
                 OnPropertyChanged( "IsUpdateVisible" );
             }
         }
-
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsCancelVisible
         {
-            get { return _IsCancelVisible; }
+            get { return m_isCancelVisible; }
             set
             {
-                _IsCancelVisible = value;
+                m_isCancelVisible = value;
                 OnPropertyChanged( "IsCancelVisible" );
             }
         }
-
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsRemoveVariableVisible
         {
-            get { return _IsRemoveVariableVisible; }
+            get { return m_isRemoveVariableVisible; }
             set
             {
-                _IsRemoveVariableVisible = value;
+                m_isRemoveVariableVisible = value;
                 OnPropertyChanged( "IsRemoveVariableVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsRemovePublishedDataSetVisible
         {
-            get { return _IsRemovePublishedDataSetVisible; }
+            get { return m_isRemovePublishedDataSetVisible; }
             set
             {
-                _IsRemovePublishedDataSetVisible = value;
+                m_isRemovePublishedDataSetVisible = value;
                 OnPropertyChanged( "IsRemovePublishedDataSetVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsAddEventsVisible
         {
-            get { return _IsAddEventsVisible; }
+            get { return m_isAddEventsVisible; }
             set
             {
-                _IsAddEventsVisible = value;
+                m_isAddEventsVisible = value;
                 OnPropertyChanged( "IsAddEventsVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsRemoveEventsVisible
         {
-            get { return _IsRemoveEventsVisible; }
+            get { return m_isRemoveEventsVisible; }
             set
             {
-                _IsRemoveEventsVisible = value;
+                m_isRemoveEventsVisible = value;
                 OnPropertyChanged( "IsRemoveEventsVisible" );
             }
         }
 
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
         public Visibility IsRemovePublishedEventsVisible
         {
-            get { return _IsRemovePublishedEventsVisible; }
+            get { return m_isRemovePublishedEventsVisible; }
             set
             {
-                _IsRemovePublishedEventsVisible = value;
+                m_isRemovePublishedEventsVisible = value;
                 OnPropertyChanged( "IsRemovePublishedEventsVisible" );
             }
         }
-
+        /// <summary>
+        /// defines collection of published data set
+        /// </summary>
         public ObservableCollection< PublishedDataSetBase > PublishedDataSetCollection
         {
-            get { return _PublishedDataSetCollection; }
+            get { return m_publishedDataSetCollection; }
             set
             {
-                _PublishedDataSetCollection = value;
+                m_publishedDataSetCollection = value;
                 OnPropertyChanged( "PublishedDataSetCollection" );
             }
         }
@@ -213,36 +265,50 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Method to add new published DataSet.
+        /// </summary>
         public void AddPublishedDataSet( )
         {
-            var _AddPublishedData = new AddPublishedDataSetDialog( _ClientAdaptor, RootNode, Visibility.Visible );
-            _AddPublishedData.Closing += AddPublishedDataView_Closing;
-            _AddPublishedData.PubDataSetUserControl.PublishedDataItemTxt.Visibility = Visibility.Collapsed;
-            ;
-            _AddPublishedData.ShowInTaskbar = false;
-            _AddPublishedData.ShowDialog( );
+            var addPublishedData = new AddPublishedDataSetDialog( m_clientAdaptor, m_rootNode, Visibility.Visible );
+            addPublishedData.Closing += AddPublishedDataView_Closing;
+            addPublishedData.PubDataSetUserControl.PublishedDataItemTxt.Visibility = Visibility.Collapsed;
+            
+            addPublishedData.ShowInTaskbar = false;
+            addPublishedData.ShowDialog( );
         }
 
+        /// <summary>
+        /// Method to add new Variable to DataSet
+        /// </summary>
+        /// <param name="ParentNode"></param>
         public void AddVariable( PublishedDataDefinition ParentNode )
         {
-            var _AddPublishedData = new AddPublishedDataSetDialog( _ClientAdaptor, RootNode, Visibility.Collapsed );
-            _AddPublishedData.Closing += AddVariableDataView_Closing;
-            AddPublisherVaraibleParentNode = ParentNode;
-            _AddPublishedData.ShowDialog( );
+            var addPublishedData = new AddPublishedDataSetDialog( m_clientAdaptor, m_rootNode, Visibility.Collapsed );
+            addPublishedData.Closing += AddVariableDataView_Closing;
+            m_addPublisherVaraibleParentNode = ParentNode;
+            addPublishedData.ShowDialog( );
         }
 
+        /// <summary>
+        /// Initialiser method for Published DataSet
+        /// </summary>
+        /// <param name="rootNode"></param>
         public void Initialize( TreeViewNode rootNode )
         {
-            RootNode = rootNode;
+            m_rootNode = rootNode;
             //Browse and load the user interface here.
-            PublishedDataSetCollection = _ClientAdaptor.GetPublishedDataSets( );
+            PublishedDataSetCollection = m_clientAdaptor.GetPublishedDataSets( );
         }
 
+        /// <summary>
+        /// Method to remove selected Published DataSet
+        /// </summary>
+        /// <param name="_PublishedDataSetDefinition"></param>
         public void RemovePublishedDataSet( PublishedDataSetDefinition _PublishedDataSetDefinition )
         {
             var errMessage =
-            _ClientAdaptor.RemovePublishedDataSet( _PublishedDataSetDefinition.PublishedDataSetNodeId );
+            m_clientAdaptor.RemovePublishedDataSet( _PublishedDataSetDefinition.PublishedDataSetNodeId );
             if ( !string.IsNullOrWhiteSpace( errMessage ) )
             {
                 MessageBox.Show( errMessage, "Remove Published DataSet" );
@@ -251,16 +317,23 @@ namespace PubSubConfigurationUI.ViewModels
             PublishedDataSetCollection.Remove( _PublishedDataSetDefinition );
         }
 
+        /// <summary>
+        /// Method to remove variables
+        /// </summary>
+        /// <param name="_PublishedDataSetBase"></param>
+        /// <param name="_PublishedDataSetDefinition"></param>
+        /// <param name="ConfigurationVersionDataType"></param>
+        /// <param name="variableIndexs"></param>
         public void RemoveVariables(
             PublishedDataSetBase _PublishedDataSetBase, PublishedDataSetDefinition _PublishedDataSetDefinition,
             ConfigurationVersionDataType ConfigurationVersionDataType, List< uint > variableIndexs )
         {
-            ConfigurationVersionDataType NewConfigurationVersion;
+            ConfigurationVersionDataType newConfigurationVersion;
             var errmsg =
-            _ClientAdaptor.RemovePublishedDataSetVariables( _PublishedDataSetDefinition.Name,
+            m_clientAdaptor.RemovePublishedDataSetVariables( _PublishedDataSetDefinition.Name,
                                                             _PublishedDataSetDefinition.PublishedDataSetNodeId,
                                                             ConfigurationVersionDataType, variableIndexs,
-                                                            out NewConfigurationVersion );
+                                                            out newConfigurationVersion );
 
             if ( !string.IsNullOrWhiteSpace( errmsg ) )
             {
@@ -268,7 +341,7 @@ namespace PubSubConfigurationUI.ViewModels
                 return;
             }
             foreach ( var index in variableIndexs ) _PublishedDataSetBase.Children.RemoveAt( ( int ) index );
-            _PublishedDataSetDefinition.ConfigurationVersionDataType = NewConfigurationVersion;
+            _PublishedDataSetDefinition.ConfigurationVersionDataType = newConfigurationVersion;
         }
 
         #endregion

@@ -177,7 +177,6 @@ namespace Opc.Ua.Client
             set { m_displayName = value; }
         }
         
-
         /// <summary>
         /// The start node for the browse path that identifies the node to monitor.
         /// </summary>

@@ -1,4 +1,20 @@
-﻿using System.Collections.ObjectModel;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Controls;
@@ -10,33 +26,48 @@ using PubSubConfigurationUI.Views;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// view model for main window
+    /// </summary>
     public class MainViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private Session _Session;
+        private Session m_session;
+        private ObservableCollection<ServerNode> _selectedServers = new ObservableCollection<ServerNode>();
+        public string _ServerStatusColor = Brushes.Orange.ToString();
+        private string _ServerStatus = "Not Connected";
+        public bool _IsConnectButtonVisible = true;
+        public bool _IsDisConnectButtonVisible;
+        private string _SelectedEndPoint;
+        private ObservableCollection<TabItem> _TabItems = new ObservableCollection<TabItem>();
+        private bool _TabItemEnabled;
+
 
         #endregion
 
         #region Private Methods
 
-        private void OPCUAClientAdaptor_PropertyChanged( object sender, PropertyChangedEventArgs e )
+        private void OPCUAClientAdaptor_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if ( e.PropertyName == "ServerStatus" )
+            if (e.PropertyName == "ServerStatus")
             {
                 ServerStatus = OPCUAClientAdaptor.ServerStatus;
             }
-            else if ( e.PropertyName == "RefreshOnReconnection" )
+            else if (e.PropertyName == "RefreshOnReconnection")
             {
-                if ( OPCUAClientAdaptor.RefreshOnReconnection ) InitializeViews( );
+                if (OPCUAClientAdaptor.RefreshOnReconnection) InitializeViews();
             }
-            else if ( e.PropertyName == "ActivateTabsonReConnection" )
+            else if (e.PropertyName == "ActivateTabsonReConnection")
             {
                 TabItemEnabled = OPCUAClientAdaptor.ActivateTabsonReConnection;
             }
         }
 
-        private void InitializeViews( )
+        /// <summary>
+        /// Method to initialise tabs
+        /// </summary>
+        private void InitializeViews()
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
@@ -52,7 +83,7 @@ namespace PubSubConfigurationUI.ViewModels
                     if (item.Content is PubSubConfigurationView)
                         (item.Content as PubSubConfigurationView).ViewModel.Initialize();
 
-                     
+
                 }
             });
         }
@@ -61,154 +92,159 @@ namespace PubSubConfigurationUI.ViewModels
 
         #region Constructors
 
-        public MainViewModel( )
+        public MainViewModel()
         {
-            OPCUAClientAdaptor = new OPCUAClientAdaptor( );
+            OPCUAClientAdaptor = new OPCUAClientAdaptor();
             OPCUAClientAdaptor.PropertyChanged += OPCUAClientAdaptor_PropertyChanged;
-            _SecurityGroupConfigurationView = new SecurityGroupConfigurationView( OPCUAClientAdaptor );
-            _PubSubConfigurationView = new PubSubConfigurationView( OPCUAClientAdaptor );
-            _PublisherDataSetView = new PublishedDataSetView( OPCUAClientAdaptor );
-            _PubSubStatusView = new PubSubStatusView( OPCUAClientAdaptor );
-            TabItems.Add( new TabItem
-                          {
-                              Header = "Security Group Configuration",
-                              Content = _SecurityGroupConfigurationView
-                          } );
-            TabItems.Add( new TabItem { Header = "PubSub Configuration", Content = _PubSubConfigurationView } );
-            TabItems.Add( new TabItem { Header = "Publisher DataSet Configuration", Content = _PublisherDataSetView } );
-            TabItems.Add( new TabItem { Header = "PubSub Status", Content = _PubSubStatusView } );
+            _SecurityGroupConfigurationView = new SecurityGroupConfigurationView(OPCUAClientAdaptor);
+            _PubSubConfigurationView = new PubSubConfigurationView(OPCUAClientAdaptor);
+            _PublisherDataSetView = new PublishedDataSetView(OPCUAClientAdaptor);
+            _PubSubStatusView = new PubSubStatusView(OPCUAClientAdaptor);
+            TabItems.Add(new TabItem
+            {
+                Header = "Security Group Configuration",
+                Content = _SecurityGroupConfigurationView
+            });
+            TabItems.Add(new TabItem { Header = "PubSub Configuration", Content = _PubSubConfigurationView });
+            TabItems.Add(new TabItem { Header = "Publisher DataSet Configuration", Content = _PublisherDataSetView });
+            TabItems.Add(new TabItem { Header = "PubSub Status", Content = _PubSubStatusView });
         }
 
         #endregion
 
         #region Public Methods
-
-        public bool Connect( string endPointURL )
+        /// <summary>
+        /// Method to connect the selected Url 
+        /// </summary>
+        /// <param name="endPointURL"></param>
+        /// <returns></returns>
+        public bool Connect(string endPointURL)
         {
             var errorMessage = string.Empty;
 
-            _Session = OPCUAClientAdaptor.Connect( endPointURL, out errorMessage, out Rootnode );
+            m_session = OPCUAClientAdaptor.Connect(endPointURL, out errorMessage, out Rootnode);
 
-            if ( _Session == null )
+            if (m_session == null)
             {
                 ServerStatus = errorMessage;
                 return false;
             }
             ServerStatus = "Running";
-            InitializeViews( );
+            InitializeViews();
 
             SelectedEndPoint = OPCUAClientAdaptor.SelectedEndpoint;
             TabItemEnabled = true;
             return true;
         }
 
-        public bool DisConnect( )
+        /// <summary>
+        /// Method to disconnect the server
+        /// </summary>
+        /// <returns></returns>
+        public bool DisConnect()
         {
             TabItemEnabled = false;
-            return OPCUAClientAdaptor.Disconnect( );
+            return OPCUAClientAdaptor.Disconnect();
         }
 
         #endregion
 
+        #region Public Fields
         public OPCUAClientAdaptor OPCUAClientAdaptor;
         public static TreeViewNode Rootnode;
         public static SecurityGroupConfigurationView _SecurityGroupConfigurationView;
         public static PubSubConfigurationView _PubSubConfigurationView;
         public static PublishedDataSetView _PublisherDataSetView;
         public static PubSubStatusView _PubSubStatusView;
+        #endregion
 
         #region Public Properties
 
-        private ObservableCollection< ServerNode > _selectedServers = new ObservableCollection< ServerNode >( );
-
-        public ObservableCollection< ServerNode > SelectedServers
+        /// <summary>
+        /// defines definition of selected server 
+        /// </summary>
+        public ObservableCollection<ServerNode> SelectedServers
         {
             get { return _selectedServers; }
             set
             {
                 _selectedServers = value;
-                OnPropertyChanged( "SelectedServers" );
+                OnPropertyChanged("SelectedServers");
             }
         }
 
-        public string _ServerStatusColor = Brushes.Orange.ToString( );
-
-        public string ServerStatusColor
-        {
-            get { return _ServerStatusColor; }
-            set
-            {
-                _ServerStatusColor = value;
-                OnPropertyChanged( "ServerStatusColor" );
-            }
-        }
-
-        private string _ServerStatus = "Not Connected";
-
+        /// <summary>
+        /// defines current server status
+        /// </summary>
         public string ServerStatus
         {
             get { return _ServerStatus; }
             set
             {
                 _ServerStatus = value;
-
-                OnPropertyChanged( "ServerStatus" );
+                OnPropertyChanged("ServerStatus");
             }
         }
 
-        public bool _IsConnectButtonVisible = true;
-
+        /// <summary>
+        /// defines visibility for button based on current status
+        /// </summary>
         public bool IsConnectButtonVisible
         {
             get { return _IsConnectButtonVisible; }
             set
             {
                 _IsConnectButtonVisible = value;
-                OnPropertyChanged( "IsConnectButtonVisible" );
+                OnPropertyChanged("IsConnectButtonVisible");
             }
         }
 
-        public bool _IsDisConnectButtonVisible;
-
+        /// <summary>
+        /// defines visibility for for button based on current status
+        /// </summary>
         public bool IsDisConnectButtonVisible
         {
             get { return _IsDisConnectButtonVisible; }
             set
             {
                 _IsDisConnectButtonVisible = value;
-                OnPropertyChanged( "IsDisConnectButtonVisible" );
+                OnPropertyChanged("IsDisConnectButtonVisible");
             }
         }
 
-        private string _SelectedEndPoint;
-
+        /// <summary>
+        /// defines current selected end point
+        /// </summary>
         public string SelectedEndPoint
         {
             get { return _SelectedEndPoint; }
             set { _SelectedEndPoint = value; }
         }
 
-        private ObservableCollection< TabItem > _TabItems = new ObservableCollection< TabItem >( );
 
-        public ObservableCollection< TabItem > TabItems
+        /// <summary>
+        /// defines collection of tab items 
+        /// </summary>
+        public ObservableCollection<TabItem> TabItems
         {
             get { return _TabItems; }
             set
             {
                 _TabItems = value;
-                OnPropertyChanged( "TabItems" );
+                OnPropertyChanged("TabItems");
             }
         }
 
-        private bool _TabItemEnabled;
-
+        /// <summary>
+        /// defines current status of selected tab item
+        /// </summary>
         public bool TabItemEnabled
         {
             get { return _TabItemEnabled; }
             set
             {
                 _TabItemEnabled = value;
-                OnPropertyChanged( "TabItemEnabled" );
+                OnPropertyChanged("TabItemEnabled");
             }
         }
 

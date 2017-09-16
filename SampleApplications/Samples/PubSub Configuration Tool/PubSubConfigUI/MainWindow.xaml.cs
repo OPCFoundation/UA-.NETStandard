@@ -1,4 +1,21 @@
-﻿using System.ComponentModel;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+
+using System.ComponentModel;
 using System.Windows;
 using PubSubConfigurationUI.ViewModels;
 using PubSubConfigurationUI.Views;
@@ -13,7 +30,7 @@ namespace PubSubConfigurationUI
     {
         #region Private Member 
 
-        private readonly MainViewModel _MainViewModel;
+        private readonly MainViewModel m_mainViewModel;
 
         #endregion
 
@@ -28,61 +45,87 @@ namespace PubSubConfigurationUI
         {
             ShowDown( );
         }
-
+        /// <summary>
+        /// Event used to connect the OPC UA Server with the configured URL
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnConnectClick( object sender, RoutedEventArgs e )
         {
-            var isConnected = _MainViewModel.Connect( cmbBox.Text );
+            var isConnected = m_mainViewModel.Connect( cmbBox.Text );
             if ( isConnected )
             {
-                cmbBox.Text = _MainViewModel.SelectedEndPoint;
+                cmbBox.Text = m_mainViewModel.SelectedEndPoint;
                 //  PubSubTabItems.IsEnabled = true;
-                _MainViewModel.IsConnectButtonVisible = false;
-                _MainViewModel.IsDisConnectButtonVisible = true;
+                m_mainViewModel.IsConnectButtonVisible = false;
+                m_mainViewModel.IsDisConnectButtonVisible = true;
                 Utils.Trace( "Server connected Successfully " + cmbBox.Text );
             }
         }
-
+        /// <summary>
+        /// Event used to disconnect from the OPC UA Server
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnDisConnectClick( object sender, RoutedEventArgs e )
         {
-            var isDisConnected = _MainViewModel.DisConnect( );
+            var isDisConnected = m_mainViewModel.DisConnect( );
             if ( isDisConnected )
             {
                 //   PubSubTabItems.IsEnabled = false;
-                _MainViewModel.IsConnectButtonVisible = true;
-                _MainViewModel.IsDisConnectButtonVisible = false;
+                m_mainViewModel.IsConnectButtonVisible = true;
+                m_mainViewModel.IsDisConnectButtonVisible = false;
 
-                _MainViewModel.ServerStatus = "Disconnected";
+                m_mainViewModel.ServerStatus = "Disconnected";
                 Utils.Trace( "Server disconnected Successfully " );
             }
         }
-
+        /// <summary>
+        /// Event used to find the available servers in the network
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnFindServerClick( object sender, RoutedEventArgs e )
         {
-            var _FindServerDlg = new FindServerDlg( _MainViewModel.OPCUAClientAdaptor );
+            var _FindServerDlg = new FindServerDlg(m_mainViewModel.OPCUAClientAdaptor );
             _FindServerDlg.Closing += _FindServerDlg_Closing;
             _FindServerDlg.ShowDialog( );
         }
-
+        /// <summary>
+        /// Event to close the find server dialog
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void _FindServerDlg_Closing( object sender, CancelEventArgs e )
         {
             var _FindServerDlg = sender as FindServerDlg;
             if ( _FindServerDlg._selectedServer != null )
             {
-                _MainViewModel.SelectedServers.Insert( 0, _FindServerDlg._selectedServer );
+                m_mainViewModel.SelectedServers.Insert( 0, _FindServerDlg._selectedServer );
                 cmbBox.SelectedIndex = 0;
             }
         }
-
+        /// <summary>
+        /// Event to close the window
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void Exit_Click( object sender, RoutedEventArgs e )
         {
             Close( );
         }
-
+        /// <summary>
+        /// Disconnect/close the seeion when window is closed
+        /// </summary>
         private void ShowDown( )
         {
-            _MainViewModel.OPCUAClientAdaptor.Disconnect( );
+            m_mainViewModel.OPCUAClientAdaptor.Disconnect( );
         }
-
+        /// <summary>
+        /// Event to view the build number, version number of Configuration tool
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnAboutClick( object sender, RoutedEventArgs e )
         {
             var helpInformation = new AboutInformationDlg( );
@@ -97,7 +140,7 @@ namespace PubSubConfigurationUI
         {
             InitializeComponent( );
             Closing += MainWindow_Closing;
-            DataContext = _MainViewModel = new MainViewModel( );
+            DataContext = m_mainViewModel = new MainViewModel( );
             Loaded += MainWindow_Loaded;
         }
 

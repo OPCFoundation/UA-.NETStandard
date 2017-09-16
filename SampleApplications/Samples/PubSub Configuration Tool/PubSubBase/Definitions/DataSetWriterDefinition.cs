@@ -1,203 +1,252 @@
-﻿using Opc.Ua;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using Opc.Ua;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// Defines DataSet Writer for publisher 
+    /// </summary>
     public class DataSetWriterDefinition : PubSubConfiguationBase
     {
+        #region Private Fields
+        private string m_dataSetWriterName;
+        private NodeId m_publisherDataSetNodeId = new NodeId("0", 1);
+        private string m_publisherDataSetId;
+        private int m_keyFrameCount;
+        private int m_dataSetWriterId;
+        private string m_queueName;
+        private string m_metadataQueueName;
+        private int m_metadataUpdateTime;
+        private int m_maxMessageSize;
+        private NodeId m_writerNodeId;
+        private int m_revisedKeyFrameCount;
+        private int m_revisedMaxMessageSize;
+        private int m_dataSetContentMask;
 
-        private string _dataSetWriterName;
+        #endregion
 
+        #region Public Properties
+        /// <summary>
+        /// defines name of DataSetWriter Name
+        /// </summary>
         public string DataSetWriterName
         {
             get
             {
-                return _dataSetWriterName;
+                return m_dataSetWriterName;
             }
             set
             {
-                Name = _dataSetWriterName = value;
+                Name = m_dataSetWriterName = value;
                 OnPropertyChanged("DataSetWriterName");
             }
         }
 
-        private NodeId _publisherDataSetNodeId=new NodeId("0",1);
-
+        /// <summary>
+        /// Defines Pulisher DataSet Node ID
+        /// </summary>
         public NodeId PublisherDataSetNodeId
         {
             get
             {
-                return _publisherDataSetNodeId;
+                return m_publisherDataSetNodeId;
             }
             set
             {
-                _publisherDataSetNodeId = value;
+                m_publisherDataSetNodeId = value;
                 OnPropertyChanged("PublisherDataSetNodeId");
             }
         }
-        private string _PublisherDataSetId;
 
+        /// <summary>
+        /// Defines Publisher DataSet ID
+        /// </summary>
         public string PublisherDataSetId
         {
             get
             {
-                return _PublisherDataSetId;
+                return m_publisherDataSetId;
             }
             set
             {
-                _PublisherDataSetId = value;
+                m_publisherDataSetId = value;
                 OnPropertyChanged("PublisherDataSetId");
             }
         }
 
-        private int _keyFrameCount;
-
+        /// <summary>
+        /// Defines the KeyFrame Count of DataSet Writer
+        /// </summary>
         public int KeyFrameCount
         {
             get
             {
-                return _keyFrameCount;
+                return m_keyFrameCount;
             }
             set
             {
-                _keyFrameCount = value;
+                m_keyFrameCount = value;
                 OnPropertyChanged("KeyFrameCount");
             }
         }
 
-        private int _dataSetWriterId;
-
+        /// <summary>
+        /// Defines the DataSet Writer ID
+        /// </summary>
         public int DataSetWriterId
         {
             get
             {
-                return _dataSetWriterId;
+                return m_dataSetWriterId;
             }
             set
             {
-                _dataSetWriterId = value;
+                m_dataSetWriterId = value;
                 OnPropertyChanged("DataSetWriterId");
             }
         }
 
-        private string _queueName;
-
+        /// <summary>
+        /// Defines the  Data Writer Queue Name
+        /// </summary>
         public string QueueName
         {
             get
             {
-                return _queueName;
+                return m_queueName;
             }
             set
             {
-                _queueName = value;
+                m_queueName = value;
                 OnPropertyChanged("QueueName");
             }
         }
-
-        private string _metadataQueueName;
+        /// <summary>
+        /// Defines the MetaDataQueue Name
+        /// </summary>
         public string MetadataQueueName
         {
             get
             {
-                return _metadataQueueName;
+                return m_metadataQueueName;
             }
             set
             {
-                _metadataQueueName = value;
+                m_metadataQueueName = value;
                 OnPropertyChanged("MetadataQueueName");
             }
         }
 
-        private int _metadataUpdateTime;
-
+        /// <summary>
+        /// Defines the MetaData update time 
+        /// </summary>
         public int MetadataUpdataTime
         {
             get
             {
-                return _metadataUpdateTime;
+                return m_metadataUpdateTime;
             }
             set
             {
-                _metadataUpdateTime = value;
+                m_metadataUpdateTime = value;
                 OnPropertyChanged("MetadataUpdataTime");
             }
         }
 
-        private int _maxMessageSize;
+        /// <summary>
+        /// defines the max size of the messgae queue
+        /// </summary>
         public int MaxMessageSize
         {
             get
             {
-                return _maxMessageSize;
+                return m_maxMessageSize;
             }
             set
             {
-                _maxMessageSize = value;
+                m_maxMessageSize = value;
                 OnPropertyChanged("MaxMessageSize");
             }
         }
 
-        private NodeId _writerNodeId;
+        /// <summary>
+        /// Defines the Writer Node ID
+        /// </summary>
         public NodeId WriterNodeId
         {
             get
             {
-                return _writerNodeId;
+                return m_writerNodeId;
 
             }
             set
             {
-                _writerNodeId = value;
+                m_writerNodeId = value;
                 OnPropertyChanged("WriterNodeId");
             }
         }
 
-        private int _revisedKeyFrameCount;
+        /// <summary>
+        /// Defines the revised key frame count
+        /// </summary>
         public int RevisedKeyFrameCount
         {
             get
             {
-                return _revisedKeyFrameCount;
+                return m_revisedKeyFrameCount;
 
             }
             set
             {
-                _revisedKeyFrameCount = value;
+                m_revisedKeyFrameCount = value;
                 OnPropertyChanged("RevisedKeyFrameCount");
             }
         }
-
-        private int _revisedMaxMessageSize;
+        /// <summary>
+        /// Defines Revised maximum message size code
+        /// </summary>
         public int RevisedMaxMessageSize
         {
             get
             {
-                return _revisedMaxMessageSize;
+                return m_revisedMaxMessageSize;
 
             }
             set
             {
-                _revisedMaxMessageSize = value;
+                m_revisedMaxMessageSize = value;
                 OnPropertyChanged("RevisedMaxMessageSize");
             }
         }
-
-        private int _dataSetContentMask;
-
+        /// <summary>
+        /// defines the DataSet Content Mask
+        /// </summary>
         public int DataSetContentMask
         {
-            get { return _dataSetContentMask; }
+            get { return m_dataSetContentMask; }
             set
             {
-                _dataSetContentMask = value;
+                m_dataSetContentMask = value;
                 OnPropertyChanged("DataSetContentMask");
             }
         }
+
+        #endregion
 
     }
 }

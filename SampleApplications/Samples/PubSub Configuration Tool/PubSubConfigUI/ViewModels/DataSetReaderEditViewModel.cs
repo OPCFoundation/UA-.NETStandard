@@ -1,129 +1,176 @@
-﻿using Opc.Ua;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using Opc.Ua;
 using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// View model definition for Data set reader
+    /// </summary>
     public class DataSetReaderEditViewModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields
 
-        private string _ConnectionPublisherId;
-        private int _dataSetContentMask;
-        private DataSetMetaDataType _DataSetMetaDataType = new DataSetMetaDataType( );
-        private string _DataSetReaderName;
-        private int _DataSetWriterId;
-        private double _MessageReceiveTimeOut;
-        private int _NetworkMessageContentMask;
-        private object _PublisherId;
-        private double _publishingInterval;
+        private string m_connectionPublisherId;
+        private int m_dataSetContentMask;
+        private DataSetMetaDataType m_dataSetMetaDataType = new DataSetMetaDataType();
+        private string m_dataSetReaderName;
+        private int m_dataSetWriterId;
+        private double m_messageReceiveTimeOut;
+        private int m_networkMessageContentMask;
+        private object m_publisherId;
+        private double m_publishingInterval;
 
         #endregion
 
-        #region Public Property
-
+        #region Public Properties
+        /// <summary>
+        /// defines data set reader name
+        /// </summary>
         public string DataSetReaderName
         {
-            get { return _DataSetReaderName; }
+            get { return m_dataSetReaderName; }
             set
             {
-                _DataSetReaderName = value;
-                OnPropertyChanged( "DataSetReaderName" );
+                m_dataSetReaderName = value;
+                OnPropertyChanged("DataSetReaderName");
             }
         }
 
+        /// <summary>
+        /// defines publisher id for Data ser reader
+        /// </summary>
         public object PublisherId
         {
-            get { return _PublisherId; }
+            get { return m_publisherId; }
             set
             {
-                _PublisherId = value;
-                OnPropertyChanged( "PublisherId" );
+                m_publisherId = value;
+                OnPropertyChanged("PublisherId");
             }
         }
 
+        /// <summary>
+        /// defines connection publisher id for data set reader
+        /// </summary>
         public string ConnectionPublisherId
         {
             get
             {
-                if ( PublisherId != null ) PublisherId.ToString( );
-                return _ConnectionPublisherId;
+                if (PublisherId != null) PublisherId.ToString();
+                return m_connectionPublisherId;
             }
             set
             {
-                _ConnectionPublisherId = value;
-                OnPropertyChanged( "ConnectionPublisherId" );
+                m_connectionPublisherId = value;
+                OnPropertyChanged("ConnectionPublisherId");
             }
         }
 
+        /// <summary>
+        /// defines data set writer ID
+        /// </summary>
         public int DataSetWriterId
         {
-            get { return _DataSetWriterId; }
+            get { return m_dataSetWriterId; }
             set
             {
-                _DataSetWriterId = value;
-                OnPropertyChanged( "DataSetWriterId" );
+                m_dataSetWriterId = value;
+                OnPropertyChanged("DataSetWriterId");
             }
         }
 
+        /// <summary>
+        /// defines dataSet meta data type
+        /// </summary>
         public DataSetMetaDataType DataSetMetaDataType
         {
-            get { return _DataSetMetaDataType; }
+            get { return m_dataSetMetaDataType; }
             set
             {
-                _DataSetMetaDataType = value;
-                OnPropertyChanged( "DataSetMetaDataType" );
+                m_dataSetMetaDataType = value;
+                OnPropertyChanged("DataSetMetaDataType");
             }
         }
 
+        /// <summary>
+        /// defines message receive timeout
+        /// </summary>
         public double MessageReceiveTimeOut
         {
-            get { return _MessageReceiveTimeOut; }
+            get { return m_messageReceiveTimeOut; }
             set
             {
-                _MessageReceiveTimeOut = value;
-                OnPropertyChanged( "MessageReceiveTimeOut" );
+                m_messageReceiveTimeOut = value;
+                OnPropertyChanged("MessageReceiveTimeOut");
             }
         }
 
+        /// <summary>
+        /// defines data set content mask
+        /// </summary>
         public int DataSetContentMask
         {
-            get { return _dataSetContentMask; }
+            get { return m_dataSetContentMask; }
             set
             {
-                _dataSetContentMask = value;
-                OnPropertyChanged( "DataSetContentMask" );
+                m_dataSetContentMask = value;
+                OnPropertyChanged("DataSetContentMask");
             }
         }
 
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
         public int NetworkMessageContentMask
         {
-            get { return _NetworkMessageContentMask; }
+            get { return m_networkMessageContentMask; }
             set
             {
-                _NetworkMessageContentMask = value;
-                OnPropertyChanged( "NetworkMessageContentMask" );
+                m_networkMessageContentMask = value;
+                OnPropertyChanged("NetworkMessageContentMask");
             }
         }
 
+        /// <summary>
+        /// defines publishing interval for data set reader
+        /// </summary>
         public double PublishingInterval
         {
-            get { return _publishingInterval; }
+            get { return m_publishingInterval; }
             set
             {
-                _publishingInterval = value;
-                OnPropertyChanged( "PublishingInterval" );
+                m_publishingInterval = value;
+                OnPropertyChanged("PublishingInterval");
             }
         }
 
         #endregion
 
         #region Public Methods
-
-        public void Initialize( )
+        /// <summary>
+        /// Initialise method
+        /// </summary>
+        public void Initialize()
         {
             DataSetReaderName = ReaderDefinition.DataSetReaderName;
             PublisherId = ReaderDefinition.PublisherId;
-            ConnectionPublisherId = PublisherId.ToString( );
+            ConnectionPublisherId = PublisherId.ToString();
             DataSetWriterId = ReaderDefinition.DataSetWriterId;
             DataSetMetaDataType = ReaderDefinition.DataSetMetaDataType;
             MessageReceiveTimeOut = ReaderDefinition.MessageReceiveTimeOut;
@@ -134,6 +181,8 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
+        #region Public Fields
         public DataSetReaderDefinition ReaderDefinition;
+        #endregion
     }
 }

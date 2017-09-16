@@ -1,139 +1,180 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
 using Opc.Ua;
 
 namespace PubSubBase.Definitions
 {
+    /// <summary>
+    /// definition of Data set reader
+    /// </summary>
     public class DataSetReaderDefinition : PubSubConfiguationBase
     {
-        private string _DataSetReaderName;
+        #region Private Fields
 
+        private string m_dataSetReaderName;
+        private object m_publisherId;
+        private int m_dataSetWriterId;
+        private DataSetMetaDataType m_dataSetMetaDataType = new DataSetMetaDataType();
+        private double m_messageReceiveTimeOut;
+        private int m_dataSetContentMask;
+        private int m_networkMessageContentMask;
+        private double m_publishingInterval;
+        private NodeId m_dataSetReaderNodeId;
+
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// defines data set reader name 
+        /// </summary>
         public string DataSetReaderName
         {
             get
             {
-                return _DataSetReaderName;
+                return m_dataSetReaderName;
             }
             set
             {
-               Name= _DataSetReaderName = value;
+                Name = m_dataSetReaderName = value;
                 OnPropertyChanged("DataSetReaderName");
             }
         }
 
-        private object _PublisherId;
-
+        /// <summary>
+        /// defines pulisher ID
+        /// </summary>
         public object PublisherId
         {
             get
             {
-                return _PublisherId;
+                return m_publisherId;
             }
             set
             {
-                _PublisherId = value;
+                m_publisherId = value;
                 OnPropertyChanged("PublisherId");
             }
         }
 
-        private int _DataSetWriterId;
-
+        /// <summary>
+        /// defines data set writer id
+        /// </summary>
         public int DataSetWriterId
         {
             get
             {
-                return _DataSetWriterId;
+                return m_dataSetWriterId;
             }
             set
             {
-                _DataSetWriterId = value;
+                m_dataSetWriterId = value;
                 OnPropertyChanged("DataSetWriterId");
             }
         }
 
-        private DataSetMetaDataType _DataSetMetaDataType = new DataSetMetaDataType();
+        /// <summary>
+        /// defines data set metadata type
+        /// </summary>
         public DataSetMetaDataType DataSetMetaDataType
         {
             get
             {
-                return _DataSetMetaDataType;
+                return m_dataSetMetaDataType;
             }
             set
             {
-                _DataSetMetaDataType = value;
+                m_dataSetMetaDataType = value;
                 OnPropertyChanged("DataSetMetaDataType");
             }
         }
 
-        private double _MessageReceiveTimeOut;
+        /// <summary>
+        /// defines message received timeout of Data set reader
+        /// </summary>
         public double MessageReceiveTimeOut
         {
             get
             {
-                return _MessageReceiveTimeOut;
+                return m_messageReceiveTimeOut;
             }
             set
             {
-                _MessageReceiveTimeOut = value;
+                m_messageReceiveTimeOut = value;
                 OnPropertyChanged("MessageReceiveTimeOut");
             }
         }
 
-        private int _dataSetContentMask;
-
+        /// <summary>
+        /// defines data set content mask
+        /// </summary>
         public int DataSetContentMask
         {
-            get { return _dataSetContentMask; }
+            get { return m_dataSetContentMask; }
             set
             {
-                _dataSetContentMask = value;
+                m_dataSetContentMask = value;
                 OnPropertyChanged("DataSetContentMask");
             }
         }
-        private int _NetworkMessageContentMask;
 
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
         public int NetworkMessageContentMask
         {
-            get { return _NetworkMessageContentMask; }
+            get { return m_networkMessageContentMask; }
             set
             {
-                _NetworkMessageContentMask = value;
+                m_networkMessageContentMask = value;
                 OnPropertyChanged("NetworkMessageContentMask");
             }
         }
 
-        private double _publishingInterval;
-
+        /// <summary>
+        /// defines publishing interval for data set reader
+        /// </summary>
         public double PublishingInterval
         {
             get
             {
-                return _publishingInterval;
+                return m_publishingInterval;
             }
             set
             {
-                _publishingInterval = value;
+                m_publishingInterval = value;
                 OnPropertyChanged("PublishingInterval");
             }
         }
 
-        private NodeId _DataSetReaderNodeId;
-
+        /// <summary>
+        /// defines data set reader node ID
+        /// </summary>
         public NodeId DataSetReaderNodeId
         {
             get
             {
-                return _DataSetReaderNodeId;
+                return m_dataSetReaderNodeId;
             }
             set
             {
-                _DataSetReaderNodeId = value;
+                m_dataSetReaderNodeId = value;
                 OnPropertyChanged("DataSetReaderNodeId");
             }
         }
 
+        #endregion
     }
 }

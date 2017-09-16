@@ -1,4 +1,20 @@
-﻿using System;
+﻿/* Copyright (c) 1996-2017, OPC Foundation. All rights reserved.
+
+   The source code in this file is covered under a dual-license scenario:
+     - RCL: for OPC Foundation members in good-standing
+     - GPL V2: everybody else
+
+   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
+
+   GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,23 +23,26 @@ using PubSubBase.Definitions;
 
 namespace PubSubConfigurationUI.ViewModels
 {
+    /// <summary>
+    /// defines published data item set view
+    /// </summary>
     public class PublishedDataItemSetModel : BaseViewModel
     {
-        #region Private Member 
+        #region Private Fields 
 
-        private string _Attribute = "Value";
-        private string _DeadbandType = "0";
-        private double _DeadbandValue;
-        private PublishedDataSetItemDefinition _Definition;
-        private QualifiedNameCollection _FieldMetaDataProperties = new QualifiedNameCollection( );
-        private string _Indexrange = string.Empty;
-        private bool _IsEnabled;
-        private double _SamplingInterval = -1;
-        private string _SubstituteValue = "0";
+        private string m_attribute = "Value";
+        private string m_deadbandType = "0";
+        private double m_deadbandValue;
+        private PublishedDataSetItemDefinition m_definition;
+        private QualifiedNameCollection m_fieldMetaDataProperties = new QualifiedNameCollection( );
+        private string m_indexrange = string.Empty;
+        private bool m_isEnabled;
+        private double m_samplingInterval = -1;
+        private string m_substituteValue = "0";
 
         #endregion
 
-        #region Private Property
+        #region Private Properties
 
         private string _PublishVariable { get; set; }
 
@@ -33,6 +52,11 @@ namespace PubSubConfigurationUI.ViewModels
 
         #region Private Methods
 
+        /// <summary>
+        /// Method to get List of field info based on type specified.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private List< FieldInfo > GetFields( Type type )
         {
             var fieldInfos = type.GetFields( BindingFlags.Public | BindingFlags.Static |
@@ -41,6 +65,11 @@ namespace PubSubConfigurationUI.ViewModels
             return fieldInfos.ToList( );
         }
 
+        /// <summary>
+        /// Method to get constant List of fieldInfo based on type specified.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private List< FieldInfo > GetConstants( Type type )
         {
             var fieldInfos = type.GetFields( BindingFlags.Public | BindingFlags.Static |
@@ -61,28 +90,37 @@ namespace PubSubConfigurationUI.ViewModels
 
         #endregion
 
-        #region Public Property
+        #region Public Properties
 
+        /// <summary>
+        /// defines definition of published data set item
+        /// </summary>
         public PublishedDataSetItemDefinition Definition
         {
-            get { return _Definition; }
+            get { return m_definition; }
             set
             {
-                _Definition = value;
+                m_definition = value;
                 OnPropertyChanged( "Definition" );
             }
         }
 
+        /// <summary>
+        /// defines condition whether item should be enabled or not
+        /// </summary>
         public bool IsEnabled
         {
-            get { return _IsEnabled; }
+            get { return m_isEnabled; }
             set
             {
-                _IsEnabled = value;
+                m_isEnabled = value;
                 OnPropertyChanged( "IsEnabled" );
             }
         }
 
+        /// <summary>
+        /// defines publish variable
+        /// </summary>
         public string PublishVariable
         {
             get { return _PublishVariable; }
@@ -93,6 +131,9 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
+        /// <summary>
+        /// defines publish variable node ID
+        /// </summary>
         public string PublishVariableNodeId
         {
             get { return _PublishVariableNodeId; }
@@ -103,72 +144,93 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
+        /// <summary>
+        /// defines attribute of target definition 
+        /// </summary>
         public string Attribute
         {
-            get { return _Attribute; }
+            get { return m_attribute; }
             set
             {
-                _Attribute = value;
+                m_attribute = value;
                 OnPropertyChanged( "Attribute" );
             }
         }
 
+        /// <summary>
+        /// defines sampling interval for target definition
+        /// </summary>
         public double SamplingInterval
         {
-            get { return _SamplingInterval; }
+            get { return m_samplingInterval; }
             set
             {
-                _SamplingInterval = value;
+                m_samplingInterval = value;
                 OnPropertyChanged( "SamplingInterval" );
             }
         }
 
+        /// <summary>
+        /// defines deadbandtype for target definition
+        /// </summary>
         public string DeadbandType
         {
-            get { return _DeadbandType; }
+            get { return m_deadbandType; }
             set
             {
-                _DeadbandType = value;
+                m_deadbandType = value;
                 OnPropertyChanged( "DeadbandType" );
             }
         }
 
+        /// <summary>
+        /// defines deadband value for target definition
+        /// </summary>
         public double DeadbandValue
         {
-            get { return _DeadbandValue; }
+            get { return m_deadbandValue; }
             set
             {
-                _DeadbandValue = value;
+                m_deadbandValue = value;
                 OnPropertyChanged( "DeadbandValue" );
             }
         }
 
+        /// <summary>
+        /// defines index range for target definition
+        /// </summary>
         public string Indexrange
         {
-            get { return _Indexrange; }
+            get { return m_indexrange; }
             set
             {
-                _Indexrange = value;
+                m_indexrange = value;
                 OnPropertyChanged( "Indexrange" );
             }
         }
 
+        /// <summary>
+        /// defines substitute value of target definition
+        /// </summary>
         public string SubstituteValue
         {
-            get { return _SubstituteValue; }
+            get { return m_substituteValue; }
             set
             {
-                _SubstituteValue = value;
+                m_substituteValue = value;
                 OnPropertyChanged( "SubstituteValue" );
             }
         }
 
+        /// <summary>
+        /// defines properties of target definition
+        /// </summary>
         public QualifiedNameCollection FieldMetaDataProperties
         {
-            get { return _FieldMetaDataProperties; }
+            get { return m_fieldMetaDataProperties; }
             set
             {
-                _FieldMetaDataProperties = value;
+                m_fieldMetaDataProperties = value;
                 OnPropertyChanged( "FieldMetaDataProperties" );
             }
         }
@@ -176,7 +238,9 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Initialiser method for PubishedDataItemSet
+        /// </summary>
         public void Initialize( )
         {
             PublishVariable = Definition.Name;

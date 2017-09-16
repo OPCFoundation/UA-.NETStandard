@@ -70,7 +70,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BrowseNodeControl.cs" />
-    <Compile Include="BrowseViewType.cs" />
     <Compile Include="ClientAdaptor.cs" />
     <Compile Include="IOPCUAClientAdaptor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
