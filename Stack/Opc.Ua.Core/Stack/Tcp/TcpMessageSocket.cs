@@ -241,7 +241,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public async Task BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
+        public async Task<bool> BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
         {
             if (endpointUrl == null) throw new ArgumentNullException("endpointUrl");
 
@@ -254,8 +254,8 @@ namespace Opc.Ua.Bindings
             IPAddress[] hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost);
 
             // Get IPv4 and IPv6 address
-            IPAddress addressV4 = hostAdresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
-            IPAddress addressV6 = hostAdresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetworkV6);
+            IPAddress[] addressesV4 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToArray();
+            IPAddress[] addressesV6 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToArray();
 
             // Get port
             int port = endpointUrl.Port;
@@ -266,73 +266,42 @@ namespace Opc.Ua.Bindings
 
             Action doCallback = () => callback(this, new TcpMessageSocketAsyncEventArgs { UserToken = state });
 
-            if (addressV6 != null)
+            int arrayV4Index = 0;
+            int arrayV6Index = 0;
+            m_socketResponses = 0;
+            do
             {
-                BeginConnect(addressV6, AddressFamily.InterNetworkV6, port, doCallback);
-            }
-
-            if (addressV4 != null && m_socket == null)
-            {
-                BeginConnect(addressV4, AddressFamily.InterNetwork, port, doCallback);
-            }
-        }
-
-        /// <summary>
-        /// Try to connect to endpoint and do callback if connected successfully
-        /// </summary>
-        /// <param name="address">Endpoint address</param>
-        /// <param name="addressFamily">Endpoint address family</param>
-        /// <param name="port">Endpoint port</param>
-        /// <param name="callback">Callback that must be executed if the connection would be established</param>
-        private void BeginConnect(IPAddress address, AddressFamily addressFamily, int port, Action callback)
-        {
-            var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
-            var args = new SocketAsyncEventArgs()
-            {
-                UserToken = callback,
-                RemoteEndPoint = new IPEndPoint(address, port),
-            };
-            args.Completed += new EventHandler<SocketAsyncEventArgs>(OnSocketConnected);
-
-            var result = !socket.ConnectAsync(args);
-            if (result)
-            {
-                // I/O completed synchronously
-                OnSocketConnected(socket, args);
-            }
-        }
-
-        /// <summary>
-        /// Handle socket connection event
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
-        private void OnSocketConnected(object sender, SocketAsyncEventArgs args)
-        {
-            lock (m_socketLock)
-            {
-                var socket = sender as Socket;
-                if (!m_closed && m_socket == null && args.SocketError == SocketError.Success)
+                SocketError error = SocketError.NotInitialized;
+                m_tcs = new TaskCompletionSource<SocketError>();
+                if (addressesV6.Length > arrayV6Index && m_socket == null)
                 {
-                    m_socket = socket;
-                    ((Action)args.UserToken)();
+                    if (BeginConnect(addressesV6[arrayV6Index], AddressFamily.InterNetworkV6, port, doCallback) == SocketError.Success)
+                    {
+                        return true;
+                    }
+                    arrayV6Index++;
                 }
-                else
+
+                if (addressesV4.Length > arrayV4Index && m_socket == null)
                 {
-                    try
+                    if (BeginConnect(addressesV4[arrayV4Index], AddressFamily.InterNetwork, port, doCallback) == SocketError.Success)
                     {
-                        if (socket.Connected)
-                        {
-                            socket.Shutdown(SocketShutdown.Both);
-                        }
+                        return true;
                     }
-                    finally
-                    {
-                        socket.Dispose();
-                    }
+                    arrayV4Index++;
                 }
-            }
-            args.Dispose();
+
+                error = await m_tcs.Task;
+
+                switch (error)
+                {
+                    case SocketError.Success: return true;
+                    case SocketError.ConnectionRefused: break;
+                    default: return false;
+                }
+            } while (addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index);
+
+            return false;
         }
 
         /// <summary>
@@ -630,6 +599,84 @@ namespace Opc.Ua.Bindings
             return new TcpMessageSocketAsyncEventArgs();
         }
         #endregion
+        #region Private Functions
+        /// <summary>
+        /// Try to connect to endpoint and do callback if connected successfully
+        /// </summary>
+        /// <param name="address">Endpoint address</param>
+        /// <param name="addressFamily">Endpoint address family</param>
+        /// <param name="port">Endpoint port</param>
+        /// <param name="callback">Callback that must be executed if the connection would be established</param>
+        private SocketError BeginConnect(IPAddress address, AddressFamily addressFamily, int port, Action callback)
+        {
+            var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
+            var args = new SocketAsyncEventArgs()
+            {
+                UserToken = callback,
+                RemoteEndPoint = new IPEndPoint(address, port),
+            };
+            args.Completed += new EventHandler<SocketAsyncEventArgs>(OnSocketConnected);
+            lock (m_socketLock)
+            {
+                m_socketResponses++;
+            }
+            if (!socket.ConnectAsync(args))
+            {
+                // I/O completed synchronously
+                OnSocketConnected(socket, args);
+                return args.SocketError;
+            }
+            return SocketError.NotInitialized;
+        }
+
+        /// <summary>
+        /// Handle socket connection event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnSocketConnected(object sender, SocketAsyncEventArgs args)
+        {
+            var socket = sender as Socket;
+            bool success = false;
+            lock (m_socketLock)
+            {
+                m_socketResponses--;
+                if (!m_closed && m_socket == null)
+                {
+                    if (args.SocketError == SocketError.Success)
+                    {
+                        m_socket = socket;
+                        success = true;
+                        m_tcs.SetResult(args.SocketError);
+                    }
+                    else if (m_socketResponses == 0)
+                    {
+                        m_tcs.SetResult(args.SocketError);
+                    }
+                }
+            }
+
+            if (success)
+            {
+                ((Action)args.UserToken)();
+            }
+            else
+            {
+                try
+                {
+                    if (socket.Connected)
+                    {
+                        socket.Shutdown(SocketShutdown.Both);
+                    }
+                }
+                finally
+                {
+                    socket.Dispose();
+                }
+            }
+            args.Dispose();
+        }
+        #endregion
         #region Private Fields
         private IMessageSink m_sink;
         private BufferManager m_bufferManager;
@@ -639,6 +686,8 @@ namespace Opc.Ua.Bindings
         private object m_socketLock = new object();
         private Socket m_socket;
         private bool m_closed = false;
+        private TaskCompletionSource<SocketError> m_tcs;
+        private int m_socketResponses;
 
         private object m_readLock = new object();
         private byte[] m_receiveBuffer;
