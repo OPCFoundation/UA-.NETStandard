@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -171,8 +172,6 @@ namespace Opc.Ua.Bindings
 
             m_sink = sink;
             m_socket = null;
-            m_socketV4 = null;
-            m_socketV6 = null;
             m_bufferManager = bufferManager;
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
@@ -242,7 +241,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public async Task<bool> BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
+        public async Task BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
         {
             if (endpointUrl == null) throw new ArgumentNullException("endpointUrl");
 
@@ -251,155 +250,89 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("The socket is already connected.");
             }
 
-            // Get DNS host information.
+            // Get DNS host information
             IPAddress[] hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost);
 
-            // try IPv4 and IPv6 address
-            IPAddress addressV4 = null;
-            IPAddress addressV6 = null;
+            // Get IPv4 and IPv6 address
+            IPAddress addressV4 = hostAdresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
+            IPAddress addressV6 = hostAdresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetworkV6);
 
-            foreach (IPAddress address in hostAdresses)
+            // Get port
+            int port = endpointUrl.Port;
+            if (port <= 0 || port > UInt16.MaxValue)
             {
-                if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                {
-                    if (addressV6 == null)
-                    {
-                        addressV6 = address;
-                    }
-                }
-                if (address.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    if (addressV4 == null)
-                    {
-                        addressV4 = address;
-                    }
-                }
-                if ((addressV4 != null) && (addressV6 != null))
-                {
-                    break;
-                }
+                port = Utils.UaTcpDefaultPort;
             }
 
-            SocketError error = SocketError.NotInitialized;
-            TaskCompletionSource<SocketError> tcs = new TaskCompletionSource<SocketError>();
-            TcpMessageSocketAsyncEventArgs argsV4 = null;
-            TcpMessageSocketAsyncEventArgs argsV6 = null;
-            m_socketResponses = 0;
+            Action doCallback = () => callback(this, new TcpMessageSocketAsyncEventArgs { UserToken = state });
 
+            if (addressV6 != null)
+            {
+                BeginConnect(addressV6, AddressFamily.InterNetworkV6, port, doCallback);
+            }
+
+            if (addressV4 != null && m_socket == null)
+            {
+                BeginConnect(addressV4, AddressFamily.InterNetwork, port, doCallback);
+            }
+        }
+
+        /// <summary>
+        /// Try to connect to endpoint and do callback if connected successfully
+        /// </summary>
+        /// <param name="address">Endpoint address</param>
+        /// <param name="addressFamily">Endpoint address family</param>
+        /// <param name="port">Endpoint port</param>
+        /// <param name="callback">Callback that must be executed if the connection would be established</param>
+        private void BeginConnect(IPAddress address, AddressFamily addressFamily, int port, Action callback)
+        {
+            var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
+            var args = new SocketAsyncEventArgs()
+            {
+                UserToken = callback,
+                RemoteEndPoint = new IPEndPoint(address, port),
+            };
+            args.Completed += new EventHandler<SocketAsyncEventArgs>(OnSocketConnected);
+
+            var result = !socket.ConnectAsync(args);
+            if (result)
+            {
+                // I/O completed synchronously
+                OnSocketConnected(socket, args);
+            }
+        }
+
+        /// <summary>
+        /// Handle socket connection event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnSocketConnected(object sender, SocketAsyncEventArgs args)
+        {
             lock (m_socketLock)
             {
-                // ensure a valid port.
-                int port = endpointUrl.Port;
-
-                if (port <= 0 || port > UInt16.MaxValue)
+                var socket = sender as Socket;
+                if (!m_closed && m_socket == null && args.SocketError == SocketError.Success)
                 {
-                    port = Utils.UaTcpDefaultPort;
+                    m_socket = socket;
+                    ((Action)args.UserToken)();
                 }
-
-                // create sockets if IP address was provided
-                if (addressV6 != null)
+                else
                 {
-                    argsV6 = new TcpMessageSocketAsyncEventArgs();
-                    argsV6.UserToken = state;
-                    m_socketV6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-                    argsV6.m_args.RemoteEndPoint = new IPEndPoint(addressV6, port);
-                    m_socketResponses++;
-                    argsV6.m_args.Completed += (o, e) =>
+                    try
                     {
-                        lock (m_socketLock)
+                        if (socket.Connected)
                         {
-                            m_socketResponses--;
-                            if (m_socketV6 != null)
-                            {
-                                if (m_socket == null &&
-                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
-                                {
-                                    m_socket = m_socketV6;
-                                    tcs.SetResult(e.SocketError);
-                                }
-                                else
-                                {
-                                    m_socketV6.Dispose();
-                                    e.UserToken = null;
-                                }
-                                m_socketV6 = null;
-                            }
-                            else
-                            {
-                                e.UserToken = null;
-                            }
+                            socket.Shutdown(SocketShutdown.Both);
                         }
-                    };
-                    argsV6.Completed += callback;
-                }
-                if (addressV4 != null)
-                {
-                    argsV4 = new TcpMessageSocketAsyncEventArgs();
-                    argsV4.UserToken = state;
-                    m_socketV4 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    argsV4.m_args.RemoteEndPoint = new IPEndPoint(addressV4, port);
-                    m_socketResponses++;
-                    argsV4.m_args.Completed += (o, e) =>
-                    {
-                        lock (m_socketLock)
-                        {
-                            m_socketResponses--;
-                            if (m_socketV4 != null)
-                            {
-                                if (m_socket == null &&
-                                    (m_socketResponses == 0 || e.SocketError == SocketError.Success))
-                                {
-                                    m_socket = m_socketV4;
-                                    tcs.SetResult(e.SocketError);
-                                }
-                                else
-                                {
-                                    m_socketV4.Dispose();
-                                    e.UserToken = null;
-                                }
-                                m_socketV4 = null;
-                            }
-                            else
-                            {
-                                e.UserToken = null;
-                            }
-                        }
-                    };
-                    argsV4.Completed += callback;
-                }
-
-                bool connectV6Sync = true;
-                bool connectV4Sync = true;
-                if (m_socketV6 != null)
-                {
-                    connectV6Sync = !m_socketV6.ConnectAsync(argsV6.m_args);
-                    if (connectV6Sync)
-                    {
-                        // I/O completed synchronously
-                        callback(this, argsV6);
-                        error = argsV6.m_args.SocketError;
                     }
-                }
-                if (m_socketV4 != null && error != SocketError.Success)
-                {
-                    connectV4Sync = !m_socketV4.ConnectAsync(argsV4.m_args);
-                    if (connectV4Sync)
+                    finally
                     {
-                        // I/O completed synchronously
-                        callback(this, argsV4);
-                        error = argsV4.m_args.SocketError;
+                        socket.Dispose();
                     }
-                }
-
-                if (connectV4Sync && connectV6Sync)
-                {
-                    return (error == SocketError.Success) ? true : false;
                 }
             }
-
-            error = await tcs.Task;
-
-            return (error == SocketError.Success) ? true : false;
+            args.Dispose();
         }
 
         /// <summary>
@@ -407,48 +340,29 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Close()
         {
-            // get the socket.
-            Socket socket = null;
-            Socket socketV4 = null;
-            Socket socketV6 = null;
-
             lock (m_socketLock)
             {
-                socket = m_socket;
-                socketV4 = m_socketV4;
-                socketV6 = m_socketV6;
-                m_socket = null;
-                m_socketV6 = null;
-                m_socketV4 = null;
-            }
+                m_closed = true;
 
-            // shutdown sockets which may still be active
-            // due to a timeout during ConnectAsync
-            if (socketV4 != null)
-            {
-                socketV4.Dispose();
-            }
-
-            if (socketV6 != null)
-            {
-                socketV6.Dispose();
-            }
-
-            // shutdown the socket.
-            if (socket != null)
-            {
-                try
+                // Shutdown the socket.
+                if (m_socket != null)
                 {
-                    if (socket.Connected)
+                    try
                     {
-                        socket.Shutdown(SocketShutdown.Both);
+                        if (m_socket.Connected)
+                        {
+                            m_socket.Shutdown(SocketShutdown.Both);
+                        }
                     }
-
-                    socket.Dispose();
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Unexpected error closing socket.");
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Unexpected error closing socket.");
+                    }
+                    finally
+                    {
+                        m_socket.Dispose();
+                        m_socket = null;
+                    }
                 }
             }
         }
@@ -724,15 +638,13 @@ namespace Opc.Ua.Bindings
 
         private object m_socketLock = new object();
         private Socket m_socket;
+        private bool m_closed = false;
 
         private object m_readLock = new object();
         private byte[] m_receiveBuffer;
         private int m_bytesReceived;
         private int m_bytesToReceive;
         private int m_incomingMessageSize;
-        private Socket m_socketV4;
-        private Socket m_socketV6;
-        private int m_socketResponses;
         #endregion
     }
 }
