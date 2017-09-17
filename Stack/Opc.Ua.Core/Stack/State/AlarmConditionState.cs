@@ -342,7 +342,7 @@ namespace Opc.Ua
 
             LocalizedText ackState = null;
 
-            if (!this.ConfirmedState.Id.Value)
+            if (ConfirmedState != null)
             {
                 if (!this.ConfirmedState.Id.Value)
                 {
@@ -350,7 +350,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!this.AckedState.Id.Value)
+            if (AckedState != null)
             {
                 if (!this.AckedState.Id.Value)
                 {
