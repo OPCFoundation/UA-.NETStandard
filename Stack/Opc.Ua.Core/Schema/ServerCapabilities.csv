@@ -1,0 +1,13 @@
+﻿NA, No capability information is available. Cannot be used in combination with any other capability.
+DA, Provides current data.
+HD, Provides historical data.
+AC, Provides alarms and conditions that may require operator interaction.
+HE, Provides historical alarms and events.
+GDS, Supports the Global Discovery Server information model.
+LDS, Only supports the Discovery Services. Cannot be used in combination with any other capability.
+DI, Supports the Device Integration (DI) information model.
+ADI, Supports the Analyser Device Integration (ADI) information model.
+FDI, Supports the Field Device Integration (FDI) information model.
+FDIC, Supports the Field Device Integration (FDI) Communication Server information model.
+PLC, Supports the PLCopen information model.
+S95, Supports the ISA95 information model.

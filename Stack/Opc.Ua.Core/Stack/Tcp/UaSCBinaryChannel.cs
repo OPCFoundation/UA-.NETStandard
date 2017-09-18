@@ -405,10 +405,14 @@ namespace Opc.Ua.Bindings
                     if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        HandleWriteComplete(null, state, args.BytesTransferred, error);
+                        args.Dispose();
                     }
-
-                    HandleWriteComplete(null, state, args.BytesTransferred, error);
-                    args.Dispose();
+                    else 
+                    {
+                        // success, call Complete
+                        OnWriteComplete(null, args);
+                    }
                 }
             }
             catch (Exception ex)
@@ -439,10 +443,13 @@ namespace Opc.Ua.Bindings
                     if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                        args.Dispose();
                     }
-
-                    HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                    args.Dispose();
+                    else
+                    {
+                        OnWriteComplete(null, args);
+                    }
                 }
             }
             catch (Exception ex)

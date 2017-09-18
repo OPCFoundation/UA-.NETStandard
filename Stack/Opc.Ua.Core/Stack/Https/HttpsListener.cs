@@ -23,18 +23,22 @@
 
 #if !NO_HTTPS
 
-using System;
-using System.Net;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Net;
 using System.Security.Authentication;
-using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
+
+#if NETSTANDARD2_0
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+#endif
+
 
 namespace Opc.Ua.Bindings
 {
@@ -175,18 +179,27 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_host = new WebHostBuilder();
-
+#if NETSTANDARD2_0
+            m_host.UseKestrel(options =>
+            {
+                options.Listen(IPAddress.Loopback, m_uri.Port, listenOptions =>
+                {
+                    listenOptions.NoDelay = true;
+                    listenOptions.UseHttps(m_serverCert);
+                });
+            });
+#else
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-
             m_host.UseKestrel(options =>
             {
                 options.NoDelay = true;
                 options.UseHttps(httpsOptions);
             });
+#endif
             m_host.UseContentRoot(Directory.GetCurrentDirectory());
             m_host.UseStartup<Startup>();
             m_host.Start(Utils.ReplaceLocalhost(m_uri.ToString()));

@@ -165,6 +165,8 @@ namespace Opc.Ua
             }
         }
 
+        public bool SupportsCRLs { get { return false; } }
+
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);

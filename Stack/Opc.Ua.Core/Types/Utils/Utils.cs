@@ -510,18 +510,31 @@ namespace Opc.Ua
 
             StringBuilder buffer = new StringBuilder();
 
-            string value = Environment.GetEnvironmentVariable(folder);
-            if (value != null)
+#if NET46
+            // check for special folder.
+            Environment.SpecialFolder specialFolder;
+            if (!Enum.TryParse<Environment.SpecialFolder>(folder, out specialFolder))
             {
-                buffer.Append(value);
+#endif
+                string value = Environment.GetEnvironmentVariable(folder);
+                if (value != null)
+                {
+                    buffer.Append(value);
+                }
+                else
+                {
+                    if (folder == "LocalFolder")
+                    {
+                        buffer.Append(DefaultLocalFolder);
+                    }
+                }
+#if NET46
             }
             else
             {
-                if (folder == "LocalFolder")
-                {
-                    buffer.Append(DefaultLocalFolder);
-                }
+                buffer.Append(Environment.GetFolderPath(specialFolder));
             }
+#endif
 
             // construct new path.
             buffer.Append(path);

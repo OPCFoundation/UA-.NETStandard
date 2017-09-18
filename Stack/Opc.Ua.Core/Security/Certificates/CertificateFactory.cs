@@ -11,11 +11,12 @@
 */
 
 using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.IO;
-using System.Text;
 using Opc.Ua;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Asn1.X509;
@@ -30,7 +31,7 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.X509.Extension;
-using System.Threading.Tasks;
+using Org.BouncyCastle.OpenSsl;
 
 namespace Opc.Ua
 {
@@ -355,7 +356,7 @@ public class CertificateFactory
             else
             {
                 // note: this cert has a private key!
-                certificate = CreateCertificateWithPrivateKey(x509, subjectPrivateKey, random);
+                certificate = CreateCertificateWithPrivateKey(x509, null, subjectPrivateKey, random);
             }
 
             Utils.Trace(Utils.TraceMasks.Security, "Created new certificate: {0}", certificate.Thumbprint);
@@ -519,7 +520,7 @@ public class CertificateFactory
                     X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
                     crlGen.SetIssuerDN(bcCertCA.IssuerDN);
                     crlGen.SetThisUpdate(DateTime.UtcNow);
-                    crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(1));
+                    crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(12));
 
                     // merge all existing revocation list
                     X509CrlParser parser = new X509CrlParser();
@@ -628,7 +629,106 @@ public class CertificateFactory
         {
             SecureRandom random = new SecureRandom(cfrg);
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-            return CreateCertificateWithPrivateKey(x509, GetPrivateKeyParameter(certificateWithPrivateKey), random);
+            return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, GetPrivateKeyParameter(certificateWithPrivateKey), random);
+        }
+    }
+
+    /// <summary>
+    /// Create a X509Certificate2 with a private key by combining 
+    /// the certificate with a private key from a PEM stream
+    /// </summary>
+    public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
+        X509Certificate2 certificate,
+        byte [] pemDataBlob,
+        string password = null)
+    {
+        AsymmetricKeyParameter privateKey = null;
+        PemReader pemReader;
+        using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
+        {
+            if (password == null)
+            {
+                pemReader = new PemReader(pemStreamReader);
+            }
+            else
+            {
+                Password pwFinder = new Password(password.ToCharArray());
+                pemReader = new PemReader(pemStreamReader, pwFinder);
+            }
+            try
+            {
+                // find the private key in the PEM blob
+                var pemObject = pemReader.ReadObject();
+                while (pemObject != null)
+                {
+                    privateKey = pemObject as RsaPrivateCrtKeyParameters;
+                    if (privateKey != null)
+                    {
+                        break;
+                    }
+
+                    AsymmetricCipherKeyPair keypair = pemObject as AsymmetricCipherKeyPair;
+                    if (keypair != null)
+                    { 
+                        privateKey = keypair.Private;
+                        break;
+                    }
+
+                    // read next object
+                    pemObject = pemReader.ReadObject();
+                }
+            }
+            finally
+            {
+                pemReader.Reader.Dispose();
+            }
+        }
+
+        if (privateKey == null)
+        {
+            throw new ServiceResultException("PEM data blob does not contain a private key.");
+        }
+
+        using (var cfrg = new CertificateFactoryRandomGenerator())
+        {
+            SecureRandom random = new SecureRandom(cfrg);
+            Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
+            return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
+        }
+    }
+
+    /// <summary>
+    /// returns a byte array containing the cert in PEM format.
+    /// </summary>
+    public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
+    {
+        Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
+
+        using (var memoryStream = new MemoryStream())
+        {
+            using (var textWriter = new StreamWriter(memoryStream))
+            {
+                var pemWriter = new PemWriter(textWriter);
+                pemWriter.WriteObject(bcCert);
+                pemWriter.Writer.Flush();
+                return memoryStream.ToArray();
+            }
+        }
+    }
+    private class Password
+        : IPasswordFinder
+    {
+        private readonly char[] password;
+
+        public Password(
+            char[] word)
+        {
+            this.password = (char[])word.Clone();
+        }
+
+        public char[] GetPassword()
+        {
+            return (char[])password.Clone();
         }
     }
 
@@ -648,9 +748,9 @@ public class CertificateFactory
         }
         return true;
     }
-    #endregion
+#endregion
 
-    #region Private Methods
+#region Private Methods
     /// <summary>
     /// Sets the parameters to suitable defaults.
     /// </summary>
@@ -752,7 +852,7 @@ public class CertificateFactory
 
         if (uri == null)
         {
-            throw new ArgumentNullException("applicationUri", "Must specify a valid URL.");
+            throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
         }
 
         // create the subject name,
@@ -945,11 +1045,12 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// helper to create a X509Certificate2 with a private key by combining 
+    /// Create a X509Certificate2 with a private key by combining 
     /// a bouncy castle X509Certificate and a private key
     /// </summary>
     private static X509Certificate2 CreateCertificateWithPrivateKey(
         Org.BouncyCastle.X509.X509Certificate certificate,
+        string friendlyName,
         AsymmetricKeyParameter privateKey,
         SecureRandom random)
     {
@@ -960,12 +1061,29 @@ public class CertificateFactory
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);
-            pkcsStore.SetKeyEntry("key", new AsymmetricKeyEntry(privateKey), chain);
+            if (string.IsNullOrEmpty(friendlyName))
+            {
+                friendlyName = GetCertificateCommonName(certificate);
+            }
+            pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
             pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
             // merge into X509Certificate2
             return CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
         }
+    }
+
+    /// <summary>
+    /// Read the Common Name from a certificate.
+    /// </summary>
+    private static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
+    {
+        var subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+        if (subjectDN.Count > 0)
+        {
+            return subjectDN[0].ToString();
+        }
+        return string.Empty;
     }
 
     /// <summary>
@@ -1013,7 +1131,7 @@ public class CertificateFactory
         }
         return result;
     }
-    #endregion
+#endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
     private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

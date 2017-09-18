@@ -418,6 +418,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Whether the the store support CRLs.
+        /// </summary>
+        public bool SupportsCRLs { get { return true; } }
+
+        /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
         public List<X509CRL> EnumerateCRLs()
