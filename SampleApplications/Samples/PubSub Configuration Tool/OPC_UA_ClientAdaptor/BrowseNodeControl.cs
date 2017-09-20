@@ -71,7 +71,7 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to browse the selected node.
         /// </summary>
-        /// <param name="node"></param>
+        /// <param name="node">selected node</param>
         /// <returns></returns>
         public bool Browse(ref TreeViewNode node)
         {
@@ -96,8 +96,8 @@ namespace ClientAdaptor
         /// <summary>
         /// Initialize browser.
         /// </summary>
-        /// <param name="viewType"></param>
-        /// <param name="viewId"></param>
+        /// <param name="viewType">indicate view type</param>
+        /// <param name="viewId">indicate node id</param>
         public void InitializeBrowserView(BrowseViewType viewType, NodeId viewId)
         {
             m_rootId = Objects.RootFolder;
@@ -173,8 +173,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Metod to add reference 
         /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="references"></param>
         private void AddReferences(ref TreeViewNode parent, ReferenceDescriptionCollection references)
         {
             if (references.Count != 0)
@@ -225,8 +223,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to get name of selected node.
         /// </summary>
-        /// <param name="reference"></param>
-        /// <returns></returns>
         private string GetTargetText(ReferenceDescription reference)
         {
             if (reference != null)
@@ -243,8 +239,8 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to find reference container type.
         /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="reference"></param>
+        /// <param name="parent"> parent node</param>
+        /// <param name="reference"> current reference info</param>
         private void FindReferenceTypeContainer(TreeViewNode parent, ReferenceDescription reference)
         {
             if (parent == null) return;

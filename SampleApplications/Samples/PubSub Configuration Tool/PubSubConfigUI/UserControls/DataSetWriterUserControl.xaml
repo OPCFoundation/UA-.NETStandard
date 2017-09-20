@@ -89,7 +89,7 @@
                                 <ColumnDefinition Width="160" />
                                 <ColumnDefinition Width="160" />
                             </Grid.ColumnDefinitions>
-                            <CheckBox x:Name="Chk_box1" Content="Field Status Code" HorizontalAlignment="Left"
+                            <CheckBox x:Name="Chk_box1" Content="Field Status Code" Margin="0,5" HorizontalAlignment="Left"
                                       VerticalAlignment="Top" />
                             <CheckBox x:Name="Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
                                       Content="Field Source TimeStamp" HorizontalAlignment="Left"
@@ -100,7 +100,7 @@
                             <CheckBox x:Name="Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0"
                                       Content="Field Source PicoSeconds" HorizontalAlignment="Left"
                                       VerticalAlignment="Top" />
-                            <CheckBox x:Name="Chk_box5" Content="Field Server PicoSeconds" Grid.Row="0" Grid.Column="1"
+                            <CheckBox x:Name="Chk_box5" Content="Field Server PicoSeconds" Margin="0,5" Grid.Row="0" Grid.Column="1"
                                       HorizontalAlignment="Left"
                                       VerticalAlignment="Top" />
                             <CheckBox x:Name="Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="1"

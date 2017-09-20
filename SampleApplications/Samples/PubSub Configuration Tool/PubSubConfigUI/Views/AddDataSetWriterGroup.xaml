@@ -96,7 +96,7 @@
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="150" />
                     </Grid.ColumnDefinitions>
-                    <CheckBox x:Name="Chk_box1" Content="Publisher Id" HorizontalAlignment="Left"
+                    <CheckBox x:Name="Chk_box1" Content="Publisher Id"  Margin="0,5" HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
                     <CheckBox x:Name="Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0" Content="Group Header"
                               HorizontalAlignment="Left"
@@ -117,16 +117,16 @@
                     <CheckBox x:Name="Chk_box7" Grid.Row="2" Margin="0,5" Grid.Column="1" Content="Payload Header"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
-                    <CheckBox x:Name="Chk_box8" Content="Timestamp" Grid.Row="3" Grid.Column="1"
+                    <CheckBox x:Name="Chk_box8" Content="Timestamp"  Margin="0,5" Grid.Row="3" Grid.Column="1"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
                     <CheckBox x:Name="Chk_box9" Content="PicoSeconds" Margin="0,5" Grid.Row="0" Grid.Column="2"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
-                    <CheckBox x:Name="Chk_box10" Content="DataSet Class Id" Grid.Row="1" Grid.Column="2"
+                    <CheckBox x:Name="Chk_box10" Content="DataSet Class Id"  Margin="0,5" Grid.Row="1" Grid.Column="2"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
-                    <CheckBox x:Name="Chk_box11" Content="Promoted Fields" Grid.Row="2" Grid.Column="2"
+                    <CheckBox x:Name="Chk_box11" Content="Promoted Fields"  Margin="0,5" Grid.Row="2" Grid.Column="2"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
 

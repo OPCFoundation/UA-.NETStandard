@@ -55,7 +55,9 @@ namespace PubSubConfigurationUI.UserControls
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Get the DataSet content mask
+        /// </summary>
         public int GetDataSetContentMask( )
         {
             var DataSetContentMask = 0;
@@ -75,7 +77,9 @@ namespace PubSubConfigurationUI.UserControls
             }
             return DataSetContentMask;
         }
-
+        /// <summary>
+        /// Initialize the DataSet content Mask controls
+        /// </summary>
         public void InitializeContentmask( )
         {
             foreach ( var checkbox in new[ ]

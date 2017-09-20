@@ -134,9 +134,9 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add security group
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="securityGroup"></param>
-        /// <returns></returns>
+        /// <param name="name">name of security group</param>
+        /// <param name="securityGroup"> returns security group</param>
+        /// <returns>the error meesage</returns>
         public string AddNewSecurityGroup(string name, out SecurityGroup securityGroup)
         {
             string errorMessage = string.Empty;
@@ -163,8 +163,8 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new AMQP connection
         /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="connectionId"></param>
+        /// <param name="connection">AMQP connection information</param>
+        /// <param name="connectionId">NodeId of current connection</param>
         /// <returns></returns>
         public string AddAMQPConnection(Connection connection, out NodeId connectionId)
         {
@@ -186,9 +186,9 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new UADP Connection
         /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="connectionId"></param>
-        /// <returns></returns>
+        /// <param name="connection">UADP Connection information</param>
+        /// <param name="connectionId">NodeId of current connection</param>
+        /// <returns>the error message</returns>
         public string AddUADPConnection(Connection connection, out NodeId connectionId)
         {
             string errorMessage = string.Empty;
@@ -211,8 +211,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove Connection
         /// </summary>
-        /// <param name="connectionId"></param>
-        /// <returns></returns>
         public string RemoveConnection(NodeId connectionId)
         {
             string errorMessage = string.Empty;
@@ -231,7 +229,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method which returns available security Groups.
         /// </summary>
-        /// <returns></returns>
         public ObservableCollection<SecurityGroup> GetSecurityGroups()
         {
             ObservableCollection<SecurityGroup> securityGroups = new ObservableCollection<SecurityGroup>();
@@ -277,7 +274,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method which returns current PubSubConfigurations
         /// </summary>
-        /// <returns></returns>
         public ObservableCollection<PubSubConfiguationBase> GetPubSubConfiguation()
         {
             ObservableCollection<PubSubConfiguationBase> pubSubConfiguation = new ObservableCollection<PubSubConfiguationBase>();
@@ -777,8 +773,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove selected security group.
         /// </summary>
-        /// <param name="securityGroupId"></param>
-        /// <returns></returns>
         public string RemoveSecurityGroup(NodeId securityGroupId)
         {
             string errorMessage = string.Empty;
@@ -803,9 +797,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove selected group.
         /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="groupId"></param>
-        /// <returns></returns>
         public string RemoveGroup(Connection connection, NodeId groupId)
         {
             string errorMessage = string.Empty;
@@ -829,9 +820,9 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove selected DataSetWriter.
         /// </summary>
-        /// <param name="dataSetWriterGroup"></param>
-        /// <param name="writerNodeId"></param>
-        /// <returns></returns>
+        /// <param name="dataSetWriterGroup">group information</param>
+        /// <param name="writerNodeId">writer Node ID</param>
+        
         public string RemoveDataSetWriter(DataSetWriterGroup dataSetWriterGroup, NodeId writerNodeId)
         {
             string errorMessage = string.Empty;
@@ -858,9 +849,9 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove selected DataSetReader
         /// </summary>
-        /// <param name="readerGroupDefinition"></param>
-        /// <param name="readerNodeId"></param>
-        /// <returns></returns>
+        /// <param name="readerGroupDefinition">Reader Group Information</param>
+        /// <param name="readerNodeId">reader Node ID</param>
+        
         public string RemoveDataSetReader(ReaderGroupDefinition readerGroupDefinition, NodeId readerNodeId)
         {
             string errorMessage = string.Empty;
@@ -887,8 +878,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to set Security keys.
         /// </summary>
-        /// <param name="securityKeys"></param>
-        /// <returns></returns>
         public string SetSecurityKeys(SecurityKeys securityKeys)
         {
             string errorMessage = string.Empty;
@@ -919,10 +908,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method which returns security keys for selected groupId
         /// </summary>
-        /// <param name="securityGroupId"></param>
-        /// <param name="featureKeyCount"></param>
-        /// <param name="securityKeys"></param>
-        /// <returns></returns>
         public string GetSecurityKeys(string securityGroupId, uint featureKeyCount, out SecurityKeys securityKeys)
         {
             string errorMessage = string.Empty;
@@ -957,8 +942,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to Enable PubSub State for selected node.
         /// </summary>
-        /// <param name="monitorNode"></param>
-        /// <returns></returns>
         public string EnablePubSubState(MonitorNode monitorNode)
         {
             string errorMessage = string.Empty;
@@ -977,8 +960,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to disable PubSub State for selected node.
         /// </summary>
-        /// <param name="monitorNode"></param>
-        /// <returns></returns>
         public string DisablePubSubState(MonitorNode monitorNode)
         {
             string errorMessage = string.Empty;
@@ -998,9 +979,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new writer group.
         /// </summary>
-        /// <param name="dataSetWriterGroup"></param>
-        /// <param name="groupId"></param>
-        /// <returns></returns>
         public string AddWriterGroup(DataSetWriterGroup dataSetWriterGroup, out NodeId groupId)
         {
             string errorMessage = string.Empty;
@@ -1063,9 +1041,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new reader group.
         /// </summary>
-        /// <param name="readerGroupDefinition"></param>
-        /// <param name="groupId"></param>
-        /// <returns></returns>
         public string AddReaderGroup(ReaderGroupDefinition readerGroupDefinition, out NodeId groupId)
         {
             string errorMessage = string.Empty;
@@ -1134,9 +1109,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new data set reader.
         /// </summary>
-        /// <param name="dataSetReaderGroupNodeId"></param>
-        /// <param name="dataSetReaderDefinition"></param>
-        /// <returns></returns>
         public string AddDataSetReader(NodeId dataSetReaderGroupNodeId, DataSetReaderDefinition dataSetReaderDefinition)
         {
             string retMsg = string.Empty;
@@ -1165,11 +1137,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new UADP DataSetWriter.
         /// </summary>
-        /// <param name="dataSetWriterGroupNodeId"></param>
-        /// <param name="dataSetWriterDefinition"></param>
-        /// <param name="writerNodeId"></param>
-        /// <param name="revisedKeyFrameCount"></param>
-        /// <returns></returns>
         public string AddUADPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
             out int revisedKeyFrameCount)
         {
@@ -1207,11 +1174,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add new AMQP DataSetWriter.
         /// </summary>
-        /// <param name="dataSetWriterGroupNodeId"></param>
-        /// <param name="dataSetWriterDefinition"></param>
-        /// <param name="writerNodeId"></param>
-        /// <param name="revisedMaxMessageSize"></param>
-        /// <returns></returns>
         public string AddAMQPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
             out int revisedMaxMessageSize)
         {
@@ -1244,8 +1206,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method which finds available servers in selected host.
         /// </summary>
-        /// <param name="hostName"></param>
-        /// <returns></returns>
         public ApplicationDescriptionCollection FindServers(string hostName)
         {
             try
@@ -1273,10 +1233,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to connect the server.
         /// </summary>
-        /// <param name="endpointUrl"></param>
-        /// <param name="errorMessage"></param>
-        /// <param name="node"></param>
-        /// <returns></returns>
         public Session Connect(string endpointUrl, out string errorMessage, out TreeViewNode node)
         {
 
@@ -1353,7 +1309,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Rebrowse the selected node in the tree.
         /// </summary>
-        /// <param name="node"></param>
         public void Rebrowse(ref TreeViewNode node)
         {
             BrowserNodeControl.Browse(ref node);
@@ -1362,8 +1317,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Creates configures endpoint
         /// </summary>
-        /// <param name="serviceUrl"></param>
-        /// <returns></returns>
         private ConfiguredEndpoint CreateConfiguredEndpoint(string serviceUrl)
         {
             //Check for security parameters appended to the URL
@@ -1517,10 +1470,6 @@ namespace ClientAdaptor
         /// <summary>
         /// updates the server status.
         /// </summary>
-        /// <param name="error"></param>
-        /// <param name="time"></param>
-        /// <param name="status"></param>
-        /// <param name="args"></param>
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
             ServerStatus = String.Format(status, args);
@@ -1529,9 +1478,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to select the endpoint
         /// </summary>
-        /// <param name="discoveryUrl"></param>
-        /// <param name="useSecurity"></param>
-        /// <returns></returns>
         private static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
@@ -1611,7 +1557,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Disconnect the session and delete the subscription in the session
         /// </summary>
-        /// <returns></returns>
         public bool Disconnect()
         {
             if (Session != null)
@@ -1647,9 +1592,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to create session
         /// </summary>
-        /// <param name="session"></param>
-        /// <param name="preferredLocales"></param>
-        /// <returns></returns>
         private bool CreateSession(Session session, IList<string> preferredLocales)
         {
             m_isOpened = false;
@@ -1709,7 +1651,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to open session
         /// </summary>
-        /// <param name="state"></param>
         private void Open(object state)
         {
             var m_session = ((object[])state)[0] as Session;
@@ -1731,8 +1672,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to delete subscription.
         /// </summary>
-        /// <param name="subscription"></param>
-        /// <returns></returns>
         public bool DeleteSubscription(Subscription subscription)
         {
             if (subscription != null)
@@ -1745,8 +1684,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to get subscription state for selected subscription.
         /// </summary>
-        /// <param name="subscriptionName"></param>
-        /// <returns></returns>
         public Subscription GetPubSubStateSubscription(string subscriptionName)
         {
             List<Subscription> m_SubscriptionCollection = Session.Subscriptions.ToList();
@@ -1761,9 +1698,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to create Subscription.
         /// </summary>
-        /// <param name="subscriptionName"></param>
-        /// <param name="subscriptionInterval"></param>
-        /// <returns></returns>
         public Subscription CreateSubscription(string subscriptionName, int subscriptionInterval)
         {
             Subscription m_subscription = new Subscription
@@ -1837,8 +1771,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to validate certificate.
         /// </summary>
-        /// <param name="validator"></param>
-        /// <param name="e"></param>
         private void OnCertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             e.Accept = true;
@@ -1847,8 +1779,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to browse the selected node
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <returns></returns>
         public ReferenceDescriptionCollection Browse(NodeId nodeId)
         {
             ReferenceDescriptionCollection m_referenceDescriptionCollection = null;
@@ -1862,9 +1792,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to browse the node based on the direction specified.
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="Direction"></param>
-        /// <returns></returns>
         public ReferenceDescriptionCollection Browse(NodeId nodeId, BrowseDirection Direction)
         {
             ReferenceDescriptionCollection m_referenceDescriptionCollection = null;
@@ -1898,9 +1825,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to load published data with configuration version and DataSetMetadata.
         /// </summary>
-        /// <param name="publisherName"></param>
-        /// <param name="publisherNodeId"></param>
-        /// <returns></returns>
         private PublishedDataSetDefinition LoadPublishedData(string publisherName, NodeId publisherNodeId)
         {
             PublishedDataSetDefinition m_publishedDataSetDefinition = new PublishedDataSetDefinition
@@ -1993,9 +1917,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add published dataSet.
         /// </summary>
-        /// <param name="PublisherName"></param>
-        /// <param name="VariableListDefinitionCollection"></param>
-        /// <returns></returns>
         public PublishedDataSetBase AddPublishedDataSet(string publisherName, ObservableCollection<PublishedDataSetItemDefinition> variableListDefinitionCollection)
         {
             PublishedDataSetBase _PublishedDataSetBase = null;
@@ -2039,12 +1960,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add variable to selected publisher.
         /// </summary>
-        /// <param name="publisherName"></param>
-        /// <param name="PublisherNodeId"></param>
-        /// <param name="configurationVersionDataType"></param>
-        /// <param name="VariableListDefinitionCollection"></param>
-        /// <param name="NewConfigurationVersion"></param>
-        /// <returns></returns>
         public string AddVariableToPublisher(string publisherName, NodeId PublisherNodeId, ConfigurationVersionDataType configurationVersionDataType, ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection, out ConfigurationVersionDataType NewConfigurationVersion)
         {
             string errorMessage = string.Empty;
@@ -2098,8 +2013,7 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove Published dataset.
         /// </summary>
-        /// <param name="PublishedDataSetNodeId"></param>
-        /// <returns></returns>
+        
         public string RemovePublishedDataSet(NodeId PublishedDataSetNodeId)
         {
             string errorMessage = string.Empty;
@@ -2119,12 +2033,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove published dataset variables.
         /// </summary>
-        /// <param name="PublisherName"></param>
-        /// <param name="PublisherNodeId"></param>
-        /// <param name="ConfigurationVersionDataType"></param>
-        /// <param name="variableIndexs"></param>
-        /// <param name="NewConfigurationVersion"></param>
-        /// <returns></returns>
         public string RemovePublishedDataSetVariables(string PublisherName, NodeId PublisherNodeId, ConfigurationVersionDataType ConfigurationVersionDataType, List<UInt32> variableIndexs, out ConfigurationVersionDataType NewConfigurationVersion)
         {
             string errorMessage = string.Empty;
@@ -2147,11 +2055,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add Target Variables.
         /// </summary>
-        /// <param name="dataSetReaderNodeId"></param>
-        /// <param name="minorVersion"></param>
-        /// <param name="majorVersion"></param>
-        /// <param name="variableListDefinitionCollection"></param>
-        /// <returns></returns>
         public string AddTargetVariables(NodeId dataSetReaderNodeId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection)
         {
             string errorMessage = string.Empty;
@@ -2189,9 +2092,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add DataSetMirror to DataSetReader
         /// </summary>
-        /// <param name="_DataSetReaderDefinition"></param>
-        /// <param name="parentName"></param>
-        /// <returns></returns>
         public string AddDataSetMirror(DataSetReaderDefinition _DataSetReaderDefinition, string parentName)
         {
             string errMsg = string.Empty;
@@ -2213,11 +2113,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to add additional TargetVariables.
         /// </summary>
-        /// <param name="ObjectId"></param>
-        /// <param name="minorVersion"></param>
-        /// <param name="majorVersion"></param>
-        /// <param name="variableListDefinitionCollection"></param>
-        /// <returns></returns>
         public string AddAdditionalTargetVariables(NodeId ObjectId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection)
         {
             string errorMessage = string.Empty;
@@ -2254,10 +2149,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove target variable.
         /// </summary>
-        /// <param name="ObjectId"></param>
-        /// <param name="VersionType"></param>
-        /// <param name="TargetsToremove"></param>
-        /// <returns></returns>
         public string RemoveTargetVariable(NodeId ObjectId, ConfigurationVersionDataType VersionType, List<UInt32> TargetsToremove)
         {
             string errmsg = string.Empty;
@@ -2278,8 +2169,6 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to write value for node.
         /// </summary>
-        /// <param name="writeValueCollection"></param>
-        /// <returns></returns>
         public StatusCodeCollection WriteValue(WriteValueCollection writeValueCollection)
         {
             StatusCodeCollection results = new StatusCodeCollection();
@@ -2297,8 +2186,7 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to read value for node
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <returns></returns>
+       
         public object ReadValue(NodeId nodeId)
         {
             try

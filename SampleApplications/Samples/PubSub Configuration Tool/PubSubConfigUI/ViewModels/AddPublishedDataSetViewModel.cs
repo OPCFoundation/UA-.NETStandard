@@ -41,9 +41,7 @@ namespace PubSubConfigurationUI.ViewModels
 
         /// <summary>
         /// initialising view model with root node and adaptor
-        /// </summary>
-        /// <param name="opcUAClientAdaptor"></param>
-        /// <param name="RootNode"></param>
+        /// </summary> 
         public AddPublishedDataSetViewModel( IOPCUAClientAdaptor opcUAClientAdaptor, TreeViewNode RootNode )
         {
             m_rootNode = RootNode;
@@ -99,10 +97,10 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Adding variable to collection
         /// </summary>
-        /// <param name="_PublishedDataSetItemDefinition"></param>
-        public void AddVariable( PublishedDataSetItemDefinition _PublishedDataSetItemDefinition )
+       
+        public void AddVariable( PublishedDataSetItemDefinition publishedDataSetItemDefinition )
         {
-            VariableListDefinitionCollection.Add( _PublishedDataSetItemDefinition );
+            VariableListDefinitionCollection.Add( publishedDataSetItemDefinition );
         }
 
         public void Initialize( )
@@ -123,8 +121,7 @@ namespace PubSubConfigurationUI.ViewModels
 
         /// <summary>
         /// Remove selected variable from collection
-        /// </summary>
-        /// <param name="_PublishedDataSetItemDefinition"></param>
+        /// </summary> 
         public void RemoveVariable( PublishedDataSetItemDefinition _PublishedDataSetItemDefinition )
         {
             VariableListDefinitionCollection.Remove( _PublishedDataSetItemDefinition );

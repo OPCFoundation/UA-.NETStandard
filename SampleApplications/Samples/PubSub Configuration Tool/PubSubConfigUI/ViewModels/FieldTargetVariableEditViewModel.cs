@@ -216,7 +216,7 @@ namespace PubSubConfigurationUI.ViewModels
             getDataSetFieldIdDialog.ShowDialog( );
         }
         /// <summary>
-        /// Initialiser method forFieldTargetVariable
+        /// Initializer method for FieldTargetVariable
         /// </summary>
         public void Initialize( )
         {

@@ -207,7 +207,7 @@ namespace PubSubConfigurationUI.ViewModels
 
         #region Public Methods
         /// <summary>
-        /// Initialise method
+        /// Initialize method
         /// 
         /// </summary>
         public void Initialize()

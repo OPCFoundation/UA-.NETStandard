@@ -41,8 +41,7 @@ namespace PubSubConfigurationUI.ViewModels
         #region Constructors
         /// <summary>
         /// initialise security group with adaptor
-        /// </summary>
-        /// <param name="OPCUAClientAdaptor"></param>
+        /// </summary> 
         public SecurityGroupViewModel( IOPCUAClientAdaptor OPCUAClientAdaptor )
         {
             m_clientAdaptor = OPCUAClientAdaptor;
@@ -135,8 +134,8 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Add new Security group
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
+        /// <param name="name">name of the security group</param>
+         
         public bool AddSecurityGroup( string name )
         {
             SecurityGroup _SecurityGroup;
@@ -183,7 +182,6 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to remove selected security group.
         /// </summary>
-        /// <param name="SecurityGroup"></param>
         public void RemoveSecurityGroup( SecurityGroup SecurityGroup )
         {
             var errorMessage = m_clientAdaptor.RemoveSecurityGroup( SecurityGroup.GroupNodeId );
@@ -195,8 +193,6 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to set Security keys.
         /// </summary>
-        /// <param name="_SecurityBase"></param>
-        /// <param name="_Securitykeys"></param>
         public void SetSecurityKeys( SecurityBase securityBase, SecurityKeys securitykeys )
         {
             var errmsg = m_clientAdaptor.SetSecurityKeys( securitykeys );

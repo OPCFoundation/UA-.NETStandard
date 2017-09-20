@@ -70,7 +70,7 @@
 
                         <Label Grid.Row="7" Grid.Column="0" Width="150" HorizontalAlignment="Left"
                                Content="View DataSetMetaData" Grid.ColumnSpan="3" />
-                        <Button Content="..." Height="23" Width="20" HorizontalAlignment="Left" Margin="25,0"
+                        <Button Content="..." Height="23" Width="20" HorizontalAlignment="Left" Margin="15,0"
                                 Grid.Row="7" Grid.Column="1" Click="ViewDataSetMeta_Click" />
 
                         <GroupBox Margin="0,5" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3"
@@ -88,7 +88,7 @@
                                     <ColumnDefinition Width="160" />
                                     <ColumnDefinition Width="160" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="Chk_box1" Content="Field Status Code" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box1" Content="Field Status Code" Margin="0,5" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
                                           Content="Field Source TimeStamp" HorizontalAlignment="Left"
@@ -99,7 +99,7 @@
                                 <CheckBox x:Name="Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0"
                                           Content="Field Source PicoSeconds" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box5" Content="Field Server PicoSeconds" Grid.Row="0"
+                                <CheckBox x:Name="Chk_box5" Content="Field Server PicoSeconds" Margin="0,5" Grid.Row="0"
                                           Grid.Column="1" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="1"
@@ -140,7 +140,7 @@
                                     <ColumnDefinition Width="170" />
                                     <ColumnDefinition Width="150" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="NM_Chk_box1" Content="Publisher Id" HorizontalAlignment="Left"
+                                <CheckBox x:Name="NM_Chk_box1" Content="Publisher Id" Margin="0,5" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="NM_Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
                                           Content="Group Header" HorizontalAlignment="Left"
@@ -161,16 +161,16 @@
                                 <CheckBox x:Name="NM_Chk_box7" Grid.Row="2" Margin="0,5" Grid.Column="1"
                                           Content="Payload Header" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="NM_Chk_box8" Content="Timestamp" Grid.Row="3" Grid.Column="1"
+                                <CheckBox x:Name="NM_Chk_box8" Content="Timestamp" Margin="0,5" Grid.Row="3" Grid.Column="1"
                                           HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="NM_Chk_box9" Content="Picoseconds" Grid.Row="0" Grid.Column="2"
+                                <CheckBox x:Name="NM_Chk_box9" Content="Picoseconds" Margin="0,5" Grid.Row="0" Grid.Column="2"
                                           HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="NM_Chk_box10" Content="DataSet Class Id" Grid.Row="1" Grid.Column="2"
+                                <CheckBox x:Name="NM_Chk_box10" Content="DataSet Class Id" Margin="0,5" Grid.Row="1" Grid.Column="2"
                                           HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="NM_Chk_box11" Content="Promoted Fields" Grid.Row="2" Grid.Column="2"
+                                <CheckBox x:Name="NM_Chk_box11" Content="Promoted Fields" Margin="0,5" Grid.Row="2" Grid.Column="2"
                                           HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                             </Grid>

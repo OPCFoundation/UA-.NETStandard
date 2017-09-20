@@ -95,7 +95,9 @@ namespace PubSubConfigurationUI.UserControls
         #endregion
 
         #region Public Methods
-
+        /// <summary>
+        /// Get the dataSet content Mask
+        /// </summary>
         public int GetDataSetContentMask( )
         {
             var DataSetContentMask = 0;
@@ -115,7 +117,10 @@ namespace PubSubConfigurationUI.UserControls
             }
             return DataSetContentMask;
         }
-
+        /// <summary>
+        /// Get the Network content mask
+        /// </summary>
+         
         public int GetNetworkContentMask( )
         {
             var NetworkMessageContentMask = 0;
@@ -136,7 +141,9 @@ namespace PubSubConfigurationUI.UserControls
             }
             return NetworkMessageContentMask;
         }
-
+        /// <summary>
+        /// Initialize the DataSet Content Mask and Network content Mask controls
+        /// </summary>
         public void InitializeContentmask( )
         {
             foreach ( var checkbox in new[ ]
@@ -150,8 +157,7 @@ namespace PubSubConfigurationUI.UserControls
                 shiftNumber = 1 << bitposition;
                 checkbox.IsChecked = (DataSetReaderEditViewModel.DataSetContentMask & shiftNumber) == shiftNumber ? true
                     : false;
-
-                //checkbox.IsEnabled = false;               
+                            
             }
             foreach ( var checkbox in new[ ]
                                       {

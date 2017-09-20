@@ -56,6 +56,9 @@ namespace PubSubConfigurationUI.Views
 
         #region Public Methods
 
+        /// <summary>
+        /// Get the Network content mask
+        /// </summary>
         public int GetNetworkContentMask( )
         {
             var NetworkMessageContentMask = 0;
@@ -75,7 +78,9 @@ namespace PubSubConfigurationUI.Views
             }
             return NetworkMessageContentMask;
         }
-
+        /// <summary>
+        /// Initialize the Network content Mask controls
+        /// </summary>
         public void InitializeContentmask( )
         {
             foreach ( var checkbox in new[ ]
@@ -89,8 +94,7 @@ namespace PubSubConfigurationUI.Views
                 shiftNumber = 1 << bitposition;
                 checkbox.IsChecked = (DataSetWriterGroupEditViewModel.NetworkMessageContentMask & shiftNumber) ==
                                      shiftNumber ? true : false;
-
-                //checkbox.IsEnabled = false;
+ 
             }
         }
 

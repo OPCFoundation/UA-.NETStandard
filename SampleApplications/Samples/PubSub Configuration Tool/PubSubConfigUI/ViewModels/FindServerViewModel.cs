@@ -152,7 +152,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to find available servers in selected host.
         /// </summary>
-        /// <param name="systemNode"></param>
+        /// <param name="systemNode">Node of the selected system</param>
         public void FindAvailableServers( SystemNode systemNode )
         {
             systemNode.Children.Clear( );

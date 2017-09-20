@@ -116,8 +116,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to connect the selected Url 
         /// </summary>
-        /// <param name="endPointURL"></param>
-        /// <returns></returns>
+        /// <param name="endPointURL">url to establish the connection with the server</param> 
         public bool Connect(string endPointURL)
         {
             var errorMessage = string.Empty;

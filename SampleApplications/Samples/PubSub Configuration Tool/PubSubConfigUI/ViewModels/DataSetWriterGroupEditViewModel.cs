@@ -233,7 +233,7 @@ namespace PubSubConfigurationUI.ViewModels
 
         //CheckBox
         /// <summary>
-        /// Initialise method for DataSetWriterGroup
+        /// Initialize method for DataSetWriterGroup
         /// </summary>
         public void Initialize()
         {

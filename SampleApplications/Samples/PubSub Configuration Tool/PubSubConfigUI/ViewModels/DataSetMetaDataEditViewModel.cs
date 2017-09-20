@@ -49,7 +49,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to get Constants list from array
         /// </summary>
-        /// <param name="type"></param>
+        /// <param name="type">Type of the contants</param>
         /// <returns></returns>
         private List< FieldInfo > GetConstants( Type type )
         {

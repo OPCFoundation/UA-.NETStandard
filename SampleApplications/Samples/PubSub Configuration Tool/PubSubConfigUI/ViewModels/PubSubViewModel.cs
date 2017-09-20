@@ -639,58 +639,58 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to remove selected DataSetReader
         /// </summary>
-        /// <param name="_DataSetReaderDefinition"></param>
-        public void RemoveDataSetReader( DataSetReaderDefinition _DataSetReaderDefinition )
+        /// <param name="dataSetReaderDefinition">Definition to remove a dataSet reader</param>
+        public void RemoveDataSetReader( DataSetReaderDefinition dataSetReaderDefinition )
         {
-            var _ReaderGroupDefinition = _DataSetReaderDefinition.ParentNode as ReaderGroupDefinition;
+            var _ReaderGroupDefinition = dataSetReaderDefinition.ParentNode as ReaderGroupDefinition;
             var errorMessage =
-            m_clientAdaptor.RemoveDataSetReader( _ReaderGroupDefinition, _DataSetReaderDefinition.DataSetReaderNodeId );
+            m_clientAdaptor.RemoveDataSetReader( _ReaderGroupDefinition, dataSetReaderDefinition.DataSetReaderNodeId );
             if ( string.IsNullOrWhiteSpace( errorMessage ) )
-                _ReaderGroupDefinition.Children.Remove( _DataSetReaderDefinition );
+                _ReaderGroupDefinition.Children.Remove( dataSetReaderDefinition );
             else MessageBox.Show( errorMessage, "Remove DataSet Reader" );
         }
 
         /// <summary>
         /// Method to remove selected DataSetWriter.
         /// </summary>
-        /// <param name="_DataSetWriterDefinition"></param>
-        public void RemoveDataSetWriter( DataSetWriterDefinition _DataSetWriterDefinition )
+        /// <param name="dataSetWriterDefinition">Definition to remove a dataSet writer</param>
+        public void RemoveDataSetWriter( DataSetWriterDefinition dataSetWriterDefinition )
         {
-            var _DataSetWriterGroup = _DataSetWriterDefinition.ParentNode as DataSetWriterGroup;
+            var _DataSetWriterGroup = dataSetWriterDefinition.ParentNode as DataSetWriterGroup;
             var errorMessage =
-            m_clientAdaptor.RemoveDataSetWriter( _DataSetWriterGroup, _DataSetWriterDefinition.WriterNodeId );
+            m_clientAdaptor.RemoveDataSetWriter( _DataSetWriterGroup, dataSetWriterDefinition.WriterNodeId );
             if ( string.IsNullOrWhiteSpace( errorMessage ) )
-                _DataSetWriterGroup.Children.Remove( _DataSetWriterDefinition );
+                _DataSetWriterGroup.Children.Remove( dataSetWriterDefinition );
             else MessageBox.Show( errorMessage, "Remove DataSet Reader" );
         }
 
         /// <summary>
         /// Method to Reader selected ReaderGroup
         /// </summary>
-        /// <param name="_ReaderGroupDefinition"></param>
-        public void RemoveReaderGroup( ReaderGroupDefinition _ReaderGroupDefinition )
+        /// <param name="readerGroupDefinition">Definition to remove a reader group</param>
+        public void RemoveReaderGroup( ReaderGroupDefinition readerGroupDefinition )
         {
-            var Connection = _ReaderGroupDefinition.ParentNode as Connection;
-            var errorMessage = m_clientAdaptor.RemoveGroup( Connection, _ReaderGroupDefinition.GroupId );
+            var Connection = readerGroupDefinition.ParentNode as Connection;
+            var errorMessage = m_clientAdaptor.RemoveGroup( Connection, readerGroupDefinition.GroupId );
 
-            if ( string.IsNullOrWhiteSpace( errorMessage ) ) Connection.Children.Remove( _ReaderGroupDefinition );
+            if ( string.IsNullOrWhiteSpace( errorMessage ) ) Connection.Children.Remove( readerGroupDefinition );
             else MessageBox.Show( errorMessage );
         }
 
         /// <summary>
         /// Method to remove selected TargetVariables.
         /// </summary>
-        /// <param name="_FieldTargetVariableDefinition"></param>
-        public void RemoveTargetVariable( FieldTargetVariableDefinition _FieldTargetVariableDefinition )
+        /// <param name="fieldTargetVariableDefinition">Definition to remove a target variable</param>
+        public void RemoveTargetVariable( FieldTargetVariableDefinition fieldTargetVariableDefinition )
         {
             var _DataSetReaderDefinition =
-            _FieldTargetVariableDefinition.ParentNode.ParentNode as DataSetReaderDefinition;
-            var _SubscribedDataSetDefinition = _FieldTargetVariableDefinition.ParentNode as SubscribedDataSetDefinition;
+            fieldTargetVariableDefinition.ParentNode.ParentNode as DataSetReaderDefinition;
+            var _SubscribedDataSetDefinition = fieldTargetVariableDefinition.ParentNode as SubscribedDataSetDefinition;
             uint index = 0;
             var TargetToRemove = new List< uint >( );
-            foreach ( var _PubSubConfiguationBase in _FieldTargetVariableDefinition.ParentNode.Children )
+            foreach ( var _PubSubConfiguationBase in fieldTargetVariableDefinition.ParentNode.Children )
             {
-                if ( _PubSubConfiguationBase.Name == _FieldTargetVariableDefinition.Name )
+                if ( _PubSubConfiguationBase.Name == fieldTargetVariableDefinition.Name )
                 {
                     TargetToRemove.Add( index );
 
@@ -704,26 +704,26 @@ namespace PubSubConfigurationUI.ViewModels
                 new NodeId( _DataSetReaderDefinition.DataSetReaderNodeId.Identifier + ".SubscribedDataSet", 1 ),
                 _DataSetReaderDefinition.DataSetMetaDataType.ConfigurationVersion, TargetToRemove );
             if ( string.IsNullOrWhiteSpace( errMsg ) )
-                _FieldTargetVariableDefinition.ParentNode.Children.RemoveAt( ( int ) TargetToRemove[ 0 ] );
+                fieldTargetVariableDefinition.ParentNode.Children.RemoveAt( ( int ) TargetToRemove[ 0 ] );
         }
 
         /// <summary>
         /// Method to remove selected writerGroup.
         /// </summary>
-        /// <param name="_DataSetWriterGroup"></param>
-        public void RemoveWriterGroup( DataSetWriterGroup _DataSetWriterGroup )
+        /// <param name="dataSetWriterGroup">Group to remove from selected connection</param>
+        public void RemoveWriterGroup( DataSetWriterGroup dataSetWriterGroup )
         {
-            var Connection = _DataSetWriterGroup.ParentNode as Connection;
-            var errorMessage = m_clientAdaptor.RemoveGroup( Connection, _DataSetWriterGroup.GroupId );
+            var Connection = dataSetWriterGroup.ParentNode as Connection;
+            var errorMessage = m_clientAdaptor.RemoveGroup( Connection, dataSetWriterGroup.GroupId );
 
-            if ( string.IsNullOrWhiteSpace( errorMessage ) ) Connection.Children.Remove( _DataSetWriterGroup );
+            if ( string.IsNullOrWhiteSpace( errorMessage ) ) Connection.Children.Remove( dataSetWriterGroup );
             else MessageBox.Show( errorMessage );
         }
 
         /// <summary>
         /// Method to update existing connection
         /// </summary>
-        /// <param name="connection"></param>
+        /// <param name="connection">New settings to update the configured connection</param>
         public void UpdateConnection( Connection connection )
         {
             if ( connection.PublisherId == null )
@@ -847,8 +847,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// Method to write values for selected node
         /// </summary>
-        /// <param name="writeValueCollection"></param>
-        /// <returns></returns>
+        /// <param name="writeValueCollection"></param> 
         public StatusCodeCollection WriteValue( WriteValueCollection writeValueCollection )
         {
             return m_clientAdaptor.WriteValue( writeValueCollection );
