@@ -11,7 +11,14 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
+using System.Xml;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Reflection;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -65,7 +72,7 @@ namespace Opc.Ua
                 m_executable = method.m_executable;
                 m_userExecutable = method.m_userExecutable;
             }
-            
+
             base.Initialize(context, source);
         }
         #endregion
@@ -80,6 +87,7 @@ namespace Opc.Ua
             {
                 return base.TypeDefinitionId;
             }
+
             set
             {
                 base.TypeDefinitionId = value;
@@ -92,9 +100,10 @@ namespace Opc.Ua
         public bool Executable
         {
             get
-            { 
-                return m_executable;  
+            {
+                return m_executable;
             }
+
             set
             {
                 if (m_executable != value)
@@ -112,9 +121,10 @@ namespace Opc.Ua
         public bool UserExecutable
         {
             get
-            { 
-                return m_userExecutable;  
+            {
+                return m_userExecutable;
             }
+
             set
             {
                 if (m_userExecutable != value)
@@ -244,7 +254,7 @@ namespace Opc.Ua
             {
                 attributesToSave |= AttributesToSave.UserExecutable;
             }
-            
+
             return attributesToSave;
         }
 
@@ -305,38 +315,38 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
-                    bool executable = m_executable;
-
-                    if (OnReadExecutable != null)
                     {
-                        result = OnReadExecutable(context, this, ref executable);
-                    }
+                        bool executable = m_executable;
 
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = executable;
-                    }
+                        if (OnReadExecutable != null)
+                        {
+                            result = OnReadExecutable(context, this, ref executable);
+                        }
 
-                    return result;
-                }
+                        if (ServiceResult.IsGood(result))
+                        {
+                            value = executable;
+                        }
+
+                        return result;
+                    }
 
                 case Attributes.UserExecutable:
-                {
-                    bool userExecutable = m_userExecutable;
-
-                    if (OnReadUserExecutable != null)
                     {
-                        result = OnReadUserExecutable(context, this, ref userExecutable);
-                    }
+                        bool userExecutable = m_userExecutable;
 
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = userExecutable;
-                    }
+                        if (OnReadUserExecutable != null)
+                        {
+                            result = OnReadUserExecutable(context, this, ref userExecutable);
+                        }
 
-                    return result;
-                }
+                        if (ServiceResult.IsGood(result))
+                        {
+                            value = userExecutable;
+                        }
+
+                        return result;
+                    }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -357,62 +367,62 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
-                    bool? executableRef = value as bool?;
-
-                    if (executableRef == null)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        bool? executableRef = value as bool?;
+
+                        if (executableRef == null)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        if ((WriteMask & AttributeWriteMask.Executable) == 0)
+                        {
+                            return StatusCodes.BadNotWritable;
+                        }
+
+                        bool executable = executableRef.Value;
+
+                        if (OnWriteExecutable != null)
+                        {
+                            result = OnWriteExecutable(context, this, ref executable);
+                        }
+
+                        if (ServiceResult.IsGood(result))
+                        {
+                            Executable = executable;
+                        }
+
+                        return result;
                     }
-
-                    if ((WriteMask & AttributeWriteMask.Executable) == 0)
-                    {
-                        return StatusCodes.BadNotWritable;
-                    }
-
-                    bool executable = executableRef.Value;
-
-                    if (OnWriteExecutable != null)
-                    {
-                        result = OnWriteExecutable(context, this, ref executable);
-                    }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        Executable = executable;
-                    }
-
-                    return result;
-                }
 
                 case Attributes.UserExecutable:
-                {
-                    bool? userExecutableRef = value as bool?;
-
-                    if (userExecutableRef == null)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        bool? userExecutableRef = value as bool?;
+
+                        if (userExecutableRef == null)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        if ((WriteMask & AttributeWriteMask.UserExecutable) == 0)
+                        {
+                            return StatusCodes.BadNotWritable;
+                        }
+
+                        bool userExecutable = userExecutableRef.Value;
+
+                        if (OnWriteUserExecutable != null)
+                        {
+                            result = OnWriteUserExecutable(context, this, ref userExecutable);
+                        }
+
+                        if (ServiceResult.IsGood(result))
+                        {
+                            UserExecutable = userExecutable;
+                        }
+
+                        return result;
                     }
-
-                    if ((WriteMask & AttributeWriteMask.UserExecutable) == 0)
-                    {
-                        return StatusCodes.BadNotWritable;
-                    }
-
-                    bool userExecutable = userExecutableRef.Value;
-
-                    if (OnWriteUserExecutable != null)
-                    {
-                        result = OnWriteUserExecutable(context, this, ref userExecutable);
-                    }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        UserExecutable = userExecutable;
-                    }
-
-                    return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
@@ -426,10 +436,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> InputArguments
         {
             get
-            { 
-                return m_inputArguments;  
+            {
+                return m_inputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_inputArguments, value))
@@ -447,10 +457,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> OutputArguments
         {
             get
-            { 
-                return m_outputArguments;  
+            {
+                return m_outputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_outputArguments, value))
@@ -505,46 +515,46 @@ namespace Opc.Ua
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                {
-                    if (createOrReplace)
                     {
-                        if (InputArguments == null)
+                        if (createOrReplace)
                         {
-                            if (replacement == null)
+                            if (InputArguments == null)
                             {
-                                InputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                InputArguments = (PropertyState<Argument[]>)replacement;
+                                if (replacement == null)
+                                {
+                                    InputArguments = new PropertyState<Argument[]>(this);
+                                }
+                                else
+                                {
+                                    InputArguments = (PropertyState<Argument[]>)replacement;
+                                }
                             }
                         }
-                    }
 
-                    instance = InputArguments;
-                    break;
-                }
+                        instance = InputArguments;
+                        break;
+                    }
 
                 case BrowseNames.OutputArguments:
-                {
-                    if (createOrReplace)
                     {
-                        if (OutputArguments == null)
+                        if (createOrReplace)
                         {
-                            if (replacement == null)
+                            if (OutputArguments == null)
                             {
-                                OutputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                OutputArguments = (PropertyState<Argument[]>)replacement;
+                                if (replacement == null)
+                                {
+                                    OutputArguments = new PropertyState<Argument[]>(this);
+                                }
+                                else
+                                {
+                                    OutputArguments = (PropertyState<Argument[]>)replacement;
+                                }
                             }
                         }
-                    }
 
-                    instance = OutputArguments;
-                    break;
-                }
+                        instance = OutputArguments;
+                        break;
+                    }
             }
 
             if (instance != null)
@@ -588,7 +598,7 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-            
+
             // validate individual arguements.
             bool error = false;
 
