@@ -318,10 +318,23 @@ public class CertificateFactory
                     }));
 
                 // subject alternate name
-                cg.AddExtension(X509Extensions.SubjectAlternativeName, false,
-                    new GeneralNames(new GeneralName[] {
-                    new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri),
-                    new GeneralName(GeneralName.DnsName, domainNames[0])}));
+                int generalNameSize = domainNames.Count + 1;
+                List<GeneralName> generalNames = new List<GeneralName>();
+                generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
+                for (int i = 0; i < domainNames.Count; i++)
+                {
+                    int domainType = GeneralName.OtherName;
+                    switch (Uri.CheckHostName(domainNames[i]))
+                    {
+                        case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
+                        case UriHostNameType.IPv4:
+                        case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
+                        default: continue;
+                    }
+                    generalNames.Add(new GeneralName(domainType, domainNames[i]));
+                }
+
+                cg.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(generalNames.ToArray()));
             }
             else
             {
