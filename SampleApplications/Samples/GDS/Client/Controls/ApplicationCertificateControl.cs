@@ -438,7 +438,7 @@ namespace Opc.Ua.GdsClient
                     else
                     {
                         DialogResult result = DialogResult.Yes;
-                        string absoluteCertificatePublicKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, false);
+                        string absoluteCertificatePublicKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, false) ?? m_application.CertificatePublicKeyPath;
                         FileInfo file = new FileInfo(absoluteCertificatePublicKeyPath);
                         if (file.Exists)
                         {
@@ -469,7 +469,7 @@ namespace Opc.Ua.GdsClient
                         // if we provided a PFX or P12 with the private key, we need to merge the new cert with the private key
                         if (GetPrivateKeyFormat() == "PFX")
                         {
-                            string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
+                            string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false) ?? m_application.CertificatePrivateKeyPath;
                             file = new FileInfo(absoluteCertificatePrivateKeyPath);
                             if (file.Exists)
                             {
@@ -485,19 +485,25 @@ namespace Opc.Ua.GdsClient
 
                             if (result == DialogResult.Yes)
                             {
-                                byte[] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
-                                X509Certificate2 oldCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
-                                newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
-                                pkcsData = newCert.Export(X509ContentType.Pfx, m_certificatePassword);
-                                File.WriteAllBytes(absoluteCertificatePrivateKeyPath, pkcsData);
+                                if (file.Exists)
+                                {
+                                    byte[] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
+                                    X509Certificate2 oldCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
+                                    newCert = CertificateFactory.CreateCertificateWithPrivateKey(newCert, oldCertificate);
+                                    pkcsData = newCert.Export(X509ContentType.Pfx, m_certificatePassword);
+                                    File.WriteAllBytes(absoluteCertificatePrivateKeyPath, pkcsData);
+
+                                    if (privateKeyPFX != null)
+                                    {
+                                        throw new ServiceResultException("Did not expect a private key for this operation.");
+                                    }
+                                }
+                                else
+                                {
+                                    File.WriteAllBytes(absoluteCertificatePrivateKeyPath, privateKeyPFX);
+                                }
                             }
                         }
-
-                        if (privateKeyPFX != null)
-                        {
-                            throw new ServiceResultException("Did not expect a private key for this operation.");
-                        }
-
                     }
 
                     // update trust list.
