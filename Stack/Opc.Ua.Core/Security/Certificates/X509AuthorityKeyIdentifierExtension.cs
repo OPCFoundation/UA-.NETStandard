@@ -183,64 +183,16 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// Convert string to upper case and remove white space.
-        /// </summary>
-        private string TrimHexString(string hex)
-        {
-            int i = 0;
-            string result = "";
-            while (i < hex.Length)
-            {
-                if (Char.IsLetterOrDigit(hex[i]))
-                {
-                    result += Char.ToUpper(hex[i]);
-                }
-                i++;
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Extract KeyID and SerialNumber from formatted Authority Key Identifier.
-        /// This is not a ASN.1 parser. Not parsing authority names.
-        /// </summary>
-        private void ParseAuthorityKeyIdentifierExtension(string formattedData)
-        {
-            m_keyId = null;
-            m_serialNumber = null;
-
-            string[] pairedData = formattedData.Split(',');
-
-            // find desired keys in formatted data
-            int position = 1;
-            foreach (string pair in pairedData)
-            {
-                string[] splitPair = pair.Trim().Split(new Char[] { '=', ':' }, 2);
-                if (splitPair.Length == 2)
-                {
-                    splitPair[0] = splitPair[0].ToLower();
-                    if (splitPair[0] == s_KeyIdentifier && position == 1)
-                    {
-                        m_keyId = TrimHexString(splitPair[1]);
-                    }
-                    else if (splitPair[0].EndsWith(s_SerialNumber) && position == pairedData.Length)
-                    {
-                        m_serialNumber = TrimHexString(splitPair[1]);
-                    }
-                }
-                position++;
-            }
-        }
-
         private void Parse(byte[] data)
         {
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
-                string formattedData = asnData.Format(false);
-                ParseAuthorityKeyIdentifierExtension(formattedData);
+                Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure authorityKey = 
+                    new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(
+                        new Org.BouncyCastle.Asn1.DerOctetString(data));
+                m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
+                m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
             }
             else
             {
