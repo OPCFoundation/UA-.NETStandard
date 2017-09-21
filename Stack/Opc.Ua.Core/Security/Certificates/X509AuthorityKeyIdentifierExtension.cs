@@ -15,6 +15,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -92,7 +93,7 @@ namespace Opc.Ua
 
             if (m_authorityNames != null)
             {
-                for (int ii = 0; ii < m_authorityNames.Length; ii++)
+                for (int ii = 0; ii < m_authorityNames.Count; ii++)
                 {
                     if (buffer.Length > 0)
                     {
@@ -166,7 +167,7 @@ namespace Opc.Ua
         /// <summary>
         /// A list of names for the issuer.
         /// </summary>
-        public string[] AuthorityNames
+        public ReadOnlyList<string> AuthorityNames
         {
             get { return m_authorityNames; }
             private set { m_authorityNames = value; }
@@ -192,6 +193,15 @@ namespace Opc.Ua
                     new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(
                         new Org.BouncyCastle.Asn1.DerOctetString(data));
                 m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
+                List<string> authorityNames = new List<string>();
+                foreach (var name in authorityKey.AuthorityCertIssuer.GetNames())
+                {
+                    if (name.TagNo == Org.BouncyCastle.Asn1.X509.GeneralName.DirectoryName)
+                    {
+                        authorityNames.Add(name.Name.ToString());
+                    }
+                }
+                m_authorityNames = new ReadOnlyList<string>(authorityNames);
                 m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
             }
             else
@@ -212,7 +222,7 @@ namespace Opc.Ua
         private const string s_SerialNumber = "serialnumber";
         private const string s_FriendlyName = "Authority Key Identifier";
         private string m_keyId;
-        private string[] m_authorityNames;
+        private ReadOnlyList<string> m_authorityNames;
         private string m_serialNumber;
 #endregion
     }
