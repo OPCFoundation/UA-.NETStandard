@@ -189,27 +189,34 @@ namespace Opc.Ua
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure authorityKey = 
+                Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure authorityKey =
                     new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(
                         new Org.BouncyCastle.Asn1.DerOctetString(data));
-                m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
-                List<string> authorityNames = new List<string>();
-                foreach (var name in authorityKey.AuthorityCertIssuer.GetNames())
+                if (authorityKey != null)
                 {
-                    if (name.TagNo == Org.BouncyCastle.Asn1.X509.GeneralName.DirectoryName)
+                    if (authorityKey.AuthorityCertSerialNumber != null)
                     {
-                        authorityNames.Add(name.Name.ToString());
+                        m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
                     }
+                    if (authorityKey.AuthorityCertIssuer != null)
+                    {
+                        List<string> authorityNames = new List<string>();
+                        foreach (var name in authorityKey.AuthorityCertIssuer.GetNames())
+                        {
+                            if (name.TagNo == Org.BouncyCastle.Asn1.X509.GeneralName.DirectoryName)
+                            {
+                                authorityNames.Add(name.Name.ToString());
+                            }
+                        }
+                        m_authorityNames = new ReadOnlyList<string>(authorityNames);
+                    }
+                    m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
+                    return;
                 }
-                m_authorityNames = new ReadOnlyList<string>(authorityNames);
-                m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
             }
-            else
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate uses unknown AuthorityKeyIdentifierOid.");
-            }
+            throw new ServiceResultException(
+                StatusCodes.BadCertificateInvalid,
+                "Certificate uses unknown or bad AuthorityKeyIdentifierOid.");
         }
         #endregion
 
