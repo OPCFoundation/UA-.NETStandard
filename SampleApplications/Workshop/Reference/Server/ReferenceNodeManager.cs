@@ -2560,6 +2560,7 @@ namespace Quickstarts.ReferenceServer
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
                     {
                         variable.Value = GetNewValue(variable);
+                        variable.Timestamp = DateTime.UtcNow;
                         variable.ClearChangeMasks(SystemContext, false);
                     }
                 }
