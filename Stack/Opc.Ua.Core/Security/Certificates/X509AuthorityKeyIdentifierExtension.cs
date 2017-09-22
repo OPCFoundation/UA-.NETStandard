@@ -15,6 +15,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -92,7 +93,7 @@ namespace Opc.Ua
 
             if (m_authorityNames != null)
             {
-                for (int ii = 0; ii < m_authorityNames.Length; ii++)
+                for (int ii = 0; ii < m_authorityNames.Count; ii++)
                 {
                     if (buffer.Length > 0)
                     {
@@ -166,7 +167,7 @@ namespace Opc.Ua
         /// <summary>
         /// A list of names for the issuer.
         /// </summary>
-        public string[] AuthorityNames
+        public ReadOnlyList<string> AuthorityNames
         {
             get { return m_authorityNames; }
             private set { m_authorityNames = value; }
@@ -183,71 +184,39 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// Convert string to upper case and remove white space.
-        /// </summary>
-        private string TrimHexString(string hex)
-        {
-            int i = 0;
-            string result = "";
-            while (i < hex.Length)
-            {
-                if (Char.IsLetterOrDigit(hex[i]))
-                {
-                    result += Char.ToUpper(hex[i]);
-                }
-                i++;
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Extract KeyID and SerialNumber from formatted Authority Key Identifier.
-        /// This is not a ASN.1 parser. Not parsing authority names.
-        /// </summary>
-        private void ParseAuthorityKeyIdentifierExtension(string formattedData)
-        {
-            m_keyId = null;
-            m_serialNumber = null;
-
-            string[] pairedData = formattedData.Split(',');
-
-            // find desired keys in formatted data
-            int position = 1;
-            foreach (string pair in pairedData)
-            {
-                string[] splitPair = pair.Trim().Split(new Char[] { '=', ':' }, 2);
-                if (splitPair.Length == 2)
-                {
-                    splitPair[0] = splitPair[0].ToLower();
-                    if (splitPair[0] == s_KeyIdentifier && position == 1)
-                    {
-                        m_keyId = TrimHexString(splitPair[1]);
-                    }
-                    else if (splitPair[0].EndsWith(s_SerialNumber) && position == pairedData.Length)
-                    {
-                        m_serialNumber = TrimHexString(splitPair[1]);
-                    }
-                }
-                position++;
-            }
-        }
-
         private void Parse(byte[] data)
         {
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
-                string formattedData = asnData.Format(false);
-                ParseAuthorityKeyIdentifierExtension(formattedData);
+                Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure authorityKey =
+                    new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(
+                        new Org.BouncyCastle.Asn1.DerOctetString(data));
+                if (authorityKey != null)
+                {
+                    if (authorityKey.AuthorityCertSerialNumber != null)
+                    {
+                        m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
+                    }
+                    if (authorityKey.AuthorityCertIssuer != null)
+                    {
+                        List<string> authorityNames = new List<string>();
+                        foreach (var name in authorityKey.AuthorityCertIssuer.GetNames())
+                        {
+                            if (name.TagNo == Org.BouncyCastle.Asn1.X509.GeneralName.DirectoryName)
+                            {
+                                authorityNames.Add(name.Name.ToString());
+                            }
+                        }
+                        m_authorityNames = new ReadOnlyList<string>(authorityNames);
+                    }
+                    m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
+                    return;
+                }
             }
-            else
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate uses unknown AuthorityKeyIdentifierOid.");
-            }
+            throw new ServiceResultException(
+                StatusCodes.BadCertificateInvalid,
+                "Certificate uses unknown or bad AuthorityKeyIdentifierOid.");
         }
         #endregion
 
@@ -260,7 +229,7 @@ namespace Opc.Ua
         private const string s_SerialNumber = "serialnumber";
         private const string s_FriendlyName = "Authority Key Identifier";
         private string m_keyId;
-        private string[] m_authorityNames;
+        private ReadOnlyList<string> m_authorityNames;
         private string m_serialNumber;
 #endregion
     }

@@ -771,25 +771,27 @@ namespace Opc.Ua.Bindings
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
                 // If the certificate structre, signare and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
-                if (innerException != null && (
-                    innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
-                    innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
-                    innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked))
+                if (innerException != null)
                 {
-                    ForceChannelFault(innerException, innerException.StatusCode, e.Message);
-                    return false;
-                }
-                else if (innerException != null && innerException.StatusCode == StatusCodes.BadCertificateUntrusted)
-                {
-                    ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
-                    return false;
+                    if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
+                    {
+                        ForceChannelFault(innerException, innerException.StatusCode, e.Message);
+                        return false;
+                    }
+                    else if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevoked)
+                    {
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        return false;
+                    }
                 }
 
                 ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
