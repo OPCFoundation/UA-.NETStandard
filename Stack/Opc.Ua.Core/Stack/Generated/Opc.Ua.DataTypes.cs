@@ -54278,6 +54278,556 @@ namespace Opc.Ua
         [EnumMember(Value = "Unknown_4")]
         Unknown = 4,
     }
-    #endif
+#endif
+    #endregion
+
+    #region FieldTargetDataType Class
+#if (!OPCUA_EXCLUDE_FieldTargetDataType)
+    /// <summary>
+    /// A description for the FieldTargetDataType DataType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class FieldTargetDataType : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public FieldTargetDataType()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_dataSetFieldId = Uuid.Empty;
+            m_receiverIndexRange = null;
+            m_targetNodeId = null;
+            m_attributeId = (uint)0;
+            m_writeIndexRange = null;
+            m_overrideValueHandling = OverrideValueHandling.Disabled;
+            m_overrideValue = Variant.Null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A description for the DataSetFieldId field.
+        /// </summary>
+        [DataMember(Name = "DataSetFieldId", IsRequired = false, Order = 1)]
+        public Uuid DataSetFieldId
+        {
+            get { return m_dataSetFieldId; }
+            set { m_dataSetFieldId = value; }
+        }
+
+        /// <summary>
+        /// A description for the ReceiverIndexRange field.
+        /// </summary>
+        [DataMember(Name = "ReceiverIndexRange", IsRequired = false, Order = 2)]
+        public string ReceiverIndexRange
+        {
+            get { return m_receiverIndexRange; }
+            set { m_receiverIndexRange = value; }
+        }
+
+        /// <summary>
+        /// A description for the TargetNodeId field.
+        /// </summary>
+        [DataMember(Name = "TargetNodeId", IsRequired = false, Order = 3)]
+        public NodeId TargetNodeId
+        {
+            get { return m_targetNodeId; }
+            set { m_targetNodeId = value; }
+        }
+
+        /// <summary>
+        /// A description for the AttributeId field.
+        /// </summary>
+        [DataMember(Name = "AttributeId", IsRequired = false, Order = 4)]
+        public uint AttributeId
+        {
+            get { return m_attributeId; }
+            set { m_attributeId = value; }
+        }
+
+        /// <summary>
+        /// A description for the WriteIndexRange field.
+        /// </summary>
+        [DataMember(Name = "WriteIndexRange", IsRequired = false, Order = 5)]
+        public string WriteIndexRange
+        {
+            get { return m_writeIndexRange; }
+            set { m_writeIndexRange = value; }
+        }
+
+        /// <summary>
+        /// A description for the OverrideValueHandling field.
+        /// </summary>
+        [DataMember(Name = "OverrideValueHandling", IsRequired = false, Order = 6)]
+        public OverrideValueHandling OverrideValueHandling
+        {
+            get { return m_overrideValueHandling; }
+            set { m_overrideValueHandling = value; }
+        }
+
+        /// <summary>
+        /// A description for the OverrideValue field.
+        /// </summary>
+        [DataMember(Name = "OverrideValue", IsRequired = false, Order = 7)]
+        public Variant OverrideValue
+        {
+            get { return m_overrideValue; }
+            set { m_overrideValue = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.DataConnectionDataType; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.DataConnectionDataType_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.DataConnectionDataType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteGuid("DataSetFieldId", DataSetFieldId);
+            encoder.WriteString("ReceiverIndexRange", ReceiverIndexRange);
+            encoder.WriteNodeId("TargetNodeId", TargetNodeId);
+            encoder.WriteUInt32("AttributeId", AttributeId);
+            encoder.WriteString("WriteIndexRange", WriteIndexRange);
+            encoder.WriteEnumerated("OverrideValueHandling", OverrideValueHandling);
+            encoder.WriteVariant("OverrideValue", OverrideValue);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            DataSetFieldId = decoder.ReadGuid("DataSetFieldId");
+            ReceiverIndexRange = decoder.ReadString("ReceiverIndexRange");
+            TargetNodeId = decoder.ReadNodeId("TargetNodeId");
+            AttributeId = decoder.ReadUInt32("AttributeId");
+            WriteIndexRange = decoder.ReadString("WriteIndexRange");
+            OverrideValueHandling = (OverrideValueHandling)decoder.ReadEnumerated("OverrideValueHandling", typeof(OverrideValueHandling));
+            OverrideValue = decoder.ReadVariant("OverrideValue");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            FieldTargetDataType value = encodeable as FieldTargetDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_dataSetFieldId, value.m_dataSetFieldId)) return false;
+            if (!Utils.IsEqual(m_receiverIndexRange, value.m_receiverIndexRange)) return false;
+            if (!Utils.IsEqual(m_targetNodeId, value.m_targetNodeId)) return false;
+            if (!Utils.IsEqual(m_attributeId, value.m_attributeId)) return false;
+            if (!Utils.IsEqual(m_writeIndexRange, value.m_writeIndexRange)) return false;
+            if (!Utils.IsEqual(m_overrideValueHandling, value.m_overrideValueHandling)) return false;
+            if (!Utils.IsEqual(m_overrideValue, value.m_overrideValue)) return false;
+
+            return true;
+        }
+
+#if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (FieldTargetDataType)this.MemberwiseClone();
+        }
+#endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            FieldTargetDataType clone = (FieldTargetDataType)base.MemberwiseClone();
+
+            clone.m_dataSetFieldId = (Uuid)Utils.Clone(this.m_dataSetFieldId);
+            clone.m_receiverIndexRange = (string)Utils.Clone(this.m_receiverIndexRange);
+            clone.m_targetNodeId = (NodeId)Utils.Clone(this.m_targetNodeId);
+            clone.m_attributeId = (uint)Utils.Clone(this.m_attributeId);
+            clone.m_writeIndexRange = (string)Utils.Clone(this.m_writeIndexRange);
+            clone.m_overrideValueHandling = (OverrideValueHandling)Utils.Clone(this.m_overrideValueHandling);
+            clone.m_overrideValue = (Variant)Utils.Clone(this.m_overrideValue);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private Uuid m_dataSetFieldId;
+        private string m_receiverIndexRange;
+        private NodeId m_targetNodeId;
+        private uint m_attributeId;
+        private string m_writeIndexRange;
+        private OverrideValueHandling m_overrideValueHandling;
+        private Variant m_overrideValue;
+        #endregion
+    }
+
+    #region DataConnectionDataTypeCollection Class
+    /// <summary>
+    /// A collection of DataConnectionDataType objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDataConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataConnectionDataType")]
+#if !NET_STANDARD
+    public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>, ICloneable
+#else
+    public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>
+#endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public FieldTargetDataTypeCollection() { }
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public FieldTargetDataTypeCollection(int capacity) : base(capacity) { }
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public FieldTargetDataTypeCollection(IEnumerable<FieldTargetDataType> collection) : base(collection) { }
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator FieldTargetDataTypeCollection(FieldTargetDataType[] values)
+        {
+            if (values != null)
+            {
+                return new FieldTargetDataTypeCollection(values);
+            }
+
+            return new FieldTargetDataTypeCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator FieldTargetDataType[] (FieldTargetDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+#if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (FieldTargetDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+#endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            FieldTargetDataTypeCollection clone = new FieldTargetDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((FieldTargetDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+#endif
+    #endregion
+
+    #region RolePermissionType Class
+#if (!OPCUA_EXCLUDE_RolePermissionType)
+    /// <summary>
+    /// A description for the RolePermissionType DataType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class RolePermissionType : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public RolePermissionType()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_roleId = null;
+            m_permissions = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A description for the RoleId field.
+        /// </summary>
+        [DataMember(Name = "RoleId", IsRequired = false, Order = 1)]
+        public NodeId RoleId
+        {
+            get { return m_roleId; }
+            set { m_roleId = value; }
+        }
+
+        /// <summary>
+        /// A description for the Permissions field.
+        /// </summary>
+        [DataMember(Name = "Permissions", IsRequired = false, Order = 2)]
+        public uint Permissions
+        {
+            get { return m_permissions; }
+            set { m_permissions = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.RolePermissionType; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.RolePermissionType_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.RolePermissionType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("RoleId", RoleId);
+            encoder.WriteUInt32("Permissions", Permissions);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            RoleId = decoder.ReadNodeId("RoleId");
+            Permissions = decoder.ReadUInt32("Permissions");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            RolePermissionType value = encodeable as RolePermissionType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_roleId, value.m_roleId)) return false;
+            if (!Utils.IsEqual(m_permissions, value.m_permissions)) return false;
+
+            return true;
+        }
+
+#if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (RolePermissionType)this.MemberwiseClone();
+        }
+#endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            RolePermissionType clone = (RolePermissionType)base.MemberwiseClone();
+
+            clone.m_roleId = (NodeId)Utils.Clone(this.m_roleId);
+            clone.m_permissions = (uint)Utils.Clone(this.m_permissions);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_roleId;
+        private uint m_permissions;
+        #endregion
+    }
+
+    #region RolePermissionTypeCollection Class
+    /// <summary>
+    /// A collection of RolePermissionType objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
+#if !NET_STANDARD
+    public partial class RolePermissionTypeCollection : List<RolePermissionType>, ICloneable
+#else
+    public partial class RolePermissionTypeCollection : List<RolePermissionType>
+#endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public RolePermissionTypeCollection() { }
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public RolePermissionTypeCollection(int capacity) : base(capacity) { }
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection) : base(collection) { }
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator RolePermissionTypeCollection(RolePermissionType[] values)
+        {
+            if (values != null)
+            {
+                return new RolePermissionTypeCollection(values);
+            }
+
+            return new RolePermissionTypeCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator RolePermissionType[] (RolePermissionTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+#if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (RolePermissionTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+#endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            RolePermissionTypeCollection clone = new RolePermissionTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((RolePermissionType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+#endif
     #endregion
 }

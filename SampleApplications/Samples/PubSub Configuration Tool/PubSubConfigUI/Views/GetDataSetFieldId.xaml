@@ -1,0 +1,41 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.GetDataSetFieldIdDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="Get DataSet Field Id Dialog" Height="310" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="200" />
+            <RowDefinition Height="100" />
+
+        </Grid.RowDefinitions>
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto">
+            <DataGrid Margin="5,5" x:Name="FieldIdGrid" Grid.Row="0" AutoGenerateColumns="False"
+                      CanUserSortColumns="False"
+                      Foreground="Black" CanUserAddRows="False" HeadersVisibility="Column">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" MinWidth="130"
+                                        Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Field Id" MinWidth="150"
+                                        Binding="{Binding DataSetFieldId,UpdateSourceTrigger=PropertyChanged}"
+                                        IsReadOnly="True" />
+                    <DataGridTextColumn Header="DataType" MinWidth="150"
+                                        Binding="{Binding DataType,UpdateSourceTrigger=PropertyChanged}"
+                                        IsReadOnly="True" />
+                    <DataGridTextColumn Header="ValueRank" MinWidth="150"
+                                        Binding="{Binding ValueRank,UpdateSourceTrigger=PropertyChanged}"
+                                        IsReadOnly="True" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
+        <StackPanel Margin="0,0,0,8" VerticalAlignment="Center" HorizontalAlignment="Right" Orientation="Horizontal"
+                    Grid.Row="1">
+            <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="OnApply_Click" />
+            <Button Width="100" Margin="5,5" Content="Cancel" Height="23" VerticalAlignment="Center"
+                    Click="OnCancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

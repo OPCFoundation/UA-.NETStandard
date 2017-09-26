@@ -1,0 +1,461 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{50D4E697-6DCC-4042-B89A-4CEA57F5CCAD}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PubSubConfigUI</RootNamespace>
+    <AssemblyName>PubSubConfigUI</AssemblyName>
+    <ApplicationIcon>App.ico</ApplicationIcon>
+    <StartupObject>PubSubConfigurationUI.App</StartupObject>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <SignAssembly>false</SignAssembly>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <TargetFrameworkProfile />
+    <PublishUrl>http://localhost/Opc.Ua.SampleClient/</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\OPCOutput\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\OPCOutput\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.configuration" />
+    <Reference Include="System.Configuration.Install" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IdentityModel">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.xaml.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UserControls\ConnectionUserControl.xaml.cs">
+      <DependentUpon>ConnectionUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\DataSetMetaDataUserControl.xaml.cs">
+      <DependentUpon>DataSetMetaDataUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\DataSetReaderUserControl.xaml.cs">
+      <DependentUpon>DataSetReaderUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\DataSetWriterGroupUserControl.xaml.cs">
+      <DependentUpon>DataSetWriterGroupUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\DataSetWriterUserControl.xaml.cs">
+      <DependentUpon>DataSetWriterUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\FieldTargetVariableUserControl.xaml.cs">
+      <DependentUpon>FieldTargetVariableUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\PublishedDataItemUserControl.xaml.cs">
+      <DependentUpon>PublishedDataItemUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\PublishedDataSetUserControl.xaml.cs">
+      <DependentUpon>PublishedDataSetUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\ReaderGroupUserControl.xaml.cs">
+      <DependentUpon>ReaderGroupUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\SecurityKeysUserControl.xaml.cs">
+      <DependentUpon>SecurityKeysUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\SecurityUserControl.xaml.cs">
+      <DependentUpon>SecurityUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\AddPublishedDataSetViewModel.cs" />
+    <Compile Include="ViewModels\AddSecurityGroupViewModel.cs" />
+    <Compile Include="ViewModels\ConnectionEditViewModel.cs" />
+    <Compile Include="ViewModels\DataSetMetaDataEditViewModel.cs" />
+    <Compile Include="ViewModels\DataSetReaderEditViewModel.cs" />
+    <Compile Include="ViewModels\DataSetWriterEditViewModel.cs" />
+    <Compile Include="ViewModels\DataSetWriterGroupEditViewModel.cs" />
+    <Compile Include="ViewModels\DataSetWriterGroupViewModel.cs" />
+    <Compile Include="ViewModels\DataSetWriterViewModel.cs" />
+    <Compile Include="ViewModels\FieldTargetVariableEditViewModel.cs" />
+    <Compile Include="ViewModels\FindServerViewModel.cs" />
+    <Compile Include="ViewModels\MainViewModel.cs" />
+    <Compile Include="ViewModels\PublishedDataSetEditViewModel.cs" />
+    <Compile Include="ViewModels\PublishedDataSetItemModel.cs" />
+    <Compile Include="ViewModels\PublishedDataSetMainViewModel.cs" />
+    <Compile Include="ViewModels\PubSubStatusViewModel.cs" />
+    <Compile Include="ViewModels\PubSubViewModel.cs" />
+    <Compile Include="ViewModels\ReaderGroupEditViewModel.cs" />
+    <Compile Include="ViewModels\ReaderGroupViewModel.cs" />
+    <Compile Include="ViewModels\SecurityKeyEditViewModel.cs" />
+    <Compile Include="ViewModels\SecurityKeyViewModel.cs" />
+    <Compile Include="ViewModels\SecurityViewModel.cs" />
+    <Compile Include="ViewModels\TargetVariablesViewModel.cs" />
+    <Compile Include="ViewModels\TreeViewLineConverter.cs" />
+    <Compile Include="Views\AboutInformationDlg.xaml.cs">
+      <DependentUpon>AboutInformationDlg.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddConnectionView.xaml.cs">
+      <DependentUpon>AddConnectionView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddDataSetMetaData.xaml.cs">
+      <DependentUpon>AddDataSetMetaData.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddDataSetMirror.xaml.cs">
+      <DependentUpon>AddDataSetMirror.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddDataSetReader.xaml.cs">
+      <DependentUpon>AddDataSetReader.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddDataSetWriter.xaml.cs">
+      <DependentUpon>AddDataSetWriter.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddDataSetWriterGroup.xaml.cs">
+      <DependentUpon>AddDataSetWriterGroup.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddPublishedDataSetDialog.xaml.cs">
+      <DependentUpon>AddPublishedDataSetDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddReaderGroup.xaml.cs">
+      <DependentUpon>AddReaderGroup.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddSecurityGroupView.xaml.cs">
+      <DependentUpon>AddSecurityGroupView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddSecurityKeys.xaml.cs">
+      <DependentUpon>AddSecurityKeys.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\AddTargetVariables.xaml.cs">
+      <DependentUpon>AddTargetVariables.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FindServerDlg.xaml.cs">
+      <DependentUpon>FindServerDlg.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\GetDataSetFieldId.xaml.cs">
+      <DependentUpon>GetDataSetFieldId.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\GetPublisherIdDialog.xaml.cs">
+      <DependentUpon>GetPublisherIdDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\PublisherDataSetView.xaml.cs">
+      <DependentUpon>PublisherDataSetView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\PubSubConfigurationView.xaml.cs">
+      <DependentUpon>PubSubConfigurationView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\PubSubStatusView.xaml.cs">
+      <DependentUpon>PubSubStatusView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SecurityGroupConfigurationView.xaml.cs">
+      <DependentUpon>SecurityGroupConfigurationView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ViewDataSetMetaData.xaml.cs">
+      <DependentUpon>ViewDataSetMetaData.xaml</DependentUpon>
+    </Compile>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <Content Include="App.config">
+      <SubType>Designer</SubType>
+    </Content>
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <Content Include="Images\FoundationImage.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="OPCUAClient_PubSubConfig.Config.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </Content>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
+      <Name>Opc.Ua.Configuration</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
+      <Name>UA Client Controls</Name>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Controls.Net4\UA Sample Controls.csproj">
+      <Project>{92AE819B-4938-4502-AC32-67063F9893CD}</Project>
+      <Name>UA Sample Controls</Name>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Opc.Ua.Sample\Opc.Ua.Sample.csproj">
+      <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
+      <Name>Opc.Ua.Sample</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\OPC_UA_ClientAdaptor\ClientAdaptor.csproj">
+      <Project>{ec613ad9-4ca3-4c10-ab79-b0a2be1d05db}</Project>
+      <Name>ClientAdaptor</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PubSubBase\PubSubBase.csproj">
+      <Project>{5fbb5d20-5d60-4b08-b077-15bf57005d99}</Project>
+      <Name>PubSubBase</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="app.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+    <Page Include="MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\ConnectionUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\DataSetMetaDataUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\DataSetReaderUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\DataSetWriterGroupUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\DataSetWriterUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\FieldTargetVariableUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\PublishedDataItemUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\PublishedDataSetUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\ReaderGroupUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\SecurityKeysUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UserControls\SecurityUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AboutInformationDlg.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddConnectionView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddDataSetMetaData.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddDataSetMirror.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddDataSetReader.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddDataSetWriter.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddDataSetWriterGroup.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddPublishedDataSetDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddReaderGroup.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddSecurityGroupView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddSecurityKeys.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AddTargetVariables.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\FindServerDlg.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\GetDataSetFieldId.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\GetPublisherIdDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\PublisherDataSetView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\PubSubConfigurationView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\PubSubStatusView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SecurityGroupConfigurationView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ViewDataSetMetaData.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
+</Project>
