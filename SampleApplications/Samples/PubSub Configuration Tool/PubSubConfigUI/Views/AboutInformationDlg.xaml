@@ -1,0 +1,65 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.AboutInformationDlg"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="About OPC PubSub Configuration Tool" Height="480" Width="600" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Grid Background="#FFFFFF">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="10,10" Background="#FFFFFF">
+            <Image Source="/PubSubConfigUI;component/Images/FoundationImage.png" Height="75" Margin="10" />
+            <TextBlock Text="OPC PubSub Configuration Tool" Foreground="#007ACC" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" FontSize="16" Margin="5,10" />
+        </StackPanel>
+        <Grid Grid.Column="1" Background="#F0F0F0" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="5" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,10">
+                <TextBlock TextWrapping="Wrap" Margin="2" FontFamily="Arial" FontSize="12">
+                    Version 1.0 <LineBreak />
+                    Build #1 Revison 2 <LineBreak />
+                    Copyright © 2017 <LineBreak />
+                    OPC Foundation.<LineBreak />
+                    All rights reserved.
+                </TextBlock>
+            </StackPanel>
+            <Separator Grid.Row="1" Grid.ColumnSpan="1" Height="2" HorizontalAlignment="Stretch" Background="Gray"
+                       Margin="-2,0" />
+            <Grid Grid.Row="2" Grid.Column="1" Margin="10,10">
+                <TextBlock Margin="7" FontFamily="Arial" FontSize="12">
+                    Technical support is available by contacting:
+                </TextBlock>
+            </Grid>
+
+            <StackPanel Grid.Row="3" Margin="10" Orientation="Vertical">
+                <Border BorderThickness="2" BorderBrush="Black" Margin="5">
+                    <TextBlock TextWrapping="Wrap" Margin="2" FontFamily="Arial" FontSize="12">
+                        <Bold />
+                        OPC Foundation<Bold /><LineBreak />
+                        16101 N. 82nd Street, Suite 3B,<LineBreak />
+                        Scottsdale, AZ 85260-1868 USA,<LineBreak />
+                        <LineBreak />
+                        <LineBreak />
+                        Web:
+                        <Hyperlink NavigateUri="https://opcfoundation.org/" RequestNavigate="Hyperlink_RequestNavigate">
+                            https://opcfoundation.org
+                        </Hyperlink>
+                        <LineBreak />
+                        Phone: 480 483-6644. <LineBreak />
+                    </TextBlock>
+                </Border>
+                <Button Content="Close" Width="80" HorizontalAlignment="Right" Click="Button_Click" Margin="5,5,5,6" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
