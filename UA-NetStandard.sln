@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{6C449A1E-244E-4515-9949-A7E22012537C}"
 EndProject
@@ -68,8 +68,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreConsoleClient", "SampleApplications\Samples\NetCoreConsoleClient\NetCoreConsoleClient.csproj", "{7AD6D1A2-2643-409B-B401-73BCB9DBD8D8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreConsoleServer", "SampleApplications\Samples\NetCoreConsoleServer\NetCoreConsoleServer.csproj", "{F7880521-6662-43A0-B28E-219AA8D28A49}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA History Client", "SampleApplications\Samples\HistoryClient\UA History Client.csproj", "{F5E8F2E9-CE85-489F-87D7-523060BCF823}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -356,24 +354,11 @@ Global
 		{F7880521-6662-43A0-B28E-219AA8D28A49}.Release|x64.Build.0 = Release|Any CPU
 		{F7880521-6662-43A0-B28E-219AA8D28A49}.Release|x86.ActiveCfg = Release|Any CPU
 		{F7880521-6662-43A0-B28E-219AA8D28A49}.Release|x86.Build.0 = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|ARM.ActiveCfg = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|ARM.Build.0 = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|x64.Build.0 = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Debug|x86.Build.0 = Debug|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|ARM.ActiveCfg = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|ARM.Build.0 = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|x64.ActiveCfg = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|x64.Build.0 = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|x86.ActiveCfg = Release|Any CPU
-		{F5E8F2E9-CE85-489F-87D7-523060BCF823}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F8B6C12E-D697-4957-A024-15F10FF9D6E9}
 	EndGlobalSection
 EndGlobal
