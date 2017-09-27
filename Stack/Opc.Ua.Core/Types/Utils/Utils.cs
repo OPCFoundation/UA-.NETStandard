@@ -1446,7 +1446,15 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
-
+            // copy ExtensionObjectCollection.
+            {
+                ExtensionObjectCollection castedObject = value as ExtensionObjectCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            
             // copy EnumValueType.
             {
                 EnumValueType castedObject = value as EnumValueType;
@@ -1635,6 +1643,14 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
+            // copy ContentFilterElement.
+            {
+                ContentFilterElement castedObject = value as ContentFilterElement;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
 
             // copy ContentFilterElementCollection.
             {
@@ -1731,7 +1747,7 @@ namespace Opc.Ua
                 {
                     return castedObject.MemberwiseClone();
                 }
-            }           
+            }
             // copy Opc.Ua.TimeZoneDataType
             {
                 TimeZoneDataType castedObject = value as TimeZoneDataType;
@@ -1739,7 +1755,26 @@ namespace Opc.Ua
                 {
                     return castedObject.MemberwiseClone();
                 }
-            }           
+            }
+            // copy Opc.Ua.LiteralOperand
+            {
+                LiteralOperand castedObject = value as LiteralOperand;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            //try to find the MemberwiseClone method by reflection.
+            MethodInfo memberwiseCloneMethod = type.GetMethod("MemberwiseClone", BindingFlags.Public | BindingFlags.Instance);
+            if (memberwiseCloneMethod != null)
+            {
+                object clone = memberwiseCloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
 
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
