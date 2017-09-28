@@ -191,7 +191,6 @@ namespace Opc.Ua
             public const int All = 0x7FFFFFFF;
         }
 
-
         /// <summary>
         /// Sets the output for tracing (thead safe).
         /// </summary>
@@ -217,6 +216,14 @@ namespace Opc.Ua
         public static void SetTraceMask(int masks)
         {
             s_traceMasks = (int)masks;
+        }
+
+        /// <summary>
+        /// Returns Tracing class instance for event attaching.
+        /// </summary>
+        public static Tracing Tracing
+        {
+            get { return Tracing.Instance; }
         }
 
         /// <summary>
@@ -340,7 +347,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Trace((int)TraceMasks.Information, format, args);
+            Trace((int)TraceMasks.Information, format, false, args);
         }
 
         /// <summary>
@@ -349,13 +356,21 @@ namespace Opc.Ua
         [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace((int)TraceMasks.OperationDetail, format, args);
+            Trace((int)TraceMasks.OperationDetail, format, false, args);
         }
 
         /// <summary>
-        /// Writes an informational message to the trace log.
+        /// Writes an exception/error message to the trace log.
         /// </summary>
         public static void Trace(Exception e, string format, params object[] args)
+        {
+            Trace(e, format, false, args);
+        }
+
+        /// <summary>
+        /// Writes an exception/error message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, string format, bool handled, params object[] args)
         {
             StringBuilder message = new StringBuilder();
                         
@@ -400,7 +415,7 @@ namespace Opc.Ua
             }
             
             // trace message.
-            Trace((int)TraceMasks.Error, message.ToString(), null);
+            Trace((int)TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
@@ -408,6 +423,19 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
+            Trace(traceMask, format, false, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Trace(int traceMask, string format, bool handled, params object[] args)
+        {
+            if (!handled)
+            {
+                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, null, args));
+            }
+
             // do nothing if mask not enabled.
             if ((s_traceMasks & traceMask) == 0)
             {
@@ -3040,5 +3068,119 @@ namespace Opc.Ua
             return true;
         }
 #endregion
+    }
+
+    /// <summary>
+    /// Used as underlying tracing object for event processing.
+    /// </summary>
+    public class Tracing
+    {
+        #region Private Members
+        private static object m_syncRoot = new Object();
+        private static Tracing s_instance;
+        #endregion Private Members
+
+        #region Singleton Instance
+        /// <summary>
+        /// Private constructor.
+        /// </summary>
+        private Tracing()
+        { }
+
+        /// <summary>
+        /// Public Singleton Instance getter.
+        /// </summary>
+        public static Tracing Instance
+        {
+            get
+            {
+                if (s_instance == null)
+                {
+                    lock (m_syncRoot)
+                    {
+                        if (s_instance == null)
+                        {
+                            s_instance = new Tracing();
+                        }
+                    }
+                }
+                return s_instance;
+            }
+        }
+        #endregion Singleton Instance
+
+        #region Public Events
+        /// <summary>
+        /// Occurs when a trace call is made.
+        /// </summary>
+        public event EventHandler<TraceEventArgs> TraceEventHandler;
+        #endregion Public Events
+
+        internal void RaiseTraceEvent(TraceEventArgs eventArgs)
+        {
+            if (TraceEventHandler != null)
+            {
+                try
+                {
+                    TraceEventHandler(this, eventArgs);
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The event arguments provided when a trace event is raised.
+    /// </summary>
+    public class TraceEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes a new instance of the TraceEventArgs class.
+        /// </summary>
+        /// <param name="traceMask">The trace mask.</param>
+        /// <param name="format">The format.</param>
+        /// <param name="message">The message.</param>
+        /// <param name="exception">The exception.</param>
+        /// <param name="args">The arguments.</param>
+        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
+        {
+            TraceMask = traceMask;
+            Format = format;
+            Message = message;
+            Exception = exception;
+            Arguments = args;
+        }
+        #endregion Constructors
+
+        #region Public Properties
+        /// <summary>
+        /// Gets the trace mask.
+        /// </summary>
+        public int TraceMask { get; private set; }
+
+        /// <summary>
+        /// Gets the format.
+        /// </summary>
+        public string Format { get; private set; }
+
+        /// <summary>
+        /// Gets the arguments.
+        /// </summary>
+        public object[] Arguments { get; private set; }
+
+        /// <summary>
+        /// Gets the message.
+        /// </summary>
+        public string Message { get; private set; }
+
+        /// <summary>
+        /// Gets the exception.
+        /// </summary>
+        public Exception Exception { get; private set; }
+        #endregion Public Properties
     }
 }
