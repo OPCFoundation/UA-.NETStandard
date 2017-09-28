@@ -419,7 +419,7 @@ namespace Opc.Ua
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
+            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)
