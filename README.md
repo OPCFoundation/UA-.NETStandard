@@ -12,7 +12,7 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 6. Folder & OS-level (X509Store) certificate-store support
 7. Sessions (including UI support in the samples)
 8. Subscriptions (including UI support in the samples)
-9. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md), [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md) and [COM Server Wrapper](ComIOP/README.md) samples
+9. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md), [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md) and [OPC Classic Adapter](ComIOP/README.md) samples
 
 ## Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
