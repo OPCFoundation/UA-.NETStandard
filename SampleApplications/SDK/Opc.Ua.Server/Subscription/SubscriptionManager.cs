@@ -519,6 +519,14 @@ namespace Opc.Ua.Server
             out uint         revisedLifetimeCount,
             out uint         revisedMaxKeepAliveCount)
         {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Count >= m_maxSubscriptionCount)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
+                }
+            }
+
             subscriptionId = 0;
             revisedPublishingInterval = 0;
             revisedLifetimeCount = 0;
@@ -558,11 +566,6 @@ namespace Opc.Ua.Server
                 
             lock (m_lock)
             {
-                if (m_subscriptions.Count >= m_maxSubscriptionCount)
-                {
-                    throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
-                }
-
                 // save subscription.
                 m_subscriptions.Add(subscriptionId, subscription);
                 

@@ -475,11 +475,13 @@ namespace Opc.Ua
                         issuer = await GetIssuer(certificate, collection, null, true);
                     }
                 }
+                else
+                {
+                    isTrusted = true;
+                }
 
                 if (issuer != null)
                 {
-                    isTrusted = true;
-
                     issuers.Add(issuer);
                     certificate = await issuer.Find(false);
 
@@ -488,10 +490,6 @@ namespace Opc.Ua
                     {
                         break;
                     }
-                }
-                else
-                {
-                    isTrusted = false;
                 }
             }
             while (issuer != null);
