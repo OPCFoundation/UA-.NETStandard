@@ -528,14 +528,13 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-                    throw new ServiceResultException("Server Push is not yet implemented.");
 #if TODO_SERVERPUSH
                     if (privateKeyPFX != null && privateKeyPFX.Length > 0)
                     {
                         var x509 = new X509Certificate2(privateKeyPFX, m_certificatePassword, X509KeyStorageFlags.Exportable);
-                        privateKey = x509.Export(X509ContentType.Pfx);
+                        privateKeyPFX = x509.Export(X509ContentType.Pfx);
                     }
-                    bool applyChanges = m_server.UpdateCertificate(null, null, certificate, GetPrivateKeyFormat(), privateKey, issuerCertificates);
+                    bool applyChanges = m_server.UpdateCertificate(null, null, certificate, GetPrivateKeyFormat(), privateKeyPFX, issuerCertificates);
                     
                     if (applyChanges)
                     {
@@ -548,8 +547,9 @@ namespace Opc.Ua.GdsClient
 
                         ApplyChangesButton.Enabled = true;
                     }
+#else
+                    throw new ServiceResultException("Server Push is not yet implemented.");
 #endif
-
                 }
 
                 CertificateControl.ShowValue(null, "Application Certificate", new CertificateWrapper() { Certificate = m_certificate }, true);

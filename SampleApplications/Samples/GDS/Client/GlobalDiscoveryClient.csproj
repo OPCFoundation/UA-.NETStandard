@@ -165,9 +165,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Cannoli.Services">
-      <Version>1.0.0.1</Version>
-    </PackageReference>
     <PackageReference Include="System.Diagnostics.DiagnosticSource">
       <Version>4.4.1</Version>
     </PackageReference>

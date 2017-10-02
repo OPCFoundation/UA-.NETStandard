@@ -739,17 +739,16 @@ namespace Opc.Ua.GdsClient
                     directory = new DirectoryInfo(storePath);
                 }
 
-                Cannoli.Services.FolderBrowserService dialog = new Cannoli.Services.FolderBrowserService();
+                FolderBrowserDialog dialog = new FolderBrowserDialog();
 
                 dialog.RootFolder = Environment.SpecialFolder.MyComputer;
                 dialog.SelectedPath = directory.FullName;
                 dialog.ShowNewFolderButton = true;
                 dialog.Description = "Select Application Certificate Directory Store";
-                dialog.UseDescriptionForTitle = true;
 
-                var result = dialog.ShowDialog(null, ParentForm);
+                var result = dialog.ShowDialog(ParentForm);
 
-                if (result == null || !result.Value)
+                if (result != DialogResult.OK)
                 {
                     return;
                 }
@@ -932,7 +931,7 @@ namespace Opc.Ua.GdsClient
                 dialog.CheckFileExists = true;
                 dialog.CheckPathExists = true;
                 dialog.DefaultExt = ".pfx";
-                dialog.Filter = "PFX Files (*.pfx)|*.pfx|PEM Files (*.pem)|*.pem|All Files (*.*)|*.*";
+                dialog.Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*";
                 dialog.Multiselect = false;
                 dialog.ValidateNames = true;
                 dialog.Title = "Select Private Key File";
@@ -1048,7 +1047,7 @@ namespace Opc.Ua.GdsClient
                 dialog.CheckFileExists = true;
                 dialog.CheckPathExists = true;
                 dialog.DefaultExt = ".pfx";
-                dialog.Filter = "PFX Files (*.pfx)|*.pfx|PEM Files (*.pem)|*.pem|All Files (*.*)|*.*";
+                dialog.Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*";
                 dialog.Multiselect = false;
                 dialog.ValidateNames = true;
                 dialog.Title = "Select Private Key File";
@@ -1089,17 +1088,16 @@ namespace Opc.Ua.GdsClient
                 }
 
 
-                Cannoli.Services.FolderBrowserService dialog = new Cannoli.Services.FolderBrowserService();
+                FolderBrowserDialog dialog = new FolderBrowserDialog();
 
                 dialog.RootFolder = Environment.SpecialFolder.MyComputer;
                 dialog.SelectedPath = directory.FullName;
                 dialog.ShowNewFolderButton = true;
                 dialog.Description = "Select Application Trust List";
-                dialog.UseDescriptionForTitle = true;
 
-                var result = dialog.ShowDialog(null, ParentForm);
+                DialogResult result = dialog.ShowDialog(ParentForm);
 
-                if (result == null || !result.Value)
+                if (result != DialogResult.OK)
                 {
                     return;
                 }
@@ -1134,17 +1132,16 @@ namespace Opc.Ua.GdsClient
                     directory = new DirectoryInfo(storePath);
                 }
 
-                Cannoli.Services.FolderBrowserService dialog = new Cannoli.Services.FolderBrowserService();
+                FolderBrowserDialog dialog = new FolderBrowserDialog();
 
                 dialog.RootFolder = Environment.SpecialFolder.MyComputer;
                 dialog.SelectedPath = directory.FullName;
                 dialog.ShowNewFolderButton = true;
                 dialog.Description = "Select Issuers List Directory Store";
-                dialog.UseDescriptionForTitle = true;
 
-                var result = dialog.ShowDialog(null, ParentForm);
+                var result = dialog.ShowDialog(ParentForm);
 
-                if (result == null || !result.Value)
+                if (result != DialogResult.OK)
                 {
                     return;
                 }
@@ -1179,17 +1176,16 @@ namespace Opc.Ua.GdsClient
                     directory = new DirectoryInfo(storePath);
                 }
 
-                Cannoli.Services.FolderBrowserService dialog = new Cannoli.Services.FolderBrowserService();
+                FolderBrowserDialog dialog = new FolderBrowserDialog();
 
                 dialog.RootFolder = Environment.SpecialFolder.MyComputer;
                 dialog.SelectedPath = directory.FullName;
                 dialog.ShowNewFolderButton = true;
                 dialog.Description = "Select HTTPS Trust List Directory Store";
-                dialog.UseDescriptionForTitle = true;
 
-                var result = dialog.ShowDialog(null, ParentForm);
+                var result = dialog.ShowDialog(ParentForm);
 
-                if (result == null || !result.Value)
+                if (result != DialogResult.OK)
                 {
                     return;
                 }
@@ -1224,17 +1220,16 @@ namespace Opc.Ua.GdsClient
                     directory = new DirectoryInfo(storePath);
                 }
 
-                Cannoli.Services.FolderBrowserService dialog = new Cannoli.Services.FolderBrowserService();
+                FolderBrowserDialog dialog = new FolderBrowserDialog();
 
                 dialog.RootFolder = Environment.SpecialFolder.MyComputer;
                 dialog.SelectedPath = directory.FullName;
                 dialog.ShowNewFolderButton = true;
                 dialog.Description = "Select HTTPS Issuers List Directory Store";
-                dialog.UseDescriptionForTitle = true;
 
-                var result = dialog.ShowDialog(null, ParentForm);
+                var result = dialog.ShowDialog(ParentForm);
 
-                if (result == null || !result.Value)
+                if (result != DialogResult.OK)
                 {
                     return;
                 }
