@@ -11,27 +11,30 @@
 */
 
 using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
 using Opc.Ua;
-using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
-using Org.BouncyCastle.X509;
-using Org.BouncyCastle.Math;
-using Org.BouncyCastle.Utilities;
-using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Operators;
-using Org.BouncyCastle.Crypto.Prng;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.X509.Extension;
+using Org.BouncyCastle.Crypto.Prng;
+using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities;
+using Org.BouncyCastle.X509;
+using Org.BouncyCastle.X509.Extension;
 
 namespace Opc.Ua
 {
@@ -271,7 +274,7 @@ public class CertificateFactory
             }
             else
             {
-                // special case, if a cert is signed by CA, the private key of the cert is not available
+                // special case, if a cert is signed by CA, the private key of the cert is not needed
                 subjectPublicKey = PublicKeyFactory.CreateKey(publicKey);
                 subjectPrivateKey = null;
             }
@@ -318,7 +321,6 @@ public class CertificateFactory
                     }));
 
                 // subject alternate name
-                int generalNameSize = domainNames.Count + 1;
                 List<GeneralName> generalNames = new List<GeneralName>();
                 generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
                 for (int i = 0; i < domainNames.Count; i++)
@@ -595,7 +597,8 @@ public class CertificateFactory
     /// Creates a certificate signing request from an existing certificate.
     /// </summary>
     public static byte[] CreateSigningRequest(
-        X509Certificate2 certificate
+        X509Certificate2 certificate,
+        IList<String> domainNames = null
         )
     {
         using (var cfrg = new CertificateFactoryRandomGenerator())

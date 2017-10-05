@@ -47,16 +47,16 @@ namespace Opc.Ua.GdsClient
         }
 
         private GlobalDiscoveryClientConfiguration m_configuration;
-        private GlobalDiscoveryServer m_gds;
-        private PushConfigurationServer m_server;
+        private GlobalDiscoveryServerMethods m_gds;
+        private ServerPushConfigurationMethods m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
         private string m_certificatePassword;
 
         public async Task Initialize(
             GlobalDiscoveryClientConfiguration configuration,
-            GlobalDiscoveryServer gds,
-            PushConfigurationServer server,
+            GlobalDiscoveryServerMethods gds,
+            ServerPushConfigurationMethods server,
             RegisteredApplication application,
             bool isHttps)
         {
@@ -322,6 +322,7 @@ namespace Opc.Ua.GdsClient
                     hasPrivateKeyFile = file.Exists;
                 }
 
+                var domainNames = GetDomainNames();
                 if (m_certificate == null)
                 {
                     // no private key
@@ -330,7 +331,7 @@ namespace Opc.Ua.GdsClient
                         null,
                         null,
                         m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName()),
-                        GetDomainNames(),
+                        domainNames,
                         "PFX",
                         m_certificatePassword);
                 }
@@ -354,7 +355,7 @@ namespace Opc.Ua.GdsClient
                             csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(m_certificate, pkcsData, m_certificatePassword);
                         }
                     }
-                    byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate);
+                    byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, domainNames);
                     requestId = m_gds.StartSigningRequest(m_application.ApplicationId, null, null, certificateRequest);
                 }
 

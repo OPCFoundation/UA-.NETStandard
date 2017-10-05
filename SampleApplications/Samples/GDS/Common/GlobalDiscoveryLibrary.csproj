@@ -85,14 +85,14 @@
     <Compile Include="AdminCredentialsRequiredEventArgs.cs" />
     <Compile Include="CertificateWrapper.cs" />
     <Compile Include="GlobalDiscoveryClientConfiguration.cs" />
-    <Compile Include="GlobalDiscoveryServer.cs" />
-    <Compile Include="LocalDiscoveryServer.cs" />
+    <Compile Include="GlobalDiscoveryServerMethods.cs" />
+    <Compile Include="LocalDiscoveryServerMethods.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Classes.cs" />
     <Compile Include="Model\Opc.Ua.Gds.Constants.cs" />
     <Compile Include="Model\Opc.Ua.Gds.DataTypes.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PushConfigurationServer.cs" />
+    <Compile Include="ServerPushConfigurationMethods.cs" />
     <Compile Include="RegisteredApplication.cs">
       <DependentUpon>RegisteredApplication.xsd</DependentUpon>
     </Compile>

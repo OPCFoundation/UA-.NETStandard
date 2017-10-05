@@ -32,10 +32,10 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Gds
 {
-    public class LocalDiscoveryServer
+    public class LocalDiscoveryServerMethods
     {
         #region Constructors
-        public LocalDiscoveryServer(ApplicationConfiguration configuration)
+        public LocalDiscoveryServerMethods(ApplicationConfiguration configuration)
         {
             ApplicationConfiguration = configuration;
             MessageContext = configuration.CreateMessageContext();
