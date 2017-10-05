@@ -463,7 +463,7 @@ public class CertificateFactory
             string serialNumber = null;
 
             // caller may want to create empty CRL using the CA cert itself
-            bool certIsTheCA = IsCertificateAuthority(certificate);
+            bool isCACert = IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
             X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(certificate);
@@ -478,7 +478,7 @@ public class CertificateFactory
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
 
-            if (!certIsTheCA)
+            if (!isCACert)
             {
                 if (serialNumber == certificate.SerialNumber ||
                     Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
@@ -548,7 +548,7 @@ public class CertificateFactory
                         }
                     }
 
-                    if (certIsTheCA)
+                    if (isCACert)
                     {
                         // add a dummy revoked cert
                         crlGen.AddCrlEntry(BigInteger.One, DateTime.UtcNow, CrlReason.Superseded);
