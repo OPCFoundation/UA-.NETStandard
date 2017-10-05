@@ -165,6 +165,8 @@ namespace Opc.Ua
             }
         }
 
+        public bool SupportsCRLs { get { return false; } }
+
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
@@ -175,7 +177,7 @@ namespace Opc.Ua
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

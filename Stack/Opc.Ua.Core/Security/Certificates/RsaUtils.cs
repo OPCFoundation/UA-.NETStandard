@@ -30,16 +30,24 @@ namespace Opc.Ua
         {
             using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                if (rsa != null)
+                return GetPlainTextBlockSize(rsa, useOaep);
+            }
+        }
+
+        /// <summary>
+        /// Return the plaintext block size for RSA OAEP encryption.
+        /// </summary>
+        public static int GetPlainTextBlockSize(RSA rsa, bool useOaep)
+        {
+            if (rsa != null)
+            {
+                if (useOaep)
                 {
-                    if (useOaep)
-                    {
-                        return rsa.KeySize / 8 - 42;
-                    }
-                    else
-                    {
-                        return rsa.KeySize / 8 - 11;
-                    }
+                    return rsa.KeySize / 8 - 42;
+                }
+                else
+                {
+                    return rsa.KeySize / 8 - 11;
                 }
             }
             return -1;

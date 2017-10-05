@@ -381,7 +381,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the authority key identifier in the certificate.
+        /// Returns the subject key identifier in the certificate.
         /// </summary>
         private X509SubjectKeyIdentifierExtension FindSubjectKeyIdentifierExtension(X509Certificate2 certificate)
         {
@@ -930,16 +930,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsSignatureValid(X509Certificate2 cert)
         {
-            Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(cert.RawData);
-            try
-            {
-                bcCert.Verify(bcCert.GetPublicKey());
-            }
-            catch
-            {
-                return false;
-            }
-            return true;
+            return CertificateFactory.VerifySelfSigned(cert);
         }
         #endregion
 

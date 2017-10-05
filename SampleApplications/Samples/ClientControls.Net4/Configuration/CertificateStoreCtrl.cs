@@ -172,9 +172,9 @@ namespace Opc.Ua.Client.Controls
 
             if (CertificateStoreType.X509Store == storeType)
             {
-                stores.Add("LocalMachine\\My");
-                stores.Add("LocalMachine\\UA Applications");
-                stores.Add("LocalMachine\\UA Certificate Authorities");
+                stores.Add("CurrentUser\\UA_MachineDefault");
+                stores.Add("CurrentUser\\UA_Applications");
+                stores.Add("CurrentUser\\UA_Certificate_Authorities");
             }
 
             return stores;

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="ManagedApplication"
+    targetNamespace="http://opcfoundation.org/schemas/GDS/RegisteredApplication.xsd"
+    elementFormDefault="qualified"
+    xmlns="http://opcfoundation.org/schemas/GDS/RegisteredApplication.xsd"
+    xmlns:mstns="http://opcfoundation.org/schemas/GDS/RegisteredApplication.xsd"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+  <xs:element name="RegisteredApplication" type="RegisteredApplication"></xs:element>
+  
+  <xs:complexType name="RegisteredApplication">
+    <xs:sequence>
+      <xs:element name="ApplicationUri" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="ApplicationName" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="ProductUri" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="DiscoveryUrl" type="xs:string" minOccurs="0" maxOccurs="unbounded"></xs:element>
+      <xs:element name="ServerCapability" type="xs:string" minOccurs="0" maxOccurs="unbounded"></xs:element>
+      <xs:element name="ConfigurationFile" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="ServerUrl" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="CertificateStorePath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="CertificateSubjectName" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="CertificatePublicKeyPath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="CertificatePrivateKeyPath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="TrustListStorePath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="IssuerListStorePath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="HttpsCertificatePublicKeyPath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="HttpsCertificatePrivateKeyPath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="HttpsTrustListStorePath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="HttpsIssuerListStorePath" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="CertificateRequestId" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="Domains" type="xs:string" minOccurs="0"></xs:element>
+    </xs:sequence>
+    <xs:attribute name="RegistrationType" type="RegistrationType" use="required"></xs:attribute>
+  </xs:complexType>
+
+  <xs:simpleType name="RegistrationType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ClientPull"></xs:enumeration>
+      <xs:enumeration value="ServerPull"></xs:enumeration>
+      <xs:enumeration value="ServerPush"></xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+  
+</xs:schema>

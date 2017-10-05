@@ -9,9 +9,9 @@ using System.Windows.Forms;
 
 namespace Opc.Ua.Server.Controls
 {
-    public partial class ServerHeaderBranding : UserControl
+    public partial class HeaderBranding : UserControl
     {
-        public ServerHeaderBranding()
+        public HeaderBranding()
         {
             InitializeComponent();
         }

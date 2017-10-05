@@ -135,6 +135,10 @@
       <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
       <Name>Opc.Ua.Sample</Name>
     </ProjectReference>
+    <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
+      <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
+      <Name>UA Server Controls</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="App.ico">

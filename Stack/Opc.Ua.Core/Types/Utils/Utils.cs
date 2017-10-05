@@ -537,20 +537,31 @@ namespace Opc.Ua
             folder = ReplaceSpecialFolderWithEnvVar(folder);
 
             StringBuilder buffer = new StringBuilder();
-
-            string value = Environment.GetEnvironmentVariable(folder);
-            if (value != null)
+#if !NETSTANDARD1_4
+            // check for special folder.
+            Environment.SpecialFolder specialFolder;
+            if (!Enum.TryParse<Environment.SpecialFolder>(folder, out specialFolder))
             {
-                buffer.Append(value);
+#endif
+                string value = Environment.GetEnvironmentVariable(folder);
+                if (value != null)
+                {
+                    buffer.Append(value);
+                }
+                else
+                {
+                    if (folder == "LocalFolder")
+                    {
+                        buffer.Append(DefaultLocalFolder);
+                    }
+                }
+#if !NETSTANDARD1_4
             }
             else
             {
-                if (folder == "LocalFolder")
-                {
-                    buffer.Append(DefaultLocalFolder);
-                }
+                buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-
+#endif
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -3075,12 +3086,12 @@ namespace Opc.Ua
     /// </summary>
     public class Tracing
     {
-        #region Private Members
+#region Private Members
         private static object m_syncRoot = new Object();
         private static Tracing s_instance;
-        #endregion Private Members
+#endregion Private Members
 
-        #region Singleton Instance
+#region Singleton Instance
         /// <summary>
         /// Private constructor.
         /// </summary>
@@ -3107,14 +3118,14 @@ namespace Opc.Ua
                 return s_instance;
             }
         }
-        #endregion Singleton Instance
+#endregion Singleton Instance
 
-        #region Public Events
+#region Public Events
         /// <summary>
         /// Occurs when a trace call is made.
         /// </summary>
         public event EventHandler<TraceEventArgs> TraceEventHandler;
-        #endregion Public Events
+#endregion Public Events
 
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {
@@ -3137,7 +3148,7 @@ namespace Opc.Ua
     /// </summary>
     public class TraceEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Initializes a new instance of the TraceEventArgs class.
         /// </summary>
@@ -3154,9 +3165,9 @@ namespace Opc.Ua
             Exception = exception;
             Arguments = args;
         }
-        #endregion Constructors
+#endregion Constructors
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the trace mask.
         /// </summary>
@@ -3181,6 +3192,6 @@ namespace Opc.Ua
         /// Gets the exception.
         /// </summary>
         public Exception Exception { get; private set; }
-        #endregion Public Properties
+#endregion Public Properties
     }
 }
