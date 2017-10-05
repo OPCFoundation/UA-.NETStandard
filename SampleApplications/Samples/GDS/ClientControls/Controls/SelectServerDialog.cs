@@ -43,8 +43,8 @@ namespace Opc.Ua.Gds.Client.Controls
         public EndpointDescription ShowDialog(
             IWin32Window owner,
             ConfiguredEndpointCollection endpoints,
-            LocalDiscoveryServer lds,
-            GlobalDiscoveryServer gds,
+            LocalDiscoveryServerMethods lds,
+            GlobalDiscoveryServerMethods gds,
             QueryServersFilter filters)
         {
             this.DiscoveryControl.Initialize(endpoints, lds, gds, filters);

@@ -69,7 +69,7 @@ namespace Opc.Ua.GdsClient
 
         private string m_lastDirPath;
         private string m_lastSavePath;
-        private GlobalDiscoveryServer m_gds;
+        private GlobalDiscoveryServerMethods m_gds;
         private RegisteredApplication m_application;
         private bool m_promptOnRegistrationTypeChange;
         private string m_externalEditor;
@@ -95,7 +95,7 @@ namespace Opc.Ua.GdsClient
             }
         }
         
-        public void Initialize(GlobalDiscoveryServer gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
+        public void Initialize(GlobalDiscoveryServerMethods gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
         {
             m_gds = gds;
             m_application.ServerUrl = null;
@@ -432,7 +432,8 @@ namespace Opc.Ua.GdsClient
             HttpsCertificatePrivateKeyPathTextBox.Text = null;
             HttpsTrustListStorePathTextBox.Text = null;
             HttpsIssuerListStorePathTextBox.Text = null;
-
+            DomainsTextBox.Text = null;
+            DomainsTextBox.Tag = null;
             UnregisterApplicationButton.Enabled = false;
         }
 

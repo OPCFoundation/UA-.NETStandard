@@ -63,11 +63,11 @@ namespace Opc.Ua.GdsClient
 
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
-            m_gds = new GlobalDiscoveryServer(m_application, m_configuration);
+            m_gds = new GlobalDiscoveryServerMethods(m_application, m_configuration);
             m_gds.KeepAlive += GdsServer_KeepAlive;
             m_gds.ServerStatusChanged += GdsServer_StatusNotification;
-            m_lds = new LocalDiscoveryServer(m_application.ApplicationConfiguration);
-            m_server = new PushConfigurationServer(m_application);
+            m_lds = new LocalDiscoveryServerMethods(m_application.ApplicationConfiguration);
+            m_server = new ServerPushConfigurationMethods(m_application);
             m_server.KeepAlive += Server_KeepAlive;
             m_server.ServerStatusChanged += Server_StatusNotification;
             m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
@@ -92,9 +92,9 @@ namespace Opc.Ua.GdsClient
         private ConfiguredEndpointCollection m_endpoints = null;
         private QueryServersFilter m_filters;
         private UserIdentity m_identity;
-        private GlobalDiscoveryServer m_gds;
-        private LocalDiscoveryServer m_lds;
-        private PushConfigurationServer m_server;
+        private GlobalDiscoveryServerMethods m_gds;
+        private LocalDiscoveryServerMethods m_lds;
+        private ServerPushConfigurationMethods m_server;
         private RegisteredApplication m_registeredApplication;
         private GlobalDiscoveryClientConfiguration m_configuration;
         private bool m_gdsConfigured;
