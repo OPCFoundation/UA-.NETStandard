@@ -323,19 +323,7 @@ public class CertificateFactory
                 // subject alternate name
                 List<GeneralName> generalNames = new List<GeneralName>();
                 generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
-                for (int i = 0; i < domainNames.Count; i++)
-                {
-                    int domainType = GeneralName.OtherName;
-                    switch (Uri.CheckHostName(domainNames[i]))
-                    {
-                        case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
-                        case UriHostNameType.IPv4:
-                        case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
-                        default: continue;
-                    }
-                    generalNames.Add(new GeneralName(domainType, domainNames[i]));
-                }
-
+                generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
                 cg.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(generalNames.ToArray()));
             }
             else
@@ -612,11 +600,59 @@ public class CertificateFactory
             ISignatureFactory signatureFactory =
                 new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
 
+            Asn1Set attributes = null;
+            X509SubjectAltNameExtension alternateName = null;
+            foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            domainNames = domainNames ?? new List<String>();
+            if (alternateName != null)
+            {
+                foreach (var name in alternateName.DomainNames)
+                {
+                    if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        domainNames.Add(name);
+                    }
+                }
+                foreach (var ipAddress in alternateName.IPAddresses)
+                {
+                    if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        domainNames.Add(ipAddress);
+                    }
+                }
+            }
+
+            if (domainNames.Count > 0)
+            {
+                List<GeneralName> generalNames = CreateSubjectAlternateNameDomains(domainNames);
+                if (generalNames.Count > 0)
+                {
+                    IList oids = new ArrayList();
+                    IList values = new ArrayList();
+                    oids.Add(X509Extensions.SubjectAlternativeName);
+                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
+                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+
+                    AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                        new DerSet(new X509Extensions(oids, values)));
+
+                    attributes = new DerSet(attribute);
+                }
+            }
+
             Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                 signatureFactory,
                 new CertificateFactoryX509Name(certificate.Subject),
                 publicKey,
-                null,
+                attributes,
                 signingKey);
 
             return pkcs10CertificationRequest.GetEncoded();
@@ -766,7 +802,7 @@ public class CertificateFactory
     }
 #endregion
 
-#region Private Methods
+    #region Private Methods
     /// <summary>
     /// Sets the parameters to suitable defaults.
     /// </summary>
@@ -895,6 +931,28 @@ public class CertificateFactory
         }
 
         return new CertificateFactoryX509Name(subjectName);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
+    { 
+        // subject alternate name
+        List<GeneralName> generalNames = new List<GeneralName>();
+        for (int i = 0; i<domainNames.Count; i++)
+        {
+            int domainType = GeneralName.OtherName;
+            switch (Uri.CheckHostName(domainNames[i]))
+            {
+                case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
+                case UriHostNameType.IPv4:
+                case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
+                default: continue;
+            }
+            generalNames.Add(new GeneralName(domainType, domainNames[i]));
+        }
+        return generalNames;
     }
 
     /// <summary>
@@ -1147,7 +1205,7 @@ public class CertificateFactory
         }
         return result;
     }
-#endregion
+    #endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
     private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
