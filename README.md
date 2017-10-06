@@ -5,14 +5,19 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
-2. Sample Servers and Clients, including all required controls, for .Net 4.6, .NetCore and UWP.
+2. Sample Servers and Clients, including all required controls, for .Net 4.6.1, .NetCore 2.0 and UWP.
 3. X.509 certificate support for client and server authentication
-4. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
-5. UA-TCP & HTTPS transports (client and server)
-6. Folder & OS-level (X509Store) certificate-store support
-7. Sessions (including UI support in the samples)
-8. Subscriptions (including UI support in the samples)
-9. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md), [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md) and [OPC Classic Adapter](ComIOP/README.md) samples
+4. SHA512 support
+5. Anonymous, username, X.509 certificate and JWT (experimental) user authentication
+6. UA-TCP & HTTPS transports (client and server)
+7. Folder & OS-level (X509Store) certificate-store support
+8. Sessions (including UI support in the samples)
+9. Subscriptions (including UI support in the samples)
+10. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md)
+11. OPC UA [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md)
+12. [OPC Classic adapter for OPC UA](ComIOP/README.md)
+13. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS)
+14. Certification Test Tool Version 1.04 compliant
 
 ## Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
