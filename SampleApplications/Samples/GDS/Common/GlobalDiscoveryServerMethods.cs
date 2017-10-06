@@ -50,11 +50,14 @@ namespace Opc.Ua.Gds
             m_application = application;
             m_application.ApplicationName = "GDS Client";
             m_endpointUrl = config.GlobalDiscoveryServerUrl;
+#if IOP_WORKSHOP
+            // preset user/pw for IOP workshop. Do not use in production!
             m_adminCredentials = new UserIdentity("appadmin", "demo");
+#endif
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the application.
         /// </summary>
@@ -125,9 +128,9 @@ namespace Opc.Ua.Gds
         ///   <c>true</c> if [is connected]; otherwise, <c>false</c>.
         /// </value>
         public bool IsConnected { get { return m_session != null && m_session.Connected; } }
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Selects the default GDS.
         /// </summary>
