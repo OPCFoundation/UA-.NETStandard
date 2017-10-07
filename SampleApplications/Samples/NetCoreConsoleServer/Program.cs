@@ -10,14 +10,15 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using Opc.Ua;
-using Opc.Ua.Configuration;
-using Opc.Ua.Sample;
-using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Mono.Options;
+using Opc.Ua;
+using Opc.Ua.Configuration;
+using Opc.Ua.Sample;
+using Opc.Ua.Server;
 
 namespace NetCoreConsoleServer
 {
@@ -62,9 +63,52 @@ namespace NetCoreConsoleServer
 
     public class Program
     {
+
+        private const int ERROR_OK = 0;
+        private const int ERROR_INVALID_COMMAND_LINE = 0x100;
+
         public static void Main(string[] args)
         {
-            MySampleServer server = new MySampleServer();
+            Console.WriteLine(".Net Core OPC UA Console Server sample");
+
+            // command line options
+            bool showHelp = false;
+            int stopTimeout = 0;
+            bool autoAccept = false;
+
+            Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                { "h|help", "show this message and exit", h => showHelp = h != null },
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t }
+            };
+
+            try
+            {
+                IList<string> extraArgs = options.Parse(args);
+                foreach (string extraArg in extraArgs)
+                {
+                    Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                    showHelp = true;
+                }
+            }
+            catch (OptionException e)
+            {
+                Console.WriteLine(e.Message);
+                showHelp = true;
+            }
+
+            if (showHelp)
+            {
+                Console.WriteLine("Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]");
+                Console.WriteLine();
+
+                Console.WriteLine("Options:");
+                options.WriteOptionDescriptions(Console.Out);
+                Environment.ExitCode = ERROR_INVALID_COMMAND_LINE;
+                return; 
+            }
+
+            MySampleServer server = new MySampleServer(autoAccept, stopTimeout);
             server.Run();
         }
     }
@@ -74,30 +118,51 @@ namespace NetCoreConsoleServer
         SampleServer server;
         Task status;
         DateTime lastEventTime;
+        int serverRunTime = Timeout.Infinite;
+        static bool autoAccept = false;
+        private const int ERROR_SERVER_NOT_STARTED = 0x80;
+        private const int ERROR_SERVER_RUNNING = 0x81;
+        private const int ERROR_OK = 0;
+
+
+        public MySampleServer(bool _autoAccept, int _stopTimeout)
+        {
+            autoAccept = _autoAccept;
+            serverRunTime = _stopTimeout == 0 ? Timeout.Infinite : _stopTimeout * 1000;
+        }
 
         public void Run()
         {
 
             try
             {
+                Environment.ExitCode = ERROR_SERVER_NOT_STARTED;
                 ConsoleSampleServer().Wait();
-                Console.WriteLine("Server started. Press any key to exit...");
+                Console.WriteLine("Server started. Press Ctrl-C to exit...");
+                Environment.ExitCode = ERROR_SERVER_RUNNING;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
+                Environment.ExitCode = ERROR_SERVER_NOT_STARTED;
+                return;
             }
 
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.ReadKey(true);
+                Console.CancelKeyPress += (sender, eArgs) => {
+                    quitEvent.Set();
+                    eArgs.Cancel = true;
+                };
             }
             catch
             {
-                // wait forever if there is no console
-                Thread.Sleep(Timeout.Infinite);
             }
+
+            // wait for timeout or Ctrl-C
+            quitEvent.WaitOne(serverRunTime);
 
             if (server != null)
             {
@@ -112,13 +177,23 @@ namespace NetCoreConsoleServer
                     _server.Stop();
                 }
             }
+
+            Environment.ExitCode = ERROR_OK;
         }
+
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = false;
-                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                e.Accept = autoAccept;
+                if (autoAccept)
+                {
+                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                }
+                else
+                {
+                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                }
             }
         }
 
@@ -187,7 +262,7 @@ namespace NetCoreConsoleServer
             }
         }
 
-        private void StatusThread()
+        private async void StatusThread()
         {
             while (server != null)
             {
@@ -201,7 +276,7 @@ namespace NetCoreConsoleServer
                     }
                     lastEventTime = DateTime.UtcNow;
                 }
-                Thread.Sleep(1000);
+                await Task.Delay(1000);
             }
         }
     }
