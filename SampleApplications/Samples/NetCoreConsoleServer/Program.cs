@@ -73,7 +73,7 @@ namespace NetCoreConsoleServer
     public class Program
     {
 
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             Console.WriteLine(".Net Core OPC UA Console Server sample");
 
@@ -110,12 +110,13 @@ namespace NetCoreConsoleServer
 
                 Console.WriteLine("Options:");
                 options.WriteOptionDescriptions(Console.Out);
-                Environment.ExitCode = (int)ExitCode.ErrorInvalidCommandLine;
-                return; 
+                return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
             MySampleServer server = new MySampleServer(autoAccept, stopTimeout);
             server.Run();
+
+            return (int)MySampleServer.ExitCode;
         }
     }
 
@@ -126,6 +127,7 @@ namespace NetCoreConsoleServer
         DateTime lastEventTime;
         int serverRunTime = Timeout.Infinite;
         static bool autoAccept = false;
+        static ExitCode exitCode;
 
         public MySampleServer(bool _autoAccept, int _stopTimeout)
         {
@@ -138,16 +140,16 @@ namespace NetCoreConsoleServer
 
             try
             {
-                Environment.ExitCode = (int)ExitCode.ErrorServerNotStarted;
+                exitCode = ExitCode.ErrorServerNotStarted;
                 ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                Environment.ExitCode = (int)ExitCode.ErrorServerRunning;
+                exitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                Environment.ExitCode = (int)ExitCode.ErrorServerException;
+                exitCode = ExitCode.ErrorServerException;
                 return;
             }
 
@@ -180,8 +182,10 @@ namespace NetCoreConsoleServer
                 }
             }
 
-            Environment.ExitCode = (int)ExitCode.Ok;
+            exitCode = ExitCode.Ok;
         }
+
+        public static ExitCode ExitCode { get => exitCode; }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
