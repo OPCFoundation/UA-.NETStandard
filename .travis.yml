@@ -6,11 +6,12 @@ os:
   - osx
 sudo: required
 dist: trusty
-osx_image: xcode8.3
+osx_image: xcode9.1
 
 # workaround: see travis-ci/travis-ci#8552
-before_install:
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update; fi; 
+matrix:
+  allow_failures:
+    - os: osx
 
 addons:
   apt:
