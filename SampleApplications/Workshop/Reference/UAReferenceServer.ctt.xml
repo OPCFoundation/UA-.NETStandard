@@ -225,7 +225,7 @@
       </Column>
       <Column column="1">
        <ItemData role="0" rolename="DisplayRole">
-        <Value typename="QString" type="10" data="2"/>
+        <Value typename="QString" type="10" data="0"/>
        </ItemData>
        <ChildRows size="0"/>
       </Column>
@@ -11727,7 +11727,7 @@
        <ItemData role="0" rolename="DisplayRole">
         <Value typename="QString" type="10" data="Certificates"/>
        </ItemData>
-       <ChildRows size="35">
+       <ChildRows size="37">
         <Row row="0">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
@@ -12681,6 +12681,82 @@
         <Row row="25">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="ClientCertificate_Issued"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="1">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="PKI/CA/certs/opcuactt_issued.der"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="2">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="Issued client certificate."/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="3">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="1"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="4">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="0"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="5">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="13"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+        </Row>
+        <Row row="26">
+         <Column column="0">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="ClientCertificate_IssuedPrivateKey"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="1">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="PKI/CA/private/opcuactt_issued.pem"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="2">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="QString" type="10" data="Private key of the Issued client certificate."/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="3">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="1"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="4">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="0"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+         <Column column="5">
+          <ItemData role="0" rolename="DisplayRole">
+           <Value typename="int" type="2" data="15"/>
+          </ItemData>
+          <ChildRows size="0"/>
+         </Column>
+        </Row>
+        <Row row="27">
+         <Column column="0">
+          <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Expired"/>
           </ItemData>
           <ChildRows size="0"/>
@@ -12716,7 +12792,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="26">
+        <Row row="28">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Expired_PrivateKey"/>
@@ -12754,7 +12830,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="27">
+        <Row row="29">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Untrusted"/>
@@ -12792,7 +12868,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="28">
+        <Row row="30">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Untrusted_PrivateKey"/>
@@ -12830,7 +12906,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="29">
+        <Row row="31">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Revoked"/>
@@ -12868,7 +12944,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="30">
+        <Row row="32">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Revoked_PrivateKey"/>
@@ -12906,7 +12982,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="31">
+        <Row row="33">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Issued"/>
@@ -12944,7 +13020,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="32">
+        <Row row="34">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Issued_PrivateKey"/>
@@ -12982,7 +13058,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="33">
+        <Row row="35">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Invalid"/>
@@ -13020,7 +13096,7 @@
           <ChildRows size="0"/>
          </Column>
         </Row>
-        <Row row="34">
+        <Row row="36">
          <Column column="0">
           <ItemData role="0" rolename="DisplayRole">
            <Value typename="QString" type="10" data="UserCertificate_Invalid_PrivateKey"/>
