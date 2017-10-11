@@ -10,11 +10,7 @@ osx_image: xcode9.1
 
 # workaround: see travis-ci/travis-ci#8552
 before_install:
-  case $TRAVIS_OS_NAME in
-    osx)
-      brew update 
-      ;;
-  esac
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update; fi; 
 
 addons:
   apt:
