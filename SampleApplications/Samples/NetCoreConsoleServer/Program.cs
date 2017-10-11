@@ -61,11 +61,17 @@ namespace NetCoreConsoleServer
         }
     }
 
+    public enum ExitCode : int
+    {
+        Ok = 0,
+        ErrorServerNotStarted = 0x80,
+        ErrorServerRunning = 0x81,
+        ErrorServerException = 0x82,
+        ErrorInvalidCommandLine = 0x100
+    };
+
     public class Program
     {
-
-        private const int ERROR_OK = 0;
-        private const int ERROR_INVALID_COMMAND_LINE = 0x100;
 
         public static void Main(string[] args)
         {
@@ -104,7 +110,7 @@ namespace NetCoreConsoleServer
 
                 Console.WriteLine("Options:");
                 options.WriteOptionDescriptions(Console.Out);
-                Environment.ExitCode = ERROR_INVALID_COMMAND_LINE;
+                Environment.ExitCode = (int)ExitCode.ErrorInvalidCommandLine;
                 return; 
             }
 
@@ -120,10 +126,6 @@ namespace NetCoreConsoleServer
         DateTime lastEventTime;
         int serverRunTime = Timeout.Infinite;
         static bool autoAccept = false;
-        private const int ERROR_SERVER_NOT_STARTED = 0x80;
-        private const int ERROR_SERVER_RUNNING = 0x81;
-        private const int ERROR_OK = 0;
-
 
         public MySampleServer(bool _autoAccept, int _stopTimeout)
         {
@@ -136,16 +138,16 @@ namespace NetCoreConsoleServer
 
             try
             {
-                Environment.ExitCode = ERROR_SERVER_NOT_STARTED;
+                Environment.ExitCode = (int)ExitCode.ErrorServerNotStarted;
                 ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                Environment.ExitCode = ERROR_SERVER_RUNNING;
+                Environment.ExitCode = (int)ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                Environment.ExitCode = ERROR_SERVER_NOT_STARTED;
+                Environment.ExitCode = (int)ExitCode.ErrorServerException;
                 return;
             }
 
@@ -178,7 +180,7 @@ namespace NetCoreConsoleServer
                 }
             }
 
-            Environment.ExitCode = ERROR_OK;
+            Environment.ExitCode = (int)ExitCode.Ok;
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)

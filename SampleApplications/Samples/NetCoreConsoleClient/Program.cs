@@ -21,20 +21,23 @@ using Opc.Ua.Client;
 
 namespace NetCoreConsoleClient
 {
+    public enum ExitCode : int
+    {
+        Ok = 0,
+        ErrorCreateApplication = 0x11,
+        ErrorDiscoverEndpoints = 0x12,
+        ErrorCreateSession = 0x13,
+        ErrorBrowseNamespace = 0x14,
+        ErrorCreateSubscription = 0x15,
+        ErrorMonitoredItem = 0x16,
+        ErrorAddSubscription = 0x17,
+        ErrorRunning = 0x18,
+        ErrorNoKeepAlive = 0x30,
+        ErrorInvalidCommandLine = 0x100
+    };
+
     public class Program
     {
-
-        private const int ERROR_OK = 0;
-        private const int ERROR_CREATE_APPLICATION = 0x11;
-        private const int ERROR_DISCOVER_ENDPOINTS = 0x12;
-        private const int ERROR_CREATE_SESSION = 0x13;
-        private const int ERROR_BROWSE_NAMESPACE = 0x14;
-        private const int ERROR_CREATE_SUBSCRIPTION = 0x15;
-        private const int ERROR_MONITORED_ITEM = 0x16;
-        private const int ERROR_ADD_SUBSCRIPTION = 0x17;
-        private const int ERROR_RUNNING = 0x18;
-        private const int ERROR_NO_KEEPALIVE = 0x30;
-        private const int ERROR_INVALID_COMMAND_LINE = 0x100;
 
         public static void Main(string[] args)
         {
@@ -79,7 +82,7 @@ namespace NetCoreConsoleClient
                 // output the options
                 Console.WriteLine("Options:");
                 options.WriteOptionDescriptions(Console.Out);
-                Environment.ExitCode = ERROR_INVALID_COMMAND_LINE;
+                Environment.ExitCode = (int)ExitCode.ErrorInvalidCommandLine;
                 return;
             }
 
@@ -106,7 +109,7 @@ namespace NetCoreConsoleClient
         public static async Task ConsoleSampleClient(string endpointURL, int timeOut, bool autoAccept)
         {
             Console.WriteLine("1 - Create an Application Configuration.");
-            Environment.ExitCode = ERROR_CREATE_APPLICATION;
+            Environment.ExitCode = (int)ExitCode.ErrorCreateApplication;
 
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             var config = new ApplicationConfiguration()
@@ -191,19 +194,19 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("2 - Discover endpoints of {0}.", endpointURL);
-            Environment.ExitCode = ERROR_DISCOVER_ENDPOINTS;
+            Environment.ExitCode = (int)ExitCode.ErrorDiscoverEndpoints;
             var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate, 15000);
             Console.WriteLine("    Selected endpoint uses: {0}",
                 selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
             Console.WriteLine("3 - Create a session with OPC UA server.");
-            Environment.ExitCode = ERROR_CREATE_SESSION;
+            Environment.ExitCode = (int)ExitCode.ErrorCreateSession;
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             var session = await Session.Create(config, endpoint, false, ".Net Core OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
-            Environment.ExitCode = ERROR_BROWSE_NAMESPACE;
+            Environment.ExitCode = (int)ExitCode.ErrorBrowseNamespace;
             ReferenceDescriptionCollection references;
             Byte[] continuationPoint;
 
@@ -246,11 +249,11 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("5 - Create a subscription with publishing interval of 1 second.");
-            Environment.ExitCode = ERROR_CREATE_SUBSCRIPTION;
+            Environment.ExitCode = (int)ExitCode.ErrorCreateSubscription;
             var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
 
             Console.WriteLine("6 - Add a list of items (server current time and status) to the subscription.");
-            Environment.ExitCode = ERROR_MONITORED_ITEM;
+            Environment.ExitCode = (int)ExitCode.ErrorMonitoredItem;
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
                 {
@@ -261,12 +264,12 @@ namespace NetCoreConsoleClient
             subscription.AddItems(list);
 
             Console.WriteLine("7 - Add the subscription to the session.");
-            Environment.ExitCode = ERROR_ADD_SUBSCRIPTION;
+            Environment.ExitCode = (int)ExitCode.ErrorAddSubscription;
             session.AddSubscription(subscription);
             subscription.Create();
 
             Console.WriteLine("8 - Running...Press Ctrl-C to exit...");
-            Environment.ExitCode = ERROR_RUNNING;
+            Environment.ExitCode = (int)ExitCode.ErrorRunning;
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             try
@@ -287,10 +290,10 @@ namespace NetCoreConsoleClient
             // return error conditions
             if (session.KeepAliveStopped)
             {
-                Environment.ExitCode = ERROR_NO_KEEPALIVE;
+                Environment.ExitCode = (int)ExitCode.ErrorNoKeepAlive;
                 return;
             }
-            Environment.ExitCode = ERROR_OK;
+            Environment.ExitCode = (int)ExitCode.Ok;
         }
 
         private static void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
