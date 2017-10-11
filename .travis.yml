@@ -9,7 +9,7 @@ dist: trusty
 osx_image: xcode9.1
 
 # workaround: see travis-ci/travis-ci#8552
-install:
+before_install:
   case $TRAVIS_OS_NAME in
     osx)
       brew update 
