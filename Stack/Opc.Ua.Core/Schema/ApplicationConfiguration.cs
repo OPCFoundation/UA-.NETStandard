@@ -2048,7 +2048,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeLocation))
                     {
-                        return Utils.Format("LocalMachine\\{0}", m_storeName);
+                        return Utils.Format("CurrentUser\\{0}", m_storeName);
                     }
 
                     return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);

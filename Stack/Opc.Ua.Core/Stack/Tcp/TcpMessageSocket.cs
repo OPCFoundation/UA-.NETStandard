@@ -361,6 +361,17 @@ namespace Opc.Ua.Bindings
             do
             {
                 error = SocketError.NotInitialized;
+
+                lock (m_socketLock)
+                {
+                    if (addressesV6.Length > arrayV6Index)
+                        m_socketResponses++;
+                    if (addressesV4.Length > arrayV4Index)
+                        m_socketResponses++;
+                    if (m_tcs.Task.IsCompleted)
+                        m_tcs = new TaskCompletionSource<SocketError>();
+                }
+
                 if (addressesV6.Length > arrayV6Index && m_socket == null)
                 {
                     if (BeginConnect(addressesV6[arrayV6Index], AddressFamily.InterNetworkV6, port, doCallback) == SocketError.Success)
@@ -394,7 +405,6 @@ namespace Opc.Ua.Bindings
                         case SocketError.Success:
                             return true;
                         case SocketError.ConnectionRefused:
-                            m_tcs = new TaskCompletionSource<SocketError>();
                             break;
                         default:
                             goto ErrorExit;
@@ -699,10 +709,6 @@ namespace Opc.Ua.Bindings
                 RemoteEndPoint = new IPEndPoint(address, port),
             };
             args.Completed += new EventHandler<SocketAsyncEventArgs>(OnSocketConnected);
-            lock (m_socketLock)
-            {
-                m_socketResponses++;
-            }
             if (!socket.ConnectAsync(args))
             {
                 // I/O completed synchronously

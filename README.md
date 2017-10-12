@@ -5,14 +5,19 @@ This OPC UA reference implementation is targeting the [.NET Standard Library](ht
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
-2. Sample Servers and Clients, including all required controls, for .Net 4.6, .NetCore and UWP.
+2. Sample Servers and Clients, including all required controls, for .Net 4.6.1, .NetCore 2.0 and UWP.
 3. X.509 certificate support for client and server authentication
-4. Anonymous, username, X.509 certificate (experimental) and JWT (experimental) user authentication
-5. UA-TCP & HTTPS transports (client and server)
-6. Folder & OS-level (X509Store) certificate-store support
-7. Sessions (including UI support in the samples)
-8. Subscriptions (including UI support in the samples)
-9. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md), [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md) and [OPC Classic Adapter](ComIOP/README.md) samples
+4. SHA512 support
+5. Anonymous, username and X.509 certificate user authentication
+6. UA-TCP & HTTPS transports (client and server)
+7. Folder & OS-level (X509Store) certificate-store support
+8. Sessions (including UI support in the samples)
+9. Subscriptions (including UI support in the samples)
+10. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md)
+11. OPC UA [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md)
+12. [OPC Classic adapter for OPC UA](ComIOP/README.md)
+13. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS/README.md)
+14. OPC UA Certification Test Tool Version 1.03.340.358 compliant
 
 ## Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
@@ -21,17 +26,17 @@ All the tools you need for .Net Standard come with the .Net Core tools. See [her
 
 ## Self signed certificates for the sample applications
 
-All required application certificates for OPC UA are created at the first start of each application in a directory store and remain in use until deleted from the store.
+All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store.
 
 ### Windows .Net applications
-By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in a root folder which is specified by the environment variable **ProgramData**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** with a root folder which is specified by the environment variable **ProgramData**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
 Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandardLibrary, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandardLibrary repository. 
 
 ### Windows UWP applications
-By default the self signed certificates are stored in a folder called **OPC Foundation\CertificateStores\MachineDefault** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate store.
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
 
 ### .Net Standard Console applications on Windows, Linux, iOS etc.
-The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder
+The self signed certificates are stored in **OPC Foundation/CertificateStores/MachineDefault** in each application project folder or in a **X509Store** called **CurrentUser\\My**, depending on the configuration. For best cross platform support the personal store **CurrentUser\\My** was chosen to support all platforms with the same configuration.
 
 ## Local Discovery Server
 By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded from [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
@@ -45,15 +50,15 @@ By default all sample applications are configured to register with a Local Disco
 ## How to build and run the console samples on Windows, Linux and iOS
 This section describes how to run the **NetCoreConsoleClient** and **NetCoreConsoleServer** sample applications.
 
-Please follow instructions in this [article](https://docs.microsoft.com/en-us/dotnet/articles/core/tutorials/using-with-xplat-cli) to setup the dotnet command line environment for your platform. 
+Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .Net Standard 2.0 is required.
 
 ### Prerequisites
-1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore`. This command calls into NuGet to restore the tree of dependencies.
+1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore UA-NetStandard.sln`. This command calls into NuGet to restore the tree of dependencies.
  
 ### Start the server 
 1. Open a command prompt 
 2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
-3. To run the server sample type `dotnet run`. The server is now running and waiting for connections. In this sample configuration the server always rejects new client certificates. 
+3. To run the server sample type `dotnet run`. The server is now running and waiting for connections. 
  
 ### Start the client 
 1. Open a command prompt 
