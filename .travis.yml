@@ -1,15 +1,22 @@
 language: csharp
+mono: none
+dotnet: 2.0.0
+os:
+  - linux
+  - osx
 sudo: required
 dist: trusty
+osx_image: xcode9.1
+
+# workaround: see travis-ci/travis-ci#8552
+matrix:
+  allow_failures:
+    - os: osx
+
 addons:
   apt:
     sources:
     packages:
-install:
-  - sudo sh -c 'echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/dotnet-release/ trusty main" > /etc/apt/sources.list.d/dotnetdev.list' 
-  - sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893
-  - sudo apt-get update
-  - sudo apt-get install dotnet-dev-2.0.0 -y
 script: 
   - echo "========== build all .Net Core samples ============"
   - dotnet restore "UA Core Library.sln"
@@ -24,6 +31,11 @@ script:
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer
   - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - echo "========== run .Net Core samples ============"
+  - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/netcoreapp2.0
+  - dotnet NetCoreConsoleServer.dll -t 10 -a
+  - cd $TRAVIS_BUILD_DIR
+  - ./testclientserver.sh
 
 after_script:
   - echo "========== build done ============"

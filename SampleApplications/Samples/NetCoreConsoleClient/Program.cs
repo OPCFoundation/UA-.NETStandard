@@ -12,54 +12,119 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
+using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
-using System.Security.Cryptography.X509Certificates;
 
 namespace NetCoreConsoleClient
 {
+    public enum ExitCode : int
+    {
+        Ok = 0,
+        ErrorCreateApplication = 0x11,
+        ErrorDiscoverEndpoints = 0x12,
+        ErrorCreateSession = 0x13,
+        ErrorBrowseNamespace = 0x14,
+        ErrorCreateSubscription = 0x15,
+        ErrorMonitoredItem = 0x16,
+        ErrorAddSubscription = 0x17,
+        ErrorRunning = 0x18,
+        ErrorNoKeepAlive = 0x30,
+        ErrorInvalidCommandLine = 0x100
+    };
+
     public class Program
     {
-        public static void Main(string[] args)
+        static ExitCode exitCode;
+
+        public static int Main(string[] args)
         {
             Console.WriteLine(".Net Core OPC UA Console Client sample");
+
+            // command line options
+            bool showHelp = false;
+            int stopTimeout = Timeout.Infinite;
+            bool autoAccept = true;
+
+            Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                { "h|help", "show this message and exit", h => showHelp = h != null },
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t * 1000 }
+            };
+
+            IList<string> extraArgs = null;
+            try
+            {
+                extraArgs = options.Parse(args);
+                if (extraArgs.Count > 1)
+                {
+                    foreach (string extraArg in extraArgs)
+                    {
+                        Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                        showHelp = true;
+                    }
+                }
+            }
+            catch (OptionException e)
+            {
+                Console.WriteLine(e.Message);
+                showHelp = true;
+            }
+
+            if (showHelp)
+            {
+                // show some app description message
+                Console.WriteLine("Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
+                Console.WriteLine();
+
+                // output the options
+                Console.WriteLine("Options:");
+                options.WriteOptionDescriptions(Console.Out);
+                return (int)ExitCode.ErrorInvalidCommandLine;
+            }
+
             string endpointURL;
-            if (args.Length == 0)
+            if (extraArgs.Count == 0)
             {
                 // use OPC UA .Net Sample server 
-                endpointURL = "opc.tcp://" + Utils.GetHostName() + ":51210/UA/SampleServer";
+                endpointURL = "opc.tcp://localhost:51210/UA/SampleServer";
             }
             else
             {
-                endpointURL = args[0];
+                endpointURL = extraArgs[0];
             }
             try
             {
-                Task t = ConsoleSampleClient(endpointURL);
-                t.Wait();
+                ConsoleSampleClient(endpointURL, stopTimeout, autoAccept).Wait();
             }
             catch (Exception e)
             {
                 Console.WriteLine("Exit due to Exception: {0}", e.Message);
             }
+
+            return (int)exitCode;
         }
 
-        public static async Task ConsoleSampleClient(string endpointURL)
+        public static async Task ConsoleSampleClient(string endpointURL, int timeOut, bool autoAccept)
         {
             Console.WriteLine("1 - Create an Application Configuration.");
+            exitCode = ExitCode.ErrorCreateApplication;
+
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             var config = new ApplicationConfiguration()
             {
                 ApplicationName = "UA Core Sample Client",
                 ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:"+Utils.GetHostName()+":OPCFoundation:CoreSampleClient",
+                ApplicationUri = "urn:" + Utils.GetHostName() + ":OPCFoundation:CoreSampleClient",
                 SecurityConfiguration = new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = "X509Store",
-                        StorePath = "CurrentUser\\UA_MachineDefault",
+                        StorePath = "CurrentUser\\My",
                         SubjectName = "UA Core Sample Client"
                     },
                     TrustedPeerCertificates = new CertificateTrustList
@@ -78,7 +143,7 @@ namespace NetCoreConsoleClient
                         StorePath = "OPC Foundation/CertificateStores/RejectedCertificates",
                     },
                     NonceLength = 32,
-                    AutoAcceptUntrustedCertificates = true
+                    AutoAcceptUntrustedCertificates = autoAccept
                 },
                 TransportConfigurations = new TransportConfigurationCollection(),
                 TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
@@ -131,16 +196,19 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("2 - Discover endpoints of {0}.", endpointURL);
-            var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate);
-            Console.WriteLine("    Selected endpoint uses: {0}", 
+            exitCode = ExitCode.ErrorDiscoverEndpoints;
+            var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate, 15000);
+            Console.WriteLine("    Selected endpoint uses: {0}",
                 selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
             Console.WriteLine("3 - Create a session with OPC UA server.");
+            exitCode = ExitCode.ErrorCreateSession;
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             var session = await Session.Create(config, endpoint, false, ".Net Core OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
+            exitCode = ExitCode.ErrorBrowseNamespace;
             ReferenceDescriptionCollection references;
             Byte[] continuationPoint;
 
@@ -183,24 +251,51 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("5 - Create a subscription with publishing interval of 1 second.");
+            exitCode = ExitCode.ErrorCreateSubscription;
             var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
 
             Console.WriteLine("6 - Add a list of items (server current time and status) to the subscription.");
+            exitCode = ExitCode.ErrorMonitoredItem;
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
                 {
-                    DisplayName = "ServerStatusCurrentTime", StartNodeId = "i=2258"
+                    DisplayName = "ServerStatusCurrentTime", StartNodeId = "i="+Variables.Server_ServerStatus_CurrentTime.ToString()
                 }
             };
             list.ForEach(i => i.Notification += OnNotification);
             subscription.AddItems(list);
 
             Console.WriteLine("7 - Add the subscription to the session.");
+            exitCode = ExitCode.ErrorAddSubscription;
             session.AddSubscription(subscription);
             subscription.Create();
 
-            Console.WriteLine("8 - Running...Press any key to exit...");
-            Console.ReadKey(true);
+            Console.WriteLine("8 - Running...Press Ctrl-C to exit...");
+            exitCode = ExitCode.ErrorRunning;
+
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
+            try
+            {
+                Console.CancelKeyPress += (sender, eArgs) =>
+                {
+                    quitEvent.Set();
+                    eArgs.Cancel = true;
+                };
+            }
+            catch
+            {
+            }
+
+            // wait for timeout or Ctrl-C
+            quitEvent.WaitOne(timeOut);
+
+            // return error conditions
+            if (session.KeepAliveStopped)
+            {
+                exitCode = ExitCode.ErrorNoKeepAlive;
+                return;
+            }
+            exitCode = ExitCode.Ok;
         }
 
         private static void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)

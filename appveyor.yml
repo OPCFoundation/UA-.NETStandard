@@ -32,7 +32,8 @@ clone_depth: 5                      # clone entire repository history if not def
 
 environment:
   matrix:
-  - solution_name: UA-NetStandard.sln
+  - solution_name: "UA Core Library.sln"
+  - solution_name: "UA-NetStandard.sln"
   - solution_name: "UA Global Discovery Server.sln"
   - solution_name: "UA Universal Windows.sln"
   - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
@@ -56,9 +57,13 @@ after_build:
 build_script:
   - msbuild "%solution_name%" /p:Configuration=Debug /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
   - msbuild "%solution_name%" /p:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-  
-# to disable automatic tests
+
+  # to disable automatic tests
 test: off
+
+# build cache to preserve files/folders between builds
+cache:
+  - packages -> **\packages.config  
 
 #---------------------------------#
 #        global handlers          #

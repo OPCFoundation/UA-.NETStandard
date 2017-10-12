@@ -14,7 +14,7 @@
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
+      <StorePath>CurrentUser\My</StorePath>
       <SubjectName>CN=UA Core Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
