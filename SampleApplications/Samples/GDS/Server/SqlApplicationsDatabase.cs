@@ -36,10 +36,10 @@ using Opc.Ua.Gds;
 
 namespace Opc.Ua.GdsServer
 {
-    public class SqlApplicationsDatabase : BaseApplicationsDatabase
+    public class SqlApplicationsDatabase : ApplicationsDatabaseBase
     {
-
-        public new void Initialize()
+        #region IApplicationsDatabase Members
+        public override void Initialize()
         {
             using (gdsdbEntities entities = new gdsdbEntities())
             {
@@ -54,11 +54,14 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override Guid DatabaseRegisterApplication(
-            ApplicationRecordDataType application, 
-            Guid applicationId, 
-            string capabilities)
+        public override NodeId RegisterApplication(
+            ApplicationRecordDataType application
+            )
         {
+            NodeId appNodeId = base.RegisterApplication(application);
+            Guid applicationId = GetNodeIdGuid(appNodeId);
+            string capabilities = base.ServerCapabilities(application);
+
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 Application record = null;
@@ -108,7 +111,7 @@ namespace Opc.Ua.GdsServer
                 record.ApplicationName = application.ApplicationNames[0].Text;
                 record.ApplicationType = (int)application.ApplicationType;
                 record.ProductUri = application.ProductUri;
-                record.ServerCapabilities = capabilities.ToString();
+                record.ServerCapabilities = capabilities;
 
                 if (isNew)
                 {
@@ -135,21 +138,21 @@ namespace Opc.Ua.GdsServer
 
                 entities.SaveChanges();
 
-                return applicationId;
+                return new NodeId(applicationId, NamespaceIndex); ;
             }
         }
 
-        public override Guid DatabaseCreateCertificateRequest(
-            Guid applicationId,
+        public override NodeId CreateCertificateRequest(
+            NodeId applicationId,
             byte[] certificate,
             byte[] privateKey,
             string authorityId)
         {
-            // all parameters were checked by caller
+            Guid id = GetNodeIdGuid(applicationId);
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var application = (from x in entities.Applications where x.ApplicationId == applicationId select x).SingleOrDefault();
+                var application = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
 
                 if (application == null)
                 {
@@ -177,38 +180,43 @@ namespace Opc.Ua.GdsServer
 
                 entities.SaveChanges();
 
-                return request.RequestId;
+                return new NodeId(request.RequestId, NamespaceIndex);
             }
         }
 
-        public override void DatabaseApproveCertificateRequest(Guid requestId, bool isRejected)
+        public override void ApproveCertificateRequest(
+            NodeId requestId,
+            bool isRejected
+            )
         {
+            Guid id = GetNodeIdGuid(requestId);
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == requestId select x).SingleOrDefault();
+                var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
 
                 if (request == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
 
-                request.State = (int)((isRejected)?CertificateRequestState.Rejected:CertificateRequestState.Approved);
+                request.State = (int)((isRejected) ? CertificateRequestState.Rejected : CertificateRequestState.Approved);
                 entities.SaveChanges();
             }
         }
 
-        public override bool DatabaseCompleteCertificateRequest(
-            Guid applicationId,
-            Guid requestId,
-            out byte[] certificate, 
+        public override bool CompleteCertificateRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out byte[] certificate,
             out byte[] privateKey)
         {
             certificate = null;
             privateKey = null;
+            Guid reqId = GetNodeIdGuid(requestId);
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == requestId select x).SingleOrDefault();
+                var request = (from x in entities.CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
 
                 if (request == null)
                 {
@@ -247,17 +255,22 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override void DatabaseUnregisterApplication(
-            Guid applicationId,
+        public override void UnregisterApplication(
+            NodeId applicationId,
             out byte[] certificate,
             out byte[] httpsCertificate)
         {
+            certificate = null;
+            httpsCertificate = null;
+
+            Guid id = GetNodeIdGuid(applicationId);
+
             List<byte[]> certificates = new List<byte[]>();
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var result = (from ii in entities.Applications
-                              where ii.ApplicationId == applicationId
+                              where ii.ApplicationId == id
                               select ii).SingleOrDefault();
 
                 if (result == null)
@@ -288,14 +301,15 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override ApplicationRecordDataType DatabaseGetApplication(
-            Guid applicationId
+        public override ApplicationRecordDataType GetApplication(
+            NodeId applicationId
             )
         {
+            Guid id = GetNodeIdGuid(applicationId);
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
-                              where x.ApplicationId == applicationId
+                              where x.ApplicationId == id
                               select x;
 
                 var result = results.SingleOrDefault();
@@ -344,7 +358,7 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override ApplicationRecordDataType[] DatabaseFindApplications(
+        public override ApplicationRecordDataType[] FindApplications(
             string applicationUri
             )
         {
@@ -383,7 +397,7 @@ namespace Opc.Ua.GdsServer
                     {
                         capabilities = result.ServerCapabilities.Split(',');
                     }
-                    
+
                     records.Add(new ApplicationRecordDataType()
                     {
                         ApplicationId = new NodeId(result.ApplicationId, NamespaceIndex),
@@ -400,7 +414,7 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override ServerOnNetwork[] DatabaseQueryServers(
+        public override ServerOnNetwork[] QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -460,7 +474,7 @@ namespace Opc.Ua.GdsServer
                     if (result.ServerCapabilities != null)
                     {
                         capabilities = result.ServerCapabilities.Split(',');
-                    } 
+                    }
 
                     if (serverCapabilities != null && serverCapabilities.Length > 0)
                     {
@@ -495,16 +509,17 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public override bool DatabaseSetApplicationCertificate(
-            Guid applicationId, 
-            byte[] certificate, 
+        public override bool SetApplicationCertificate(
+            NodeId applicationId,
+            byte[] certificate,
             bool isHttpsCertificate
             )
         {
+            Guid id = GetNodeIdGuid(applicationId);
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
-                              where x.ApplicationId == applicationId
+                              where x.ApplicationId == id
                               select x;
 
                 var result = results.SingleOrDefault();
@@ -529,15 +544,16 @@ namespace Opc.Ua.GdsServer
             return true;
         }
 
-        public override bool DatabaseSetApplicationTrustLists(
-            Guid applicationId, 
-            NodeId trustListId, 
+        public override bool SetApplicationTrustLists(
+            NodeId applicationId,
+            NodeId trustListId,
             NodeId httpsTrustListId
             )
         {
+            Guid id = GetNodeIdGuid(applicationId);
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var result = (from x in entities.Applications where x.ApplicationId == applicationId select x).SingleOrDefault();
+                var result = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
 
                 if (result == null)
                 {
@@ -577,4 +593,5 @@ namespace Opc.Ua.GdsServer
             return true;
         }
     }
+    #endregion
 }

@@ -29,24 +29,23 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text;
 
 
 namespace Opc.Ua.Gds
 {
-    public abstract class BaseApplicationsDatabase : IApplicationsDatabase
+    public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
-
-        public void Initialize()
+        #region IApplicationsDatabase Members
+        public virtual void Initialize()
         {
         }
 
         public ushort NamespaceIndex { get; set; }
 
-        public NodeId RegisterApplication(ApplicationRecordDataType application)
+        public virtual NodeId RegisterApplication(
+            ApplicationRecordDataType application
+            )
         {
             if (application == null)
             {
@@ -114,25 +113,6 @@ namespace Opc.Ua.Gds
                 }
             }
 
-            StringBuilder capabilities = new StringBuilder();
-            if (application.ServerCapabilities != null)
-            {
-                foreach (var capability in application.ServerCapabilities)
-                {
-                    if (String.IsNullOrEmpty(capability))
-                    {
-                        continue;
-                    }
-
-                    if (capabilities.Length > 0)
-                    {
-                        capabilities.Append(',');
-                    }
-
-                    capabilities.Append(capability);
-                }
-            }
-
             if (application.ApplicationType != ApplicationType.Client)
             {
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
@@ -142,7 +122,6 @@ namespace Opc.Ua.Gds
             }
 
             Guid applicationId = Guid.Empty;
-
             if (!NodeId.IsNull(application.ApplicationId))
             {
                 if (application.ApplicationId.IdType != IdType.Guid)
@@ -153,139 +132,63 @@ namespace Opc.Ua.Gds
                 applicationId = (Guid)application.ApplicationId.Identifier;
             }
 
-            applicationId = DatabaseRegisterApplication(application, applicationId, capabilities.ToString());
-
             return new NodeId(applicationId, NamespaceIndex);
         }
 
-        public NodeId CreateCertificateRequest(
+        public virtual NodeId CreateCertificateRequest(
             NodeId applicationId,
             byte[] certificate,
             byte[] privateKey,
             string authorityId)
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            Guid? id = applicationId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-            
-            Guid requestId = DatabaseCreateCertificateRequest(id ?? Guid.Empty, certificate, privateKey, authorityId);
-
-            return new NodeId(requestId, NamespaceIndex);
+            Guid id = GetNodeIdGuid(applicationId);
+            return new NodeId(Guid.Empty, NamespaceIndex);
         }
 
-        public void ApproveCertificateRequest(NodeId requestId, bool isRejected)
+        public virtual void ApproveCertificateRequest(NodeId requestId, bool isRejected)
         {
-            if (NodeId.IsNull(requestId))
-            {
-                throw new ArgumentNullException(nameof(requestId));
-            }
-
-            Guid? id = requestId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-
-            DatabaseApproveCertificateRequest(id ?? Guid.Empty, isRejected);
+            Guid id = GetNodeIdGuid(requestId);
         }
 
-        public bool CompleteCertificateRequest(
+        public virtual bool CompleteCertificateRequest(
             NodeId applicationId,
             NodeId requestId,
-            out byte[] certificate, 
+            out byte[] certificate,
             out byte[] privateKey)
         {
             certificate = null;
             privateKey = null;
-
-            if (NodeId.IsNull(requestId))
-            {
-                throw new ArgumentNullException(nameof(requestId));
-            }
-
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(requestId));
-            }
-
-            Guid? reqId = requestId.Identifier as Guid?;
-            if (reqId == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-
-            Guid? appId = applicationId.Identifier as Guid?;
-            if (appId == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-
-            return DatabaseCompleteCertificateRequest(
-                appId ?? Guid.Empty,
-                reqId ?? Guid.Empty,
-                out certificate,
-                out privateKey
-                );
+            Guid appId = GetNodeIdGuid(applicationId);
+            Guid reqId = GetNodeIdGuid(requestId);
+            return false;
         }
 
-        public void UnregisterApplication(
+        public virtual void UnregisterApplication(
             NodeId applicationId,
             out byte[] certificate,
             out byte[] httpsCertificate)
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            Guid? id = applicationId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-            }
-
-            DatabaseUnregisterApplication(id ?? Guid.Empty, out certificate, out httpsCertificate);
-
-            return;
+            certificate = null;
+            httpsCertificate = null;
+            Guid id = GetNodeIdGuid(applicationId);
         }
 
-        public ApplicationRecordDataType GetApplication(
+        public virtual ApplicationRecordDataType GetApplication(
             NodeId applicationId
             )
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                return null;
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                return null;
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
-            return DatabaseGetApplication(id);
+            Guid id = GetNodeIdGuid(applicationId);
+            return null;
         }
 
-        public ApplicationRecordDataType[] FindApplications(
+        public virtual ApplicationRecordDataType[] FindApplications(
             string applicationUri
             )
         {
-            return DatabaseFindApplications(applicationUri);
+            return null;
         }
 
-        public ServerOnNetwork[] QueryServers(
+        public virtual ServerOnNetwork[] QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -294,51 +197,34 @@ namespace Opc.Ua.Gds
             string[] serverCapabilities,
             out DateTime lastCounterResetTime)
         {
-            return DatabaseQueryServers(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime
-                );
+            lastCounterResetTime = DateTime.MinValue;
+            return null;
         }
 
-        public bool SetApplicationCertificate(NodeId applicationId, byte[] certificate, bool isHttpsCertificate)
+        public virtual bool SetApplicationCertificate(
+            NodeId applicationId,
+            byte[] certificate,
+            bool isHttpsCertificate)
         {
+            Guid id = GetNodeIdGuid(applicationId);
+            return false;
+        }
+
+        public virtual bool SetApplicationTrustLists(
+            NodeId applicationId,
+            NodeId trustListId,
+            NodeId httpsTrustListId)
+        {
+            Guid id = GetNodeIdGuid(applicationId);
             if (NodeId.IsNull(applicationId))
             {
                 throw new ArgumentNullException(nameof(applicationId));
             }
 
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
-            return DatabaseSetApplicationCertificate(id, certificate, isHttpsCertificate);
+            return false;
         }
-
-        public bool SetApplicationTrustLists(NodeId applicationId, NodeId trustListId, NodeId httpsTrustListId)
-        {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
-            return DatabaseSetApplicationTrustLists(id, trustListId, httpsTrustListId);
-        }
-
+        #endregion
+        #region Public Menbers
         /// <summary>
         /// Returns true if the target string matches the UA pattern string. 
         /// The pattern string may include UA wildcards %_\[]!
@@ -379,7 +265,64 @@ namespace Opc.Ua.Gds
 
             return true;
         }
+        public string ServerCapabilities(ApplicationRecordDataType application)
+        {
+            if (application.ApplicationType != ApplicationType.Client)
+            {
+                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                {
+                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                }
+            }
 
+            StringBuilder capabilities = new StringBuilder();
+            if (application.ServerCapabilities != null)
+            {
+                foreach (var capability in application.ServerCapabilities)
+                {
+                    if (String.IsNullOrEmpty(capability))
+                    {
+                        continue;
+                    }
+
+                    if (capabilities.Length > 0)
+                    {
+                        capabilities.Append(',');
+                    }
+
+                    capabilities.Append(capability);
+                }
+            }
+
+            return capabilities.ToString();
+        }
+        public Guid GetNodeIdGuid(
+            NodeId nodeId
+            )
+        {
+            if (NodeId.IsNull(nodeId))
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+
+            if (nodeId.IdType != IdType.Guid || NamespaceIndex != nodeId.NamespaceIndex)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+
+            Guid? id = nodeId.Identifier as Guid?;
+
+            if (id == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+            else
+            {
+                return (Guid)id;
+            }
+        }
+        #endregion
+        #region Private Members
         private static List<string> Parse(string pattern)
         {
             List<string> tokens = new List<string>();
@@ -634,62 +577,6 @@ namespace Opc.Ua.Gds
 
             return -1;
         }
-
-        #region Database Interface
-        public abstract Guid DatabaseRegisterApplication(
-        ApplicationRecordDataType application,
-            Guid applicationId,
-            string capabilities
-            );
-        public abstract Guid DatabaseCreateCertificateRequest(
-            Guid applicationId,
-            byte[] certificate,
-            byte[] privateKey,
-            string authorityId);
-
-        public abstract void DatabaseApproveCertificateRequest(
-            Guid requestId,
-            bool isRejected
-            );
-
-        public abstract bool DatabaseCompleteCertificateRequest(
-            Guid applicationId,
-            Guid requestId,
-            out byte[] certificate,
-            out byte[] privateKey
-            );
-
-        public abstract void DatabaseUnregisterApplication(
-            Guid applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate
-            );
-
-        public abstract ApplicationRecordDataType DatabaseGetApplication(
-            Guid applicationId
-            );
-        public abstract ApplicationRecordDataType[] DatabaseFindApplications(
-            string applicationUri
-            );
-        public abstract ServerOnNetwork[] DatabaseQueryServers(
-                    uint startingRecordId,
-                    uint maxRecordsToReturn,
-                    string applicationName,
-                    string applicationUri,
-                    string productUri,
-                    string[] serverCapabilities,
-                    out DateTime lastCounterResetTime
-            );
-        public abstract bool DatabaseSetApplicationCertificate(
-            Guid applicationId,
-            byte[] certificate,
-            bool isHttpsCertificate
-            );
-        public abstract bool DatabaseSetApplicationTrustLists(
-            Guid applicationId,
-            NodeId trustListId,
-            NodeId httpsTrustListId
-            );
         #endregion
     }
 }
