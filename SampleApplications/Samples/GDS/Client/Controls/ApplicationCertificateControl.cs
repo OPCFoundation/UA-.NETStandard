@@ -29,10 +29,8 @@
 
 using Opc.Ua.Gds;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -168,133 +166,6 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private string GetPrivateKeyFormat()
-        {
-            string privateKeyFormat = "PFX";
-
-            if (m_application.RegistrationType != RegistrationType.ServerPush)
-            {
-                if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
-                {
-                    if (m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        privateKeyFormat = "PEM";
-                    }
-                }
-            }
-            else
-            {
-                string[] privateKeyFormats = m_server.GetSupportedKeyFormats();
-
-                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
-                {
-                    privateKeyFormat = "PEM";
-                }
-            }
-
-            return privateKeyFormat;
-        }
-
-        private string[] GetDomainNames()
-        {
-            List<string> domainNames = new List<string>();
-
-            if (!String.IsNullOrEmpty(m_application.Domains))
-            {
-                var domains = m_application.Domains.Split(',');
-
-                List<string> trimmedDomains = new List<string>();
-
-                foreach (var domain in domains)
-                {
-                    var d = domain.Trim();
-
-                    if (d.Length > 0)
-                    {
-                        trimmedDomains.Add(d);
-                    }
-                }
-
-                if (trimmedDomains.Count > 0)
-                {
-                    return trimmedDomains.ToArray();
-                }
-            }
-
-            if (m_application.DiscoveryUrl != null)
-            {
-                foreach (var discoveryUrl in m_application.DiscoveryUrl)
-                {
-                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        string name = new Uri(discoveryUrl).DnsSafeHost;
-
-                        if (name == "localhost")
-                        {
-                            name = Utils.GetHostName();
-                        }
-
-                        bool found = false;
-
-                        foreach (var domainName in domainNames)
-                        {
-                            if (String.Compare(domainName, name, StringComparison.OrdinalIgnoreCase) == 0)
-                            {
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        if (!found)
-                        {
-                            domainNames.Add(name);
-                        }
-                    }
-                }
-            }
-
-            if (domainNames != null && domainNames.Count > 0)
-            {
-                return domainNames.ToArray();
-            }
-
-            if (m_certificate != null)
-            {
-                var names = Utils.GetDomainsFromCertficate(m_certificate);
-
-                if (names != null && names.Count > 0)
-                {
-                    domainNames.AddRange(names);
-                    return domainNames.ToArray();
-                }
-
-                var fields = Utils.ParseDistinguishedName(m_certificate.Subject);
-
-                string name = null;
-
-                foreach (var field in fields)
-                {
-                    if (field.StartsWith("DC=", StringComparison.Ordinal))
-                    {
-                        if (name != null)
-                        {
-                            name += ".";
-                        }
-
-                        name += field.Substring(3);
-                    }
-                }
-
-                if (names != null)
-                {
-                    domainNames.AddRange(names);
-                    return domainNames.ToArray();
-                }
-            }
-
-            return new string[] { Utils.GetHostName() };
-        }
-
         private async void RequestNewButton_Click(object sender, EventArgs e)
         {
             try
@@ -322,7 +193,7 @@ namespace Opc.Ua.GdsClient
                     hasPrivateKeyFile = file.Exists;
                 }
 
-                var domainNames = GetDomainNames();
+                var domainNames = m_application.GetDomainNames(m_certificate);
                 if (m_certificate == null)
                 {
                     // no private key
@@ -346,7 +217,7 @@ namespace Opc.Ua.GdsClient
                     {
                         string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
                         byte [] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
-                        if (GetPrivateKeyFormat() == "PFX")
+                        if (m_application.GetPrivateKeyFormat(m_server?.GetSupportedKeyFormats()) == "PFX")
                         {
                             csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
                         }
@@ -468,7 +339,7 @@ namespace Opc.Ua.GdsClient
                         }
 
                         // if we provided a PFX or P12 with the private key, we need to merge the new cert with the private key
-                        if (GetPrivateKeyFormat() == "PFX")
+                        if (m_application.GetPrivateKeyFormat(m_server?.GetSupportedKeyFormats()) == "PFX")
                         {
                             string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false) ?? m_application.CertificatePrivateKeyPath;
                             file = new FileInfo(absoluteCertificatePrivateKeyPath);

@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Gds
 {
@@ -56,5 +59,132 @@ namespace Opc.Ua.Gds
 
             return null;
         }
+
+        public string GetPrivateKeyFormat(string[] privateKeyFormats = null)
+        {
+            string privateKeyFormat = "PFX";
+
+            if (RegistrationType != RegistrationType.ServerPush)
+            {
+                if (!String.IsNullOrEmpty(CertificatePrivateKeyPath))
+                {
+                    if (CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        privateKeyFormat = "PEM";
+                    }
+                }
+            }
+            else
+            {
+                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+                {
+                    privateKeyFormat = "PEM";
+                }
+            }
+
+            return privateKeyFormat;
+        }
+
+        public string[] GetDomainNames(X509Certificate2 certificate)
+        {
+            List<string> domainNames = new List<string>();
+
+            if (!String.IsNullOrEmpty(Domains))
+            {
+                var domains = Domains.Split(',');
+
+                List<string> trimmedDomains = new List<string>();
+
+                foreach (var domain in domains)
+                {
+                    var d = domain.Trim();
+
+                    if (d.Length > 0)
+                    {
+                        trimmedDomains.Add(d);
+                    }
+                }
+
+                if (trimmedDomains.Count > 0)
+                {
+                    return trimmedDomains.ToArray();
+                }
+            }
+
+            if (DiscoveryUrl != null)
+            {
+                foreach (var discoveryUrl in DiscoveryUrl)
+                {
+                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
+                    {
+                        string name = new Uri(discoveryUrl).DnsSafeHost;
+
+                        if (name == "localhost")
+                        {
+                            name = Utils.GetHostName();
+                        }
+
+                        bool found = false;
+
+                        //domainNames.Any(n => String.Compare(n, name, StringComparison.OrdinalIgnoreCase) == 0);
+                        foreach (var domainName in domainNames)
+                        {
+                            if (String.Compare(domainName, name, StringComparison.OrdinalIgnoreCase) == 0)
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            domainNames.Add(name);
+                        }
+                    }
+                }
+            }
+
+            if (domainNames != null && domainNames.Count > 0)
+            {
+                return domainNames.ToArray();
+            }
+
+            if (certificate != null)
+            {
+                var names = Utils.GetDomainsFromCertficate(certificate);
+
+                if (names != null && names.Count > 0)
+                {
+                    domainNames.AddRange(names);
+                    return domainNames.ToArray();
+                }
+
+                var fields = Utils.ParseDistinguishedName(certificate.Subject);
+
+                string name = null;
+
+                foreach (var field in fields)
+                {
+                    if (field.StartsWith("DC=", StringComparison.Ordinal))
+                    {
+                        if (name != null)
+                        {
+                            name += ".";
+                        }
+
+                        name += field.Substring(3);
+                    }
+                }
+
+                if (names != null)
+                {
+                    domainNames.AddRange(names);
+                    return domainNames.ToArray();
+                }
+            }
+
+            return new string[] { Utils.GetHostName() };
+        }
+
     }
 }

@@ -103,9 +103,9 @@ namespace Opc.Ua.Gds
         /// <value>
         ///   <c>true</c> if the session is connected; otherwise, <c>false</c>.
         /// </value>
-        public bool IsConnected 
-        { 
-            get { return m_session != null && m_session.Connected; } 
+        public bool IsConnected
+        {
+            get { return m_session != null && m_session.Connected; }
         }
 
         /// <summary>
@@ -218,7 +218,7 @@ namespace Opc.Ua.Gds
                     throw new ArgumentNullException("endpoint");
                 }
             }
-            
+
             if (m_session != null)
             {
                 m_session.Dispose();
@@ -323,8 +323,8 @@ namespace Opc.Ua.Gds
 
             nodesToRead.Add(new ReadValueId()
             {
-                 NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
-                 AttributeId = Attributes.Value
+                NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
+                AttributeId = Attributes.Value
             });
 
             DataValueCollection results = null;
@@ -343,7 +343,7 @@ namespace Opc.Ua.Gds
 
             return results[0].GetValue<string[]>(null);
         }
-        
+
         /// <summary>
         /// Reads the trust list.
         /// </summary>

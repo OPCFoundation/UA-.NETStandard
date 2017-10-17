@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds
                 locales.Add("en-US");
             }
 
-            PreferredLocales = locales.ToArray(); 
+            PreferredLocales = locales.ToArray();
         }
         #endregion
 
@@ -105,12 +105,12 @@ namespace Opc.Ua.Gds
 
             FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client 
+                DiscoveryClient = client
             };
 
             data.InnerResult = client.BeginFindServers(
                 null,
-                (actualEndpointUrl)??endpointUrl,
+                (actualEndpointUrl) ?? endpointUrl,
                 new StringCollection((preferredLocales) ?? PreferredLocales),
                 (serverUris != null) ? new StringCollection(serverUris) : null,
                 OnFindServersComplete,

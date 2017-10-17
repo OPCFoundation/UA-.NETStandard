@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{761E1EB7-59FB-4D77-8AB3-986B623535C8}"
 EndProject
@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleAppl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{72D92985-2B09-409C-8573-35DB1BEA370C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClientControls", "SampleApplications\Samples\GDS\ClientControls\GlobalDiscoveryClientControls.csproj", "{228EC503-2E77-45C9-87AC-3BB312E43196}"
 EndProject
@@ -72,5 +72,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DE62BD21-9127-40A3-88D6-357E316BBFE9}
 	EndGlobalSection
 EndGlobal
