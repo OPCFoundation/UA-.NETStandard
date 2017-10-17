@@ -81,7 +81,7 @@
     <Compile Include="ApplicationName.cs">
       <DependentUpon>gdsdb.tt</DependentUpon>
     </Compile>
-    <Compile Include="ApplicationsDatabase.cs" />
+    <Compile Include="SqlApplicationsDatabase.cs" />
     <Compile Include="CertificateRequest.cs">
       <DependentUpon>gdsdb.tt</DependentUpon>
     </Compile>

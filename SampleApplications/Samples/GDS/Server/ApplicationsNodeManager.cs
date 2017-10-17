@@ -89,7 +89,7 @@ namespace Opc.Ua.GdsServer
             DefaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
             DefaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
 
-            m_database = new ApplicationsDatabase();
+            m_database = new SqlApplicationsDatabase();
             m_certificateGroups = new Dictionary<NodeId, CertificateGroup>();
 
             try
@@ -115,7 +115,7 @@ namespace Opc.Ua.GdsServer
                 }
 
                 Utils.Trace("Initialize Database tables!");
-                m_database.InitializeTables();
+                m_database.Initialize();
 
                 Utils.Trace("Database Initialized!");
             }
@@ -1483,7 +1483,7 @@ namespace Opc.Ua.GdsServer
         #region Private Fields
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
-        private ApplicationsDatabase m_database;
+        private SqlApplicationsDatabase m_database;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
         #endregion
     }

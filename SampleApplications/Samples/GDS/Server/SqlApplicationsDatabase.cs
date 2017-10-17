@@ -32,19 +32,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using Opc.Ua.Gds;
 
 namespace Opc.Ua.GdsServer
 {
-    public class ApplicationsDatabase
+    public class SqlApplicationsDatabase : BaseApplicationsDatabase
     {
 
-        public void InitializeTables()
+        public new void Initialize()
         {
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                Assembly assembly = typeof(ApplicationsDatabase).GetTypeInfo().Assembly;
+                Assembly assembly = typeof(SqlApplicationsDatabase).GetTypeInfo().Assembly;
                 StreamReader istrm = new StreamReader(assembly.GetManifestResourceStream("Opc.Ua.GdsServer.DB.Tables.sql"));
                 string tables = istrm.ReadToEnd();
                 entities.Database.Initialize(true);
@@ -55,116 +54,11 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public ushort NamespaceIndex { get; set; }
-
-        public NodeId RegisterApplication(ApplicationRecordDataType application)
+        public override Guid DatabaseRegisterApplication(
+            ApplicationRecordDataType application, 
+            Guid applicationId, 
+            string capabilities)
         {
-            if (application == null)
-            {
-                throw new ArgumentNullException(nameof(application));
-            }
-
-            if (application.ApplicationUri == null)
-            {
-                throw new ArgumentNullException("ApplicationUri");
-            }
-
-            if (!Uri.IsWellFormedUriString(application.ApplicationUri, UriKind.Absolute))
-            {
-                throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", "ApplicationUri");
-            }
-
-            if (application.ApplicationType < ApplicationType.Server || application.ApplicationType > ApplicationType.DiscoveryServer)
-            {
-                throw new ArgumentException(application.ApplicationType.ToString() + " is not a valid ApplicationType.", "ApplicationType");
-            }
-
-            if (application.ApplicationNames == null || application.ApplicationNames.Count == 0 || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
-            {
-                throw new ArgumentException("At least one ApplicationName must be provided.", "ApplicationNames");
-            }
-
-            if (String.IsNullOrEmpty(application.ProductUri))
-            {
-                throw new ArgumentException("A ProductUri must be provided.", "ProductUri");
-            }
-
-            if (!Uri.IsWellFormedUriString(application.ProductUri, UriKind.Absolute))
-            {
-                throw new ArgumentException(application.ProductUri + " is not a valid URI.", "ProductUri");
-            }
-
-            if (application.DiscoveryUrls != null)
-            {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
-                {
-                    if (String.IsNullOrEmpty(discoveryUrl))
-                    {
-                        continue;
-                    }
-
-                    if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        throw new ArgumentException(discoveryUrl + " is not a valid URL.", "DiscoveryUrls");
-                    }
-                }
-            }
-
-            if (application.ApplicationType != ApplicationType.Client)
-            {
-                if (application.DiscoveryUrls == null || application.DiscoveryUrls.Count == 0)
-                {
-                    throw new ArgumentException("At least one DiscoveryUrl must be provided.", "DiscoveryUrls");
-                }
-            }
-            else
-            {
-                if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
-                {
-                    throw new ArgumentException("DiscoveryUrls must not be specified for clients.", "DiscoveryUrls");
-                }
-            }
-
-            StringBuilder capabilities = new StringBuilder();
-
-            if (application.ServerCapabilities != null)
-            {
-                foreach (var capability in application.ServerCapabilities)
-                {
-                    if (String.IsNullOrEmpty(capability))
-                    {
-                        continue;
-                    }
-
-                    if (capabilities.Length > 0)
-                    {
-                        capabilities.Append(',');
-                    }
-
-                    capabilities.Append(capability);
-                }
-            }
-
-            if (application.ApplicationType != ApplicationType.Client)
-            {
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
-                {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
-                }
-            }
-
-            Guid applicationId = Guid.Empty;
-
-            if (!NodeId.IsNull(application.ApplicationId))
-            {
-                if (application.ApplicationId.IdType != IdType.Guid)
-                {
-                    throw new ArgumentException("The ApplicationId to does refer to a existing record.", "ApplicationId");
-                }
-
-                applicationId = (Guid)application.ApplicationId.Identifier;
-            }
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 Application record = null;
@@ -205,7 +99,8 @@ namespace Opc.Ua.GdsServer
 
                 if (record == null)
                 {
-                    record = new Application() { ApplicationId = Guid.NewGuid() };
+                    applicationId = Guid.NewGuid();
+                    record = new Application() { ApplicationId = applicationId };
                     isNew = true;
                 }
 
@@ -240,39 +135,21 @@ namespace Opc.Ua.GdsServer
 
                 entities.SaveChanges();
 
-                return new NodeId(record.ApplicationId, NamespaceIndex);
+                return applicationId;
             }
         }
 
-        private enum CertificateRequestState
-        {
-            New,
-            Approved,
-            Rejected,
-            Accepted
-        }
-
-        public NodeId CreateCertificateRequest(
-            NodeId applicationId,
+        public override Guid DatabaseCreateCertificateRequest(
+            Guid applicationId,
             byte[] certificate,
             byte[] privateKey,
             string authorityId)
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
+            // all parameters were checked by caller
 
-            Guid? id = applicationId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-            
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var application = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
+                var application = (from x in entities.Applications where x.ApplicationId == applicationId select x).SingleOrDefault();
 
                 if (application == null)
                 {
@@ -300,27 +177,15 @@ namespace Opc.Ua.GdsServer
 
                 entities.SaveChanges();
 
-                return new NodeId(request.RequestId, NamespaceIndex);
+                return request.RequestId;
             }
         }
 
-        public void ApproveCertificateRequest(NodeId requestId, bool isRejected)
+        public override void DatabaseApproveCertificateRequest(Guid requestId, bool isRejected)
         {
-            if (NodeId.IsNull(requestId))
-            {
-                throw new ArgumentNullException(nameof(requestId));
-            }
-
-            Guid? id = requestId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
+                var request = (from x in entities.CertificateRequests where x.RequestId == requestId select x).SingleOrDefault();
 
                 if (request == null)
                 {
@@ -332,30 +197,18 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public bool CompleteCertificateRequest(
-            NodeId applicationId,
-            NodeId requestId,
+        public override bool DatabaseCompleteCertificateRequest(
+            Guid applicationId,
+            Guid requestId,
             out byte[] certificate, 
             out byte[] privateKey)
         {
             certificate = null;
             privateKey = null;
 
-            if (NodeId.IsNull(requestId))
-            {
-                throw new ArgumentNullException(nameof(requestId));
-            }
-
-            Guid? id = requestId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);
-            }
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
+                var request = (from x in entities.CertificateRequests where x.RequestId == requestId select x).SingleOrDefault();
 
                 if (request == null)
                 {
@@ -394,29 +247,17 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public void UnregisterApplication(
-            NodeId applicationId,
+        public override void DatabaseUnregisterApplication(
+            Guid applicationId,
             out byte[] certificate,
             out byte[] httpsCertificate)
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            Guid? id = applicationId.Identifier as Guid?;
-
-            if (id == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-            }
-
             List<byte[]> certificates = new List<byte[]>();
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var result = (from ii in entities.Applications
-                              where ii.ApplicationId == id.Value
+                              where ii.ApplicationId == applicationId
                               select ii).SingleOrDefault();
 
                 if (result == null)
@@ -447,24 +288,14 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public ApplicationRecordDataType GetApplication(NodeId applicationId)
+        public override ApplicationRecordDataType DatabaseGetApplication(
+            Guid applicationId
+            )
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                return null;
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                return null;
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
-                              where x.ApplicationId == id
+                              where x.ApplicationId == applicationId
                               select x;
 
                 var result = results.SingleOrDefault();
@@ -513,7 +344,9 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public ApplicationRecordDataType[] FindApplications(string applicationUri)
+        public override ApplicationRecordDataType[] DatabaseFindApplications(
+            string applicationUri
+            )
         {
             using (gdsdbEntities entities = new gdsdbEntities())
             {
@@ -567,7 +400,7 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public ServerOnNetwork[] QueryServers(
+        public override ServerOnNetwork[] DatabaseQueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -662,24 +495,16 @@ namespace Opc.Ua.GdsServer
             }
         }
 
-        public bool SetApplicationCertificate(NodeId applicationId, byte[] certificate, bool isHttpsCertificate)
+        public override bool DatabaseSetApplicationCertificate(
+            Guid applicationId, 
+            byte[] certificate, 
+            bool isHttpsCertificate
+            )
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
-                              where x.ApplicationId == id
+                              where x.ApplicationId == applicationId
                               select x;
 
                 var result = results.SingleOrDefault();
@@ -704,23 +529,15 @@ namespace Opc.Ua.GdsServer
             return true;
         }
 
-        public bool SetApplicationTrustLists(NodeId applicationId, NodeId trustListId, NodeId httpsTrustListId)
+        public override bool DatabaseSetApplicationTrustLists(
+            Guid applicationId, 
+            NodeId trustListId, 
+            NodeId httpsTrustListId
+            )
         {
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
-            if (applicationId.IdType != IdType.Guid || NamespaceIndex != applicationId.NamespaceIndex)
-            {
-                throw new ArgumentException("The application id is not recognized.", nameof(applicationId));
-            }
-
-            Guid id = (Guid)applicationId.Identifier;
-
             using (gdsdbEntities entities = new gdsdbEntities())
             {
-                var result = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
+                var result = (from x in entities.Applications where x.ApplicationId == applicationId select x).SingleOrDefault();
 
                 if (result == null)
                 {
@@ -758,302 +575,6 @@ namespace Opc.Ua.GdsServer
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Returns true if the target string matches the UA pattern string. 
-        /// The pattern string may include UA wildcards %_\[]!
-        /// </summary>
-        /// <param name="target">String to check for a pattern match.</param>
-        /// <param name="pattern">Pattern to match with the target string.</param>
-        /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        public static bool Match(string target, string pattern)
-        {
-            if (String.IsNullOrEmpty(target))
-            {
-                return false;
-            }
-
-            if (String.IsNullOrEmpty(pattern))
-            {
-                return true;
-            }
-
-            var tokens = Parse(pattern);
-
-            int targetIndex = 0;
-
-            for (int ii = 0; ii < tokens.Count; ii++)
-            {
-                targetIndex = Match(target, targetIndex, tokens, ref ii);
-
-                if (targetIndex < 0)
-                {
-                    return false;
-                }
-            }
-
-            if (targetIndex < target.Length)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private static List<string> Parse(string pattern)
-        {
-            List<string> tokens = new List<string>();
-
-            int ii = 0;
-            var buffer = new System.Text.StringBuilder();
-
-            while (ii < pattern.Length)
-            {
-                char ch = pattern[ii];
-
-                if (ch == '\\')
-                {
-                    ii++;
-
-                    if (ii >= pattern.Length)
-                    {
-                        break;
-                    }
-
-                    buffer.Append(pattern[ii]);
-                    ii++;
-                    continue;
-                }
-
-                if (ch == '_')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    tokens.Add("_");
-                    ii++;
-                    continue;
-                }
-
-                if (ch == '%')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    tokens.Add("%");
-                    ii++;
-
-                    while (ii < pattern.Length && pattern[ii] == '%')
-                    {
-                        ii++;
-                    }
-
-                    continue;
-                }
-
-                if (ch == '[')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    buffer.Append(ch);
-                    ii++;
-
-                    int start = 0;
-                    int end = 0;
-                    while (ii < pattern.Length && pattern[ii] != ']')
-                    {
-                        if (pattern[ii] == '-' && ii > 0 && ii < pattern.Length - 1)
-                        {
-                            start = Convert.ToInt32(pattern[ii - 1]) + 1;
-                            end = Convert.ToInt32(pattern[ii + 1]);
-
-                            while (start < end)
-                            {
-                                buffer.Append(Convert.ToChar(start));
-                                start++;
-                            }
-
-                            buffer.Append(Convert.ToChar(end));
-                            ii += 2;
-                            continue;
-                        }
-
-                        buffer.Append(pattern[ii]);
-                        ii++;
-                    }
-
-                    buffer.Append("]");
-                    tokens.Add(buffer.ToString());
-                    buffer.Length = 0;
-
-                    ii++;
-                    continue;
-                }
-
-                buffer.Append(ch);
-                ii++;
-            }
-
-            if (buffer.Length > 0)
-            {
-                tokens.Add(buffer.ToString());
-                buffer.Length = 0;
-            }
-
-            return tokens;
-        }
-
-        private static int SkipToNext(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
-        {
-            if (targetIndex >= target.Length - 1)
-            {
-                return targetIndex + 1;
-            }
-
-            if (tokenIndex >= tokens.Count - 1)
-            {
-                return target.Length + 1;
-            }
-
-
-            if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
-            {
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over unmatched chars.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                nextTokenIndex = tokenIndex + 1;
-
-                // skip over duplicate matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // return last match.
-                if (targetIndex <= target.Length)
-                {
-                    return targetIndex - 1;
-                }
-            }
-            else
-            {
-                int start = targetIndex;
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // no match in string.
-                if (targetIndex < target.Length)
-                {
-                    return -1;
-                }
-
-                // try the next token.
-                if (tokenIndex >= tokens.Count - 2)
-                {
-                    return target.Length + 1;
-                }
-
-                tokenIndex++;
-
-                return SkipToNext(target, start, tokens, ref tokenIndex);
-            }
-
-            return -1;
-        }
-
-        private static int Match(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
-        {
-            if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
-            {
-                return -1;
-            }
-
-            if (target == null || targetIndex < 0 || targetIndex >= target.Length)
-            {
-                if (tokens[tokenIndex] == "%" && tokenIndex == tokens.Count - 1)
-                {
-                    return targetIndex;
-                }
-
-                return -1;
-            }
-
-            string token = tokens[tokenIndex];
-
-            if (token == "_")
-            {
-                if (targetIndex >= target.Length)
-                {
-                    return -1;
-                }
-
-                return targetIndex + 1;
-            }
-
-            if (token == "%")
-            {
-                return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
-            }
-
-            if (token.StartsWith("[", StringComparison.Ordinal))
-            {
-                bool inverse = false;
-                bool match = false;
-
-                for (int ii = 1; ii < token.Length - 1; ii++)
-                {
-                    if (token[ii] == '^')
-                    {
-                        inverse = true;
-                        continue;
-                    }
-
-                    if (!inverse && target[targetIndex] == token[ii])
-                    {
-                        return targetIndex + 1;
-                    }
-
-                    match |= (inverse && target[targetIndex] == token[ii]);
-                }
-
-                if (inverse && !match)
-                {
-                    return targetIndex + 1;
-                }
-
-                return -1;
-            }
-
-            if (target.Substring(targetIndex).StartsWith(token, StringComparison.Ordinal))
-            {
-                return targetIndex + token.Length;
-            }
-
-            return -1;
         }
     }
 }

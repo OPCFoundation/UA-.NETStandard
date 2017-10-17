@@ -45,16 +45,16 @@ namespace Opc.Ua.GdsClient
         }
 
         private GlobalDiscoveryClientConfiguration m_configuration;
-        private GlobalDiscoveryServerMethods m_gds;
-        private ServerPushConfigurationMethods m_server;
+        private GlobalDiscoveryServerInterface m_gds;
+        private ServerPushConfigurationInterface m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
         private string m_certificatePassword;
 
         public async Task Initialize(
             GlobalDiscoveryClientConfiguration configuration,
-            GlobalDiscoveryServerMethods gds,
-            ServerPushConfigurationMethods server,
+            GlobalDiscoveryServerInterface gds,
+            ServerPushConfigurationInterface server,
             RegisteredApplication application,
             bool isHttps)
         {

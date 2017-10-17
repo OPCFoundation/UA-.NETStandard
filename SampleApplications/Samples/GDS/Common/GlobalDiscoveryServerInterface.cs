@@ -38,14 +38,14 @@ namespace Opc.Ua.Gds
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerMethods
+    public class GlobalDiscoveryServerInterface
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerMethods"/> class.
+        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerInterface"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public GlobalDiscoveryServerMethods(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
+        public GlobalDiscoveryServerInterface(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
         {
             m_application = application;
             m_application.ApplicationName = "GDS Client";
@@ -55,9 +55,9 @@ namespace Opc.Ua.Gds
             m_adminCredentials = new UserIdentity("appadmin", "demo");
 #endif
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the application.
         /// </summary>
@@ -128,9 +128,9 @@ namespace Opc.Ua.Gds
         ///   <c>true</c> if [is connected]; otherwise, <c>false</c>.
         /// </value>
         public bool IsConnected { get { return m_session != null && m_session.Connected; } }
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Selects the default GDS.
         /// </summary>
@@ -138,7 +138,7 @@ namespace Opc.Ua.Gds
         /// <returns>
         /// TRUE if successful; FALSE otherwise.
         /// </returns>
-        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerMethods lds)
+        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerInterface lds)
         {
             List<string> gdsUrls = new List<string>();
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds
 
                 if (lds == null)
                 {
-                    lds = new LocalDiscoveryServerMethods(this.Application.ApplicationConfiguration);
+                    lds = new LocalDiscoveryServerInterface(this.Application.ApplicationConfiguration);
                 }
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
@@ -286,9 +286,9 @@ namespace Opc.Ua.Gds
         /// Occurs when the server status changes.
         /// </summary>
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
-#endregion
+        #endregion
 
-#region GDS Methods
+        #region GDS Methods
         /// <summary>
         /// Finds the applications with the specified application uri.
         /// </summary>
@@ -357,7 +357,7 @@ namespace Opc.Ua.Gds
 
             return servers;
         }
-        
+
         /// <summary>
         /// Get the application record.
         /// </summary>
@@ -600,7 +600,7 @@ namespace Opc.Ua.Gds
 
             if (outputArguments.Count > 0)
             {
-                 return outputArguments[0] as NodeId;
+                return outputArguments[0] as NodeId;
             }
 
             return null;
@@ -671,9 +671,9 @@ namespace Opc.Ua.Gds
 
             return trustList;
         }
-#endregion
-        
-#region Private Methods
+        #endregion
+
+        #region Private Methods
         private IUserIdentity ElevatePermissions()
         {
             IUserIdentity oldUser = m_session.Identity;
@@ -733,14 +733,14 @@ namespace Opc.Ua.Gds
                 Utils.Trace(e, "Error reverting to normal permissions.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ApplicationInstance m_application;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;
         private UserIdentity m_adminCredentials;
-#endregion
+        #endregion
     }
 }
