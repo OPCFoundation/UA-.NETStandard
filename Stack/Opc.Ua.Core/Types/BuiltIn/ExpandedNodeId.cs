@@ -56,7 +56,7 @@ namespace Opc.Ua
 
             if (value.m_nodeId != null)
             {
-                m_nodeId = value.m_nodeId;
+                m_nodeId = new NodeId(value.m_nodeId);
             }
         }
 
@@ -73,7 +73,7 @@ namespace Opc.Ua
 
             if (nodeId != null)
             {
-                m_nodeId = nodeId;
+                m_nodeId = new NodeId(nodeId);
             }
         }
 
