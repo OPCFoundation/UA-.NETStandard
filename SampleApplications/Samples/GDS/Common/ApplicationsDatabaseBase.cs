@@ -34,6 +34,7 @@ using System.Text;
 
 namespace Opc.Ua.Gds
 {
+    [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
         #region IApplicationsDatabase Members

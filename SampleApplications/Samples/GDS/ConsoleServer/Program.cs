@@ -240,7 +240,7 @@ namespace Opc.Ua.GdsServer
             }
 
             // start the server.
-            server = new GlobalDiscoveryServer(new XmlApplicationsDatabase());
+            server = new GlobalDiscoveryServer(BinaryApplicationsDatabase.Load("gdsdb.bin"));
             await application.Start(server);
 
             // start the status thread

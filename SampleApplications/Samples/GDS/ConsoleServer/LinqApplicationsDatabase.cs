@@ -31,47 +31,22 @@ using Opc.Ua.Gds;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua.GdsServerDatabase
 {
-    class Entities
-    {
-        public object Lock = new object();
-
-        // DB tables
-        public ICollection<Application> Applications = new HashSet<Application>();
-        public ICollection<ApplicationName> ApplicationNames = new HashSet<ApplicationName>();
-        public ICollection<ServerEndpoint> ServerEndpoints = new HashSet<ServerEndpoint>();
-        public ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
-        public ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
-
-        public void SaveChanges()
-        {
-            // not yet implemented
-        }
-
-    };
-
+    [Serializable]
     class ApplicationName
     {
-        public int ID { get; set; }
-        public int ApplicationId { get; set; }
+        public Guid ApplicationId { get; set; }
         public string Locale { get; set; }
         public string Text { get; set; }
-        public virtual Application Application { get; set; }
     }
-
+    [Serializable]
     class Application
     {
-        public Application()
-        {
-            this.ApplicationNames = new HashSet<ApplicationName>();
-            this.ServerEndpoints = new HashSet<ServerEndpoint>();
-            this.CertificateRequests = new HashSet<CertificateRequest>();
-        }
-
-        public int ID { get; set; }
-        public System.Guid ApplicationId { get; set; }
+        public uint ID { get; set; }
+        public Guid ApplicationId { get; set; }
         public string ApplicationUri { get; set; }
         public string ApplicationName { get; set; }
         public int ApplicationType { get; set; }
@@ -79,53 +54,39 @@ namespace Opc.Ua.GdsServerDatabase
         public string ServerCapabilities { get; set; }
         public byte[] Certificate { get; set; }
         public byte[] HttpsCertificate { get; set; }
-        public Nullable<int> TrustListId { get; set; }
-        public Nullable<int> HttpsTrustListId { get; set; }
-        public virtual ICollection<ApplicationName> ApplicationNames { get; set; }
-        public virtual ICollection<ServerEndpoint> ServerEndpoints { get; set; }
-        public virtual CertificateStore HttpsTrustList { get; set; }
-        public virtual CertificateStore TrustList { get; set; }
-        public virtual ICollection<CertificateRequest> CertificateRequests { get; set; }
+        public Guid? TrustListId { get; set; }
+        public Guid? HttpsTrustListId { get; set; }
     }
-
+    [Serializable]
     class CertificateRequest
     {
-        public int ID { get; set; }
-        public System.Guid RequestId { get; set; }
-        public int ApplicationId { get; set; }
+        public Guid RequestId { get; set; }
+        public Guid ApplicationId { get; set; }
         public int State { get; set; }
         public byte[] Certificate { get; set; }
         public byte[] PrivateKey { get; set; }
         public string AuthorityId { get; set; }
-        public virtual Application Application { get; set; }
     }
-
+    [Serializable]
     class CertificateStore
     {
-        public CertificateStore()
+        CertificateStore()
         {
-            //this.HttpsApplications = new HashSet<Application>();
-            //this.Applications = new HashSet<Application>();
+            TrustListId = Guid.NewGuid();
         }
-        public int ID { get; set; }
         public string Path { get; set; }
         public string AuthorityId { get; set; }
-        //public virtual ICollection<Application> HttpsApplications { get; set; }
-        //public virtual ICollection<Application> Applications { get; set; }
+        public Guid TrustListId { get; private set; }
     }
-
+    [Serializable]
     class ServerEndpoint
     {
-        public int ID { get; set; }
-        public int ApplicationId { get; set; }
+        public Guid ApplicationId { get; set; }
         public string DiscoveryUrl { get; set; }
-        public virtual Application Application { get; set; }
     }
-
-    public class XmlApplicationsDatabase : ApplicationsDatabaseBase
+    [Serializable]
+    public class LinqApplicationsDatabase : ApplicationsDatabaseBase
     {
-        static Entities entities = new Entities();
-
         #region IApplicationsDatabase Members
         public override void Initialize()
         {
@@ -139,13 +100,13 @@ namespace Opc.Ua.GdsServerDatabase
             Guid applicationId = GetNodeIdGuid(appNodeId);
             string capabilities = base.ServerCapabilities(application);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
                 Application record = null;
 
                 if (applicationId != Guid.Empty)
                 {
-                    var results = from ii in entities.Applications
+                    var results = from ii in Applications
                                   where ii.ApplicationId == applicationId
                                   select ii;
 
@@ -153,25 +114,25 @@ namespace Opc.Ua.GdsServerDatabase
 
                     if (record != null)
                     {
-                        var endpoints = from ii in entities.ServerEndpoints
-                                        where ii.ApplicationId == record.ID
+                        var endpoints = from ii in ServerEndpoints
+                                        where ii.ApplicationId == record.ApplicationId
                                         select ii;
 
                         foreach (var endpoint in endpoints)
                         {
-                            entities.ServerEndpoints.Remove(endpoint);
+                            ServerEndpoints.Remove(endpoint);
                         }
 
-                        var names = from ii in entities.ApplicationNames
-                                    where ii.ApplicationId == record.ID
+                        var names = from ii in ApplicationNames
+                                    where ii.ApplicationId == record.ApplicationId
                                     select ii;
 
                         foreach (var name in names)
                         {
-                            entities.ApplicationNames.Remove(name);
+                            ApplicationNames.Remove(name);
                         }
 
-                        entities.SaveChanges();
+                        SaveChanges();
                     }
                 }
 
@@ -192,16 +153,16 @@ namespace Opc.Ua.GdsServerDatabase
 
                 if (isNew)
                 {
-                    entities.Applications.Add(record);
+                    Applications.Add(record);
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
 
                 if (application.DiscoveryUrls != null)
                 {
                     foreach (var discoveryUrl in application.DiscoveryUrls)
                     {
-                        entities.ServerEndpoints.Add(new ServerEndpoint() { ApplicationId = record.ID, DiscoveryUrl = discoveryUrl });
+                        ServerEndpoints.Add(new ServerEndpoint() { ApplicationId = record.ApplicationId, DiscoveryUrl = discoveryUrl });
                     }
                 }
 
@@ -209,11 +170,11 @@ namespace Opc.Ua.GdsServerDatabase
                 {
                     foreach (var applicationName in application.ApplicationNames)
                     {
-                        entities.ApplicationNames.Add(new ApplicationName() { ApplicationId = record.ID, Locale = applicationName.Locale, Text = applicationName.Text });
+                        ApplicationNames.Add(new ApplicationName() { ApplicationId = record.ApplicationId, Locale = applicationName.Locale, Text = applicationName.Text });
                     }
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
 
                 return new NodeId(applicationId, NamespaceIndex);
             }
@@ -227,16 +188,16 @@ namespace Opc.Ua.GdsServerDatabase
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var application = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
+                var application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
 
                 if (application == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
 
-                var request = (from x in application.CertificateRequests where x.AuthorityId == authorityId select x).SingleOrDefault();
+                var request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
 
                 bool isNew = false;
 
@@ -249,13 +210,14 @@ namespace Opc.Ua.GdsServerDatabase
                 request.State = (int)CertificateRequestState.New;
                 request.Certificate = certificate;
                 request.PrivateKey = privateKey;
+                request.ApplicationId = id;
 
                 if (isNew)
                 {
-                    application.CertificateRequests.Add(request);
+                    CertificateRequests.Add(request);
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
 
                 return new NodeId(request.RequestId, NamespaceIndex);
             }
@@ -269,9 +231,9 @@ namespace Opc.Ua.GdsServerDatabase
         {
             Guid id = GetNodeIdGuid(requestId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == id select x).SingleOrDefault();
+                var request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
 
                 if (request == null)
                 {
@@ -279,7 +241,7 @@ namespace Opc.Ua.GdsServerDatabase
                 }
 
                 request.State = (int)((isRejected) ? CertificateRequestState.Rejected : CertificateRequestState.Approved);
-                entities.SaveChanges();
+                SaveChanges();
             }
 
         }
@@ -293,10 +255,11 @@ namespace Opc.Ua.GdsServerDatabase
             certificate = null;
             privateKey = null;
             Guid reqId = GetNodeIdGuid(requestId);
+            Guid appId = GetNodeIdGuid(applicationId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var request = (from x in entities.CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
+                var request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
 
                 if (request == null)
                 {
@@ -318,19 +281,29 @@ namespace Opc.Ua.GdsServerDatabase
 
                 if (request.State == (int)CertificateRequestState.Approved)
                 {
+                    var application = (
+                        from ii in Applications
+                        where ii.ApplicationId == request.ApplicationId
+                        select ii).SingleOrDefault();
+
+                    if (application == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                    }
+
                     if (request.AuthorityId != "https")
                     {
-                        request.Application.Certificate = certificate;
+                        application.Certificate = certificate;
                     }
                     else
                     {
-                        request.Application.HttpsCertificate = certificate;
+                        application.HttpsCertificate = certificate;
                     }
 
                     request.State = (int)CertificateRequestState.Accepted;
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
                 return true;
             }
 
@@ -348,37 +321,52 @@ namespace Opc.Ua.GdsServerDatabase
 
             List<byte[]> certificates = new List<byte[]>();
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var result = (from ii in entities.Applications
+                var application = (from ii in Applications
                               where ii.ApplicationId == id
                               select ii).SingleOrDefault();
 
-                if (result == null)
+                if (application == null)
                 {
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
 
-                certificate = result.Certificate;
-                httpsCertificate = result.HttpsCertificate;
+                certificate = application.Certificate;
+                httpsCertificate = application.HttpsCertificate;
 
-                foreach (var entry in new List<CertificateRequest>(result.CertificateRequests))
+                var certificateRequests = 
+                    from ii in CertificateRequests
+                    where ii.ApplicationId == id
+                    select ii;
+
+                foreach (var entry in certificateRequests)
                 {
-                    entities.CertificateRequests.Remove(entry);
+                    CertificateRequests.Remove(entry);
                 }
 
-                foreach (var entry in new List<ApplicationName>(result.ApplicationNames))
+                var applicationNames =
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == id
+                    select ii;
+
+                foreach (var entry in new List<ApplicationName>(applicationNames))
                 {
-                    entities.ApplicationNames.Remove(entry);
+                    ApplicationNames.Remove(entry);
                 }
 
-                foreach (var entry in new List<ServerEndpoint>(result.ServerEndpoints))
+                var serverEndpoints =
+                    from ii in ServerEndpoints
+                    where ii.ApplicationId == id
+                    select ii;
+
+                foreach (var entry in new List<ServerEndpoint>(serverEndpoints))
                 {
-                    entities.ServerEndpoints.Remove(entry);
+                    ServerEndpoints.Remove(entry);
                 }
 
-                entities.Applications.Remove(result);
-                entities.SaveChanges();
+                Applications.Remove(application);
+                SaveChanges();
             }
 
         }
@@ -389,9 +377,9 @@ namespace Opc.Ua.GdsServerDatabase
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var results = from x in entities.Applications
+                var results = from x in Applications
                               where x.ApplicationId == id
                               select x;
 
@@ -411,11 +399,15 @@ namespace Opc.Ua.GdsServerDatabase
 
                 StringCollection discoveryUrls = null;
 
-                if (result.ServerEndpoints != null)
+                var endpoints = from ii in ServerEndpoints
+                                where ii.ApplicationId == result.ApplicationId
+                                select ii;
+
+                if (endpoints != null)
                 {
                     discoveryUrls = new StringCollection();
 
-                    foreach (var endpoint in result.ServerEndpoints)
+                    foreach (var endpoint in endpoints)
                     {
                         discoveryUrls.Add(endpoint.DiscoveryUrl);
                     }
@@ -445,9 +437,9 @@ namespace Opc.Ua.GdsServerDatabase
             string applicationUri
             )
         {
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var results = from x in entities.Applications
+                var results = from x in Applications
                               where x.ApplicationUri == applicationUri
                               select x;
 
@@ -464,11 +456,15 @@ namespace Opc.Ua.GdsServerDatabase
 
                     StringCollection discoveryUrls = null;
 
-                    if (result.ServerEndpoints != null)
+                    var endpoints = from ii in ServerEndpoints
+                                    where ii.ApplicationId == result.ApplicationId
+                                    select ii;
+
+                    if (endpoints != null)
                     {
                         discoveryUrls = new StringCollection();
 
-                        foreach (var endpoint in result.ServerEndpoints)
+                        foreach (var endpoint in endpoints)
                         {
                             discoveryUrls.Add(endpoint.DiscoveryUrl);
                         }
@@ -506,17 +502,17 @@ namespace Opc.Ua.GdsServerDatabase
             string[] serverCapabilities,
             out DateTime lastCounterResetTime)
         {
-            lastCounterResetTime = DateTime.MinValue;
-
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var results = from x in entities.ServerEndpoints
-                              join y in entities.Applications on x.ApplicationId equals y.ID
-                              where ((int)startingRecordId == 0 || (int)startingRecordId < x.ID)
-                              orderby x.ID
+                lastCounterResetTime = queryCounterResetTime;
+
+                var results = from x in ServerEndpoints
+                              join y in Applications on x.ApplicationId equals y.ApplicationId
+                              where y.ID >= startingRecordId
+                              orderby y.ID
                               select new
                               {
-                                  x.ID,
+                                  y.ID,
                                   y.ApplicationName,
                                   y.ApplicationUri,
                                   y.ProductUri,
@@ -578,14 +574,18 @@ namespace Opc.Ua.GdsServerDatabase
                         }
                     }
 
-
                     records.Add(new ServerOnNetwork()
                     {
-                        RecordId = (uint)result.ID,
+                        RecordId = result.ID,
                         ServerName = result.ApplicationName,
                         DiscoveryUrl = result.DiscoveryUrl,
                         ServerCapabilities = capabilities
                     });
+
+                    if (records.Count >= maxRecordsToReturn)
+                    {
+                        break;
+                    }
                 }
 
                 return records.ToArray();
@@ -600,9 +600,9 @@ namespace Opc.Ua.GdsServerDatabase
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var results = from x in entities.Applications
+                var results = from x in Applications
                               where x.ApplicationId == id
                               select x;
 
@@ -622,7 +622,7 @@ namespace Opc.Ua.GdsServerDatabase
                     result.Certificate = certificate;
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
             }
 
             return true;
@@ -636,9 +636,9 @@ namespace Opc.Ua.GdsServerDatabase
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (entities.Lock)
+            lock (Lock)
             {
-                var result = (from x in entities.Applications where x.ApplicationId == id select x).SingleOrDefault();
+                var result = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
 
                 if (result == null)
                 {
@@ -652,11 +652,11 @@ namespace Opc.Ua.GdsServerDatabase
                 {
                     string storePath = trustListId.ToString();
 
-                    var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
+                    var result2 = (from x in CertificateStores where x.Path == storePath select x).SingleOrDefault();
 
                     if (result2 != null)
                     {
-                        result.TrustListId = result2.ID;
+                        result.TrustListId = result2.TrustListId;
                     }
                 }
 
@@ -664,19 +664,56 @@ namespace Opc.Ua.GdsServerDatabase
                 {
                     string storePath = httpsTrustListId.ToString();
 
-                    var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
+                    var result2 = (from x in CertificateStores where x.Path == storePath select x).SingleOrDefault();
 
                     if (result2 != null)
                     {
-                        result.HttpsTrustListId = result2.ID;
+                        result.HttpsTrustListId = result2.TrustListId;
                     }
                 }
 
-                entities.SaveChanges();
+                SaveChanges();
             }
 
             return true;
         }
+        #endregion
+        #region Public Members
+        public virtual void Save()
+        {
+        }
+        #endregion
+        #region Private Members
+        private void SaveChanges()
+        {
+            lock (Lock)
+            {
+                queryCounterResetTime = DateTime.UtcNow;
+                uint queryCounter = 0;
+                foreach (var application in Applications)
+                {
+                    application.ID = queryCounter++;
+                }
+                Save();
+            }
+        }
+        #endregion
+        #region Internal Members
+        [OnDeserialized]
+        internal void OnDeserializedMethod(StreamingContext context)
+        {
+            Lock = new object();
+            queryCounterResetTime = DateTime.UtcNow;
+        }
+        #endregion
+        #region Private Fields
+        [NonSerialized] object Lock = new object();
+        [NonSerialized] DateTime queryCounterResetTime = DateTime.UtcNow;
+        ICollection<Application> Applications = new HashSet<Application>();
+        ICollection<ApplicationName> ApplicationNames = new HashSet<ApplicationName>();
+        ICollection<ServerEndpoint> ServerEndpoints = new HashSet<ServerEndpoint>();
+        ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
+        ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
         #endregion
     }
 }
