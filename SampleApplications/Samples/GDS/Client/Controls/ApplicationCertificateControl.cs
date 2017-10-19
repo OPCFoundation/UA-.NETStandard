@@ -182,7 +182,7 @@ namespace Opc.Ua.GdsClient
                     if (m_certificate != null &&
                         m_certificate.HasPrivateKey)
                     {
-                        m_certificate = await id.LoadPrivateKey(string.Empty);
+                        m_certificate = await id.LoadPrivateKey(m_certificatePassword);
                     }
                 }
 

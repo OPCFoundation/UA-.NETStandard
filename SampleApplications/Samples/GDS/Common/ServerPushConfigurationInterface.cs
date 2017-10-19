@@ -314,6 +314,11 @@ namespace Opc.Ua.Gds
         /// <exception cref="System.InvalidOperationException">Connection to server is not active.</exception>
         public string[] GetSupportedKeyFormats()
         {
+            if (AdminCredentials == null || Endpoint == null)
+            {
+                return null;
+            }
+
             if (!IsConnected)
             {
                 Connect();
