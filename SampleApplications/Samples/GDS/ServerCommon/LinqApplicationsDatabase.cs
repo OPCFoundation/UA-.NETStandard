@@ -581,7 +581,8 @@ namespace Opc.Ua.Gds.Server.Database
                         ServerCapabilities = capabilities
                     });
 
-                    if (records.Count >= maxRecordsToReturn)
+                    if (maxRecordsToReturn != 0 &&
+                        records.Count >= maxRecordsToReturn)
                     {
                         break;
                     }

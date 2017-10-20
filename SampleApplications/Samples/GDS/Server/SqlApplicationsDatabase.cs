@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 entities.SaveChanges();
-
+                m_lastCounterResetTime = DateTime.UtcNow;
                 return new NodeId(applicationId, NamespaceIndex); ;
             }
         }
@@ -298,6 +298,7 @@ namespace Opc.Ua.Gds.Server
 
                 entities.Applications.Remove(result);
                 entities.SaveChanges();
+                m_lastCounterResetTime = DateTime.UtcNow;
             }
         }
 
@@ -423,7 +424,7 @@ namespace Opc.Ua.Gds.Server
             string[] serverCapabilities,
             out DateTime lastCounterResetTime)
         {
-            lastCounterResetTime = DateTime.MinValue;
+            lastCounterResetTime = m_lastCounterResetTime;
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
@@ -503,6 +504,12 @@ namespace Opc.Ua.Gds.Server
                         DiscoveryUrl = result.DiscoveryUrl,
                         ServerCapabilities = capabilities
                     });
+
+                    if (maxRecordsToReturn != 0 &&
+                        records.Count >= maxRecordsToReturn)
+                    {
+                        break;
+                    }
                 }
 
                 return records.ToArray();
@@ -592,6 +599,9 @@ namespace Opc.Ua.Gds.Server
 
             return true;
         }
+        #endregion
+        #region Private Fileds
+        private DateTime m_lastCounterResetTime = DateTime.MinValue;
+        #endregion
     }
-    #endregion
 }
