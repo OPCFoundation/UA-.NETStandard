@@ -16,14 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\Common\GlobalDiscoveryLibrary.csproj" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Compile Include="..\Server\ApplicationsNodeManager.cs;..\Server\GlobalDiscoveryServer.cs;..\Server\GlobalDiscoveryServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
+    <ProjectReference Include="..\ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
   </ItemGroup>
 
 </Project>

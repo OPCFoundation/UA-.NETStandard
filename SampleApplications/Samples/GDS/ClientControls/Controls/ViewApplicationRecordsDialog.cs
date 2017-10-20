@@ -38,7 +38,7 @@ namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ViewApplicationRecordsDialog : Form
     {
-        public ViewApplicationRecordsDialog(GlobalDiscoveryServerInterface gds)
+        public ViewApplicationRecordsDialog(GlobalDiscoveryServerConnection gds)
         {
             InitializeComponent();
             Icon = ClientUtils.GetAppIcon();
@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Client.Controls
 
         private DataTable ApplicationsTable { get { return m_dataset.Tables[0]; } }
         private DataSet m_dataset;
-        private GlobalDiscoveryServerInterface m_gds;
+        private GlobalDiscoveryServerConnection m_gds;
 
         public ApplicationRecordDataType ShowDialog(IWin32Window owner, IList<ApplicationRecordDataType> records, NodeId defaultRecord)
         {

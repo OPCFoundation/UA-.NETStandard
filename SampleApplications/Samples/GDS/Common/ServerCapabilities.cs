@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// The set known capability identifiers.

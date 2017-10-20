@@ -35,7 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Gds;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class ApplicationTrustListControl : UserControl
     {
@@ -44,13 +44,13 @@ namespace Opc.Ua.GdsClient
             InitializeComponent();
         }
 
-        private GlobalDiscoveryServerInterface m_gds;
-        private ServerPushConfigurationInterface m_server;
+        private GlobalDiscoveryServerConnection m_gds;
+        private ServerPushConfigurationConnection m_server;
         private RegisteredApplication m_application;
         private string m_trustListStorePath;
         private string m_issuerListStorePath;
 
-        public void Initialize(GlobalDiscoveryServerInterface gds, ServerPushConfigurationInterface server, RegisteredApplication application, bool isHttps)
+        public void Initialize(GlobalDiscoveryServerConnection gds, ServerPushConfigurationConnection server, RegisteredApplication application, bool isHttps)
         {
             m_gds = gds;
             m_server = server;

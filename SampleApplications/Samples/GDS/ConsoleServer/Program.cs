@@ -34,9 +34,10 @@ using System.Threading.Tasks;
 using Mono.Options;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
-using Opc.Ua.GdsServerDatabase;
+using Opc.Ua.Gds.Server.Database;
 
-namespace Opc.Ua.GdsServer
+
+namespace Opc.Ua.Gds.Server
 {
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {

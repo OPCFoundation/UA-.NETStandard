@@ -28,11 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Windows.Forms;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     static class Program
     {

@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleAppl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{72D92985-2B09-409C-8573-35DB1BEA370C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryClientLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClientControls", "SampleApplications\Samples\GDS\ClientControls\GlobalDiscoveryClientControls.csproj", "{228EC503-2E77-45C9-87AC-3BB312E43196}"
 EndProject
@@ -24,6 +24,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClient", "SampleApplications\Samples\GDS\Client\GlobalDiscoveryClient.csproj", "{2ADA8796-AC1F-4031-9162-D4ED79D828AF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreGlobalDiscoveryServer", "SampleApplications\Samples\GDS\ConsoleServer\NetCoreGlobalDiscoveryServer.csproj", "{F7547B35-0B81-4789-88C3-B575D31B197D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{77860818-3989-4D5D-95FF-437925891383}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,6 +77,10 @@ Global
 		{F7547B35-0B81-4789-88C3-B575D31B197D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F7547B35-0B81-4789-88C3-B575D31B197D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F7547B35-0B81-4789-88C3-B575D31B197D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

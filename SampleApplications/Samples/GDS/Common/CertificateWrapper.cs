@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class CertificateWrapper : IFormattable, IEncodeable

@@ -38,7 +38,7 @@ namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ViewServersOnNetworkDialog : Form
     {
-        public ViewServersOnNetworkDialog(GlobalDiscoveryServerInterface gds)
+        public ViewServersOnNetworkDialog(GlobalDiscoveryServerConnection gds)
         {
             InitializeComponent();
             Icon = ClientUtils.GetAppIcon();
@@ -60,7 +60,7 @@ namespace Opc.Ua.Gds.Client.Controls
 
         private DataTable ServersTable { get { return m_dataset.Tables[0]; } }
         private DataSet m_dataset;
-        private GlobalDiscoveryServerInterface m_gds;
+        private GlobalDiscoveryServerConnection m_gds;
 
         public List<ServerOnNetwork> ShowDialog(IWin32Window owner, ref QueryServersFilter filters)
         {

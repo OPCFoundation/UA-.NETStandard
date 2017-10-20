@@ -32,13 +32,14 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Gds;
 using Opc.Ua.Server;
 using System.Threading.Tasks;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Pkcs;
+using Opc.Ua.Gds.Server.Database;
 
-namespace Opc.Ua.GdsServer
+
+namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// A node manager for a server that exposes several variables.
@@ -715,7 +716,7 @@ namespace Opc.Ua.GdsServer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Gds.Model.Opc.Ua.Gds.PredefinedNodes.uanodes", typeof(Opc.Ua.Gds.ObjectIds).Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Gds.Server.Model.Opc.Ua.Gds.PredefinedNodes.uanodes", typeof(ApplicationsNodeManager).Assembly, true);
             return predefinedNodes;
         }
 

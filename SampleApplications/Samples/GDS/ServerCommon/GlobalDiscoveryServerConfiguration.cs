@@ -30,7 +30,7 @@
 using System.Runtime.Serialization;
 using System.Collections.Generic;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// Stores the configuration the data access node manager.

@@ -33,19 +33,19 @@ using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerInterface
+    public class GlobalDiscoveryServerConnection
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerInterface"/> class.
+        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerConnection"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public GlobalDiscoveryServerInterface(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
+        public GlobalDiscoveryServerConnection(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
         {
             m_application = application;
             m_application.ApplicationName = "GDS Client";
@@ -138,7 +138,7 @@ namespace Opc.Ua.Gds
         /// <returns>
         /// TRUE if successful; FALSE otherwise.
         /// </returns>
-        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerInterface lds)
+        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerConnection lds)
         {
             List<string> gdsUrls = new List<string>();
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds
 
                 if (lds == null)
                 {
-                    lds = new LocalDiscoveryServerInterface(this.Application.ApplicationConfiguration);
+                    lds = new LocalDiscoveryServerConnection(this.Application.ApplicationConfiguration);
                 }
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);

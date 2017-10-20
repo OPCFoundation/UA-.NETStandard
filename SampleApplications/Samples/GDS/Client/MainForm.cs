@@ -37,7 +37,7 @@ using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client.Controls;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class MainForm : Form
     {
@@ -63,11 +63,11 @@ namespace Opc.Ua.GdsClient
 
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
-            m_gds = new GlobalDiscoveryServerInterface(m_application, m_configuration);
+            m_gds = new GlobalDiscoveryServerConnection(m_application, m_configuration);
             m_gds.KeepAlive += GdsServer_KeepAlive;
             m_gds.ServerStatusChanged += GdsServer_StatusNotification;
-            m_lds = new LocalDiscoveryServerInterface(m_application.ApplicationConfiguration);
-            m_server = new ServerPushConfigurationInterface(m_application);
+            m_lds = new LocalDiscoveryServerConnection(m_application.ApplicationConfiguration);
+            m_server = new ServerPushConfigurationConnection(m_application);
             m_server.KeepAlive += Server_KeepAlive;
             m_server.ServerStatusChanged += Server_StatusNotification;
             m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
@@ -92,9 +92,9 @@ namespace Opc.Ua.GdsClient
         private ConfiguredEndpointCollection m_endpoints = null;
         private QueryServersFilter m_filters;
         private UserIdentity m_identity;
-        private GlobalDiscoveryServerInterface m_gds;
-        private LocalDiscoveryServerInterface m_lds;
-        private ServerPushConfigurationInterface m_server;
+        private GlobalDiscoveryServerConnection m_gds;
+        private LocalDiscoveryServerConnection m_lds;
+        private ServerPushConfigurationConnection m_server;
         private RegisteredApplication m_registeredApplication;
         private GlobalDiscoveryClientConfiguration m_configuration;
         private bool m_gdsConfigured;
@@ -393,11 +393,11 @@ namespace Opc.Ua.GdsClient
         {
             if (error)
             {
-                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.error;
+                GdsServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.error;
             }
             else
             {
-                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+                GdsServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             }
 
             GdsServerStatusLabel.Text = String.Format(status, args);
@@ -411,11 +411,11 @@ namespace Opc.Ua.GdsClient
 #if TODO_SERVERPUSH
             if (error)
             {
-                ServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.error;
+                ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.error;
             }
             else
             {
-                ServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+                ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             }
 
             ServerStatusLabel.Text = String.Format(status, args);

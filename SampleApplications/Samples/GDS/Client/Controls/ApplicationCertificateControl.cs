@@ -35,7 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class ApplicationCertificateControl : UserControl
     {
@@ -45,16 +45,16 @@ namespace Opc.Ua.GdsClient
         }
 
         private GlobalDiscoveryClientConfiguration m_configuration;
-        private GlobalDiscoveryServerInterface m_gds;
-        private ServerPushConfigurationInterface m_server;
+        private GlobalDiscoveryServerConnection m_gds;
+        private ServerPushConfigurationConnection m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
         private string m_certificatePassword;
 
         public async Task Initialize(
             GlobalDiscoveryClientConfiguration configuration,
-            GlobalDiscoveryServerInterface gds,
-            ServerPushConfigurationInterface server,
+            GlobalDiscoveryServerConnection gds,
+            ServerPushConfigurationConnection server,
             RegisteredApplication application,
             bool isHttps)
         {

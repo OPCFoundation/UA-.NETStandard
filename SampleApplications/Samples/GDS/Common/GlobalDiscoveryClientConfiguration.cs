@@ -29,7 +29,7 @@
 
 using System.Runtime.Serialization;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// Stores the configuration the data access node manager.

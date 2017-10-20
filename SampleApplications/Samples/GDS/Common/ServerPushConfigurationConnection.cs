@@ -33,19 +33,19 @@ using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// A class used to access the Push Configuration information model.
     /// </summary>
-    public class ServerPushConfigurationInterface
+    public class ServerPushConfigurationConnection
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServerPushConfigurationInterface"/> class.
+        /// Initializes a new instance of the <see cref="ServerPushConfigurationConnection"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public ServerPushConfigurationInterface(ApplicationInstance application)
+        public ServerPushConfigurationConnection(ApplicationInstance application)
         {
             m_application = application;
         }

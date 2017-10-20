@@ -220,9 +220,9 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryLibrary.csproj">
+    <ProjectReference Include="..\Common\GlobalDiscoveryClientLibrary.csproj">
       <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
-      <Name>GlobalDiscoveryLibrary</Name>
+      <Name>GlobalDiscoveryClientLibrary</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

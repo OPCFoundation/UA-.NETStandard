@@ -30,27 +30,26 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.IO;
-using System.Windows.Forms;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Windows.Forms;
 using System.Xml.Serialization;
-using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client.Controls;
-using System.Runtime.Serialization;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class RegisterApplicationControl : UserControl
     {
         public RegisterApplicationControl()
         {
             InitializeComponent();
+            // TODO:
             m_lastSavePath = m_lastDirPath = "%MyDocuments%\\OPC Foundation\\GDS";
             Utils.GetAbsoluteDirectoryPath(m_lastDirPath, true, false, true);
 
-            m_application = new Gds.RegisteredApplication();
+            m_application = new RegisteredApplication();
 
             RegistrationTypeComboBox.Items.Add("Client - Pull Management");
             RegistrationTypeComboBox.Items.Add("Server - Pull Management");
@@ -69,7 +68,7 @@ namespace Opc.Ua.GdsClient
 
         private string m_lastDirPath;
         private string m_lastSavePath;
-        private GlobalDiscoveryServerInterface m_gds;
+        private GlobalDiscoveryServerConnection m_gds;
         private RegisteredApplication m_application;
         private bool m_promptOnRegistrationTypeChange;
         private string m_externalEditor;
@@ -95,7 +94,7 @@ namespace Opc.Ua.GdsClient
             }
         }
         
-        public void Initialize(GlobalDiscoveryServerInterface gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
+        public void Initialize(GlobalDiscoveryServerConnection gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
         {
             m_gds = gds;
             m_application.ServerUrl = null;

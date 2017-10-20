@@ -32,9 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Opc.Ua.Gds;
+using Opc.Ua.Gds.Server.Database;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     public class SqlApplicationsDatabase : ApplicationsDatabaseBase
     {
@@ -44,7 +44,7 @@ namespace Opc.Ua.GdsServer
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 Assembly assembly = typeof(SqlApplicationsDatabase).GetTypeInfo().Assembly;
-                StreamReader istrm = new StreamReader(assembly.GetManifestResourceStream("Opc.Ua.GdsServer.DB.Tables.sql"));
+                StreamReader istrm = new StreamReader(assembly.GetManifestResourceStream("Opc.Ua.Gds.Server.DB.Tables.sql"));
                 string tables = istrm.ReadToEnd();
                 entities.Database.Initialize(true);
                 entities.Database.CreateIfNotExists();

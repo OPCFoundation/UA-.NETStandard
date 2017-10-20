@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// The arguments passed with a AdminCredentialsRequiredEventArgs event.

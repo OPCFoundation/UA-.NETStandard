@@ -32,7 +32,8 @@ using System.Collections.Generic;
 using System.Text;
 
 
-namespace Opc.Ua.Gds
+
+namespace Opc.Ua.Gds.Server.Database
 {
     [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase

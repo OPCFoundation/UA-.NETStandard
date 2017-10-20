@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Gds;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 
-namespace Opc.Ua.GdsServerDatabase
+namespace Opc.Ua.Gds.Server.Database
 {
     [Serializable]
     class ApplicationName

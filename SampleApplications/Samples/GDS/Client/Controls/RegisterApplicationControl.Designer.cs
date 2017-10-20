@@ -14,7 +14,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     partial class RegisterApplicationControl
     {

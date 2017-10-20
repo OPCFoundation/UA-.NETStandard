@@ -29,7 +29,7 @@
 
 using System.Xml;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     public enum GdsRole
     {

@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Server.Database
 {
     public enum CertificateRequestState
     {
