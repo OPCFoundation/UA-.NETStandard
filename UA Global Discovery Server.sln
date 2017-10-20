@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleAppl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{72D92985-2B09-409C-8573-35DB1BEA370C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryClientLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClientControls", "SampleApplications\Samples\GDS\ClientControls\GlobalDiscoveryClientControls.csproj", "{228EC503-2E77-45C9-87AC-3BB312E43196}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryServer", "SampleApplications\Samples\GDS\Server\GlobalDiscoveryServer.csproj", "{2E23571F-9987-4EBD-A9FD-5D5DD639E071}"
@@ -26,6 +24,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreGlobalDiscoveryServer", "SampleApplications\Samples\GDS\ConsoleServer\NetCoreGlobalDiscoveryServer.csproj", "{F7547B35-0B81-4789-88C3-B575D31B197D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{77860818-3989-4D5D-95FF-437925891383}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,10 +57,6 @@ Global
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -81,6 +77,10 @@ Global
 		{77860818-3989-4D5D-95FF-437925891383}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

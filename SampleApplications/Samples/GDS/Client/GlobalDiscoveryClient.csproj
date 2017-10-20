@@ -140,13 +140,13 @@
       <Name>UA Client Controls</Name>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+      <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
+      <Name>GlobalDiscoveryClientLibrary</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ClientControls\GlobalDiscoveryClientControls.csproj">
       <Project>{228ec503-2e77-45c9-87ac-3bb312e43196}</Project>
       <Name>GlobalDiscoveryClientControls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryClientLibrary.csproj">
-      <Project>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</Project>
-      <Name>GlobalDiscoveryClientLibrary</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

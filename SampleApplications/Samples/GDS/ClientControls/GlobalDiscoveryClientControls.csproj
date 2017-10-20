@@ -220,8 +220,8 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryClientLibrary.csproj">
-      <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
+    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+      <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
       <Name>GlobalDiscoveryClientLibrary</Name>
     </ProjectReference>
   </ItemGroup>

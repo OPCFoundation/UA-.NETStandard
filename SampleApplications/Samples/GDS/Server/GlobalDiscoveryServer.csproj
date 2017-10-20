@@ -184,10 +184,6 @@
       <Name>UA Server Controls</Name>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryClientLibrary.csproj">
-      <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
-      <Name>GlobalDiscoveryClientLibrary</Name>
-    </ProjectReference>
     <ProjectReference Include="..\ServerCommon\GlobalDiscoveryServerLibrary.csproj">
       <Project>{77860818-3989-4d5d-95ff-437925891383}</Project>
       <Name>GlobalDiscoveryServerLibrary</Name>
