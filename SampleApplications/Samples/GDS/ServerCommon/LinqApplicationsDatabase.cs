@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using Newtonsoft.Json;
 
 namespace Opc.Ua.Gds.Server.Database
 {
@@ -113,18 +114,18 @@ namespace Opc.Ua.Gds.Server.Database
 
                     if (record != null)
                     {
-                        var endpoints = from ii in ServerEndpoints
+                        var endpoints = (from ii in ServerEndpoints
                                         where ii.ApplicationId == record.ApplicationId
-                                        select ii;
+                                        select ii).ToList<ServerEndpoint>();
 
                         foreach (var endpoint in endpoints)
                         {
                             ServerEndpoints.Remove(endpoint);
                         }
 
-                        var names = from ii in ApplicationNames
+                        var names = (from ii in ApplicationNames
                                     where ii.ApplicationId == record.ApplicationId
-                                    select ii;
+                                    select ii).ToList<ApplicationName>();
 
                         foreach (var name in names)
                         {
@@ -706,14 +707,21 @@ namespace Opc.Ua.Gds.Server.Database
             queryCounterResetTime = DateTime.UtcNow;
         }
         #endregion
-        #region Private Fields
-        [NonSerialized] object Lock = new object();
-        [NonSerialized] DateTime queryCounterResetTime = DateTime.UtcNow;
-        ICollection<Application> Applications = new HashSet<Application>();
-        ICollection<ApplicationName> ApplicationNames = new HashSet<ApplicationName>();
-        ICollection<ServerEndpoint> ServerEndpoints = new HashSet<ServerEndpoint>();
-        ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
-        ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
+        #region Internal Fields
+        [NonSerialized]
+        internal object Lock = new object();
+        [NonSerialized]
+        internal DateTime queryCounterResetTime = DateTime.UtcNow;
+        [JsonProperty]
+        internal ICollection<Application> Applications = new HashSet<Application>();
+        [JsonProperty]
+        internal ICollection<ApplicationName> ApplicationNames = new HashSet<ApplicationName>();
+        [JsonProperty]
+        internal ICollection<ServerEndpoint> ServerEndpoints = new HashSet<ServerEndpoint>();
+        [JsonProperty]
+        internal ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
+        [JsonProperty]
+        internal ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
         #endregion
     }
 }

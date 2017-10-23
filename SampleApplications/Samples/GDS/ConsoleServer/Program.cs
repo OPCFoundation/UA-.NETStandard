@@ -240,8 +240,12 @@ namespace Opc.Ua.Gds.Server
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
 
+            // get the DatabaseStorePath configuration parameter.
+            GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            string databaseStorePath = gdsConfiguration.DatabaseStorePath;
+
             // start the server.
-            server = new GlobalDiscoveryServer(BinaryApplicationsDatabase.Load("gdsdb.bin"));
+            server = new GlobalDiscoveryServer(JsonApplicationsDatabase.Load(databaseStorePath));
             await application.Start(server);
 
             // start the status thread

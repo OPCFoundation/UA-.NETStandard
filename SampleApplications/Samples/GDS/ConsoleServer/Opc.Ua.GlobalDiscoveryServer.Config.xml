@@ -140,7 +140,8 @@
         </CertificateGroups>
         <KnownHostNames/>
         <ShutdownDelay>5</ShutdownDelay>
-    </GlobalDiscoveryServerConfiguration>
+        <DatabaseStorePath>gdsdb.json</DatabaseStorePath>
+      </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
