@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Client
             return privateKeyFormat;
         }
 
-        public string[] GetDomainNames(X509Certificate2 certificate)
+        public List<string> GetDomainNames(X509Certificate2 certificate)
         {
             List<string> domainNames = new List<string>();
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (trimmedDomains.Count > 0)
                 {
-                    return trimmedDomains.ToArray();
+                    return trimmedDomains;
                 }
             }
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.Gds.Client
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                return domainNames.ToArray();
+                return domainNames;
             }
 
             if (certificate != null)
@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Client
                 if (names != null && names.Count > 0)
                 {
                     domainNames.AddRange(names);
-                    return domainNames.ToArray();
+                    return domainNames;
                 }
 
                 var fields = Utils.ParseDistinguishedName(certificate.Subject);
@@ -179,11 +179,12 @@ namespace Opc.Ua.Gds.Client
                 if (names != null)
                 {
                     domainNames.AddRange(names);
-                    return domainNames.ToArray();
+                    return domainNames;
                 }
             }
 
-            return new string[] { Utils.GetHostName() };
+            domainNames.Add(Utils.GetHostName());
+            return domainNames;
         }
 
     }
