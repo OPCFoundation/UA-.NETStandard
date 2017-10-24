@@ -46,9 +46,11 @@ namespace Opc.Ua.Gds.Server
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance();
-            application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer";
+            ApplicationInstance application = new ApplicationInstance
+            {
+                ApplicationType = ApplicationType.Server,
+                ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer"
+            };
 
             try
             {

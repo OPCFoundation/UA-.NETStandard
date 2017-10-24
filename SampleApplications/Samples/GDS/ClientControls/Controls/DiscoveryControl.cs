@@ -123,8 +123,10 @@ namespace Opc.Ua.Gds.Client.Controls
 
                                 if (server != null)
                                 {
-                                    var endpoint = new EndpointDescription(server.DiscoveryUrl);
-                                    endpoint.Server = GetApplicationDescription(server);
+                                    var endpoint = new EndpointDescription(server.DiscoveryUrl)
+                                    {
+                                        Server = GetApplicationDescription(server)
+                                    };
                                     return endpoint;
                                 }
                             }
@@ -135,8 +137,10 @@ namespace Opc.Ua.Gds.Client.Controls
 
                                 if (application != null)
                                 {
-                                    var endpoint = new EndpointDescription(SelectDiscoveryUrl(application));
-                                    endpoint.Server = application;
+                                    var endpoint = new EndpointDescription(SelectDiscoveryUrl(application))
+                                    {
+                                        Server = application
+                                    };
                                     return endpoint;
                                 }
                             }
@@ -171,8 +175,10 @@ namespace Opc.Ua.Gds.Client.Controls
                         if (endpoint == null)
                         {
                             ApplicationDescription application = (ApplicationDescription)node.Tag;
-                            endpoint = new EndpointDescription(SelectDiscoveryUrl(application));
-                            endpoint.Server = application;
+                            endpoint = new EndpointDescription(SelectDiscoveryUrl(application))
+                            {
+                                Server = application
+                            };
                         }
 
                         return endpoint;
@@ -185,8 +191,10 @@ namespace Opc.Ua.Gds.Client.Controls
                         if (endpoint == null)
                         {
                             ServerOnNetwork server = (ServerOnNetwork)node.Tag;
-                            endpoint = new EndpointDescription(server.DiscoveryUrl);
-                            endpoint.Server = GetApplicationDescription(server);
+                            endpoint = new EndpointDescription(server.DiscoveryUrl)
+                            {
+                                Server = GetApplicationDescription(server)
+                            };
                         }
 
                         return endpoint;

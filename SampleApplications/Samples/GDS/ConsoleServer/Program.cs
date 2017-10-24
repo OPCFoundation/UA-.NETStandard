@@ -219,11 +219,12 @@ namespace Opc.Ua.Gds.Server
         private async Task ConsoleGlobalDiscoveryServer()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance();
-
-            application.ApplicationName = "Global Discovery Server";
-            application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer";
+            ApplicationInstance application = new ApplicationInstance
+            {
+                ApplicationName = "Global Discovery Server",
+                ApplicationType = ApplicationType.Server,
+                ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer"
+            };
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
