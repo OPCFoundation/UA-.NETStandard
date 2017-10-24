@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 using System.Globalization;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
@@ -27,7 +27,7 @@ namespace Opc.Ua
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ExpandedNodeId : IComparable, IFormattable
-    {                     
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// <param name="value">The ExpandedNodeId to copy</param>
         /// <exception cref="ArgumentNullException">Thrown when the parameter is null</exception>
         public ExpandedNodeId(ExpandedNodeId value)
-        {            
+        {
             if (value == null) throw new ArgumentNullException("value");
 
             m_namespaceUri = value.m_namespaceUri;
@@ -106,7 +106,7 @@ namespace Opc.Ua
 
             if (nodeId != null)
             {
-                m_nodeId = nodeId;
+                m_nodeId = new NodeId(nodeId);
             }
 
             if (!String.IsNullOrEmpty(namespaceUri))
@@ -131,7 +131,7 @@ namespace Opc.Ua
 
             if (nodeId != null)
             {
-                m_nodeId = nodeId;
+                m_nodeId = new NodeId(nodeId);
             }
 
             if (!String.IsNullOrEmpty(namespaceUri))
@@ -140,7 +140,7 @@ namespace Opc.Ua
             }
 
             m_serverIndex = serverIndex;
-        }        
+        }
         
         /// <summary>
         /// Initializes a numeric node identifier.
@@ -170,7 +170,7 @@ namespace Opc.Ua
             Initialize();
             m_nodeId = new NodeId(value, namespaceIndex);
         }
-        
+
         /// <summary>
         /// Initializes a guid node identifier with a namespace URI.
         /// </summary>
@@ -186,7 +186,7 @@ namespace Opc.Ua
             m_nodeId = new NodeId(value);
             SetNamespaceUri(namespaceUri);
         }
-        
+
         /// <summary>
         /// Initializes a string node identifier with a namespace index.
         /// </summary>
@@ -230,7 +230,7 @@ namespace Opc.Ua
             Initialize();
             m_nodeId = new NodeId(value);
         }
-                
+
         /// <summary>
         /// Initializes a guid node identifier.
         /// </summary>
@@ -259,7 +259,7 @@ namespace Opc.Ua
             Initialize();
             m_nodeId = new NodeId(value, namespaceIndex);
         }
-                
+
         /// <summary>
         /// Initializes an opaque node identifier with a namespace index.
         /// </summary>
@@ -286,7 +286,7 @@ namespace Opc.Ua
         {
             Initialize();
             m_nodeId = new NodeId(text);
-		}    
+        }
 
         /// <summary>
         /// Sets the private members to default values.
@@ -340,7 +340,7 @@ namespace Opc.Ua
                 return IdType.Numeric;
             } 
         }
-                
+
         /// <summary>
         /// The node identifier.
         /// </summary>
@@ -359,7 +359,7 @@ namespace Opc.Ua
 
                 return null;
             }
-        }        
+        }
 
         /// <summary>
         /// The namespace that qualifies the node identifier.
@@ -371,7 +371,7 @@ namespace Opc.Ua
         {
             get { return m_namespaceUri; }
         }
-        
+
         /// <summary>
         /// The index of the server where the node exists.
         /// </summary>
@@ -382,7 +382,7 @@ namespace Opc.Ua
         {
             get { return m_serverIndex; }
         }
-                
+
         /// <summary>
         /// Whether the object represents a Null NodeId.
         /// </summary>
@@ -406,7 +406,7 @@ namespace Opc.Ua
                 return NodeId.IsNull(m_nodeId);
             }
         }
-           
+
         /// <summary>
         /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
         /// </summary>
@@ -425,7 +425,7 @@ namespace Opc.Ua
                 return false;
             }
         }
-           
+
         /// <summary>
         /// Returns the inner node id.
         /// </summary>
