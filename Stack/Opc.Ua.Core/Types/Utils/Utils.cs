@@ -535,7 +535,7 @@ namespace Opc.Ua
             }
 
             StringBuilder buffer = new StringBuilder();
-#if !NETSTANDARD1_4
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             Environment.SpecialFolder specialFolder;
             if (!Enum.TryParse<Environment.SpecialFolder>(folder, out specialFolder))
@@ -554,7 +554,7 @@ namespace Opc.Ua
                         buffer.Append(DefaultLocalFolder);
                     }
                 }
-#if !NETSTANDARD1_4
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
             else
             {
@@ -2437,7 +2437,7 @@ namespace Opc.Ua
         /// </summary>
         public static DateTime GetAssemblyTimestamp()
         {
-#if !NETSTANDARD1_4
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             const int PeHeaderOffset = 60;
             const int LinkerTimestampOffset = 8;
 
@@ -2468,7 +2468,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-#if !NETSTANDARD1_4
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             Version version = Assembly.GetCallingAssembly().GetName().Version;
             return Utils.Format("{0}.{1}", version.Major, version.Minor);
 #else
@@ -2481,7 +2481,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-#if !NETSTANDARD1_4
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             Version version = Assembly.GetCallingAssembly().GetName().Version;
             return Utils.Format("{0}.{1}", version.Build, (version.MajorRevision << 16) + version.MinorRevision);
 #else
