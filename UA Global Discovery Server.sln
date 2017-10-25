@@ -27,6 +27,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTest", "SampleApplications\Samples\GDS\ClientTest\GlobalDiscoveryClientTest.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +83,10 @@ Global
 		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

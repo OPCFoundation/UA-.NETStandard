@@ -48,7 +48,6 @@ namespace Opc.Ua.Gds.Client
         public GlobalDiscoveryServerConnection(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
         {
             m_application = application;
-            m_application.ApplicationName = "GDS Client";
             m_endpointUrl = config.GlobalDiscoveryServerUrl;
 #if IOP_WORKSHOP
             // preset user/pw for IOP workshop. Do not use in production!
@@ -224,39 +223,13 @@ namespace Opc.Ua.Gds.Client
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
 
-#if TODO_GDS_STATUS_SUBSCRIPTION
-            Subscription subscription = new Subscription();
-            subscription.Handle = this;
-            subscription.DisplayName = null;
-            subscription.PublishingInterval = 1000;
-            subscription.KeepAliveCount = 10;
-            subscription.LifetimeCount = 100;
-            subscription.MaxNotificationsPerPublish = 10;
-            subscription.PublishingEnabled = true;
-            subscription.TimestampsToReturn = TimestampsToReturn.Neither;
-
-            m_session.AddSubscription(subscription);
-            subscription.Create();
-
-            MonitoredItem monitoredItem = new MonitoredItem();
-            monitoredItem.StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus;
-            monitoredItem.AttributeId = Attributes.Value;
-            monitoredItem.SamplingInterval = 1000;
-            monitoredItem.QueueSize = 0;
-            monitoredItem.DiscardOldest = true;
-            monitoredItem.Handle = typeof(ServerStatusDataType);
-            monitoredItem.Notification += ServerStatusChanged;
-
-            subscription.AddItem(monitoredItem);
-            subscription.ApplyChanges();
-#endif
         }
 
         public void Disconnect()
         {
             if (m_session != null)
             {
-                KeepAlive(m_session, null);
+                KeepAlive?.Invoke(m_session, null);
                 m_session.Close();
                 m_session = null;
             }
