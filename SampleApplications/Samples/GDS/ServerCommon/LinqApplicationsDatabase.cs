@@ -115,8 +115,8 @@ namespace Opc.Ua.Gds.Server.Database
                     if (record != null)
                     {
                         var endpoints = (from ii in ServerEndpoints
-                                        where ii.ApplicationId == record.ApplicationId
-                                        select ii).ToList<ServerEndpoint>();
+                                         where ii.ApplicationId == record.ApplicationId
+                                         select ii).ToList<ServerEndpoint>();
 
                         foreach (var endpoint in endpoints)
                         {
@@ -124,8 +124,8 @@ namespace Opc.Ua.Gds.Server.Database
                         }
 
                         var names = (from ii in ApplicationNames
-                                    where ii.ApplicationId == record.ApplicationId
-                                    select ii).ToList<ApplicationName>();
+                                     where ii.ApplicationId == record.ApplicationId
+                                     select ii).ToList<ApplicationName>();
 
                         foreach (var name in names)
                         {
@@ -166,7 +166,7 @@ namespace Opc.Ua.Gds.Server.Database
                     }
                 }
 
-                if (application.ApplicationNames != null && application.ApplicationNames.Count > 1)
+                if (application.ApplicationNames != null && application.ApplicationNames.Count > 0)
                 {
                     foreach (var applicationName in application.ApplicationNames)
                     {
@@ -324,8 +324,8 @@ namespace Opc.Ua.Gds.Server.Database
             lock (Lock)
             {
                 var application = (from ii in Applications
-                              where ii.ApplicationId == id
-                              select ii).SingleOrDefault();
+                                   where ii.ApplicationId == id
+                                   select ii).SingleOrDefault();
 
                 if (application == null)
                 {
@@ -335,7 +335,7 @@ namespace Opc.Ua.Gds.Server.Database
                 certificate = application.Certificate;
                 httpsCertificate = application.HttpsCertificate;
 
-                var certificateRequests = 
+                var certificateRequests =
                     from ii in CertificateRequests
                     where ii.ApplicationId == id
                     select ii;
@@ -390,11 +390,15 @@ namespace Opc.Ua.Gds.Server.Database
                     return null;
                 }
 
-                LocalizedText[] names = null;
+                var applicationNames =
+                     from ii in ApplicationNames
+                     where ii.ApplicationId == id
+                     select ii;
 
-                if (result.ApplicationName != null)
+                var names = new List<LocalizedText>();
+                foreach (var applicationName in applicationNames)
                 {
-                    names = new LocalizedText[] { result.ApplicationName };
+                    names.Add(new LocalizedText(applicationName.Locale, applicationName.Text));
                 }
 
                 StringCollection discoveryUrls = null;
@@ -413,11 +417,10 @@ namespace Opc.Ua.Gds.Server.Database
                     }
                 }
 
-                string[] capabilities = null;
-
-                if (result.ServerCapabilities != null)
+                var capabilities = new StringCollection();
+                if (!String.IsNullOrWhiteSpace(result.ServerCapabilities))
                 {
-                    capabilities = result.ServerCapabilities.Split(',');
+                    capabilities.AddRange(result.ServerCapabilities.Split(','));
                 }
 
                 return new ApplicationRecordDataType()

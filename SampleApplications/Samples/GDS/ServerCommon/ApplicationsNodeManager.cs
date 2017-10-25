@@ -756,6 +756,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.UpdateApplication.OnCall = new UpdateApplicationMethodStateMethodCallHandler(OnUpdateApplication);
                     activeNode.UnregisterApplication.OnCall = new UnregisterApplicationMethodStateMethodCallHandler(OnUnregisterApplication);
                     activeNode.FindApplications.OnCall = new FindApplicationsMethodStateMethodCallHandler(OnFindApplications);
+                    activeNode.GetApplication.OnCall = new GetApplicationMethodStateMethodCallHandler(OnGetApplication);
                     activeNode.StartNewKeyPairRequest.OnCall = new StartNewKeyPairRequestMethodStateMethodCallHandler(OnStartNewKeyPairRequest);
                     activeNode.FinishRequest.OnCall = new FinishRequestMethodStateMethodCallHandler(OnFinishRequest);
                     activeNode.GetCertificateGroups.OnCall = new GetCertificateGroupsMethodStateMethodCallHandler(OnGetCertificateGroups);
@@ -881,6 +882,19 @@ namespace Opc.Ua.Gds.Server
             HasApplicationUserAccess(context);
             Utils.Trace(Utils.TraceMasks.Information, "OnFindApplications: {0}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnGetApplication(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            ref ApplicationRecordDataType application)
+        {
+            HasApplicationUserAccess(context);
+            Utils.Trace(Utils.TraceMasks.Information, "OnGetApplication: {0}", applicationId);
+            application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
         }
 

@@ -382,6 +382,23 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Updates the application.
+        /// </summary>
+        /// <param name="application">The application.</param>
+        public void UpdateApplication(ApplicationRecordDataType application)
+        {
+            if (!IsConnected)
+            {
+                Connect(null);
+            }
+
+            m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UpdateApplication, m_session.NamespaceUris),
+                application);
+        }
+
+        /// <summary>
         /// Unregisters the application.
         /// </summary>
         /// <param name="applicationId">The application id.</param>

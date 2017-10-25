@@ -31,6 +31,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 
@@ -77,6 +78,12 @@ namespace Opc.Ua.Gds.Test
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = gdsConfiguration.DatabaseStorePath;
+
+            // clean up database
+            if (File.Exists(databaseStorePath))
+            {
+                File.Delete(databaseStorePath);
+            }
 
             // start the server.
             m_server = new GlobalDiscoveryServer(JsonApplicationsDatabase.Load(databaseStorePath));
