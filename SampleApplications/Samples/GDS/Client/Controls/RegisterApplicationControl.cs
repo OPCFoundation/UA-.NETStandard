@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Client
 
         private string m_lastDirPath;
         private string m_lastSavePath;
-        private GlobalDiscoveryServerConnection m_gds;
+        private GlobalDiscoveryServerClient m_gds;
         private RegisteredApplication m_application;
         private bool m_promptOnRegistrationTypeChange;
         private string m_externalEditor;
@@ -94,7 +94,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
         
-        public void Initialize(GlobalDiscoveryServerConnection gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
+        public void Initialize(GlobalDiscoveryServerClient gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
         {
             m_gds = gds;
             m_application.ServerUrl = null;

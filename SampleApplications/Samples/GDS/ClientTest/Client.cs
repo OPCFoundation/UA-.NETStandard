@@ -27,60 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Client;
 using System;
 using System.Threading.Tasks;
 
 
-namespace Opc.Ua.Gds.Client.Test
+namespace Opc.Ua.Gds.Test
 {
-    public class ApplicationMessageDlg : IApplicationMessageDlg
-    {
-        private string message = string.Empty;
-        private bool ask = false;
-
-        public override void Message(string text, bool ask)
-        {
-            this.message = text;
-            this.ask = ask;
-        }
-
-        public override async Task<bool> ShowAsync()
-        {
-            if (ask)
-            {
-                message += " (y/n, default y): ";
-                Console.Write(message);
-            }
-            else
-            {
-                Console.WriteLine(message);
-            }
-            if (ask)
-            {
-                try
-                {
-                    ConsoleKeyInfo result = Console.ReadKey();
-                    Console.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
-                }
-                catch
-                {
-                    // intentionally fall through
-                }
-            }
-            return await Task.FromResult(true);
-        }
-    }
 
     public class GlobalDiscoveryTestClient
     {
-        GlobalDiscoveryServerConnection m_gds;
+        GlobalDiscoveryServerClient m_gds;
         static bool autoAccept = false;
 
-        public GlobalDiscoveryServerConnection GDSClient { get { return m_gds;  } }
+        public GlobalDiscoveryServerClient GDSClient { get { return m_gds;  } }
 
         public GlobalDiscoveryTestClient(bool _autoAccept)
         {
@@ -112,7 +73,7 @@ namespace Opc.Ua.Gds.Client.Test
             // get the configuration.
             GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
 
-            m_gds = new GlobalDiscoveryServerConnection(application, gdsClientConfiguration);
+            m_gds = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
 
         }
 
@@ -121,7 +82,7 @@ namespace Opc.Ua.Gds.Client.Test
             if (m_gds != null)
             {
                 Console.WriteLine("Disconnect Session. Waiting for exit...");
-                GlobalDiscoveryServerConnection gds = m_gds;
+                GlobalDiscoveryServerClient gds = m_gds;
                 m_gds = null;
                 gds.Disconnect();
             }

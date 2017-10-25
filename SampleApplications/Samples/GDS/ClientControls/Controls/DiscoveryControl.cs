@@ -65,8 +65,8 @@ namespace Opc.Ua.Gds.Client.Controls
             EndpointsGridView.DataSource = m_dataset.Tables[1].DefaultView;
         }
 
-        private LocalDiscoveryServerConnection m_lds;
-        private GlobalDiscoveryServerConnection m_gds;
+        private LocalDiscoveryServerClient m_lds;
+        private GlobalDiscoveryServerClient m_gds;
         private ConfiguredEndpointCollection m_endpoints;
         private QueryServersFilter m_filters;
         private DataSet m_dataset;
@@ -86,7 +86,7 @@ namespace Opc.Ua.Gds.Client.Controls
         private class ExpandNodeData
         {
             public TreeNode Parent;
-            public LocalDiscoveryServerConnection Lds;
+            public LocalDiscoveryServerClient Lds;
         }
 
         [DefaultValue(300)]
@@ -256,8 +256,8 @@ namespace Opc.Ua.Gds.Client.Controls
 
         public void Initialize(
             ConfiguredEndpointCollection endpoints, 
-            LocalDiscoveryServerConnection lds, 
-            GlobalDiscoveryServerConnection gds, 
+            LocalDiscoveryServerClient lds, 
+            GlobalDiscoveryServerClient gds, 
             QueryServersFilter filters)
         {
             m_lds = lds;
@@ -604,7 +604,7 @@ namespace Opc.Ua.Gds.Client.Controls
         private class GetEndpointsData
         {
             public TreeNode Parent;
-            public LocalDiscoveryServerConnection Lds;
+            public LocalDiscoveryServerClient Lds;
         }
 
         private void OnGetEndpointsComplete(IAsyncResult result)

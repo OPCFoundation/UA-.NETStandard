@@ -44,13 +44,13 @@ namespace Opc.Ua.Gds.Client
             InitializeComponent();
         }
 
-        private GlobalDiscoveryServerConnection m_gds;
-        private ServerPushConfigurationConnection m_server;
+        private GlobalDiscoveryServerClient m_gds;
+        private ServerPushConfigurationClient m_server;
         private RegisteredApplication m_application;
         private string m_trustListStorePath;
         private string m_issuerListStorePath;
 
-        public void Initialize(GlobalDiscoveryServerConnection gds, ServerPushConfigurationConnection server, RegisteredApplication application, bool isHttps)
+        public void Initialize(GlobalDiscoveryServerClient gds, ServerPushConfigurationClient server, RegisteredApplication application, bool isHttps)
         {
             m_gds = gds;
             m_server = server;

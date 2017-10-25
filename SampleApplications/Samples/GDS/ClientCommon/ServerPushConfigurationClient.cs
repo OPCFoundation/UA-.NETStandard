@@ -38,14 +38,14 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class used to access the Push Configuration information model.
     /// </summary>
-    public class ServerPushConfigurationConnection
+    public class ServerPushConfigurationClient
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServerPushConfigurationConnection"/> class.
+        /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public ServerPushConfigurationConnection(ApplicationInstance application)
+        public ServerPushConfigurationClient(ApplicationInstance application)
         {
             m_application = application;
         }

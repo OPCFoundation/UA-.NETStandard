@@ -27,16 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
- using NUnit.Framework;
+using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Gds;
-using Opc.Ua.Gds.Client.Test;
-using Opc.Ua.Gds.Server.Test;
+using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
 using System;
 using System.Text.RegularExpressions;
 
-namespace NUnit.Opc.Ua.Gds.Client.Test
+namespace NUnit.Opc.Ua.Gds.Test
 {
     /// <summary>
     /// 

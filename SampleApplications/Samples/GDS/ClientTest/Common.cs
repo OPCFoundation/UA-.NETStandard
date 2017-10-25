@@ -27,34 +27,50 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Windows.Forms;
-using Opc.Ua.Client.Controls;
+using Opc.Ua.Configuration;
+using System;
+using System.Threading.Tasks;
 
-namespace Opc.Ua.Gds.Client.Controls
+
+namespace Opc.Ua.Gds.Test
 {
-    public partial class SelectServerDialog : Form
+    public class ApplicationMessageDlg : IApplicationMessageDlg
     {
-        public SelectServerDialog()
+        private string message = string.Empty;
+        private bool ask = false;
+
+        public override void Message(string text, bool ask)
         {
-            InitializeComponent();
-            Icon = ClientUtils.GetAppIcon();
+            this.message = text;
+            this.ask = ask;
         }
 
-        public EndpointDescription ShowDialog(
-            IWin32Window owner,
-            ConfiguredEndpointCollection endpoints,
-            LocalDiscoveryServerClient lds,
-            GlobalDiscoveryServerClient gds,
-            QueryServersFilter filters)
+        public override async Task<bool> ShowAsync()
         {
-            this.DiscoveryControl.Initialize(endpoints, lds, gds, filters);
-
-            if (base.ShowDialog(owner) != System.Windows.Forms.DialogResult.OK)
+            if (ask)
             {
-                return null;
+                message += " (y/n, default y): ";
+                Console.Write(message);
             }
-
-            return DiscoveryControl.SelectedEndpoint;
+            else
+            {
+                Console.WriteLine(message);
+            }
+            if (ask)
+            {
+                try
+                {
+                    ConsoleKeyInfo result = Console.ReadKey();
+                    Console.WriteLine();
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                }
+                catch
+                {
+                    // intentionally fall through
+                }
+            }
+            return await Task.FromResult(true);
         }
     }
+
 }
