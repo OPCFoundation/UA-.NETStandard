@@ -247,28 +247,30 @@ namespace Opc.Ua.Gds.Client
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_session.KeepAlive += Session_KeepAlive;
 
-            Subscription subscription = new Subscription();
-
-            subscription.Handle = this;
-            subscription.DisplayName = null;
-            subscription.PublishingInterval = 1000;
-            subscription.KeepAliveCount = 10;
-            subscription.LifetimeCount = 100;
-            subscription.MaxNotificationsPerPublish = 1000;
-            subscription.PublishingEnabled = true;
-            subscription.TimestampsToReturn = TimestampsToReturn.Neither;
+            Subscription subscription = new Subscription
+            {
+                Handle = this,
+                DisplayName = null,
+                PublishingInterval = 1000,
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                MaxNotificationsPerPublish = 1000,
+                PublishingEnabled = true,
+                TimestampsToReturn = TimestampsToReturn.Neither
+            };
 
             m_session.AddSubscription(subscription);
             subscription.Create();
 
-            MonitoredItem monitoredItem = new MonitoredItem();
-
-            monitoredItem.StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus;
-            monitoredItem.AttributeId = Attributes.Value;
-            monitoredItem.SamplingInterval = 1000;
-            monitoredItem.QueueSize = 0;
-            monitoredItem.DiscardOldest = true;
-            monitoredItem.Handle = typeof(ServerStatusDataType);
+            MonitoredItem monitoredItem = new MonitoredItem
+            {
+                StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus,
+                AttributeId = Attributes.Value,
+                SamplingInterval = 1000,
+                QueueSize = 0,
+                DiscardOldest = true,
+                Handle = typeof(ServerStatusDataType)
+            };
 
             monitoredItem.Notification += ServerStatus_Notification;
 
@@ -324,13 +326,14 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
-
-            nodesToRead.Add(new ReadValueId()
+            ReadValueIdCollection nodesToRead = new ReadValueIdCollection
             {
-                NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
-                AttributeId = Attributes.Value
-            });
+                new ReadValueId()
+                {
+                    NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
+                    AttributeId = Attributes.Value
+                }
+            };
 
             DataValueCollection results = null;
             DiagnosticInfoCollection diagnosticInfos = null;

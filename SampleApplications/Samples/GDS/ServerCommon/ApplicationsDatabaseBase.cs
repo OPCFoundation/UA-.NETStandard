@@ -106,6 +106,11 @@ namespace Opc.Ua.Gds.Server.Database
                 {
                     throw new ArgumentException("At least one DiscoveryUrl must be provided.", "DiscoveryUrls");
                 }
+
+                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                {
+                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                }
             }
             else
             {
@@ -115,20 +120,12 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            if (application.ApplicationType != ApplicationType.Client)
-            {
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
-                {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
-                }
-            }
-
             Guid applicationId = Guid.Empty;
             if (!NodeId.IsNull(application.ApplicationId))
             {
                 if (application.ApplicationId.IdType != IdType.Guid)
                 {
-                    throw new ArgumentException("The ApplicationId to does refer to a existing record.", "ApplicationId");
+                    throw new ArgumentException("The ApplicationId has not the type Guid.", "ApplicationId");
                 }
 
                 applicationId = (Guid)application.ApplicationId.Identifier;

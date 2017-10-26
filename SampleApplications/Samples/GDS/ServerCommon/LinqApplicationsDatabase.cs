@@ -340,7 +340,7 @@ namespace Opc.Ua.Gds.Server.Database
                     where ii.ApplicationId == id
                     select ii;
 
-                foreach (var entry in certificateRequests)
+                foreach (var entry in new List<CertificateRequest>(certificateRequests))
                 {
                     CertificateRequests.Remove(entry);
                 }
@@ -718,9 +718,9 @@ namespace Opc.Ua.Gds.Server.Database
         [JsonProperty]
         internal ICollection<Application> Applications = new HashSet<Application>();
         [JsonProperty]
-        internal ICollection<ApplicationName> ApplicationNames = new HashSet<ApplicationName>();
+        internal ICollection<ApplicationName> ApplicationNames = new List<ApplicationName>();
         [JsonProperty]
-        internal ICollection<ServerEndpoint> ServerEndpoints = new HashSet<ServerEndpoint>();
+        internal ICollection<ServerEndpoint> ServerEndpoints = new List<ServerEndpoint>();
         [JsonProperty]
         internal ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
         [JsonProperty]

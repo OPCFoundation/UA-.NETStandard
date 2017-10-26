@@ -39,6 +39,41 @@ using System.Text.RegularExpressions;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
+    public class ApplicationTestData
+    {
+        public ApplicationTestData()
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            ApplicationRecord = new ApplicationRecordDataType();
+            CertificateGroupId = null;
+            CertificateTypeId = null;
+            CertificateRequestId = null;
+            DomainNames = new StringCollection();
+            Subject = null;
+            PrivateKeyFormat = "PFX";
+            PrivateKeyPassword = "";
+            Certificate = null;
+            PrivateKey = null;
+            IssuerCertificates = null;
+        }
+
+        public ApplicationRecordDataType ApplicationRecord;
+        public NodeId CertificateGroupId;
+        public NodeId CertificateTypeId;
+        public NodeId CertificateRequestId;
+        public StringCollection DomainNames;
+        public String Subject;
+        public String PrivateKeyFormat;
+        public String PrivateKeyPassword;
+        public byte[] Certificate;
+        public byte[] PrivateKey;
+        public byte[][] IssuerCertificates;
+    }
+
     /// <summary>
     /// 
     /// </summary>
@@ -46,10 +81,7 @@ namespace NUnit.Opc.Ua.Gds.Test
     [TestFixture]
     public class ClientTest
     {
-        const int goodApplicationsTestCount = 100;
-        const int invalidApplicationsTestCount = 10;
-        const int randomStart = 1;
-
+        #region Test Setup
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
@@ -67,9 +99,9 @@ namespace NUnit.Opc.Ua.Gds.Test
             _client.GDSClient.Connect(_client.GDSClient.EndpointUrl);
 
             // good applications test set
-            _goodApplications = ApplicationTestSet(goodApplicationsTestCount, false);
-            _invalidApplications = ApplicationTestSet(invalidApplicationsTestCount, true);
-            
+            _goodApplicationTestSet = ApplicationTestSet(goodApplicationsTestCount, false);
+            _invalidApplicationTestSet = ApplicationTestSet(invalidApplicationsTestCount, true);
+
         }
 
         /// <summary>
@@ -81,7 +113,8 @@ namespace NUnit.Opc.Ua.Gds.Test
             _client.DisconnectClient();
             _server.StopServer();
         }
-
+        #endregion
+        #region Test Methods
         /// <summary>
         /// 
         /// </summary>
@@ -89,67 +122,67 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(100)]
         public void RegisterGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                NodeId id = _client.GDSClient.RegisterApplication(application);
+                NodeId id = _client.GDSClient.RegisterApplication(application.ApplicationRecord);
                 Assert.NotNull(id);
                 Assert.IsFalse(id.IsNullNodeId);
                 Assert.AreEqual(id.IdType, IdType.Guid);
-                application.ApplicationId = id;
+                application.ApplicationRecord.ApplicationId = id;
             }
 
         }
 
-        [Test, Order(100)]
+        [Test, Order(101)]
         public void RegisterInvalidApplications()
         {
-            foreach (var application in _invalidApplications)
+            foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { NodeId id = _client.GDSClient.RegisterApplication(application); }, Throws.Exception);
+                Assert.That(() => { NodeId id = _client.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
         }
 
         [Test, Order(200)]
         public void UpdateGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                var updatedApplication = (ApplicationRecordDataType)application.MemberwiseClone();
-                updatedApplication.ApplicationUri += "update";
-                _client.GDSClient.UpdateApplication(updatedApplication);
-                var result = _client.GDSClient.FindApplication(updatedApplication.ApplicationUri);
-                _client.GDSClient.UpdateApplication(application);
+                var updatedApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                updatedApplicationRecord.ApplicationUri += "update";
+                _client.GDSClient.UpdateApplication(updatedApplicationRecord);
+                var result = _client.GDSClient.FindApplication(updatedApplicationRecord.ApplicationUri);
+                _client.GDSClient.UpdateApplication(application.ApplicationRecord);
                 Assert.NotNull(result);
-                Assert.GreaterOrEqual(1, result.Length, "Couldn't find updated application");
+                Assert.GreaterOrEqual(1, result.Length, "Couldn't find updated application record");
             }
         }
 
-        [Test, Order(200)]
+        [Test, Order(201)]
         public void UpdateGoodApplicationsWithNewGuid()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                var testApplication = (ApplicationRecordDataType)application.MemberwiseClone();
-                testApplication.ApplicationId = new NodeId(Guid.NewGuid());
-                Assert.That(() => { _client.GDSClient.UpdateApplication(testApplication); }, Throws.Exception);
+                var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                testApplicationRecord.ApplicationId = new NodeId(Guid.NewGuid());
+                Assert.That(() => { _client.GDSClient.UpdateApplication(testApplicationRecord); }, Throws.Exception);
             }
         }
 
-        [Test, Order(200)]
+        [Test, Order(202)]
         public void UpdateInvalidApplications()
         {
-            foreach (var application in _invalidApplications)
+            foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { _client.GDSClient.UpdateApplication(application); }, Throws.Exception);
+                Assert.That(() => { _client.GDSClient.UpdateApplication(application.ApplicationRecord); }, Throws.Exception);
             }
         }
 
         [Test, Order(400)]
         public void FindGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                var result = _client.GDSClient.FindApplication(application.ApplicationUri);
+                var result = _client.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(1, result.Length, "Couldn't find good application");
             }
@@ -158,9 +191,9 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void FindInvalidApplications()
         {
-            foreach (var application in _invalidApplications)
+            foreach (var application in _invalidApplicationTestSet)
             {
-                var result = _client.GDSClient.FindApplication(application.ApplicationUri);
+                var result = _client.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
                 Assert.NotNull(result);
                 Assert.AreEqual(0, result.Length, "Found invalid application on server");
             }
@@ -169,95 +202,141 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void GetGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                var result = _client.GDSClient.GetApplication(application.ApplicationId);
+                var result = _client.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application, result));
+                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord, result));
             }
         }
 
         [Test, Order(400)]
         public void GetInvalidApplications()
         {
-            foreach (var application in _invalidApplications)
+            foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { var result = _client.GDSClient.GetApplication(application.ApplicationId); }, Throws.Exception);
+                Assert.That(() => { var result = _client.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(500)]
+        public void StartGoodNewKeyPairRequest()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                NodeId requestId = _client.GDSClient.StartNewKeyPairRequest(
+                    application.ApplicationRecord.ApplicationId,
+                    application.CertificateGroupId,
+                    application.CertificateTypeId,
+                    application.Subject,
+                    application.DomainNames,
+                    application.PrivateKeyFormat,
+                    application.PrivateKeyPassword);
+                Assert.NotNull(requestId);
+                application.CertificateRequestId = requestId;
+            }
+        }
+
+        [Test, Order(501)]
+        public void StartInvalidNewKeyPairRequest()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                Assert.That(() => { 
+                    NodeId requestId = _client.GDSClient.StartNewKeyPairRequest(
+                        application.ApplicationRecord.ApplicationId,
+                        application.CertificateGroupId,
+                        application.CertificateTypeId,
+                        application.Subject,
+                        application.DomainNames,
+                        application.PrivateKeyFormat,
+                        application.PrivateKeyPassword);
+                }, Throws.Exception);
             }
         }
 
         [Test, Order(900)]
         public void UnregisterInvalidApplications()
         {
-            foreach (var application in _invalidApplications)
+            foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => {_client.GDSClient.UnregisterApplication(application.ApplicationId); }, Throws.Exception);
+                Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
             }
         }
 
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                _client.GDSClient.UnregisterApplication(application.ApplicationId);
+                _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
             }
         }
 
         [Test, Order(901)]
         public void UnregisterUnregisteredGoodApplications()
         {
-            foreach (var application in _goodApplications)
+            foreach (var application in _goodApplicationTestSet)
             {
-                Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationId); }, Throws.Exception);
+                Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
             }
         }
-
+        #endregion
         #region Private Methods
-        private IList<ApplicationRecordDataType> ApplicationTestSet(int count, bool invalidateSet)
+        private IList<ApplicationTestData> ApplicationTestSet(int count, bool invalidateSet)
         {
-            var applications = new List<ApplicationRecordDataType>();
+            var testDataSet = new List<ApplicationTestData>();
             for (int i = 0; i < count; i++)
             {
-                var application = RandomApplication();
+                var testData = RandomApplicationTestData();
                 if (invalidateSet)
                 {
-                    switch (i % 6)
+                    ApplicationRecordDataType appRecord = testData.ApplicationRecord;
+                    appRecord.ApplicationId = new NodeId(Guid.NewGuid());
+                    switch (i % 4)
                     {
-                        case 0: application.ApplicationUri = _dataGenerator.GetRandomString(); break;
-                        case 1: application.ApplicationType = (application.ApplicationType == ApplicationType.Client) ?
-                                ApplicationType.Server : ApplicationType.Client; break;
-                        case 2: application.ProductUri = _dataGenerator.GetRandomString(); break;
-                        case 3: application.DiscoveryUrls = application.DiscoveryUrls == null ? 
-                                new StringCollection { "opc.tcp://xxx:333" } : null; break;
-                        case 4: application.ServerCapabilities = application.ServerCapabilities == null ?
-                                RandomServerCapabilities() : null; break;
-                        case 5: application.ApplicationId = new NodeId(100); break;
+                        case 0:
+                            appRecord.ApplicationUri = _dataGenerator.GetRandomString();
+                            break;
+                        case 1:
+                            appRecord.ApplicationType = (ApplicationType)_randomSource.NextInt32(100) + 8;
+                            break;
+                        case 2:
+                            appRecord.ProductUri = _dataGenerator.GetRandomString();
+                            break;
+                        case 3:
+                            appRecord.DiscoveryUrls = appRecord.ApplicationType == ApplicationType.Client ?
+                                RandomDiscoveryUrl(new StringCollection { "xxxyyyzzz" }, _randomSource.NextInt32(0x7fff), "TestClient") : null;
+                            break;
+                        case 4:
+                            appRecord.ServerCapabilities = appRecord.ApplicationType == ApplicationType.Client ?
+                                RandomServerCapabilities() : null;
+                            break;
+                        case 5:
+                            appRecord.ApplicationId = new NodeId(100);
+                            break;
                     }
                 }
-                applications.Add(application);
+                testDataSet.Add(testData);
             }
-            return applications;
+            return testDataSet;
         }
 
-        private ApplicationRecordDataType RandomApplication()
+        private ApplicationTestData RandomApplicationTestData()
         {
             ApplicationType appType = (ApplicationType)_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
             string pureAppName = _dataGenerator.GetRandomString("en");
             pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
             string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
             string appName = "UA " + pureAppName;
-            string localhost = Regex.Replace(_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
-            if (localhost.Length >= 12)
-            {
-                localhost = localhost.Substring(0, 12);
-            }
+            StringCollection domainNames = RandomDomainNames();
+            string localhost = domainNames[0];
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            StringCollection discoveryUrls = null;
-            StringCollection serverCapabilities = null;
+            StringCollection discoveryUrls = new StringCollection();
+            StringCollection serverCapabilities = new StringCollection();
             switch (appType)
-            { 
+            {
                 case ApplicationType.Client:
                     appName += " Client";
                     break;
@@ -267,20 +346,25 @@ namespace NUnit.Opc.Ua.Gds.Test
                 case ApplicationType.Server:
                     appName += " Server";
                     int port = (_dataGenerator.GetRandomInt16() & 0x1fff) + 50000;
-                    discoveryUrls = new StringCollection { String.Format("opc.tcp://{0}:{1}/{2}", localhost, port.ToString(), pureAppUri) };
+                    discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     serverCapabilities = RandomServerCapabilities();
                     break;
             }
-            ApplicationRecordDataType application = new ApplicationRecordDataType
+            ApplicationTestData testData = new ApplicationTestData
             {
-                ApplicationNames = new LocalizedTextCollection { new LocalizedText("en-us", appName) },
-                ApplicationUri = appUri,
-                ApplicationType = appType,
-                ProductUri = prodUri,
-                DiscoveryUrls = discoveryUrls,
-                ServerCapabilities = serverCapabilities
+                ApplicationRecord = new ApplicationRecordDataType
+                {
+                    ApplicationNames = new LocalizedTextCollection { new LocalizedText("en-us", appName) },
+                    ApplicationUri = appUri,
+                    ApplicationType = appType,
+                    ProductUri = prodUri,
+                    DiscoveryUrls = discoveryUrls,
+                    ServerCapabilities = serverCapabilities
+                },
+                DomainNames = domainNames,
+                Subject = String.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost)
             };
-            return application;
+            return testData;
         }
 
         private StringCollection RandomServerCapabilities()
@@ -300,15 +384,61 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
             return serverCapabilities;
         }
+
+        private string RandomLocalHost()
+        {
+            string localhost = Regex.Replace(_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
+            if (localhost.Length >= 12)
+            {
+                localhost = localhost.Substring(0, 12);
+            }
+            return localhost;
+        }
+
+        private string[] RandomDomainNames()
+        {
+            int count = _randomSource.NextInt32(8) + 1;
+            var result = new string[count];
+            for (int i = 0; i < count; i++)
+            {
+                result[i] = RandomLocalHost();
+            }
+            return result;
+        }
+
+        private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
+        {
+            var result = new StringCollection();
+            foreach (var name in domainNames)
+            {
+                int random = _randomSource.NextInt32(7);
+                if ((result.Count == 0) || (random & 1) == 0)
+                {
+                    result.Add(String.Format("opc.tcp://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                }
+                if ((random & 2) == 0)
+                {
+                    result.Add(String.Format("http://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                }
+                if ((random & 4) == 0)
+                {
+                    result.Add(String.Format("https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                }
+            }
+            return result;
+        }
         #endregion
 
         #region Private Fields
+        private const int goodApplicationsTestCount = 10;
+        private const int invalidApplicationsTestCount = 10;
+        private const int randomStart = 1;
         private RandomSource _randomSource;
         private DataGenerator _dataGenerator;
         private GlobalDiscoveryTestServer _server;
         private GlobalDiscoveryTestClient _client;
-        private IList<ApplicationRecordDataType> _goodApplications;
-        private IList<ApplicationRecordDataType> _invalidApplications;
+        private IList<ApplicationTestData> _goodApplicationTestSet;
+        private IList<ApplicationTestData> _invalidApplicationTestSet;
         private ServerCapabilities _serverCapabilities;
         #endregion
     }
