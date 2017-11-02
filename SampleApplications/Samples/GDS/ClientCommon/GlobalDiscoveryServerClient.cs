@@ -292,13 +292,41 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
+        /// <param name="startingRecordId">The id of the first record to return.</param>
         /// <param name="maxRecordsToReturn">The max records to return.</param>
         /// <param name="applicationName">The filter applied to the application name.</param>
         /// <param name="applicationUri">The filter applied to the application uri.</param>
         /// <param name="productUri">The filter applied to the product uri.</param>
         /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
         /// <returns>A enumarator used to access the results.</returns>
-        public IEnumerable<ServerOnNetwork> QueryServers(
+        public IList<ServerOnNetwork> QueryServers(
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
+            string productUri,
+            IList<string> serverCapabilities)
+        {
+            return QueryServers(
+                0,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities);
+        }
+
+        /// <summary>
+        /// Queries the GDS for any servers matching the criteria.
+        /// </summary>
+        /// <param name="startingRecordId">The id of the first record to return.</param>
+        /// <param name="maxRecordsToReturn">The max records to return.</param>
+        /// <param name="applicationName">The filter applied to the application name.</param>
+        /// <param name="applicationUri">The filter applied to the application uri.</param>
+        /// <param name="productUri">The filter applied to the product uri.</param>
+        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
+        /// <returns>A enumarator used to access the results.</returns>
+        public IList<ServerOnNetwork> QueryServers(
+            uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
             string applicationUri,
@@ -310,7 +338,6 @@ namespace Opc.Ua.Gds.Client
                 Connect(null);
             }
 
-            uint startingRecordId = 0;
             var outputArguments = m_session.Call(
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryServers, m_session.NamespaceUris),
@@ -594,6 +621,41 @@ namespace Opc.Ua.Gds.Client
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets the trust lists method.
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <param name="certificateGroupId">Type of the trust list.</param>
+        /// <returns></returns>
+        public Boolean GetCertificateStatus(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId)
+        {
+            if (!IsConnected)
+            {
+                Connect(null);
+            }
+
+            var outputArguments = m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateStatus, m_session.NamespaceUris),
+                applicationId,
+                certificateGroupId,
+                certificateTypeId);
+
+            if (outputArguments.Count > 0 && outputArguments[0] != null)
+            {
+                Boolean? result = outputArguments[0] as Boolean?;
+                if (result != null)
+                {
+                    return (bool)result;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

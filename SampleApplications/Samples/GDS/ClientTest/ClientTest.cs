@@ -27,15 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Threading;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -134,11 +135,29 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         [Test, Order(101)]
+        public void RegisterGoodApplicationsAuditEvents()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
+        [Test, Order(110)]
         public void RegisterInvalidApplications()
         {
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => { NodeId id = _client.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(111)]
+        public void RegisterInvalidApplicationsAuditEvents()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                // TODO
             }
         }
 
@@ -158,6 +177,15 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         [Test, Order(201)]
+        public void UpdateGoodApplicationsAuditEvents()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
+        [Test, Order(210)]
         public void UpdateGoodApplicationsWithNewGuid()
         {
             foreach (var application in _goodApplicationTestSet)
@@ -168,12 +196,30 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
-        [Test, Order(202)]
+        [Test, Order(211)]
+        public void UpdateGoodApplicationsWithNewGuidAuditEvents()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
+        [Test, Order(220)]
         public void UpdateInvalidApplications()
         {
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => { _client.GDSClient.UpdateApplication(application.ApplicationRecord); }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(221)]
+        public void UpdateInvalidApplicationsAuditEvents()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                // TODO
             }
         }
 
@@ -219,11 +265,77 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
+        [Test, Order(410)]
+        public void QueryGoodServers()
+        {
+            // get all servers
+            var allServers = _client.GDSClient.QueryServers(0, "", "", "", null);
+            int totalCount = 0;
+            uint firstID = uint.MaxValue, lastID = 0;
+            Assert.IsNotNull(allServers);
+            foreach (var server in allServers)
+            {
+                var oneServers = _client.GDSClient.QueryServers(server.RecordId, 1, "", "", "", null);
+                firstID = Math.Min(firstID, server.RecordId);
+                lastID = Math.Max(lastID, server.RecordId);
+                totalCount++;
+            }
+
+            // repeating queries to get all servers
+            uint nextID = 0;
+            const uint iterationCount = 10;
+            int serversQueried = 0;
+            while (true)
+            {
+                var tenServers = _client.GDSClient.QueryServers(nextID, iterationCount, "", "", "", null);
+                Assert.IsNotNull(tenServers);
+                serversQueried += tenServers.Count;
+                if (tenServers.Count == 0)
+                {
+                    break;
+                }
+                Assert.LessOrEqual(tenServers.Count, iterationCount);
+                uint previousID = nextID;
+                nextID = tenServers[tenServers.Count - 1].RecordId + 1;
+                Assert.Greater(nextID, previousID);
+            }
+            Assert.AreEqual(serversQueried, totalCount);
+
+            // search aplications by name
+            const int searchPatternLength = 5;
+            foreach (var application in _goodApplicationTestSet)
+            {
+                var atLeastOneServer = _client.GDSClient.QueryServers(1, application.ApplicationRecord.ApplicationNames[0].Text, "", "", null);
+                Assert.IsNotNull(atLeastOneServer);
+                if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
+                {
+                    Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
+                }
+                else
+                {
+                    Assert.AreEqual(atLeastOneServer.Count, 0);
+                }
+
+                string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
+                if (searchName.Length > searchPatternLength)
+                {
+                    searchName = searchName.Substring(0, searchPatternLength) + "%";
+                }
+                atLeastOneServer = _client.GDSClient.QueryServers(1, searchName, "", "", null);
+                Assert.IsNotNull(atLeastOneServer);
+                if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
+                {
+                    Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
+                }
+            }
+        }
+
         [Test, Order(500)]
-        public void StartGoodNewKeyPairRequest()
+        public void StartGoodNewKeyPairRequests()
         {
             foreach (var application in _goodApplicationTestSet)
             {
+                Assert.Null(application.CertificateRequestId);
                 NodeId requestId = _client.GDSClient.StartNewKeyPairRequest(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
@@ -238,11 +350,13 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         [Test, Order(501)]
-        public void StartInvalidNewKeyPairRequest()
+        public void StartInvalidNewKeyPairRequests()
         {
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { 
+                Assert.Null(application.CertificateRequestId);
+                Assert.That(() =>
+                {
                     NodeId requestId = _client.GDSClient.StartNewKeyPairRequest(
                         application.ApplicationRecord.ApplicationId,
                         application.CertificateGroupId,
@@ -255,12 +369,208 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
-        [Test, Order(900)]
-        public void UnregisterInvalidApplications()
+        [Test, Order(510)]
+        public void FinishGoodNewKeyPairRequests()
+        {
+            bool requestBusy;
+            do
+            {
+                requestBusy = false;
+                foreach (var application in _goodApplicationTestSet)
+                {
+                    if (application.CertificateRequestId != null)
+                    {
+                        byte[] certificate = _client.GDSClient.FinishRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateRequestId,
+                            out byte[] privateKey,
+                            out byte[][] issuerCertificates
+                            );
+
+                        if (certificate != null)
+                        {
+                            Assert.NotNull(certificate);
+                            Assert.NotNull(privateKey);
+                            Assert.NotNull(issuerCertificates);
+                            application.Certificate = certificate;
+                            application.PrivateKey = privateKey;
+                            application.IssuerCertificates = issuerCertificates;
+                            application.CertificateRequestId = null;
+                            // TODO: verify cert subject and extensions
+                        }
+                        else
+                        {
+                            requestBusy = true;
+                        }
+                    }
+                }
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(500);
+                }
+            } while (requestBusy);
+        }
+
+        [Test, Order(511)]
+        public void FinishInvalidNewKeyPairRequests()
         {
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+                Assert.That(() =>
+                {
+                    byte[] certificate = _client.GDSClient.FinishRequest(
+                        application.ApplicationRecord.ApplicationId,
+                        new NodeId(Guid.NewGuid()),
+                        out byte[] privateKey,
+                        out byte[][] issuerCertificates
+                    );
+                }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(520)]
+        public void StartGoodSigningRequests()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                Assert.Null(application.CertificateRequestId);
+                var csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+                NodeId requestId = _client.GDSClient.StartSigningRequest(
+                    application.ApplicationRecord.ApplicationId,
+                    application.CertificateGroupId,
+                    application.CertificateTypeId,
+                    certificateRequest);
+                Assert.NotNull(requestId);
+                application.CertificateRequestId = requestId;
+            }
+        }
+
+        [Test, Order(521)]
+        public void FinishGoodSigningRequests()
+        {
+            bool requestBusy;
+            do
+            {
+                requestBusy = false;
+
+                foreach (var application in _goodApplicationTestSet)
+                {
+                    if (application.CertificateRequestId != null)
+                    {
+                        var certificate = _client.GDSClient.FinishRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateRequestId,
+                            out byte[] privateKey,
+                            out byte[][] issuerCertificates
+                            );
+
+                        if (certificate != null)
+                        {
+                            Assert.Null(privateKey);
+                            Assert.NotNull(issuerCertificates);
+                            application.Certificate = certificate;
+                            application.IssuerCertificates = issuerCertificates;
+                            application.CertificateRequestId = null;
+                            // TODO: verify cert subject and extensions
+                        }
+                        else
+                        {
+                            requestBusy = true;
+                        }
+                    }
+                }
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(500);
+                }
+            } while (requestBusy);
+
+        }
+
+        [Test, Order(600)]
+        public void GetGoodCertificateGroupsNullTests()
+        {
+            Assert.That(() =>
+            {
+                _client.GDSClient.GetCertificateGroups(null);
+            }, Throws.Exception);
+
+            foreach (var application in _goodApplicationTestSet)
+            {
+                var trustListId = _client.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                var trustList = _client.GDSClient.ReadTrustList(trustListId);
+                Assert.That(() =>
+                {
+                    _client.GDSClient.ReadTrustList(null);
+                }, Throws.Exception);
+                var certificateGroups = _client.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                foreach (var certificateGroup in certificateGroups)
+                {
+                    Assert.That(() =>
+                    {
+                        _client.GDSClient.GetTrustList(null, certificateGroup);
+                    }, Throws.Exception);
+                }
+            }
+        }
+
+        [Test, Order(601)]
+        public void GetInvalidCertificateGroupsNullTests()
+        {
+            Assert.That(() =>
+            {
+                _client.GDSClient.GetCertificateGroups(null);
+            }, Throws.Exception);
+
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                Assert.That(() =>
+                {
+                    var trustListId = _client.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                }, Throws.Exception);
+                Assert.That(() =>
+                {
+                    var certificateGroups = _client.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(610)]
+        public void GetGoodCertificateGroupsAndTrustLists()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                var certificateGroups = _client.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                foreach (var certificateGroup in certificateGroups)
+                {
+                    var trustListId = _client.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                    // Opc.Ua.TrustListDataType
+                    var trustList = _client.GDSClient.ReadTrustList(trustListId);
+                }
+            }
+        }
+
+        [Test, Order(690)]
+        public void GetGoodCertificateStatus()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                var certificateStatus = _client.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+            }
+        }
+
+        [Test, Order(691)]
+        public void GetInvalidCertificateStatus()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                Assert.That(() =>
+                {
+                    var certificateStatus = _client.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                }, Throws.Exception);
             }
         }
 
@@ -274,6 +584,33 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         [Test, Order(901)]
+        public void UnregisterGoodApplicationsAuditEvents()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
+        [Test, Order(910)]
+        public void UnregisterInvalidApplications()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(911)]
+        public void UnregisterInvalidApplicationsAuditEvents()
+        {
+            foreach (var application in _invalidApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
+        [Test, Order(920)]
         public void UnregisterUnregisteredGoodApplications()
         {
             foreach (var application in _goodApplicationTestSet)
@@ -281,6 +618,16 @@ namespace NUnit.Opc.Ua.Gds.Test
                 Assert.That(() => { _client.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
             }
         }
+
+        [Test, Order(921)]
+        public void UnregisterUnregisteredGoodApplicationsAuditEvents()
+        {
+            foreach (var application in _goodApplicationTestSet)
+            {
+                // TODO
+            }
+        }
+
         #endregion
         #region Private Methods
         private IList<ApplicationTestData> ApplicationTestSet(int count, bool invalidateSet)

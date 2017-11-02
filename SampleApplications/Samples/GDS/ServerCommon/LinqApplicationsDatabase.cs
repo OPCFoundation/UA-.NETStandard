@@ -81,6 +81,7 @@ namespace Opc.Ua.Gds.Server.Database
     [Serializable]
     class ServerEndpoint
     {
+        public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
         public string DiscoveryUrl { get; set; }
     }
@@ -511,11 +512,11 @@ namespace Opc.Ua.Gds.Server.Database
 
                 var results = from x in ServerEndpoints
                               join y in Applications on x.ApplicationId equals y.ApplicationId
-                              where y.ID >= startingRecordId
-                              orderby y.ID
+                              where x.ID >= startingRecordId
+                              orderby x.ID
                               select new
                               {
-                                  y.ID,
+                                  x.ID,
                                   y.ApplicationName,
                                   y.ApplicationUri,
                                   y.ProductUri,
@@ -697,6 +698,11 @@ namespace Opc.Ua.Gds.Server.Database
                 foreach (var application in Applications)
                 {
                     application.ID = queryCounter++;
+                }
+                queryCounter = 0;
+                foreach (var serverEndpoint in ServerEndpoints)
+                {
+                    serverEndpoint.ID = queryCounter++;
                 }
                 Save();
             }
