@@ -8,11 +8,6 @@ sudo: required
 dist: trusty
 osx_image: xcode9.1
 
-# workaround: see travis-ci/travis-ci#8552
-matrix:
-  allow_failures:
-    - os: osx
-
 addons:
   apt:
     sources:
@@ -21,6 +16,7 @@ script:
   - echo "========== build all .Net Core samples ============"
   - dotnet restore "UA Core Library.sln"
   - dotnet restore "UA-NetStandard.sln"
+  - dotnet restore "UA Global Discovery Server.sln"
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient
@@ -31,6 +27,12 @@ script:
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer
   - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer
+  - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
+  - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest
+  - dotnet build -c Release SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Debug SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Release SampleApplications/Samples/GDS/ClientTest
   - echo "========== run .Net Core samples ============"
   - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/netcoreapp2.0
   - dotnet NetCoreConsoleServer.dll -t 10 -a
