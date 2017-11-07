@@ -186,15 +186,11 @@
       <ua:String>Method Server Facet</ua:String>
     </ServerProfileArray>
 
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>DA</ua:String>
+    </ServerCapabilities>
   </ServerConfiguration>
-
-  <Extensions>
-    <ua:XmlElement>
-      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceApplications">
-        <ShutdownDelay>5</ShutdownDelay>
-      </ReferenceServerConfiguration>
-    </ua:XmlElement>
-  </Extensions>
 
   <TraceConfiguration>
     <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>

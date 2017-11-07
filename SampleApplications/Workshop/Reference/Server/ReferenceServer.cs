@@ -27,13 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System;
+using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -67,19 +65,6 @@ namespace Quickstarts.ReferenceServer
 
             // create the custom node managers.
             nodeManagers.Add(new EmptyNodeManager(server, configuration));
-
-            // get the ShutdownDelay configuration parameter.
-            ReferenceServerConfiguration referenceServerConfiguration = configuration.ParseExtension<ReferenceServerConfiguration>();
-
-            if (referenceServerConfiguration != null)
-            {
-                m_shutdownDelay = referenceServerConfiguration.ShutdownDelay;
-            }
-            else
-            {
-                // default value of 5 seconds.
-                m_shutdownDelay = 5;
-            }
 
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
@@ -140,45 +125,6 @@ namespace Quickstarts.ReferenceServer
             server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
         }
 
-        /// <summary>
-        /// Cleans up before the server shuts down.
-        /// </summary>
-        /// <remarks>
-        /// This method is called before any shutdown processing occurs.
-        /// </remarks>
-        protected override void OnServerStopping()
-        {
-            try
-            {
-                // check for connected clients
-                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
-
-                if (currentessions.Count > 0)
-                {
-                    // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Value.State = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-
-                    for (uint timeTillShutdown = m_shutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
-                    {
-                        ServerInternal.Status.Value.SecondsTillShutdown = timeTillShutdown;
-                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = timeTillShutdown;
-                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-
-                        Thread.Sleep(1000);
-                    }
-                }
-            }
-            catch
-            {
-                // ignore error during shutdown procedure.
-            }
-
-            base.OnServerStopping();
-        }
         #endregion
         #region User Validation Functions
         /// <summary>
@@ -299,7 +245,6 @@ namespace Quickstarts.ReferenceServer
         }
 
         #region Private Fields
-        private uint m_shutdownDelay = 0;
         #endregion 
         #endregion
     }

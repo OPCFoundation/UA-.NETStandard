@@ -163,6 +163,9 @@ namespace Opc.Ua
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
+            // initialize the server capabilities
+            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
 
@@ -217,6 +220,9 @@ namespace Opc.Ua
 
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
+
+            // initialize the server capabilities
+            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
 
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);

@@ -121,6 +121,16 @@
       <ua:String>Global Discovery and Certificate Management Server</ua:String>
     </ServerProfileArray>
 
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>GDS</ua:String>
+    </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+
   </ServerConfiguration>
   <Extensions>
     <ua:XmlElement>

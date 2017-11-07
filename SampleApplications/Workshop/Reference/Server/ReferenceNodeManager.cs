@@ -2636,18 +2636,18 @@ namespace Quickstarts.ReferenceServer
 
             return null;
         }
-#endregion
+        #endregion
 
-#region Overrides
-#endregion
+        #region Overrides
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ReferenceServerConfiguration m_configuration;
         private Opc.Ua.Test.DataGenerator m_generator;
         private Timer m_simulationTimer;
         private UInt16 m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private List<BaseDataVariableState> m_dynamicNodes;
-#endregion
+        #endregion
     }
 }
