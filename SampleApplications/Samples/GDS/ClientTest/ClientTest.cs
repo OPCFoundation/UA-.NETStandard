@@ -524,12 +524,20 @@ namespace NUnit.Opc.Ua.Gds.Test
             {
                 _client.GDSClient.GetCertificateGroups(null);
             }, Throws.Exception);
+            Assert.That(() =>
+            {
+                _client.GDSClient.GetCertificateGroups(new NodeId(Guid.NewGuid()));
+            }, Throws.Exception);
 
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() =>
                 {
                     var trustListId = _client.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                }, Throws.Exception);
+                Assert.That(() =>
+                {
+                    var trustListId = _client.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
                 }, Throws.Exception);
                 Assert.That(() =>
                 {
