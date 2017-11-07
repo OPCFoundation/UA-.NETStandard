@@ -52,7 +52,7 @@ namespace NetCoreConsoleClient
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t * 1000 }
+                { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t * 1000 }
             };
 
             IList<string> extraArgs = null;
