@@ -393,6 +393,7 @@ namespace Opc.Ua.Server
                             }
                             return activeNode;
                         }
+                        break;
                     }
             }
 
