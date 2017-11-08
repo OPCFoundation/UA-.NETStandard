@@ -77,9 +77,9 @@ namespace Opc.Ua.Server
             namespaceManagers[0] = registeredManagers = new List<INodeManager>();            
             namespaceManagers[1] = registeredManagers = new List<INodeManager>();
 
-            // always add the diagnostics node manager to the start of the list.
-            DiagnosticsNodeManager diagnosticsManager = new DiagnosticsNodeManager(server, configuration);
-            RegisterNodeManager(diagnosticsManager, registeredManagers, namespaceManagers);
+            // always add the diagnostics and configuration node manager to the start of the list.
+            ConfigurationNodeManager configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
+            RegisterNodeManager(configurationAndDiagnosticsManager, registeredManagers, namespaceManagers);
                         
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
