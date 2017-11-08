@@ -593,7 +593,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
-                               
+
                 // initialize status.
                 ServerStatusDataType serverStatus = new ServerStatusDataType();
 
@@ -644,6 +644,10 @@ namespace Opc.Ua.Server
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
+                ConfigurationNodeManager configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
+                configurationNodeManager?.CreateServerConfiguration(
+                    m_defaultSystemContext,
+                    m_configuration);
             }
         }
         
@@ -730,9 +734,9 @@ namespace Opc.Ua.Server
 
             return ServiceResult.Good;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ServerProperties m_serverDescription;
         private ApplicationConfiguration m_configuration;
         private List<Uri> m_endpointAddresses;    
@@ -761,6 +765,6 @@ namespace Opc.Ua.Server
         private ServerObjectState m_serverObject;
         private ServerStatusValue m_serverStatus;
         private ServerDiagnosticsSummaryDataType m_serverDiagnostics;
-        #endregion
+#endregion
     }
 }

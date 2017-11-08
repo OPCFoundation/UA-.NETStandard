@@ -347,54 +347,6 @@ namespace Opc.Ua.Server
                         return activeNode;
                     }
 
-                case ObjectTypes.ServerConfigurationType:
-                    {
-                        ServerConfigurationState activeNode = new ServerConfigurationState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        m_serverConfiguration = activeNode;
-
-                        // replace the node in the parent.
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
-                        return activeNode;
-                    }
-                case ObjectTypes.CertificateGroupFolderType:
-                    {
-                        CertificateGroupFolderState activeNode = new CertificateGroupFolderState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        // delete unsupported groups
-                        activeNode.DefaultHttpsGroup = null;
-                        activeNode.DefaultUserTokenGroup = null;
-
-                        // replace the node in the parent.
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
-                        return activeNode;
-                    }
-                case ObjectTypes.CertificateGroupType:
-                    {
-                        if (passiveNode.BrowseName == Opc.Ua.BrowseNames.DefaultApplicationGroup)
-                        {
-                            CertificateGroupState activeNode = new CertificateGroupState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
-
-                            m_defaultApplicationGroup = activeNode;
-
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            return activeNode;
-                        }
-                        break;
-                    }
             }
 
             return predefinedNode;
@@ -600,29 +552,6 @@ namespace Opc.Ua.Server
             {
                 DeleteNode(context, nodesToDelete[ii].NodeId);
             }
-        }
-
-        /// <summary>
-        /// Creates the configuration node for the server.
-        /// </summary>
-        public void CreateServerConfiguration(
-            ServerSystemContext systemContext,
-            ApplicationConfiguration configuration
-            )
-        {
-            m_serverConfigurationManager = new ServerConfigurationManager(
-                m_serverConfiguration,
-                configuration
-                );
-
-            m_defaultApplicationGroup.CertificateTypes.Value = new NodeId[] { ObjectTypeIds.ApplicationCertificateType };
-            m_defaultApplicationGroup.TrustList.Handle = new TrustList(
-                m_defaultApplicationGroup.TrustList,
-                configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath,
-                configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath
-                );
-            m_defaultApplicationGroup.ClearChangeMasks(systemContext, true);
-
         }
 
         /// <summary>
@@ -1846,9 +1775,6 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
-        private CertificateGroupState m_defaultApplicationGroup;
-        private ServerConfigurationState m_serverConfiguration;
-        private ServerConfigurationManager m_serverConfigurationManager;
         #endregion
     }
 }

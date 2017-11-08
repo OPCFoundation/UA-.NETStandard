@@ -39,8 +39,8 @@ namespace Opc.Ua.Server
         public TrustList(Opc.Ua.TrustListState node, string trustedListPath, string issuerListPath)
         {
             m_node = node;
-            m_trustedListPath = trustedListPath;
-            m_issuerListPath = issuerListPath;
+            m_trustedStorePath = trustedListPath;
+            m_issuerStorePath = issuerListPath;
 
             node.Open.OnCall = new OpenMethodStateMethodCallHandler(Open);
             node.OpenWithMasks.OnCall = new OpenWithMasksMethodStateMethodCallHandler(OpenWithMasks);
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server
                 {
                     SpecifiedLists = masks
                 };
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_trustedListPath))
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_trustedStorePath))
                 {
                     if ((masks & (uint)TrustListMasks.TrustedCertificates) != 0)
                     {
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_issuerListPath))
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_issuerStorePath))
                 {
                     if ((masks & (uint)TrustListMasks.IssuerCertificates) != 0)
                     {
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedListPath : m_issuerListPath))
+            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
             {
                 store.Add(new X509Certificate2(certificate));
             }
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
             string certificate,
             bool isTrustedCertificate)
         {
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedListPath : m_issuerListPath))
+            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
             {
                 store.Delete(new X509Certificate2(certificate).Thumbprint);
             }
@@ -288,8 +288,8 @@ namespace Opc.Ua.Server
         private object m_lock = new object();
         private NodeId m_sessionId;
         private uint m_fileHandle;
-        private readonly string m_trustedListPath;
-        private readonly string m_issuerListPath;
+        private readonly string m_trustedStorePath;
+        private readonly string m_issuerStorePath;
         private TrustListState m_node;
         private Stream m_strm;
         #endregion
