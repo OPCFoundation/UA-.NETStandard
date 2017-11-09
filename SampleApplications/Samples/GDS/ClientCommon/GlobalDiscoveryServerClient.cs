@@ -624,7 +624,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Gets the trust lists method.
+        /// Gets the certificate status.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificateGroupId">Type of the trust list.</param>

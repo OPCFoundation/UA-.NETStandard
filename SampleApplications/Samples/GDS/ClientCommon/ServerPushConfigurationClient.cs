@@ -32,6 +32,7 @@ using System;
 using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -73,6 +74,18 @@ namespace Opc.Ua.Gds.Client
         {
             get { return m_adminCredentials; }
             set { m_adminCredentials = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the endpoint URL.
+        /// </summary>
+        /// <value>
+        /// The endpoint URL.
+        /// </value>
+        public string EndpointUrl
+        {
+            get { return m_endpointUrl; }
+            set { m_endpointUrl = value; }
         }
 
         /// <summary>
@@ -170,7 +183,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public void Connect()
         {
-            Connect((ConfiguredEndpoint)null);
+            Connect(EndpointUrl);
         }
 
         /// <summary>
@@ -311,8 +324,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the supported key formats.
         /// </summary>
-        /// <param name="publicKeyFormats">The public key formats.</param>
-        /// <param name="privateKeyFormats">The private key formats.</param>
         /// <exception cref="System.InvalidOperationException">Connection to server is not active.</exception>
         public string[] GetSupportedKeyFormats()
         {
@@ -428,6 +439,7 @@ namespace Opc.Ua.Gds.Client
                 RevertPermissions(oldUser);
             }
         }
+
 
         /// <summary>
         /// Updates the trust list.
@@ -586,6 +598,40 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Reads the rejected  list.
+        /// </summary>
+        public X509Certificate2Collection GetRejectedList()
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            IUserIdentity oldUser = ElevatePermissions();
+
+            try
+            {
+                var outputArguments = m_session.Call(
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_GetRejectedList, m_session.NamespaceUris)
+                    );
+
+                byte[][] rawCertificates = (byte[][])outputArguments[0];
+                X509Certificate2Collection collection = new X509Certificate2Collection();
+                foreach (var rawCertificate in rawCertificates)
+                {
+                    collection.Add(new X509Certificate(rawCertificate));
+                }
+                return collection;
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
+        }
+
+
+        /// <summary>
         /// Restarts this instance.
         /// </summary>
         public void ApplyChanges()
@@ -713,6 +759,7 @@ namespace Opc.Ua.Gds.Client
         private ApplicationInstance m_application;
         private ConfiguredEndpoint m_endpoint;
         private string[] m_preferredLocales;
+        private string m_endpointUrl;
         private Session m_session;
         private UserIdentity m_adminCredentials;
         #endregion

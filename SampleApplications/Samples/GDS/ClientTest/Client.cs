@@ -38,17 +38,20 @@ namespace Opc.Ua.Gds.Test
 
     public class GlobalDiscoveryTestClient
     {
-        GlobalDiscoveryServerClient m_gds;
+        GlobalDiscoveryServerClient m_gdsClient;
+        ServerPushConfigurationClient m_pushClient;
+
         static bool autoAccept = false;
 
-        public GlobalDiscoveryServerClient GDSClient { get { return m_gds;  } }
+        public GlobalDiscoveryServerClient GDSClient { get { return m_gdsClient;  } }
+        public ServerPushConfigurationClient PushClient { get { return m_pushClient; } }
 
         public GlobalDiscoveryTestClient(bool _autoAccept)
         {
             autoAccept = _autoAccept;
         }
 
-        public async Task ConnectClient()
+        public async Task ConnectClient(bool gdsClient = true)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance
@@ -70,24 +73,41 @@ namespace Opc.Ua.Gds.Test
 
             config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            // get the configuration.
+            // use same server for gds and push tests
             GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
-
-            m_gds = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
-
+            if (gdsClient)
+            {
+                // get the configuration.
+                m_gdsClient = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
+                m_gdsClient.EndpointUrl = gdsClientConfiguration.GlobalDiscoveryServerUrl;
+            }
+            else
+            {
+                m_pushClient = new ServerPushConfigurationClient(application);
+                m_pushClient.EndpointUrl = gdsClientConfiguration.GlobalDiscoveryServerUrl;
+            }
         }
 
         public void DisconnectClient()
-        { 
-            if (m_gds != null)
+        {
+            Console.WriteLine("Disconnect Session. Waiting for exit...");
+
+            if (m_gdsClient != null)
             {
-                Console.WriteLine("Disconnect Session. Waiting for exit...");
-                GlobalDiscoveryServerClient gds = m_gds;
-                m_gds = null;
-                gds.Disconnect();
+                GlobalDiscoveryServerClient gdsClient = m_gdsClient;
+                m_gdsClient = null;
+                gdsClient.Disconnect();
+            }
+
+            if (m_pushClient != null)
+            {
+                ServerPushConfigurationClient pushClient = m_pushClient;
+                m_pushClient = null;
+                pushClient.Disconnect();
             }
 
         }
+
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {

@@ -408,7 +408,6 @@ namespace Opc.Ua.Gds.Client
 
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
-#if TODO_SERVERPUSH
             if (error)
             {
                 ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.error;
@@ -422,11 +421,6 @@ namespace Opc.Ua.Gds.Client
             ServerStatusLabel.ForeColor = (error) ? Color.Red : Color.Empty;
             ServerStatusTime.Text = (time != DateTime.MinValue) ? time.ToLocalTime().ToString("hh:mm:ss") : "---";
             ServerStatusTime.ForeColor = (error) ? Color.Red : Color.Empty;
-#else
-            ServerStatusTime.Visible = false;
-            ServerStatusLabel.Visible = false;
-            ServerStatusIcon.Visible = false;
-#endif
         }
 
         private void DisconnectButton_Click(object sender, EventArgs e)

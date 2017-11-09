@@ -314,7 +314,7 @@ namespace Opc.Ua.Server
 
                 // TODO: role based access
                 UserIdentity user = context.UserIdentity as UserIdentity;
-                if (user.TokenType == UserTokenType.Anonymous)
+                if (user?.TokenType == UserTokenType.Anonymous)
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
                 }
@@ -352,6 +352,7 @@ namespace Opc.Ua.Server
         }
 
         #endregion
+        #region Private Fields
         private class ServerCertificateGroup
         {
             public string BrowseName;
@@ -363,7 +364,6 @@ namespace Opc.Ua.Server
             public string TrustedStorePath;
         };
 
-        #region Private Fields
         private ServerConfigurationState m_serverConfigurationNode;
         private IList<ServerCertificateGroup> m_certificateGroups;
         public readonly string m_rejectedStorePath;

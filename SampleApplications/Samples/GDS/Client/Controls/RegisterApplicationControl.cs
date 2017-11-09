@@ -53,9 +53,8 @@ namespace Opc.Ua.Gds.Client
 
             RegistrationTypeComboBox.Items.Add("Client - Pull Management");
             RegistrationTypeComboBox.Items.Add("Server - Pull Management");
-#if TODO_SERVERPUSH
             RegistrationTypeComboBox.Items.Add("Server - Push Management");
-#endif
+
             RegistrationTypeComboBox.SelectedIndex = ServerPullManagement;
 
             m_promptOnRegistrationTypeChange = false;
