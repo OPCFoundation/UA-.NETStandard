@@ -59,7 +59,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             _server.StartServer().Wait();
             _client = new GlobalDiscoveryTestClient(true);
             _client.ConnectClient(false).Wait();
-            _client.PushClient.AdminCredentials = new UserIdentity("appadmin", "demo");
+            _client.PushClient.AdminCredentials = new UserIdentity("sysadmin", "demo");
             _client.PushClient.Connect();
         }
 
@@ -108,20 +108,62 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         [Test, Order(500)]
-        public void UpdateCertificate()
+        public void UpdateCertificateSelfSignedNoPrivateKey()
         {
-            X509Certificate2 cert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
-            var success = _client.PushClient.UpdateCertificate(null, null, cert.RawData, null, null, null);
+            X509Certificate2 serverCert = new X509Certificate2(_client.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
+            byte[] invalidRawCert = { 0xba, 0xd0, 0xbe, 0xef, 3 };
+            // negative test all parameter combinations
+            NodeId invalidCertGroup = new NodeId(333);
+            NodeId invalidCertType = new NodeId(Guid.NewGuid());
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, null, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(invalidCertGroup, null, serverCert.RawData, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(invalidCertGroup, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", null, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", invalidCert.RawData, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, invalidCert.RawData, null); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, new byte [][] { serverCert.RawData, invalidCert.RawData}); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, null, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
+            Assert.That(() => { _client.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidRawCert }); }, Throws.Exception);
+            // positive test, update server with its own cert...
+            var success = _client.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null);
+            if (success)
+            {
+                _client.PushClient.ApplyChanges();
+            }
         }
 
-        [Test, Order(500)]
-        public void GetRejectedList()
+        [Test, Order(510)]
+        public void UpdateCertificateCASigned()
         {
-            var collection = _client.PushClient.GetRejectedList();
         }
 
+        [Test, Order(520)]
+        public void UpdateCertificateSelfSignedWithPFXKey()
+        {
+        }
+
+        [Test, Order(530)]
+        public void UpdateCertificateSelfSignedWithPEMKey()
+        {
+        }
 
         [Test, Order(600)]
+        public void GetRejectedList()
+        {
+            var rawCollection = _client.PushClient.GetRejectedList();
+            foreach (var rawCert in rawCollection)
+            {
+
+            }
+        }
+
+
+        [Test, Order(700)]
         public void ApplyChanges()
         {
             _client.PushClient.ApplyChanges();

@@ -127,6 +127,7 @@
     </ServerCapabilities>
     <SupportedPrivateKeyFormats>
       <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
