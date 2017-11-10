@@ -874,7 +874,7 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
             }
 
-            m_applicationConfiguration = configuration;
+            m_applicationConfiguration = FixupAppConfig(configuration);
 
             return configuration;
         }
