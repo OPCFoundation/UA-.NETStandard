@@ -150,7 +150,6 @@
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>
-        <ShutdownDelay>5</ShutdownDelay>
     </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>

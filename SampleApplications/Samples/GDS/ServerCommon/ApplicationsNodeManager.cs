@@ -332,7 +332,12 @@ namespace Opc.Ua.Gds.Server
                             certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
                         }
 
-                        certificateGroup.DefaultTrustList.Handle = new TrustList(certificateGroup.DefaultTrustList, certificateGroupConfiguration.TrustedListPath, certificateGroupConfiguration.IssuerListPath);
+                        certificateGroup.DefaultTrustList.Handle = new TrustList(
+                            certificateGroup.DefaultTrustList, 
+                            certificateGroupConfiguration.TrustedListPath, 
+                            certificateGroupConfiguration.IssuerListPath,
+                            new TrustList.SecureAccess(HasApplicationUserAccess),
+                            new TrustList.SecureAccess(HasApplicationAdminAccess));
                         break;
                     }
                 }
@@ -395,7 +400,12 @@ namespace Opc.Ua.Gds.Server
 
                     if (certificateGroup.DefaultTrustList != null)
                     {
-                        certificateGroup.DefaultTrustList.Handle = new TrustList(certificateGroup.DefaultTrustList, certificateGroupConfiguration.TrustedListPath, certificateGroupConfiguration.IssuerListPath);
+                        certificateGroup.DefaultTrustList.Handle = new TrustList(
+                            certificateGroup.DefaultTrustList, 
+                            certificateGroupConfiguration.TrustedListPath, 
+                            certificateGroupConfiguration.IssuerListPath,
+                            new TrustList.SecureAccess(HasApplicationUserAccess),
+                            new TrustList.SecureAccess(HasApplicationAdminAccess));
                     }
                 }
 

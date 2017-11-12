@@ -119,7 +119,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
+        protected override NodeState AddBehaviourToPredefinedNode(
+            ISystemContext context, 
+            NodeState predefinedNode)
         {
             BaseObjectState passiveNode = predefinedNode as BaseObjectState;
 
@@ -232,7 +234,9 @@ namespace Opc.Ua.Server
                 certGroup.Node.TrustList.Handle = new TrustList(
                     certGroup.Node.TrustList,
                     certGroup.TrustedStorePath,
-                    certGroup.IssuerStorePath
+                    certGroup.IssuerStorePath,
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess)
                     );
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
@@ -240,16 +244,16 @@ namespace Opc.Ua.Server
         #endregion
         #region Private Methods
         private ServiceResult UpdateCertificate(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                NodeId certificateGroupId,
-                NodeId certificateTypeId,
-                byte[] certificate,
-                byte[][] issuerCertificates,
-                string privateKeyFormat,
-                byte[] privateKey,
-                ref bool applyChangesRequired)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificate,
+            byte[][] issuerCertificates,
+            string privateKeyFormat,
+            byte[] privateKey,
+            ref bool applyChangesRequired)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -369,15 +373,15 @@ namespace Opc.Ua.Server
 
 
         private ServiceResult CreateSigningRequest(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                NodeId certificateGroupId,
-                NodeId certificateTypeId,
-                string subjectName,
-                bool regeneratePrivateKey,
-                byte[] nonce,
-                ref byte[] certificateRequest)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            bool regeneratePrivateKey,
+            byte[] nonce,
+            ref byte[] certificateRequest)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -478,6 +482,7 @@ namespace Opc.Ua.Server
                 }
                 certificates = rawList.ToArray();
             }
+
             return StatusCodes.Good;
         }
 

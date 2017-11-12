@@ -40,9 +40,6 @@ namespace Opc.Ua.Gds.Test
 
     public class GlobalDiscoveryTestServer
     {
-        GlobalDiscoveryServer m_server;
-        static bool autoAccept = false;
-
         public GlobalDiscoveryServer Server { get { return m_server; } }
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
@@ -123,6 +120,7 @@ namespace Opc.Ua.Gds.Test
             }
         }
 
-
+        private GlobalDiscoveryServer m_server;
+        private static bool autoAccept = false;
     }
 }

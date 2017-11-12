@@ -30,35 +30,32 @@
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using System;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
 
 namespace Opc.Ua.Gds.Test
 {
 
-    public class GlobalDiscoveryTestClient
+    public class ServerConfigurationPushTestClient
     {
-        GlobalDiscoveryServerClient m_gdsClient;
-        ServerPushConfigurationClient m_pushClient;
+        public ServerPushConfigurationClient PushClient { get { return _client; } }
+        public static bool AutoAccept = false;
 
-        static bool autoAccept = false;
 
-        public GlobalDiscoveryServerClient GDSClient { get { return m_gdsClient;  } }
-        public ServerPushConfigurationClient PushClient { get { return m_pushClient; } }
-
-        public GlobalDiscoveryTestClient(bool _autoAccept)
+        public ServerConfigurationPushTestClient(bool autoAccept)
         {
-            autoAccept = _autoAccept;
+            AutoAccept = autoAccept;
         }
 
-        public async Task ConnectClient(bool gdsClient = true)
+        public async Task LoadClientConfiguration()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance
             {
-                ApplicationName = "Global Discovery Client",
+                ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestClient"
+                ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
             };
 
             // load the application configuration.
@@ -73,48 +70,34 @@ namespace Opc.Ua.Gds.Test
 
             config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            // use same server for gds and push tests
-            GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
-            if (gdsClient)
+            // use same server configuration for gds and push tests
+            ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
+            _client = new ServerPushConfigurationClient(application)
             {
-                // get the configuration.
-                m_gdsClient = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
-                m_gdsClient.EndpointUrl = gdsClientConfiguration.GlobalDiscoveryServerUrl;
-            }
-            else
-            {
-                m_pushClient = new ServerPushConfigurationClient(application);
-                m_pushClient.EndpointUrl = gdsClientConfiguration.GlobalDiscoveryServerUrl;
-            }
+                EndpointUrl = clientConfiguration.ServerUrl
+            };
+
         }
 
         public void DisconnectClient()
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (m_gdsClient != null)
+            if (_client != null)
             {
-                GlobalDiscoveryServerClient gdsClient = m_gdsClient;
-                m_gdsClient = null;
-                gdsClient.Disconnect();
-            }
-
-            if (m_pushClient != null)
-            {
-                ServerPushConfigurationClient pushClient = m_pushClient;
-                m_pushClient = null;
+                ServerPushConfigurationClient pushClient = _client;
+                _client = null;
                 pushClient.Disconnect();
             }
 
         }
 
-
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
+                e.Accept = AutoAccept;
+                if (AutoAccept)
                 {
                     Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                 }
@@ -125,6 +108,48 @@ namespace Opc.Ua.Gds.Test
             }
         }
 
+        private ServerPushConfigurationClient _client;
 
+    }
+
+    /// <summary>
+    /// Stores the configuration the data access node manager.
+    /// </summary>
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaConfig)]
+    public class ServerConfigurationPushTestClientConfiguration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ServerConfigurationPushTestClientConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public
+        [DataMember(Order = 1)]
+        public string ServerUrl { get; set; }
+        #endregion
+
+        #region Private Members
+        #endregion
     }
 }

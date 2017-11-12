@@ -28,6 +28,9 @@
     <None Update="Opc.Ua.GlobalDiscoveryTestServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Opc.Ua.ServerConfigurationPushTestClient.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

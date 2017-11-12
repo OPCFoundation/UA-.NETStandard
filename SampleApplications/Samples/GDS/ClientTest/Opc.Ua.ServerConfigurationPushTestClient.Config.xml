@@ -4,16 +4,16 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>UA Global Discovery Test Client</ApplicationName>
-  <ApplicationUri>urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UA/GlobalDiscoveryTestClient</ProductUri>
+  <ApplicationName>UA Server Configuration Push Test Client</ApplicationName>
+  <ApplicationUri>urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/ServerConfigurationPushTestClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
 
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/PKI/own</StorePath>
-      <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
@@ -62,13 +62,10 @@
          URLs are tested in the order they appear in this list. -->
     <WellKnownDiscoveryUrls>
       <ua:String>opc.tcp://{0}:4840/UADiscovery</ua:String>
-      <ua:String>http://{0}:52601/UADiscovery</ua:String>
-      <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
     </WellKnownDiscoveryUrls>
 
     <!-- EndpointDescriptions for system wide discovery servers -->
     <DiscoveryServers></DiscoveryServers>
-
 
     <!-- The minimum subscription lifetime.
          This ensures subscriptions are not set to expire too quickly. The requesed lifetime count
@@ -79,15 +76,14 @@
   
   <Extensions>
     <ua:XmlElement>
-      <GlobalDiscoveryClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</GlobalDiscoveryServerUrl>
-        <TemporaryStorePath>%LocalApplicationData%/OPC/PKI/temporary</TemporaryStorePath>
-      </GlobalDiscoveryClientConfiguration>
+      <ServerConfigurationPushTestClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <ServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</ServerUrl>
+      </ServerConfigurationPushTestClientConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestClient.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/OPC/Logs/ServerConfigurationPushTestClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

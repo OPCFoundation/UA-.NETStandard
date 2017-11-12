@@ -366,7 +366,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Reads the trust list.
         /// </summary>
-        public TrustListDataType ReadTrustList()
+        public TrustListDataType ReadTrustList(TrustListMasks masks = TrustListMasks.All)
         {
             if (!IsConnected)
             {
@@ -379,8 +379,8 @@ namespace Opc.Ua.Gds.Client
             {
                 var outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
-                    (byte)1);
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks, m_session.NamespaceUris),
+                    (uint)masks);
 
                 uint fileHandle = (uint)outputArguments[0];
                 MemoryStream ostrm = new MemoryStream();
@@ -440,7 +440,6 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-
         /// <summary>
         /// Updates the trust list.
         /// </summary>
@@ -463,7 +462,7 @@ namespace Opc.Ua.Gds.Client
                 var outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
-                    (byte)6);
+                    (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting));
 
                 uint fileHandle = (uint)outputArguments[0];
 
@@ -526,7 +525,12 @@ namespace Opc.Ua.Gds.Client
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <returns></returns>
-        public byte[] CreateCertificateRequest(NodeId certificateGroupId, NodeId certificateTypeId, string subjectName, bool regeneratePrivateKey, byte[] nonce)
+        public byte[] CreateCertificateRequest(
+            NodeId certificateGroupId, 
+            NodeId certificateTypeId, 
+            string subjectName, 
+            bool regeneratePrivateKey, 
+            byte[] nonce)
         {
             if (!IsConnected)
             {
@@ -563,7 +567,13 @@ namespace Opc.Ua.Gds.Client
         /// Updates the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public bool UpdateCertificate(NodeId certificateGroupId, NodeId certificateTypeId, byte[] certificate, string privateKeyFormat, byte[] privateKey, byte[][] issuerCertificates)
+        public bool UpdateCertificate(
+            NodeId certificateGroupId, 
+            NodeId certificateTypeId, 
+            byte[] certificate, 
+            string privateKeyFormat, 
+            byte[] privateKey, 
+            byte[][] issuerCertificates)
         {
             if (!IsConnected)
             {
