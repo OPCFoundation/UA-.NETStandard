@@ -27,17 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Threading;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
+using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -57,6 +54,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             _dataGenerator = new DataGenerator(_randomSource);
             _server = new GlobalDiscoveryTestServer(true);
             _server.StartServer().Wait();
+            Thread.Sleep(1000);
             _gdsClient = new GlobalDiscoveryTestClient(true);
             _gdsClient.LoadClientConfiguration().Wait();
             _pushClient = new ServerConfigurationPushTestClient(true);
@@ -72,6 +70,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             _gdsClient.DisconnectClient();
             _pushClient.DisconnectClient();
             _server.StopServer();
+            Thread.Sleep(1000);
         }
 
         [TearDown]
@@ -241,7 +240,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         private void ConnectPushClient(bool sysAdmin)
         {
             _pushClient.PushClient.AdminCredentials = new UserIdentity(sysAdmin ? "sysadmin" : "appuser", "demo");
-            _pushClient.PushClient.Connect(_gdsClient.GDSClient.EndpointUrl);
+            _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl);
         }
 
         private void DisconnectPushClient()

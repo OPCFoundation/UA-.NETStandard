@@ -111,7 +111,10 @@ namespace NUnit.Opc.Ua.Gds.Test
         protected void OneTimeTearDown()
         {
             _gdsClient.DisconnectClient();
+            _gdsClient = null;
             _server.StopServer();
+            _server = null;
+            Thread.Sleep(1000);
         }
 
         [TearDown]
