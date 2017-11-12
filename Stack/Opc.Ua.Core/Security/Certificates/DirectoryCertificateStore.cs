@@ -144,7 +144,7 @@ namespace Opc.Ua
 
                 if (certificate.HasPrivateKey)
                 {
-                    string passcode = (password == null) ? String.Empty : password;
+                    string passcode = password ?? String.Empty;
                     data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
@@ -311,12 +311,12 @@ namespace Opc.Ua
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
                     RSA rsa = null;
-
+                    password = password ?? String.Empty;
                     try
                     {
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
-                            (password == null) ? String.Empty : password,
+                            password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
@@ -324,7 +324,7 @@ namespace Opc.Ua
                     {
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
-                            (password == null) ? String.Empty : password,
+                            password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
                         rsa = certificate.GetRSAPrivateKey();
                     }
@@ -333,6 +333,7 @@ namespace Opc.Ua
                         int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, true);
                         byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
                         byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
+                        rsa.Dispose();
                         if (bytes2 != null)
                         {
                             // Utils.Trace(1, "RSA: {0}", certificate.Thumbprint);

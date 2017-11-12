@@ -426,9 +426,8 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                var sre = exception as ServiceResultException;
 
-                if (sre != null && sre.StatusCode == StatusCodes.BadNothingToDo)
+                if (exception is ServiceResultException sre && sre.StatusCode == StatusCodes.BadNothingToDo)
                 {
                     return;
                 }

@@ -290,9 +290,7 @@ namespace Opc.Ua.Gds.Client.Controls
         {
             foreach (X509Extension extension in certificate.Extensions)
             {
-                X509BasicConstraintsExtension basicContraints = extension as X509BasicConstraintsExtension;
-
-                if (basicContraints != null)
+                if (extension is X509BasicConstraintsExtension basicContraints)
                 {
                     if (basicContraints.CertificateAuthority)
                     {
@@ -392,8 +390,10 @@ namespace Opc.Ua.Gds.Client.Controls
                 foreach (DataGridViewCell cell in CertificateListGridView.SelectedCells)
                 {
                     DataRowView source = CertificateListGridView.Rows[cell.RowIndex].DataBoundItem as DataRowView;
-                    EditValueDlg dialog = new EditValueDlg();
-                    dialog.Size = new Size(800, 400);
+                    EditValueDlg dialog = new EditValueDlg
+                    {
+                        Size = new Size(800, 400)
+                    };
                     dialog.ShowDialog(null, "", new CertificateWrapper() { Certificate = (X509Certificate2)source.Row[7] }, true, this.Text);
                     break;
                 }
@@ -499,18 +499,19 @@ namespace Opc.Ua.Gds.Client.Controls
                     directory = m_certificateFile.DirectoryName;
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = "*.der";
-                dialog.Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*";
-                dialog.Title = "Import Certificate";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.FileName = (m_certificateFile != null) ? m_certificateFile.Name : null;
-                dialog.InitialDirectory = directory;
-                dialog.RestoreDirectory = true;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = "*.der",
+                    Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*",
+                    Title = "Import Certificate",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    FileName = m_certificateFile?.Name,
+                    InitialDirectory = directory,
+                    RestoreDirectory = true
+                };
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
@@ -566,16 +567,17 @@ namespace Opc.Ua.Gds.Client.Controls
                     directory = m_certificateFile.DirectoryName;
                 }
 
-                SaveFileDialog dialog = new SaveFileDialog();
-
-                dialog.CheckFileExists = false;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".der";
-                dialog.Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*";
-                dialog.ValidateNames = true;
-                dialog.Title = "Export Certificate";
-                dialog.FileName = String.Format("{0} [{1}].der", GetCommonName(certificate), certificate.Thumbprint);
-                dialog.InitialDirectory = directory;
+                SaveFileDialog dialog = new SaveFileDialog
+                {
+                    CheckFileExists = false,
+                    CheckPathExists = true,
+                    DefaultExt = ".der",
+                    Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*",
+                    ValidateNames = true,
+                    Title = "Export Certificate",
+                    FileName = String.Format("{0} [{1}].der", GetCommonName(certificate), certificate.Thumbprint),
+                    InitialDirectory = directory
+                };
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {

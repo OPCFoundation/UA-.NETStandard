@@ -43,8 +43,10 @@ namespace Opc.Ua.Gds.Client
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentUICulture;
 
-            List<string> locales = new List<string>();
-            locales.Add(culture.Name);
+            List<string> locales = new List<string>
+            {
+                culture.Name
+            };
 
             culture = System.Globalization.CultureInfo.CurrentCulture;
 

@@ -178,8 +178,8 @@ namespace Opc.Ua.Gds.Client
                 m_application.ApplicationUri = record.ApplicationUri;
                 m_application.ApplicationName = (record.ApplicationNames != null && record.ApplicationNames.Count > 0 && record.ApplicationNames[0].Text != null) ? record.ApplicationNames[0].Text.ToString() : null;
                 m_application.ProductUri = record.ProductUri;
-                m_application.DiscoveryUrl = (record.DiscoveryUrls != null) ? record.DiscoveryUrls.ToArray() : null;
-                m_application.ServerCapability = (record.ServerCapabilities != null) ? record.ServerCapabilities.ToArray() : null;
+                m_application.DiscoveryUrl = record.DiscoveryUrls?.ToArray();
+                m_application.ServerCapability = record.ServerCapabilities?.ToArray();
             }
             else
             {
@@ -229,7 +229,7 @@ namespace Opc.Ua.Gds.Client
         private void DataToControl()
         {
             ApplicationIdTextBox.Text = null;
-            ApplicationUriTextBox.Text = (m_application != null) ? m_application.ApplicationUri : null;
+            ApplicationUriTextBox.Text = m_application?.ApplicationUri;
             DomainsTextBox.Text = m_application.Domains;
 
             try
@@ -639,17 +639,18 @@ namespace Opc.Ua.Gds.Client
                     directory = new FileInfo(configurationFile).Directory;
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".xml";
-                dialog.Filter = "Configuration Files (*.xml)|*.xml|Certificate Files (*.der)|*.der|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Open Application Configuration File";
-                dialog.FileName = (configurationFile != null) ? new FileInfo(configurationFile).Name : "";
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".xml",
+                    Filter = "Configuration Files (*.xml)|*.xml|Certificate Files (*.der)|*.der|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Open Application Configuration File",
+                    FileName = (configurationFile != null) ? new FileInfo(configurationFile).Name : "",
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -738,12 +739,13 @@ namespace Opc.Ua.Gds.Client
                     directory = new DirectoryInfo(storePath);
                 }
 
-                FolderBrowserDialog dialog = new FolderBrowserDialog();
-
-                dialog.RootFolder = Environment.SpecialFolder.MyComputer;
-                dialog.SelectedPath = directory.FullName;
-                dialog.ShowNewFolderButton = true;
-                dialog.Description = "Select Application Certificate Directory Store";
+                FolderBrowserDialog dialog = new FolderBrowserDialog
+                {
+                    RootFolder = Environment.SpecialFolder.MyComputer,
+                    SelectedPath = directory.FullName,
+                    ShowNewFolderButton = true,
+                    Description = "Select Application Certificate Directory Store"
+                };
 
                 var result = dialog.ShowDialog(ParentForm);
 
@@ -847,17 +849,18 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".der";
-                dialog.Filter = "DER Files (*.der)|*.der|CER Files (*.cer)|*.cer|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Select Certificate File";
-                dialog.FileName = (path != null) ? new FileInfo(path).Name : "";
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".der",
+                    Filter = "DER Files (*.der)|*.der|CER Files (*.cer)|*.cer|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Select Certificate File",
+                    FileName = (path != null) ? new FileInfo(path).Name : "",
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -925,17 +928,18 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".pfx";
-                dialog.Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Select Private Key File";
-                dialog.FileName = (path != null) ? new FileInfo(path).Name : "";
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".pfx",
+                    Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Select Private Key File",
+                    FileName = (path != null) ? new FileInfo(path).Name : "",
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -972,17 +976,18 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".der";
-                dialog.Filter = "DER Files (*.der)|*.der|CER Files (*.cer)|*.cer|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Select Certificate File";
-                dialog.FileName = (path != null) ? new FileInfo(path).Name : "";
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".der",
+                    Filter = "DER Files (*.der)|*.der|CER Files (*.cer)|*.cer|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Select Certificate File",
+                    FileName = (path != null) ? new FileInfo(path).Name : "",
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -1041,17 +1046,18 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".pfx";
-                dialog.Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Select Private Key File";
-                dialog.FileName = (path != null) ? new FileInfo(path).Name : "";
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".pfx",
+                    Filter = "PFX/PEM Files (*.pfx,*.pem)|*.pfx;*.pem|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Select Private Key File",
+                    FileName = (path != null) ? new FileInfo(path).Name : "",
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -1087,12 +1093,13 @@ namespace Opc.Ua.Gds.Client
                 }
 
 
-                FolderBrowserDialog dialog = new FolderBrowserDialog();
-
-                dialog.RootFolder = Environment.SpecialFolder.MyComputer;
-                dialog.SelectedPath = directory.FullName;
-                dialog.ShowNewFolderButton = true;
-                dialog.Description = "Select Application Trust List";
+                FolderBrowserDialog dialog = new FolderBrowserDialog
+                {
+                    RootFolder = Environment.SpecialFolder.MyComputer,
+                    SelectedPath = directory.FullName,
+                    ShowNewFolderButton = true,
+                    Description = "Select Application Trust List"
+                };
 
                 DialogResult result = dialog.ShowDialog(ParentForm);
 
@@ -1131,12 +1138,13 @@ namespace Opc.Ua.Gds.Client
                     directory = new DirectoryInfo(storePath);
                 }
 
-                FolderBrowserDialog dialog = new FolderBrowserDialog();
-
-                dialog.RootFolder = Environment.SpecialFolder.MyComputer;
-                dialog.SelectedPath = directory.FullName;
-                dialog.ShowNewFolderButton = true;
-                dialog.Description = "Select Issuers List Directory Store";
+                FolderBrowserDialog dialog = new FolderBrowserDialog
+                {
+                    RootFolder = Environment.SpecialFolder.MyComputer,
+                    SelectedPath = directory.FullName,
+                    ShowNewFolderButton = true,
+                    Description = "Select Issuers List Directory Store"
+                };
 
                 var result = dialog.ShowDialog(ParentForm);
 
@@ -1175,12 +1183,13 @@ namespace Opc.Ua.Gds.Client
                     directory = new DirectoryInfo(storePath);
                 }
 
-                FolderBrowserDialog dialog = new FolderBrowserDialog();
-
-                dialog.RootFolder = Environment.SpecialFolder.MyComputer;
-                dialog.SelectedPath = directory.FullName;
-                dialog.ShowNewFolderButton = true;
-                dialog.Description = "Select HTTPS Trust List Directory Store";
+                FolderBrowserDialog dialog = new FolderBrowserDialog
+                {
+                    RootFolder = Environment.SpecialFolder.MyComputer,
+                    SelectedPath = directory.FullName,
+                    ShowNewFolderButton = true,
+                    Description = "Select HTTPS Trust List Directory Store"
+                };
 
                 var result = dialog.ShowDialog(ParentForm);
 
@@ -1219,12 +1228,13 @@ namespace Opc.Ua.Gds.Client
                     directory = new DirectoryInfo(storePath);
                 }
 
-                FolderBrowserDialog dialog = new FolderBrowserDialog();
-
-                dialog.RootFolder = Environment.SpecialFolder.MyComputer;
-                dialog.SelectedPath = directory.FullName;
-                dialog.ShowNewFolderButton = true;
-                dialog.Description = "Select HTTPS Issuers List Directory Store";
+                FolderBrowserDialog dialog = new FolderBrowserDialog
+                {
+                    RootFolder = Environment.SpecialFolder.MyComputer,
+                    SelectedPath = directory.FullName,
+                    ShowNewFolderButton = true,
+                    Description = "Select HTTPS Issuers List Directory Store"
+                };
 
                 var result = dialog.ShowDialog(ParentForm);
 
@@ -1326,7 +1336,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     if (records.Length > 1)
                     {
-                        recordToReplace = new ViewApplicationRecordsDialog(m_gds).ShowDialog(Parent, records, (recordToReplace != null) ? recordToReplace.ApplicationId : null);
+                        recordToReplace = new ViewApplicationRecordsDialog(m_gds).ShowDialog(Parent, records, recordToReplace?.ApplicationId);
                     }
                     else if (records.Length > 0)
                     {
@@ -1382,10 +1392,7 @@ namespace Opc.Ua.Gds.Client
 
                 ControlToData();
 
-                if (RegisteredApplicationChanged != null)
-                {
-                    RegisteredApplicationChanged(this, new RegisteredApplicationChangedEventArgs(m_application));
-                }
+                RegisteredApplicationChanged?.Invoke(this, new RegisteredApplicationChangedEventArgs(m_application));
 
                 MessageBox.Show(
                     Parent,
@@ -1513,9 +1520,7 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                ApplicationRecordDataType record = ApplicationIdTextBox.Tag as ApplicationRecordDataType;
-
-                if (record != null)
+                if (ApplicationIdTextBox.Tag is ApplicationRecordDataType record)
                 {
                     m_gds.UnregisterApplication(record.ApplicationId);
 
@@ -1643,17 +1648,18 @@ namespace Opc.Ua.Gds.Client
                     name = buffer.ToString();
                 }
 
-                SaveFileDialog dialog = new SaveFileDialog();
-
-                dialog.OverwritePrompt = true;
-                dialog.CheckFileExists = false;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".xml";
-                dialog.Filter = "Registration Files (*.xml)|*.xml|All Files (*.*)|*.*";
-                dialog.ValidateNames = true;
-                dialog.Title = "Save Registration File";
-                dialog.FileName = name;
-                dialog.InitialDirectory = directory.FullName;
+                SaveFileDialog dialog = new SaveFileDialog
+                {
+                    OverwritePrompt = true,
+                    CheckFileExists = false,
+                    CheckPathExists = true,
+                    DefaultExt = ".xml",
+                    Filter = "Registration Files (*.xml)|*.xml|All Files (*.*)|*.*",
+                    ValidateNames = true,
+                    Title = "Save Registration File",
+                    FileName = name,
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {
@@ -1731,17 +1737,18 @@ namespace Opc.Ua.Gds.Client
 
                 DirectoryInfo directory = new DirectoryInfo(path);
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".xml";
-                dialog.Filter = "All Data Files (*.xml;*.config;*.der)|*.xml;*.config;*.der|All Files (*.*)|*.*";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.Title = "Load Registration File, Application Configuration File or Certificate";
-                dialog.FileName = null;
-                dialog.InitialDirectory = directory.FullName;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = ".xml",
+                    Filter = "All Data Files (*.xml;*.config;*.der)|*.xml;*.config;*.der|All Files (*.*)|*.*",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    Title = "Load Registration File, Application Configuration File or Certificate",
+                    FileName = null,
+                    InitialDirectory = directory.FullName
+                };
 
                 if (dialog.ShowDialog(Parent) != DialogResult.OK)
                 {

@@ -129,9 +129,8 @@ namespace Opc.Ua.Gds.Client
                         continue;
                     }
 
-                    DirectoryCertificateStore ds = store as DirectoryCertificateStore;
 
-                    if (ds != null)
+                    if (store is DirectoryCertificateStore ds)
                     {
                         string path = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, false);
 
