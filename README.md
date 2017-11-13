@@ -1,7 +1,7 @@
-# OPC UA .Net Standard Library Stack and Samples
+# OPC UA .Net Standard Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting the [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandardLibrary).
+This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandardLibrary).
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
@@ -30,7 +30,7 @@ All required application certificates for OPC UA are created at the first start 
 
 ### Windows .Net applications
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** with a root folder which is specified by the environment variable **ProgramData**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
-Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandardLibrary, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandardLibrary repository. 
+Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandard, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandard repository. 
 
 ### Windows UWP applications
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
