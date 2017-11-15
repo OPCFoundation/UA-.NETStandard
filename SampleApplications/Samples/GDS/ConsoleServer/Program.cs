@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Server
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-            string databaseStorePath = gdsConfiguration.DatabaseStorePath;
+            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
 
             // start the server.
             server = new GlobalDiscoveryServer(JsonApplicationsDatabase.Load(databaseStorePath));

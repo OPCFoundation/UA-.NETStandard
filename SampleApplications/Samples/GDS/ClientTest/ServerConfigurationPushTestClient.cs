@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Test
             AutoAccept = autoAccept;
         }
 
-        public async Task LoadClientConfiguration()
+        public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance
@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Test
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             _client = new ServerPushConfigurationClient(application)
             {
-                EndpointUrl = clientConfiguration.ServerUrl
+                EndpointUrl = TestUtils.PatchEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
 
         }

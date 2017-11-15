@@ -704,7 +704,10 @@ namespace Opc.Ua.Configuration
             else
             {
                 // ensure the certificate is trusted.
-                await AddToTrustedStore(configuration, certificate);
+                if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
+                {
+                    await AddToTrustedStore(configuration, certificate);
+                }
             }
 
             // update configuration file.
@@ -995,8 +998,11 @@ namespace Opc.Ua.Configuration
             }
             else
             {
-                // ensure it is trusted.
-                await AddToTrustedStore(configuration, certificate);
+                if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
+                {
+                    // ensure it is trusted.
+                    await AddToTrustedStore(configuration, certificate);
+                }
             }
 
             return true;
@@ -1204,7 +1210,7 @@ namespace Opc.Ua.Configuration
             Utils.Trace(Utils.TraceMasks.Information, "Creating application instance certificate.");
 
             // delete any existing certificate.
-            DeleteApplicationInstanceCertificate(configuration);
+            await DeleteApplicationInstanceCertificate(configuration);
 
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
@@ -1241,7 +1247,11 @@ namespace Opc.Ua.Configuration
 
             id.Certificate = certificate;
 
-            await AddToTrustedStore(configuration, certificate);
+            // ensure the certificate is trusted.
+            if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
+            {
+                await AddToTrustedStore(configuration, certificate);
+            }
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration);
 
@@ -1257,7 +1267,7 @@ namespace Opc.Ua.Configuration
         /// Deletes an existing application instance certificate.
         /// </summary>
         /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
-        private static async void DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
+        private static async Task DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
 

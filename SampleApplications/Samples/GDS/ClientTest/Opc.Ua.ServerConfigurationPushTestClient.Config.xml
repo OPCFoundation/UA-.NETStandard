@@ -38,7 +38,7 @@
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
-
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
   </SecurityConfiguration>
 
   <TransportConfigurations></TransportConfigurations>
@@ -84,7 +84,7 @@
 
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/ServerConfigurationPushTestClient.log.txt</OutputFilePath>
-    <DeleteOnLoad>true</DeleteOnLoad>
+    <DeleteOnLoad>false</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

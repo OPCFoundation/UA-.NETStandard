@@ -4,7 +4,7 @@ dotnet: 2.0.0
 os:
   - linux
   - osx
-sudo: required
+sudo: false
 dist: trusty
 osx_image: xcode9.1
 
@@ -41,5 +41,15 @@ script:
 
 after_script:
   - echo "========== build done ============"
+
+after_failure:
+  - cd $HOME
+  - cd .local/share/OPC
+  - ls -R
+  - cd Logs
+  - cat GlobalDiscoveryTestClient.log.txt
+  - cat ServerConfigurationPushTestClient.log.txt
+  - cat GlobalDiscoveryTestServer.log.txt
+  - cd $TRAVIS_BUILD_DIR
 
 

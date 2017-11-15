@@ -81,9 +81,6 @@ namespace Opc.Ua.Gds.Server
         public StringCollection KnownHostNames { get; set; }
 
         [DataMember(Order = 6)]
-        public uint ShutdownDelay { get; set; }
-
-        [DataMember(Order = 7)]
         public string DatabaseStorePath { get; set; }
         #endregion
 

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -169,18 +170,21 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Connects using the default endpoint.
+        /// </summary>
+        public void Connect()
+        {
+            Connect(m_endpoint).Wait();
+        }
+
+        /// <summary>
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
-        public async void Connect(string endpointUrl)
+        public async Task Connect(string endpointUrl)
         {
-            if (endpointUrl == null)
-            {
-                endpointUrl = m_endpointUrl;
-            }
-
             if (String.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -188,7 +192,35 @@ namespace Opc.Ua.Gds.Client
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+            }
+
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+
+            await Connect(endpoint);
+        }
+
+        /// <summary>
+        /// Connects the specified endpoint.
+        /// </summary>
+        /// <param name="endpoint">The endpoint.</param>
+        public async Task Connect(ConfiguredEndpoint endpoint)
+        {
+            if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
+            {
+                m_adminCredentials = null;
+            }
+
+            if (endpoint == null)
+            {
+                endpoint = m_endpoint;
+
+                if (endpoint == null)
+                {
+                    throw new ArgumentNullException("endpoint");
+                }
             }
 
             if (m_session != null)
@@ -196,10 +228,6 @@ namespace Opc.Ua.Gds.Client
                 m_session.Dispose();
                 m_session = null;
             }
-
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             m_session = await Session.Create(
                 m_application.ApplicationConfiguration,
@@ -210,6 +238,8 @@ namespace Opc.Ua.Gds.Client
                 60000,
                 AdminCredentials,
                 m_preferredLocales);
+
+            m_endpoint = m_session.ConfiguredEndpoint;
 
             m_session.SessionClosing += Session_SessionClosing;
             m_session.KeepAlive += Session_KeepAlive;
@@ -239,7 +269,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                m_session.Dispose();
+                m_session?.Dispose();
                 m_session = null;
             }
         }
@@ -271,7 +301,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -335,7 +365,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -367,7 +397,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -392,7 +422,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -416,7 +446,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             m_session.Call(
@@ -433,7 +463,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             m_session.Call(
@@ -466,7 +496,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -502,7 +532,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -539,7 +569,7 @@ namespace Opc.Ua.Gds.Client
 
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -578,7 +608,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -606,7 +636,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -636,7 +666,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -665,13 +695,13 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
                 trustListId,
                 Opc.Ua.MethodIds.FileType_Open,
-                (byte)1);
+                (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
             MemoryStream ostrm = new MemoryStream();
@@ -789,6 +819,7 @@ namespace Opc.Ua.Gds.Client
 
         #region Private Fields
         private ApplicationInstance m_application;
+        private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;

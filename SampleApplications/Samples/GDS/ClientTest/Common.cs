@@ -29,6 +29,7 @@
 
 using Opc.Ua.Configuration;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 
@@ -71,6 +72,64 @@ namespace Opc.Ua.Gds.Test
             }
             return await Task.FromResult(true);
         }
+    }
+
+    public class TestUtils
+    {
+        public static void CleanupTrustList(ICertificateStore _store)
+        {
+            using (var store = _store)
+            {
+                var certs = store.Enumerate().Result;
+                foreach (var cert in certs)
+                {
+                    store.Delete(cert.Thumbprint);
+                }
+                var crls = store.EnumerateCRLs();
+                foreach (var crl in crls)
+                {
+                    store.DeleteCRL(crl);
+                }
+            }
+        }
+
+        public static void DeleteDirectory(string storePath)
+        {
+            string fullStorePath = Utils.ReplaceSpecialFolderNames(storePath);
+            if (Directory.Exists(fullStorePath))
+            {
+                Directory.Delete(fullStorePath, true);
+            }
+        }
+
+        const int MaxPort = 64000;
+        const int MinPort = Opc.Ua.Utils.UaTcpDefaultPort;
+        public static void PatchBaseAddressesPorts(ApplicationConfiguration config, int basePort)
+        {
+            if (basePort >= MinPort && basePort <= MaxPort)
+            {
+                StringCollection newBaseAddresses = new StringCollection();
+                foreach (var baseAddress in config.ServerConfiguration.BaseAddresses)
+                {
+                    UriBuilder baseAddressUri = new UriBuilder(baseAddress);
+                    baseAddressUri.Port = basePort++;
+                    newBaseAddresses.Add(baseAddressUri.Uri.AbsoluteUri);
+                }
+                config.ServerConfiguration.BaseAddresses = newBaseAddresses;
+            }
+        }
+
+        public static string PatchEndpointUrlPort(string url, int port)
+        {
+            if (port >= MinPort && port <= MaxPort)
+            {
+                UriBuilder newUrl = new UriBuilder(url);
+                newUrl.Port = port;
+                return newUrl.Uri.AbsoluteUri;
+            }
+            return url;
+        }
+
     }
 
 }

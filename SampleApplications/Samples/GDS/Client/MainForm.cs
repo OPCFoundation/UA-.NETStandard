@@ -242,11 +242,11 @@ namespace Opc.Ua.Gds.Client
 
                 if (endpoint.Description.Server.ApplicationUri == endpoint.Description.EndpointUrl)
                 {
-                    m_server.Connect(endpoint.Description.EndpointUrl);
+                    await m_server.Connect(endpoint.Description.EndpointUrl);
                 }
                 else
                 {
-                    m_server.Connect(endpoint);
+                    await m_server.Connect(endpoint);
                 }
 
                 ServerStatusPanel.Initialize(m_server);

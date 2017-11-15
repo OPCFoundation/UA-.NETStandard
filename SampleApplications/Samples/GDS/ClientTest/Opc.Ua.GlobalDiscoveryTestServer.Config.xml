@@ -38,7 +38,7 @@
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
-
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
@@ -121,7 +121,7 @@
       <ua:String>Global Discovery and Certificate Management Server</ua:String>
     </ServerProfileArray>
 
-    <ShutdownDelay>5</ShutdownDelay>
+    <ShutdownDelay>0</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>GDS</ua:String>
     </ServerCapabilities>
@@ -150,15 +150,14 @@
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>
-        <ShutdownDelay>5</ShutdownDelay>
-        <DatabaseStorePath>gdsdb.json</DatabaseStorePath>
+        <DatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsdb.json</DatabaseStorePath>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestServer.log.txt</OutputFilePath>
-    <DeleteOnLoad>true</DeleteOnLoad>
+    <DeleteOnLoad>false</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

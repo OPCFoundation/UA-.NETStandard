@@ -46,7 +46,7 @@ namespace Opc.Ua.Gds.Test
             AutoAccept = autoAccept;
         }
 
-        public async Task LoadClientConfiguration()
+        public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance
@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Test
             // use same server configuration for gds and push tests
             GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
             _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
-            _client.EndpointUrl = gdsClientConfiguration.GlobalDiscoveryServerUrl;
+            _client.EndpointUrl = TestUtils.PatchEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port);
         }
 
         public void DisconnectClient()

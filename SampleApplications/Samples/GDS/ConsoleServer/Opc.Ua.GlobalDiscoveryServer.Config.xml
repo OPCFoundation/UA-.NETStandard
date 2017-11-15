@@ -12,23 +12,23 @@
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/own</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/own</StorePath>
       <SubjectName>CN=Global Discovery Server, O=somecompany, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/issuers</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/trusted</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/rejected</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -125,14 +125,14 @@
   <Extensions>
     <ua:XmlElement>
       <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
-        <AuthoritiesStorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/authorities</AuthoritiesStorePath>
+        <AuthoritiesStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/authorities</AuthoritiesStorePath>
         <ApplicationCertificatesStorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/applications</ApplicationCertificatesStorePath>
         <DefaultSubjectNameContext>O=SomeCompany Inc.</DefaultSubjectNameContext>
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
             <SubjectName>CN=IOP-2017 CA, O=OPC Foundation</SubjectName>
-            <BaseStorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/CA/default</BaseStorePath>
+            <BaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/CA/default</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
             <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
@@ -140,13 +140,13 @@
         </CertificateGroups>
         <KnownHostNames/>
         <ShutdownDelay>5</ShutdownDelay>
-        <DatabaseStorePath>gdsdb.json</DatabaseStorePath>
+        <DatabaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/gdsdb.json</DatabaseStorePath>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%CommonApplicationData%/OPC Foundation/GDS/Logs/GlobalDiscoveryServer.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/OPC Foundation/GDS/Logs/GlobalDiscoveryServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

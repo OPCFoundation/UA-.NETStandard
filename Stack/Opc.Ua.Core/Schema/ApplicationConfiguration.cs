@@ -795,6 +795,7 @@ namespace Opc.Ua
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_addAppCertToTrustedStore = true;
         }
 
         /// <summary>
@@ -942,7 +943,18 @@ namespace Opc.Ua
             get { return m_minCertificateKeySize; }
             set { m_minCertificateKeySize = value; }
         }
-
+        /// <summary>
+        /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
+        /// </summary>
+        /// <remarks>
+        /// It is useful for client/server applications which the cert store to simplify self signed certificate trust.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public bool AddAppCertToTrustedStore
+        {
+            get { return m_addAppCertToTrustedStore; }
+            set { m_addAppCertToTrustedStore = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -955,6 +967,7 @@ namespace Opc.Ua
         private string m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
         private ushort m_minCertificateKeySize;
+        private bool m_addAppCertToTrustedStore;
         #endregion
     }
     #endregion

@@ -37,6 +37,7 @@ using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
+using System.Threading.Tasks;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -90,18 +91,24 @@ namespace NUnit.Opc.Ua.Gds.Test
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
+#if DEBUG
+            const int testPort = 60000;
+#else
+            const int testPort = 60010;
+#endif
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
             _dataGenerator = new DataGenerator(_randomSource);
             _server = new GlobalDiscoveryTestServer(true);
-            _server.StartServer().Wait();
+            _server.StartServer(true, testPort).Wait();
+
+            // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            _gdsClient.LoadClientConfiguration().Wait();
+            _gdsClient.LoadClientConfiguration(testPort).Wait();
 
             // good applications test set
             _goodApplicationTestSet = ApplicationTestSet(goodApplicationsTestCount, false);
             _invalidApplicationTestSet = ApplicationTestSet(invalidApplicationsTestCount, true);
-
         }
 
         /// <summary>
@@ -841,16 +848,15 @@ namespace NUnit.Opc.Ua.Gds.Test
         private void ConnectGDS(bool admin)
         {
             _gdsClient.GDSClient.AdminCredentials = new UserIdentity(admin?"appadmin":"appuser", "demo");
-            _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl);
+            _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
         }
 
         private void DisconnectGDS()
         {
-            _gdsClient.GDSClient.Session?.Close();
+            _gdsClient.GDSClient.Disconnect();
         }
 
         #endregion
-
         #region Private Fields
         private const int goodApplicationsTestCount = 10;
         private const int invalidApplicationsTestCount = 10;

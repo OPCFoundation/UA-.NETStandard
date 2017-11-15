@@ -33,6 +33,7 @@ using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -183,7 +184,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public void Connect()
         {
-            Connect(EndpointUrl);
+            Connect(m_endpoint).Wait();
         }
 
         /// <summary>
@@ -192,11 +193,11 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
-        public void Connect(string endpointUrl)
+        public async Task Connect(string endpointUrl)
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
-                throw new ArgumentNullException("endpointUrl");
+                throw new ArgumentNullException(nameof(endpointUrl));
             }
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
@@ -208,14 +209,14 @@ namespace Opc.Ua.Gds.Client
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            Connect(endpoint);
+            await Connect(endpoint);
         }
 
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        public async void Connect(ConfiguredEndpoint endpoint)
+        public async Task Connect(ConfiguredEndpoint endpoint)
         {
             if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
             {
@@ -241,7 +242,7 @@ namespace Opc.Ua.Gds.Client
             m_session = await Session.Create(
                 m_application.ApplicationConfiguration,
                 endpoint,
-                true,
+                false,
                 false,
                 m_application.ApplicationName,
                 60000,
@@ -298,6 +299,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (m_session != null)
             {
+                KeepAlive?.Invoke(m_session, null);
                 m_session.Close();
                 m_session = null;
                 RaiseConnectionStatusChangedEvent();
@@ -768,8 +770,8 @@ namespace Opc.Ua.Gds.Client
         #region Private Fields
         private ApplicationInstance m_application;
         private ConfiguredEndpoint m_endpoint;
-        private string[] m_preferredLocales;
         private string m_endpointUrl;
+        private string[] m_preferredLocales;
         private Session m_session;
         private UserIdentity m_adminCredentials;
         #endregion

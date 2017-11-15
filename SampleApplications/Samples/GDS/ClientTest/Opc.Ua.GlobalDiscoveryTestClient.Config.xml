@@ -39,6 +39,8 @@
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
 
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
+
   </SecurityConfiguration>
 
   <TransportConfigurations></TransportConfigurations>
@@ -88,7 +90,7 @@
 
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestClient.log.txt</OutputFilePath>
-    <DeleteOnLoad>true</DeleteOnLoad>
+    <DeleteOnLoad>false</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

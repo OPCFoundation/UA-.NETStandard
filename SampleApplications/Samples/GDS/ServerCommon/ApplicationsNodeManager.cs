@@ -410,7 +410,7 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 // initialize cert revocation list (CRL)
-                await CertificateFactory.RevokeCertificateAsync(m_configuration.AuthoritiesStorePath, newCertificate, null);
+                await CertificateFactory.RevokeCertificateAsync(m_configuration.AuthoritiesStorePath, newCertificate, m_certificatePassword);
             }
 
             // sync the authority store with the trusted list
