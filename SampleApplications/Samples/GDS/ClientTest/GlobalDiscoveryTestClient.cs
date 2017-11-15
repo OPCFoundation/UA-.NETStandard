@@ -68,7 +68,6 @@ namespace Opc.Ua.Gds.Test
 
             config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            // use same server configuration for gds and push tests
             GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
             _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
             _client.EndpointUrl = TestUtils.PatchEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port);

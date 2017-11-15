@@ -909,8 +909,8 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 newCertificate = CertificateFactory.CreateCertificate(
-                     CertificateStoreType.Directory,
-                     m_configuration.ApplicationCertificatesStorePath,
+                     null,
+                     null,
                      privateKeyPassword,
                      application.ApplicationUri ?? "urn:ApplicationURI",
                      application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
@@ -935,26 +935,31 @@ namespace Opc.Ua.Gds.Server
                 return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
             }
 
-            // since CreateCert() automatically stores the new cert in our cert store, 
-            // delete the private key but keep the cert
+            byte[] privateKey;
+            if (privateKeyFormat == "PFX")
+            {
+                privateKey = newCertificate.Export(X509ContentType.Pfx, privateKeyPassword);
+            }
+            else if (privateKeyFormat == "PEM")
+            {
+                privateKey = CertificateFactory.ExportPrivateKeyAsPEM(newCertificate);
+            }
+            else
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument, "Invalid private key format");
+            }
+
+            // store only app certificate
             using (DirectoryCertificateStore store = (DirectoryCertificateStore)CertificateStoreIdentifier.OpenStore(m_configuration.ApplicationCertificatesStorePath))
             {
-                byte[] privateKeyPFX = null;
-                var privateKeyPath = store.GetPrivateKeyFilePath(newCertificate.Thumbprint);
-                if (privateKeyPath != null)
-                {
-                    privateKeyPFX = File.ReadAllBytes(privateKeyPath);
-                }
-
-                // delete private key file
-                File.Delete(privateKeyPath);
-
-                requestId = m_database.CreateCertificateRequest(
-                    applicationId,
-                    newCertificate.RawData,
-                    privateKeyPFX,
-                    certificateGroup.Id.Identifier as string);
+                store.Add(new X509Certificate2(newCertificate.RawData)).Wait();
             }
+
+            requestId = m_database.CreateCertificateRequest(
+                applicationId,
+                newCertificate.RawData,
+                privateKey,
+                certificateGroup.Id.Identifier as string);
 
             // immediately approve certificate for now.
             m_database.ApproveCertificateRequest(requestId, false);
@@ -1262,12 +1267,12 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-        #endregion
+#endregion
 
-        #region Overridden Methods
-        #endregion
+#region Overridden Methods
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Generates a new node id.
         /// </summary>
@@ -1288,14 +1293,14 @@ namespace Opc.Ua.Gds.Server
             };
             return await certIdentifier.LoadPrivateKey(signingKeyPassword);
         }
-        #endregion
+#endregion
 
-        #region Private Fields
-        private string m_certificatePassword = null;    // TODO: placeholder
+#region Private Fields
+        private string m_certificatePassword = "";
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
         private IApplicationsDatabase m_database;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
-        #endregion
+#endregion
     }
 }

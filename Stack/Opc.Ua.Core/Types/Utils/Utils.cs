@@ -3064,6 +3064,10 @@ namespace Opc.Ua
                 return false;
             }
 
+            // sort to ensure similar entries are compared
+            fields1.Sort(StringComparer.OrdinalIgnoreCase);
+            fields2.Sort(StringComparer.OrdinalIgnoreCase);
+
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {

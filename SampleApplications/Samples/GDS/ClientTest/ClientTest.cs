@@ -37,7 +37,7 @@ using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
-using System.Threading.Tasks;
+using System.Security.Cryptography.X509Certificates;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -81,7 +81,7 @@ namespace NUnit.Opc.Ua.Gds.Test
     /// 
     /// </summary>
     /// 
-    [TestFixture]
+    [TestFixture, Category("GDSRegistrationAndPull")]
     public class ClientTest
     {
         #region Test Setup
@@ -92,6 +92,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         protected void OneTimeSetUp()
         {
 #if DEBUG
+            // work around travis issue by selecting different ports on every run
             const int testPort = 60000;
 #else
             const int testPort = 60010;
@@ -109,6 +110,9 @@ namespace NUnit.Opc.Ua.Gds.Test
             // good applications test set
             _goodApplicationTestSet = ApplicationTestSet(goodApplicationsTestCount, false);
             _invalidApplicationTestSet = ApplicationTestSet(invalidApplicationsTestCount, true);
+
+            _goodRegistrationOk = false;
+            _invalidRegistrationOk = false;
         }
 
         /// <summary>
@@ -147,11 +151,13 @@ namespace NUnit.Opc.Ua.Gds.Test
                 Assert.AreEqual(id.IdType, IdType.Guid);
                 application.ApplicationRecord.ApplicationId = id;
             }
+            _goodRegistrationOk = true;
         }
 
         [Test, Order(101)]
         public void RegisterGoodApplicationsAuditEvents()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             foreach (var application in _goodApplicationTestSet)
             {
                 // TODO
@@ -166,11 +172,13 @@ namespace NUnit.Opc.Ua.Gds.Test
             {
                 Assert.That(() => { NodeId id = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
+            _invalidRegistrationOk = true;
         }
 
         [Test, Order(111)]
         public void RegisterInvalidApplicationsAuditEvents()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -181,6 +189,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(120)]
         public void RegisterApplicationAsUser()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(false);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -191,6 +200,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(200)]
         public void UpdateGoodApplications()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -207,6 +217,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(201)]
         public void UpdateGoodApplicationsAuditEvents()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             foreach (var application in _goodApplicationTestSet)
             {
                 // TODO
@@ -216,6 +227,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(210)]
         public void UpdateGoodApplicationsWithNewGuid()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -228,6 +240,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(211)]
         public void UpdateGoodApplicationsWithNewGuidAuditEvents()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -238,6 +251,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(220)]
         public void UpdateInvalidApplications()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -248,6 +262,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(221)]
         public void UpdateInvalidApplicationsAuditEvents()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -258,6 +273,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void FindGoodApplications()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(false);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -270,6 +286,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void FindInvalidApplications()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -282,6 +299,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void GetGoodApplications()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(false);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -294,6 +312,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(400)]
         public void GetInvalidApplications()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -304,6 +323,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(410)]
         public void QueryGoodServers()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(false);
             // get all servers
             var allServers = _gdsClient.GDSClient.QueryServers(0, "", "", "", null);
@@ -370,6 +390,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(500)]
         public void StartGoodNewKeyPairRequests()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
@@ -390,6 +411,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(501)]
         public void StartInvalidNewKeyPairRequests()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
@@ -411,6 +433,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(510)]
         public void FinishGoodNewKeyPairRequests()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             bool requestBusy;
             do
@@ -455,8 +478,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(511)]
         public void FinishInvalidNewKeyPairRequests()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
-
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() =>
@@ -474,11 +497,20 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(520)]
         public void StartGoodSigningRequests()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
                 Assert.Null(application.CertificateRequestId);
-                var csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                X509Certificate2 csrCertificate;
+                if (application.PrivateKeyFormat == "PFX")
+                {
+                    csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                }
+                else
+                {
+                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                }
                 byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
                 NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
                     application.ApplicationRecord.ApplicationId,
@@ -493,8 +525,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(521)]
         public void FinishGoodSigningRequests()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
-
             bool requestBusy;
             do
             {
@@ -538,6 +570,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(600)]
         public void GetGoodCertificateGroupsNullTests()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
 
             Assert.That(() =>
@@ -567,8 +600,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(601)]
         public void GetInvalidCertificateGroupsNullTests()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
-
             Assert.That(() =>
             {
                 _gdsClient.GDSClient.GetCertificateGroups(null);
@@ -598,6 +631,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(610)]
         public void GetGoodCertificateGroupsAndTrustLists()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
 
             foreach (var application in _goodApplicationTestSet)
@@ -615,8 +649,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(690)]
         public void GetGoodCertificateStatus()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
-
             foreach (var application in _goodApplicationTestSet)
             {
                 var certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
@@ -626,8 +660,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(691)]
         public void GetInvalidCertificateStatus()
         {
+            AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
-
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() =>
@@ -641,7 +675,6 @@ namespace NUnit.Opc.Ua.Gds.Test
         public void UnregisterGoodApplications()
         {
             ConnectGDS(true);
-
             foreach (var application in _goodApplicationTestSet)
             {
                 _gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
@@ -748,6 +781,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
+            string privateKeyFormat = _randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             StringCollection discoveryUrls = new StringCollection();
@@ -779,7 +813,8 @@ namespace NUnit.Opc.Ua.Gds.Test
                     ServerCapabilities = serverCapabilities
                 },
                 DomainNames = domainNames,
-                Subject = String.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost)
+                Subject = String.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
+                PrivateKeyFormat = privateKeyFormat
             };
             return testData;
         }
@@ -847,7 +882,7 @@ namespace NUnit.Opc.Ua.Gds.Test
 
         private void ConnectGDS(bool admin)
         {
-            _gdsClient.GDSClient.AdminCredentials = new UserIdentity(admin?"appadmin":"appuser", "demo");
+            _gdsClient.GDSClient.AdminCredentials = new UserIdentity(admin ? "appadmin" : "appuser", "demo");
             _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
         }
 
@@ -856,6 +891,21 @@ namespace NUnit.Opc.Ua.Gds.Test
             _gdsClient.GDSClient.Disconnect();
         }
 
+        private void AssertIgnoreTestWithoutGoodRegistration()
+        {
+            if (!_goodRegistrationOk)
+            {
+                Assert.Ignore("Test requires good application registrations.");
+            }
+        }
+
+        private void AssertIgnoreTestWithoutInvalidRegistration()
+        {
+            if (!_invalidRegistrationOk)
+            {
+                Assert.Ignore("Test requires invalid application registration.");
+            }
+        }
         #endregion
         #region Private Fields
         private const int goodApplicationsTestCount = 10;
@@ -868,6 +918,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         private IList<ApplicationTestData> _goodApplicationTestSet;
         private IList<ApplicationTestData> _invalidApplicationTestSet;
         private ServerCapabilities _serverCapabilities;
+        private bool _goodRegistrationOk;
+        private bool _invalidRegistrationOk;
         #endregion
     }
 

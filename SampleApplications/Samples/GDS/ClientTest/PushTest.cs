@@ -27,20 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using Opc.Ua;
+using Opc.Ua.Client;
+using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
+using NUnit.Framework;
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
 
-    [TestFixture, Category("GDS")]
+    [TestFixture, Category("GDSPush")]
     public class PushTest
     {
         #region Test Setup
@@ -60,7 +64,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             _randomSource = new RandomSource(randomStart);
             _dataGenerator = new DataGenerator(_randomSource);
             _server = new GlobalDiscoveryTestServer(true);
-            await _server.StartServer(false, testPort);
+            await _server.StartServer(true, testPort);
             await Task.Delay(1000);
 
             // load clients
@@ -72,6 +76,13 @@ namespace NUnit.Opc.Ua.Gds.Test
             // connect once
             await _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl);
             await _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl);
+
+            ConnectGDSClient(true);
+            RegisterPushServerApplication(_pushClient.PushClient.EndpointUrl);
+
+            _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            _domainNames = Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
+
         }
 
         /// <summary>
@@ -80,6 +91,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
+            ConnectGDSClient(true);
+            UnRegisterPushServerApplication();
             _gdsClient.DisconnectClient();
             _gdsClient = null;
             _pushClient.DisconnectClient();
@@ -96,8 +109,8 @@ namespace NUnit.Opc.Ua.Gds.Test
             DisconnectPushClient();
         }
 
-#endregion
-#region Test Methods
+        #endregion
+        #region Test Methods
         [Test, Order(100)]
         public void GetSupportedKeyFormats()
         {
@@ -175,7 +188,15 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.That(() => { _pushClient.PushClient.CreateCertificateRequest(invalidCertGroup, invalidCertType, null, false, null); }, Throws.Exception);
             byte[] csr = _pushClient.PushClient.CreateCertificateRequest(null, null, null, false, null);
             Assert.IsNotNull(csr);
+        }
 
+        [Test, Order(400)]
+        public void CreateCertificateRequestWithNewPrivateKey()
+        {
+            ConnectPushClient(true);
+            ConnectGDSClient(true);
+            byte[] csr = _pushClient.PushClient.CreateCertificateRequest(null, null, null, true, Encoding.ASCII.GetBytes("OPCTest"));
+            Assert.IsNotNull(csr);
         }
 
         [Test, Order(500)]
@@ -207,24 +228,173 @@ namespace NUnit.Opc.Ua.Gds.Test
             {
                 _pushClient.PushClient.ApplyChanges();
             }
+            VerifyNewPushServerCert(serverCert.RawData);
         }
 
         [Test, Order(510)]
         public void UpdateCertificateCASigned()
         {
             ConnectPushClient(true);
+            ConnectGDSClient(true);
+            byte[] csr = _pushClient.PushClient.CreateCertificateRequest(null, null, null, false, null);
+            Assert.IsNotNull(csr);
+            NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
+                _applicationRecord.ApplicationId,
+                null,
+                null,
+                csr);
+            Assert.NotNull(requestId);
+            byte[] privateKey;
+            byte[] certificate;
+            byte[][] issuerCertificates;
+            int i = 0;
+            do
+            {
+                Thread.Sleep(500);
+                certificate = _gdsClient.GDSClient.FinishRequest(
+                    _applicationRecord.ApplicationId,
+                    requestId,
+                    out privateKey,
+                    out issuerCertificates);
+                Assert.LessOrEqual(i++, 5);
+            } while (certificate == null);
+            Assert.NotNull(issuerCertificates);
+            Assert.IsNull(privateKey);
+
+            var success = _pushClient.PushClient.UpdateCertificate(null, null, certificate, null, null, issuerCertificates);
+            if (success)
+            {
+                _pushClient.PushClient.ApplyChanges();
+            }
+            VerifyNewPushServerCert(certificate);
         }
 
+
         [Test, Order(520)]
-        public void UpdateCertificateSelfSignedWithPFXKey()
+        public void UpdateCertificateSelfSignedPFX()
         {
-            ConnectPushClient(true);
+            UpdateCertificateSelfSigned("PFX");
         }
 
         [Test, Order(530)]
-        public void UpdateCertificateSelfSignedWithPEMKey()
+        public void UpdateCertificateSelfSignedPEM()
+        {
+            UpdateCertificateSelfSigned("PEM");
+        }
+
+        public void UpdateCertificateSelfSigned(string keyFormat)
         {
             ConnectPushClient(true);
+            var keyFormats = _pushClient.PushClient.GetSupportedKeyFormats();
+            if (!keyFormats.Contains(keyFormat))
+            {
+                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+            }
+
+            X509Certificate2 newCert = CertificateFactory.CreateCertificate(
+                null,
+                null,
+                null,
+                _applicationRecord.ApplicationUri,
+                _applicationRecord.ApplicationNames[0].Text,
+                _selfSignedServerCert.Subject,
+                null,
+                CertificateFactory.defaultKeySize,
+                DateTime.UtcNow,
+                CertificateFactory.defaultLifeTime,
+                CertificateFactory.defaultHashSize);
+
+            byte[] privateKey = null;
+            if (keyFormat == "PFX")
+            {
+                Assert.IsTrue(newCert.HasPrivateKey);
+                privateKey = newCert.Export(X509ContentType.Pfx);
+            }
+            else if (keyFormat == "PEM")
+            {
+                Assert.IsTrue(newCert.HasPrivateKey);
+                privateKey = CertificateFactory.ExportPrivateKeyAsPEM(newCert);
+            }
+            else
+            {
+                Assert.Fail("Testing unsupported key format {0}.", keyFormat);
+            }
+
+            var success = _pushClient.PushClient.UpdateCertificate(
+                null,
+                null,
+                newCert.RawData,
+                keyFormat,
+                privateKey,
+                null);
+
+            if (success)
+            {
+                _pushClient.PushClient.ApplyChanges();
+            }
+            VerifyNewPushServerCert(newCert.RawData);
+        }
+
+        [Test, Order(540)]
+        public void UpdateCertificateNewKeyPairPFX()
+        {
+            UpdateCertificateWithNewKeyPair("PFX");
+        }
+
+        [Test, Order(550)]
+        public void UpdateCertificateNewKeyPairPEM()
+        {
+            UpdateCertificateWithNewKeyPair("PEM");
+        }
+
+        public void UpdateCertificateWithNewKeyPair(string keyFormat)
+        {
+            ConnectPushClient(true);
+            var keyFormats = _pushClient.PushClient.GetSupportedKeyFormats();
+            if (!keyFormats.Contains(keyFormat))
+            {
+                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+            }
+
+            NodeId requestId = _gdsClient.GDSClient.StartNewKeyPairRequest(
+                _applicationRecord.ApplicationId,
+                null,
+                null,
+                _selfSignedServerCert.Subject,
+                _domainNames,
+                keyFormat,
+                null);
+
+            Assert.NotNull(requestId);
+            byte[] privateKey;
+            byte[] certificate;
+            byte[][] issuerCertificates;
+            int i = 0;
+            do
+            {
+                Thread.Sleep(500);
+                certificate = _gdsClient.GDSClient.FinishRequest(
+                    _applicationRecord.ApplicationId,
+                    requestId,
+                    out privateKey,
+                    out issuerCertificates);
+                Assert.LessOrEqual(i++, 5);
+            } while (certificate == null);
+            Assert.NotNull(issuerCertificates);
+            Assert.NotNull(privateKey);
+
+            var success = _pushClient.PushClient.UpdateCertificate(
+                null,
+                null,
+                certificate,
+                keyFormat,
+                privateKey,
+                issuerCertificates);
+            if (success)
+            {
+                _pushClient.PushClient.ApplyChanges();
+            }
+            VerifyNewPushServerCert(certificate);
         }
 
         [Test, Order(600)]
@@ -233,7 +403,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             ConnectPushClient(true);
             var collection = _pushClient.PushClient.GetRejectedList();
         }
-
 
         [Test, Order(700)]
         public void ApplyChanges()
@@ -248,13 +417,12 @@ namespace NUnit.Opc.Ua.Gds.Test
             ConnectPushClient(false);
             Assert.That(() => { _pushClient.PushClient.ApplyChanges(); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.GetRejectedList(); }, Throws.Exception);
-            X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null); }, Throws.Exception);
+            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, _selfSignedServerCert.RawData, null, null, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.CreateCertificateRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
-#endregion
-#region Private Methods
+        #endregion
+        #region Private Methods
         private void ConnectPushClient(bool sysAdmin)
         {
             _pushClient.PushClient.AdminCredentials = new UserIdentity(sysAdmin ? "sysadmin" : "appuser", "demo");
@@ -286,6 +454,49 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
             return result;
         }
+
+        private void RegisterPushServerApplication(string discoveryUrl)
+        {
+            if (_applicationRecord == null && discoveryUrl != null)
+            {
+                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(discoveryUrl, true);
+                ApplicationDescription description = endpointDescription.Server;
+                _applicationRecord = new ApplicationRecordDataType
+                {
+                    ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
+                    ApplicationUri = description.ApplicationUri,
+                    ApplicationType = description.ApplicationType,
+                    ProductUri = description.ProductUri,
+                    DiscoveryUrls = description.DiscoveryUrls,
+                    ServerCapabilities = new StringCollection { "NA" },
+                };
+            }
+            Assert.IsNotNull(_applicationRecord);
+            Assert.IsNull(_applicationRecord.ApplicationId);
+            NodeId id = _gdsClient.GDSClient.RegisterApplication(_applicationRecord);
+            Assert.IsNotNull(id);
+            _applicationRecord.ApplicationId = id;
+        }
+
+        private void UnRegisterPushServerApplication()
+        {
+            _gdsClient.GDSClient.UnregisterApplication(_applicationRecord.ApplicationId);
+            _applicationRecord.ApplicationId = null;
+        }
+
+        private void VerifyNewPushServerCert(byte[] certificate)
+        {
+            DisconnectPushClient();
+            Thread.Sleep(500);
+            _gdsClient.GDSClient.AdminCredentials = new UserIdentity("appadmin", "demo");
+            _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl).Wait();
+#if TODO
+            Assert.AreEqual(
+                certificate,
+                _pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
+                );
+#endif
+        }
 #endregion
 
 #region Private Fields
@@ -296,6 +507,9 @@ namespace NUnit.Opc.Ua.Gds.Test
         private GlobalDiscoveryTestClient _gdsClient;
         private ServerConfigurationPushTestClient _pushClient;
         private ServerCapabilities _serverCapabilities;
+        private ApplicationRecordDataType _applicationRecord;
+        private X509Certificate2 _selfSignedServerCert;
+        private string[] _domainNames;
 #endregion
     }
 }

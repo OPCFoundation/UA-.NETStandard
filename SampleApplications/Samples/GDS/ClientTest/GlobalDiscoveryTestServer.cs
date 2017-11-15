@@ -78,6 +78,27 @@ namespace Opc.Ua.Gds.Test
                 TestUtils.CleanupTrustList(config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
             }
 
+            if (clean)
+            {
+                string thumbprint = config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                if (thumbprint != null)
+                {
+                    using (var store = config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    {
+                        await store.Delete(thumbprint);
+                    }
+                }
+
+                // always start with clean cert store
+                TestUtils.CleanupTrustList(config.SecurityConfiguration.ApplicationCertificate.OpenStore());
+                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
+                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
+                TestUtils.CleanupTrustList(config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
+                config = await application.LoadApplicationConfiguration(false);
+            }
+
+            TestUtils.PatchBaseAddressesPorts(config, basePort);
+
             // check the application certificate.
             bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
             if (!haveAppCertificate)

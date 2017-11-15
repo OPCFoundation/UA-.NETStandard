@@ -93,6 +93,11 @@ public class CertificateFactoryX509Name : X509Name
     {
     }
 
+    public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
+        base(reverse, ConvertToX509Name(distinguishedName))
+    {
+    }
+
     private static string ConvertToX509Name(string distinguishedName)
     {
         // convert from X509Certificate to bouncy castle DN entries
@@ -136,8 +141,9 @@ public class CertificateFactory
     /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
     /// <returns>The cached certificate.</returns>
     /// <remarks>
-    /// This function is necessary because all private keys used for cryptography operations must be in a key conatiner. 
-    /// Private keys stored in a PFX file have no key conatiner by default.
+    /// This function is necessary because all private keys used for cryptography 
+    /// operations must be in a key container. 
+    /// Private keys stored in a PFX file have no key container by default.
     /// </remarks>
     public static X509Certificate2 Load(X509Certificate2 certificate, bool ensurePrivateKeyAccessible)
     {
@@ -560,7 +566,7 @@ public class CertificateFactory
                                        new CrlNumber(crlSerialNumber));
 
                     // generate updated CRL
-                    Org.BouncyCastle.X509.X509Crl updatedCrl = crlGen.Generate(signatureFactory);
+                    X509Crl updatedCrl = crlGen.Generate(signatureFactory);
 
                     // add updated CRL to store
                     X509CRL updatedCRL = new X509CRL(updatedCrl.GetEncoded());
@@ -650,7 +656,7 @@ public class CertificateFactory
 
             Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                 signatureFactory,
-                new CertificateFactoryX509Name(certificate.Subject),
+                new CertificateFactoryX509Name(false, certificate.Subject),
                 publicKey,
                 attributes,
                 signingKey);
@@ -767,6 +773,25 @@ public class CertificateFactory
             }
         }
     }
+    /// <summary>
+    /// returns a byte array containing the private key in PEM format.
+    /// </summary>
+
+    public static byte[] ExportPrivateKeyAsPEM(
+        X509Certificate2 certificate
+        )
+    {
+        RsaPrivateCrtKeyParameters keyParameter = GetPrivateKeyParameter(certificate);
+        using (TextWriter textWriter = new StringWriter())
+        {
+            PemWriter pemWriter = new PemWriter(textWriter);
+            pemWriter.WriteObject(keyParameter);
+            pemWriter.Writer.Flush();
+            return Encoding.ASCII.GetBytes(textWriter.ToString());
+        }
+    }
+
+
     private class Password
         : IPasswordFinder
     {
@@ -1205,6 +1230,7 @@ public class CertificateFactory
         }
         return result;
     }
+
     #endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();

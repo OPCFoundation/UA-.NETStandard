@@ -430,7 +430,14 @@ namespace Opc.Ua.Server
                             {
                                 foreach (var issuer in updateCertificate.IssuerCollection)
                                 {
-                                    issuerStore.Add(issuer);
+                                    try
+                                    {
+                                        issuerStore.Add(issuer).Wait();
+                                    }
+                                    catch (ArgumentException)
+                                    {
+                                        // ignore error if issuer cert already exists
+                                    }
                                 }
                             }
 
@@ -451,6 +458,9 @@ namespace Opc.Ua.Server
                     {
                         // update Application certificate
                         await m_configuration.CertificateValidator.Update(m_configuration);
+
+                        // TODO: call OnUpdateConfiguration
+
                         // force close all sessions
                         foreach (var session in Server.SessionManager.GetSessions())
                         {
