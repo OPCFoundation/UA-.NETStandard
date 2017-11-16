@@ -1252,8 +1252,8 @@ public class CertificateFactory
         int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
         byte[] testBlock = new byte[blockSize];
         randomSource.NextBytes(testBlock, 0, blockSize);
-        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
     }
 
 
