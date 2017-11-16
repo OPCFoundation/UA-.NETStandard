@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Server
 
     public class NetCoreGlobalDiscoveryServer
     {
-        GlobalDiscoveryServer server;
+        GlobalDiscoverySampleServer server;
         Task status;
         DateTime lastEventTime;
         static bool autoAccept = false;
@@ -185,7 +185,7 @@ namespace Opc.Ua.Gds.Server
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using (GlobalDiscoveryServer _server = server)
+                using (GlobalDiscoverySampleServer _server = server)
                 {
                     // Stop status thread
                     server = null;
@@ -246,7 +246,7 @@ namespace Opc.Ua.Gds.Server
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
 
             // start the server.
-            server = new GlobalDiscoveryServer(JsonApplicationsDatabase.Load(databaseStorePath));
+            server = new GlobalDiscoverySampleServer(JsonApplicationsDatabase.Load(databaseStorePath));
             await application.Start(server);
 
             // start the status thread

@@ -333,8 +333,8 @@ namespace Opc.Ua.Gds.Server
                         }
 
                         certificateGroup.DefaultTrustList.Handle = new TrustList(
-                            certificateGroup.DefaultTrustList, 
-                            certificateGroupConfiguration.TrustedListPath, 
+                            certificateGroup.DefaultTrustList,
+                            certificateGroupConfiguration.TrustedListPath,
                             certificateGroupConfiguration.IssuerListPath,
                             new TrustList.SecureAccess(HasApplicationUserAccess),
                             new TrustList.SecureAccess(HasApplicationAdminAccess));
@@ -401,8 +401,8 @@ namespace Opc.Ua.Gds.Server
                     if (certificateGroup.DefaultTrustList != null)
                     {
                         certificateGroup.DefaultTrustList.Handle = new TrustList(
-                            certificateGroup.DefaultTrustList, 
-                            certificateGroupConfiguration.TrustedListPath, 
+                            certificateGroup.DefaultTrustList,
+                            certificateGroupConfiguration.TrustedListPath,
                             certificateGroupConfiguration.IssuerListPath,
                             new TrustList.SecureAccess(HasApplicationUserAccess),
                             new TrustList.SecureAccess(HasApplicationAdminAccess));
@@ -1269,12 +1269,12 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-#endregion
+        #endregion
 
-#region Overridden Methods
-#endregion
+        #region Overridden Methods
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Generates a new node id.
         /// </summary>
@@ -1295,14 +1295,14 @@ namespace Opc.Ua.Gds.Server
             };
             return await certIdentifier.LoadPrivateKey(signingKeyPassword);
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private string m_certificatePassword = "";
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
         private IApplicationsDatabase m_database;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
-#endregion
+        #endregion
     }
 }

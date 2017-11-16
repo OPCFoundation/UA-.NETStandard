@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Server
                 application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
-                var server = new GlobalDiscoveryServer(new SqlApplicationsDatabase());
+                var server = new GlobalDiscoverySampleServer(new SqlApplicationsDatabase());
                 application.Start(server).Wait();
 
                 // run the application interactively.

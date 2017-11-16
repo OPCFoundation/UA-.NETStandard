@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Test
 
     public class GlobalDiscoveryTestServer
     {
-        public GlobalDiscoveryServer Server { get { return m_server; } }
+        public GlobalDiscoverySampleServer Server { get { return m_server; } }
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
@@ -133,7 +133,7 @@ namespace Opc.Ua.Gds.Test
             }
 
             // start the server.
-            m_server = new GlobalDiscoveryServer(JsonApplicationsDatabase.Load(databaseStorePath));
+            m_server = new GlobalDiscoverySampleServer(JsonApplicationsDatabase.Load(databaseStorePath));
             await application.Start(m_server);
 
             ServerState serverState = Server.GetStatus().State;
@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Test
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using (GlobalDiscoveryServer server = m_server)
+                using (GlobalDiscoverySampleServer server = m_server)
                 {
                     m_server = null;
                     // Stop server and dispose
@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Test
             }
         }
 
-        private GlobalDiscoveryServer m_server;
+        private GlobalDiscoverySampleServer m_server;
         private static bool autoAccept = false;
     }
 }
