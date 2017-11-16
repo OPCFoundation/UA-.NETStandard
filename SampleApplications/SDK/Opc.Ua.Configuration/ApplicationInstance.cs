@@ -267,7 +267,7 @@ namespace Opc.Ua.Configuration
                 await LoadApplicationConfiguration(false);
             }
 
-            if (m_applicationConfiguration.SecurityConfiguration != null && m_applicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (m_applicationConfiguration.CertificateValidator != null)
             {
                 m_applicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
             }
@@ -328,9 +328,10 @@ namespace Opc.Ua.Configuration
 
                 try
                 {
-                    if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                    if (configuration.CertificateValidator != null)
                     {
-                        configuration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
+                        ApplicationInstance applicationInstance = new ApplicationInstance(configuration);
+                        configuration.CertificateValidator.CertificateValidation += applicationInstance.CertificateValidator_CertificateValidation;
                     }
 
                     m_server.Start(configuration);
@@ -341,7 +342,6 @@ namespace Opc.Ua.Configuration
                     Utils.Trace((int)Utils.TraceMasks.Error, error.ToLongString());
                 }
             }
-
             #endregion
 
             #region Private Fields
@@ -874,7 +874,7 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration file.");
             }
 
-            m_applicationConfiguration = configuration;
+            m_applicationConfiguration = FixupAppConfig(configuration);
 
             return configuration;
         }
@@ -1007,11 +1007,13 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Handles a certificate validation error.
         /// </summary>
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             try
             {
-                if (e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
+                if (m_applicationConfiguration.SecurityConfiguration != null
+                    && m_applicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates
+                    && e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
                 {
                     e.Accept = true;
                     Utils.Trace((int)Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
