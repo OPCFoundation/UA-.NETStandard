@@ -137,8 +137,7 @@ namespace Quickstarts.ReferenceServer
 
             if (userNameToken != null)
             {
-                VerifyPassword(userNameToken.UserName, userNameToken.DecryptedPassword);
-                args.Identity = new UserIdentity(userNameToken);
+                args.Identity = VerifyPassword(userNameToken);
                 return;
             }
 
@@ -157,8 +156,10 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Validates the password for a username token.
         /// </summary>
-        private void VerifyPassword(string userName, string password)
+        private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
+            var userName = userNameToken.UserName;
+            var password = userNameToken.DecryptedPassword;
             if (String.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -173,8 +174,13 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
+            if (userName == "sysadmin" && password == "demo")
+            {
+                return new SystemConfigurationIdentity(new UserIdentity(userNameToken));
+            }
+
             if (!((userName == "user1" && password == "password") ||
-                 (userName == "user2" && password == "password1")))
+                (userName == "user2" && password == "password1")))
             {
                 // construct translation object with default text.
                 TranslationInfo info = new TranslationInfo(
@@ -190,6 +196,8 @@ namespace Quickstarts.ReferenceServer
                     LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
+
+            return new UserIdentity(userNameToken);
         }
 
         /// <summary>

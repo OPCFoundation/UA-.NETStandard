@@ -21,19 +21,19 @@
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation/CertificateStores/UA Certificate Authorities</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/UA Certificate Authorities</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- Where the trust list is stored (UA Applications) -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation/CertificateStores/UA Applications</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/UA Applications</StorePath>
     </TrustedPeerCertificates>
     
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -182,6 +182,12 @@
     <ServerCapabilities>
       <ua:String>DA</ua:String>
     </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
 
   </ServerConfiguration>
 
@@ -205,7 +211,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>./Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
