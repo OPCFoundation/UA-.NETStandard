@@ -31,13 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
-using System.Security.Cryptography.X509Certificates;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {

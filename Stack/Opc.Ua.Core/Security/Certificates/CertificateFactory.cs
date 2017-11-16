@@ -697,7 +697,7 @@ public class CertificateFactory
     /// </summary>
     public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
         X509Certificate2 certificate,
-        byte [] pemDataBlob,
+        byte[] pemDataBlob,
         string password = null)
     {
         AsymmetricKeyParameter privateKey = null;
@@ -727,7 +727,7 @@ public class CertificateFactory
 
                     AsymmetricCipherKeyPair keypair = pemObject as AsymmetricCipherKeyPair;
                     if (keypair != null)
-                    { 
+                    {
                         privateKey = keypair.Private;
                         break;
                     }
@@ -791,24 +791,6 @@ public class CertificateFactory
         }
     }
 
-
-    private class Password
-        : IPasswordFinder
-    {
-        private readonly char[] password;
-
-        public Password(
-            char[] word)
-        {
-            this.password = (char[])word.Clone();
-        }
-
-        public char[] GetPassword()
-        {
-            return (char[])password.Clone();
-        }
-    }
-
     /// <summary>
     /// Verify the signature of a self signed certificate.
     /// </summary>
@@ -825,7 +807,66 @@ public class CertificateFactory
         }
         return true;
     }
-#endregion
+
+    public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+    {
+        X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
+        foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
+        {
+            allFlags |= ext.KeyUsages;
+        }
+        return allFlags;
+    }
+
+    /// <summary>
+    /// Verify RSA key pair of two certificates.
+    /// </summary>
+    public static bool VerifyRSAKeyPair(
+        X509Certificate2 certWithPublicKey,
+        X509Certificate2 certWithPrivateKey,
+        bool throwOnError = false)
+    {
+        bool result = false;
+        try
+        {
+            // verify the public and private key match
+            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+            {
+                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
+                {
+                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                    { 
+                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                    }
+                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+                    {
+                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                    }
+                    else
+                    {
+                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            if (throwOnError)
+            {
+                throw e;
+            }
+        }
+        finally
+        {
+            if (!result && throwOnError)
+            {
+                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+            }
+        }
+        return result;
+    }
+    #endregion
 
     #region Private Methods
     /// <summary>
@@ -962,10 +1003,10 @@ public class CertificateFactory
     /// 
     /// </summary>
     private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
-    { 
+    {
         // subject alternate name
         List<GeneralName> generalNames = new List<GeneralName>();
-        for (int i = 0; i<domainNames.Count; i++)
+        for (int i = 0; i < domainNames.Count; i++)
         {
             int domainType = GeneralName.OtherName;
             switch (Uri.CheckHostName(domainNames[i]))
@@ -1103,8 +1144,8 @@ public class CertificateFactory
     /// Get the certificate by issuer and serial number.
     /// </summary>
     private static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
-        ICertificateStore store, 
-        string issuer, 
+        ICertificateStore store,
+        string issuer,
         string serialnumber)
     {
         X509Certificate2Collection certificates = await store.Enumerate();
@@ -1185,50 +1226,52 @@ public class CertificateFactory
         return string.Empty;
     }
 
-    /// <summary>
-    /// Verify RSA key pair of two certificates.
-    /// </summary>
-    private static bool VerifyRSAKeyPair(
-        X509Certificate2 certWithPublicKey, 
-        X509Certificate2 certWithPrivateKey, 
-        bool throwOnError = false)
+
+    private static bool VerifyRSAKeyPairCrypt(
+        RSA rsaPublicKey,
+        RSA rsaPrivateKey)
     {
-        bool result = false;
-        try
+        Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        byte[] testBlock = new byte[blockSize];
+        randomSource.NextBytes(testBlock, 0, blockSize);
+        byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
+        byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
+        if (decryptedBlock != null)
         {
-            // verify the public and private key match
-            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
-            {
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
-                {
-                    Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-                    int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
-                    byte[] testBlock = new byte[blockSize];
-                    randomSource.NextBytes(testBlock, 0, blockSize);
-                    byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-                    byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
-                    if (decryptedBlock != null)
-                    {
-                        result = Utils.IsEqual(testBlock, decryptedBlock);
-                    }
-                }
-            }
+            return Utils.IsEqual(testBlock, decryptedBlock);
         }
-        catch (Exception e)
+        return false;
+    }
+
+    private static bool VerifyRSAKeyPairSign(
+        RSA rsaPublicKey,
+        RSA rsaPrivateKey)
+    {
+        Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        byte[] testBlock = new byte[blockSize];
+        randomSource.NextBytes(testBlock, 0, blockSize);
+        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+    }
+
+
+    private class Password
+        : IPasswordFinder
+    {
+        private readonly char[] password;
+
+        public Password(
+            char[] word)
         {
-            if (throwOnError)
-            {
-                throw e;
-            }
+            this.password = (char[])word.Clone();
         }
-        finally
-        { 
-            if (!result && throwOnError)
-            {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
-            }
+
+        public char[] GetPassword()
+        {
+            return (char[])password.Clone();
         }
-        return result;
     }
 
     #endregion

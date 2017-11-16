@@ -310,7 +310,6 @@ namespace Opc.Ua
                     filePath.Append(fileRoot);
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
-                    RSA rsa = null;
                     password = password ?? String.Empty;
                     try
                     {
@@ -318,7 +317,10 @@ namespace Opc.Ua
                             privateKeyFile.FullName,
                             password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
-                        rsa = certificate.GetRSAPrivateKey();
+                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        {
+                            return certificate;
+                        }
                     }
                     catch (Exception)
                     {
@@ -326,17 +328,8 @@ namespace Opc.Ua
                             privateKeyFile.FullName,
                             password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
-                        rsa = certificate.GetRSAPrivateKey();
-                    }
-                    if (rsa != null)
-                    {
-                        int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, true);
-                        byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
-                        byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
-                        rsa.Dispose();
-                        if (bytes2 != null)
+                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
                         {
-                            // Utils.Trace(1, "RSA: {0}", certificate.Thumbprint);
                             return certificate;
                         }
                     }
