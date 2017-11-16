@@ -420,10 +420,13 @@ public class CertificateFactory
                 // merge first cert with private key into X509Certificate2
                 certificate = new X509Certificate2(
                     rawData,
-                    (password == null) ? String.Empty : password,
+                    password ?? String.Empty,
                     storageFlags[flagsRetryCounter]);
                 // can we really access the private key?
-                using (RSA rsa = certificate.GetRSAPrivateKey()) { }
+                if (VerifyRSAKeyPair(certificate, certificate, true))
+                {
+                    return certificate;
+                }
             }
             catch (Exception e)
             {
