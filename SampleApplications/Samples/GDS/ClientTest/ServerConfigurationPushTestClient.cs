@@ -48,6 +48,9 @@ namespace Opc.Ua.Gds.Test
             AutoAccept = autoAccept;
         }
 
+        public IUserIdentity AppUser { get; private set; }
+        public IUserIdentity SysAdminUser { get; private set; }
+
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -70,12 +73,20 @@ namespace Opc.Ua.Gds.Test
 
             config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            // use same server configuration for gds and push tests
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             _client = new ServerPushConfigurationClient(application)
             {
                 EndpointUrl = TestUtils.PatchEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
+            if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
+            {
+                AppUser = new UserIdentity(new AnonymousIdentityToken());
+            }
+            else
+            {
+                AppUser = new UserIdentity(clientConfiguration.AppUserName, clientConfiguration.AppPassword);
+            }
+            SysAdminUser = new UserIdentity(clientConfiguration.SysAdminUserName, clientConfiguration.SysAdminPassword);
 
         }
 
@@ -145,8 +156,16 @@ namespace Opc.Ua.Gds.Test
         #endregion
 
         #region Public
-        [DataMember(Order = 1)]
+        [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
+        [DataMember(Order = 2)]
+        public string AppUserName { get; set; }
+        [DataMember(Order = 3)]
+        public string AppPassword { get; set; }
+        [DataMember(Order = 4, IsRequired = true)]
+        public string SysAdminUserName { get; set; }
+        [DataMember(Order = 5, IsRequired = true)]
+        public string SysAdminPassword { get; set; }
         #endregion
 
         #region Private Members

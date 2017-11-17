@@ -882,7 +882,7 @@ namespace NUnit.Opc.Ua.Gds.Test
 
         private void ConnectGDS(bool admin)
         {
-            _gdsClient.GDSClient.AdminCredentials = new UserIdentity(admin ? "appadmin" : "appuser", "demo");
+            _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
             _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
         }
 

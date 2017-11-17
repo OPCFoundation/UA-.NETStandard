@@ -81,10 +81,13 @@
   
   <Extensions>
     <ua:XmlElement>
-      <GlobalDiscoveryClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
+      <GlobalDiscoveryTestClientConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
         <GlobalDiscoveryServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</GlobalDiscoveryServerUrl>
-        <TemporaryStorePath>%LocalApplicationData%/OPC/PKI/temporary</TemporaryStorePath>
-      </GlobalDiscoveryClientConfiguration>
+        <AppUserName>appuser</AppUserName>
+        <AppPassword>demo</AppPassword>
+        <AdminUserName>appadmin</AdminUserName>
+        <AdminPassword>demo</AdminPassword>
+      </GlobalDiscoveryTestClientConfiguration>
     </ua:XmlElement>
   </Extensions>
 

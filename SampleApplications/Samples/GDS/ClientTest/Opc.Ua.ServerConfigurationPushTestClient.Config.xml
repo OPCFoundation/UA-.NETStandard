@@ -78,7 +78,11 @@
     <ua:XmlElement>
       <ServerConfigurationPushTestClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
         <ServerUrl>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</ServerUrl>
-      </ServerConfigurationPushTestClientConfiguration>
+        <AppUserName></AppUserName>
+        <AppPassword></AppPassword>
+        <SysAdminUserName>sysadmin</SysAdminUserName>
+        <SysAdminPassword>demo</SysAdminPassword>
+    </ServerConfigurationPushTestClientConfiguration>
     </ua:XmlElement>
   </Extensions>
 

@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Client
 
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
-            m_gds = new GlobalDiscoveryServerClient(m_application, m_configuration);
+            m_gds = new GlobalDiscoveryServerClient(m_application, m_configuration.GlobalDiscoveryServerUrl);
             m_gds.KeepAlive += GdsServer_KeepAlive;
             m_gds.ServerStatusChanged += GdsServer_StatusNotification;
             m_lds = new LocalDiscoveryServerClient(m_application.ApplicationConfiguration);

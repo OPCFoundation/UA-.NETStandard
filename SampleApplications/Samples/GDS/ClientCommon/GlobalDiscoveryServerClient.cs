@@ -46,14 +46,15 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public GlobalDiscoveryServerClient(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
+        public GlobalDiscoveryServerClient(
+            ApplicationInstance application, 
+            string endpointUrl,
+            IUserIdentity adminUserIdentity = null)
         {
             m_application = application;
-            m_endpointUrl = config.GlobalDiscoveryServerUrl;
-#if IOP_WORKSHOP
-            // preset user/pw for IOP workshop. Do not use in production!
-            m_adminCredentials = new UserIdentity("appadmin", "demo");
-#endif
+            m_endpointUrl = endpointUrl;
+            // preset admin 
+            m_adminCredentials = adminUserIdentity;
         }
         #endregion
 
@@ -75,7 +76,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The admin credentials.
         /// </value>
-        public UserIdentity AdminCredentials
+        public IUserIdentity AdminCredentials
         {
             get { return m_adminCredentials; }
             set { m_adminCredentials = value; }
@@ -823,7 +824,7 @@ namespace Opc.Ua.Gds.Client
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;
-        private UserIdentity m_adminCredentials;
+        private IUserIdentity m_adminCredentials;
         #endregion
     }
 }

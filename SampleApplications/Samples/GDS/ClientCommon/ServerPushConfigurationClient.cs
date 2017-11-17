@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The admin credentials.
         /// </value>
-        public UserIdentity AdminCredentials
+        public IUserIdentity AdminCredentials
         {
             get { return m_adminCredentials; }
             set { m_adminCredentials = value; }
@@ -773,7 +773,7 @@ namespace Opc.Ua.Gds.Client
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;
-        private UserIdentity m_adminCredentials;
+        private IUserIdentity m_adminCredentials;
         #endregion
     }
 }

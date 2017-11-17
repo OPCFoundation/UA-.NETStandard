@@ -174,11 +174,13 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
+            // User with permission to configure server
             if (userName == "sysadmin" && password == "demo")
             {
                 return new SystemConfigurationIdentity(new UserIdentity(userNameToken));
             }
 
+            // standard users for CTT verification
             if (!((userName == "user1" && password == "password") ||
                 (userName == "user2" && password == "password1")))
             {

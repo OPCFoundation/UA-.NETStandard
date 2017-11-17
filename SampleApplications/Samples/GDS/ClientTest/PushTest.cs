@@ -425,7 +425,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         #region Private Methods
         private void ConnectPushClient(bool sysAdmin)
         {
-            _pushClient.PushClient.AdminCredentials = new UserIdentity(sysAdmin ? "sysadmin" : "appuser", "demo");
+            _pushClient.PushClient.AdminCredentials = sysAdmin ? _pushClient.SysAdminUser : _pushClient.AppUser;
             _pushClient.PushClient.Connect();
         }
 
@@ -436,7 +436,7 @@ namespace NUnit.Opc.Ua.Gds.Test
 
         private void ConnectGDSClient(bool admin)
         {
-            _gdsClient.GDSClient.AdminCredentials = new UserIdentity(admin ? "appadmin" : "appuser", "demo");
+            _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
             _gdsClient.GDSClient.Connect();
         }
 
@@ -488,7 +488,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         {
             DisconnectPushClient();
             Thread.Sleep(500);
-            _gdsClient.GDSClient.AdminCredentials = new UserIdentity("appadmin", "demo");
+            _gdsClient.GDSClient.AdminCredentials = _gdsClient.AdminUser;
             _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl).Wait();
 #if TODO
             Assert.AreEqual(
@@ -497,9 +497,9 @@ namespace NUnit.Opc.Ua.Gds.Test
                 );
 #endif
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private const int randomStart = 1;
         private RandomSource _randomSource;
         private DataGenerator _dataGenerator;
@@ -510,6 +510,6 @@ namespace NUnit.Opc.Ua.Gds.Test
         private ApplicationRecordDataType _applicationRecord;
         private X509Certificate2 _selfSignedServerCert;
         private string[] _domainNames;
-#endregion
+        #endregion
     }
 }

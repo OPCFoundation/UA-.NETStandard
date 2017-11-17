@@ -30,6 +30,7 @@
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using System;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
 
@@ -45,6 +46,9 @@ namespace Opc.Ua.Gds.Test
         {
             AutoAccept = autoAccept;
         }
+
+        public IUserIdentity AppUser { get; private set; }
+        public IUserIdentity AdminUser { get; private set; }
 
         public async Task LoadClientConfiguration(int port = -1)
         {
@@ -68,9 +72,20 @@ namespace Opc.Ua.Gds.Test
 
             config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            GlobalDiscoveryClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryClientConfiguration>();
-            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration);
-            _client.EndpointUrl = TestUtils.PatchEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port);
+            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl)
+            {
+                EndpointUrl = TestUtils.PatchEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
+            };
+            if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
+            {
+                AppUser = new UserIdentity(new AnonymousIdentityToken());
+            }
+            else
+            {
+                AppUser = new UserIdentity(gdsClientConfiguration.AppUserName, gdsClientConfiguration.AppPassword);
+            }
+            AdminUser = new UserIdentity(gdsClientConfiguration.AdminUserName, gdsClientConfiguration.AdminPassword);
         }
 
         public void DisconnectClient()
@@ -106,4 +121,54 @@ namespace Opc.Ua.Gds.Test
         private GlobalDiscoveryServerClient _client;
 
     }
+
+    /// <summary>
+    /// Stores the configuration the data access node manager.
+    /// </summary>
+    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    public class GlobalDiscoveryTestClientConfiguration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public GlobalDiscoveryTestClientConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public
+        [DataMember(Order = 1)]
+        public string GlobalDiscoveryServerUrl { get; set; }
+        [DataMember(Order = 2)]
+        public string AppUserName { get; set; }
+        [DataMember(Order = 3)]
+        public string AppPassword { get; set; }
+        [DataMember(Order = 4, IsRequired = true)]
+        public string AdminUserName { get; set; }
+        [DataMember(Order = 5, IsRequired = true)]
+        public string AdminPassword { get; set; }
+        #endregion
+
+        #region Private Members
+        #endregion
+    }
+
 }
