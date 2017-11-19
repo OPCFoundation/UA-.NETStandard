@@ -268,11 +268,6 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The private key format is not supported.");
             }
 
-            if (String.IsNullOrEmpty(privateKeyFormat) && privateKey != null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported, "The private key is not supported.");
-            }
-
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
             certificateGroup.UpdateCertificate = null;
 
@@ -456,17 +451,9 @@ namespace Opc.Ua.Server
             {
                 Task.Run(async () =>
                     {
-                        // update Application certificate
-                        await m_configuration.CertificateValidator.Update(m_configuration);
-
-                        // TODO: call OnUpdateConfiguration
-
-                        // force close all sessions
-                        foreach (var session in Server.SessionManager.GetSessions())
-                        {
-                            session.Close();
-                        }
-
+                        await Task.Delay(1000);
+                        // update certificates
+                        await m_configuration.CertificateValidator.UpdateCertificate(m_configuration);
                     }
                 );
             }

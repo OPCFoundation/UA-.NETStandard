@@ -119,13 +119,16 @@ namespace Opc.Ua.Gds.Test
             }
         }
 
-        public static string PatchEndpointUrlPort(string url, int port)
+        public static string PatchOnlyGDSEndpointUrlPort(string url, int port)
         {
             if (port >= MinPort && port <= MaxPort)
             {
                 UriBuilder newUrl = new UriBuilder(url);
-                newUrl.Port = port;
-                return newUrl.Uri.AbsoluteUri;
+                if (newUrl.Path.Contains("GlobalDiscoveryTestServer"))
+                {
+                    newUrl.Port = port;
+                    return newUrl.Uri.AbsoluteUri;
+                }
             }
             return url;
         }

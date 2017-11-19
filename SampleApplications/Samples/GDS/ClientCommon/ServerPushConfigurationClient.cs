@@ -54,6 +54,11 @@ namespace Opc.Ua.Gds.Client
         #endregion
 
         #region Public Properties
+        public NodeId DefaultApplicationGroup { get; private set; }
+        public NodeId DefaultHttpsGroup { get; private set; }
+        public NodeId DefaultUserTokenGroup { get; private set; }
+        public NodeId ApplicationCertificateType { get => Opc.Ua.ObjectTypeIds.ApplicationCertificateType; }
+
         /// <summary>
         /// Gets the application instance.
         /// </summary>
@@ -290,6 +295,11 @@ namespace Opc.Ua.Gds.Client
 
             subscription.AddItem(monitoredItem);
             subscription.ApplyChanges();
+
+            // init some helpers
+            DefaultApplicationGroup = ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, m_session.NamespaceUris);
+            DefaultHttpsGroup = ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup, m_session.NamespaceUris);
+            DefaultUserTokenGroup = ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup, m_session.NamespaceUris);
         }
 
         /// <summary>
@@ -339,7 +349,11 @@ namespace Opc.Ua.Gds.Client
                 Connect();
             }
 
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection
+            IUserIdentity oldUser = ElevatePermissions();
+
+            try
+            {
+                ReadValueIdCollection nodesToRead = new ReadValueIdCollection
             {
                 new ReadValueId()
                 {
@@ -348,21 +362,25 @@ namespace Opc.Ua.Gds.Client
                 }
             };
 
-            DataValueCollection results = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
+                DataValueCollection results = null;
+                DiagnosticInfoCollection diagnosticInfos = null;
 
-            m_session.Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                nodesToRead,
-                out results,
-                out diagnosticInfos);
+                m_session.Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    out results,
+                    out diagnosticInfos);
 
-            ClientBase.ValidateResponse(results, nodesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
-
-            return results[0].GetValue<string[]>(null);
+                ClientBase.ValidateResponse(results, nodesToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
+                return results[0].GetValue<string[]>(null);
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
         }
 
         /// <summary>
@@ -527,7 +545,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <returns></returns>
-        public byte[] CreateCertificateRequest(
+        public byte[] CreateSigningRequest(
             NodeId certificateGroupId, 
             NodeId certificateTypeId, 
             string subjectName, 

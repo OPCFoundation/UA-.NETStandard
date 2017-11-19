@@ -2582,6 +2582,16 @@ namespace Opc.Ua.Server
             }
         }
 
+
+        /// <summary>
+        /// Called after the application certificate update.
+        /// </summary>
+        protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        {
+            Stop();
+            Start(e.Configuration);
+        }
+
         /// <summary>
         /// Called when the server configuration is changed on disk.
         /// </summary>
@@ -2862,6 +2872,8 @@ namespace Opc.Ua.Server
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += new EventHandler<ConfigurationWatcherEventArgs>(this.OnConfigurationChanged);
                     }
+
+                    CertificateValidator.CertificateUpdate += OnCertificateUpdate;
                 }
                 catch (Exception e)
                 {
@@ -3107,9 +3119,9 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();    
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

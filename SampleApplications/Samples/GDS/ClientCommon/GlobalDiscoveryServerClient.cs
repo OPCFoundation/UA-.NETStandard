@@ -196,11 +196,31 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+            bool serverHalted = false;
+            do
+            {
+                serverHalted = false;
+                try
+                {
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            await Connect(endpoint);
+                    await Connect(endpoint);
+                }
+                catch (ServiceResultException e)
+                {
+                    if (e.StatusCode == StatusCodes.BadServerHalted)
+                    {
+                        serverHalted = true;
+                        await Task.Delay(1000);
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+                }
+            } while (serverHalted);
         }
 
         /// <summary>

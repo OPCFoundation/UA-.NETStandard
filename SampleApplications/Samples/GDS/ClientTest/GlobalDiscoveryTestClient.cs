@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Test
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity AdminUser { get; private set; }
-
+        public ApplicationConfiguration Config { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Test
             };
 
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+            Config = await application.LoadApplicationConfiguration(false);
 
             // check the application certificate.
             bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
@@ -70,12 +70,12 @@ namespace Opc.Ua.Gds.Test
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
             _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl)
             {
-                EndpointUrl = TestUtils.PatchEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
+                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {

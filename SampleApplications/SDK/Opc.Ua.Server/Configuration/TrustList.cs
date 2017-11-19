@@ -370,7 +370,7 @@ namespace Opc.Ua.Server
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        if(UpdateStoreCrls(m_issuerStorePath, issuerCrls))
+                        if(UpdateStoreCrls(m_issuerStorePath, trustedCrls))
                         {
                             updateMasks |= TrustListMasks.TrustedCrls;
                         }

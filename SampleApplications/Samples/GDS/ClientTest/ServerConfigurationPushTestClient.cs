@@ -42,7 +42,6 @@ namespace Opc.Ua.Gds.Test
         public ServerPushConfigurationClient PushClient { get { return _client; } }
         public static bool AutoAccept = false;
 
-
         public ServerConfigurationPushTestClient(bool autoAccept)
         {
             AutoAccept = autoAccept;
@@ -50,7 +49,7 @@ namespace Opc.Ua.Gds.Test
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity SysAdminUser { get; private set; }
-
+        public ApplicationConfiguration Config { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -62,7 +61,7 @@ namespace Opc.Ua.Gds.Test
             };
 
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+            Config = await application.LoadApplicationConfiguration(false);
 
             // check the application certificate.
             bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
@@ -71,12 +70,12 @@ namespace Opc.Ua.Gds.Test
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             _client = new ServerPushConfigurationClient(application)
             {
-                EndpointUrl = TestUtils.PatchEndpointUrlPort(clientConfiguration.ServerUrl, port)
+                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
             {

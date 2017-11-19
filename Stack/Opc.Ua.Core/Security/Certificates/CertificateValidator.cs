@@ -61,6 +61,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Raised when an application certificate update occurs.
+        /// </summary>
+        public event CertificateUpdateEventHandler CertificateUpdate
+        {
+            add
+            {
+                lock (m_callbackLock)
+                {
+                    m_CertificateUpdate += value;
+                }
+            }
+
+            remove
+            {
+                lock (m_callbackLock)
+                {
+                    m_CertificateUpdate -= value;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
         public virtual async Task Update(ApplicationConfiguration configuration)
@@ -150,6 +172,29 @@ namespace Opc.Ua
                 m_applicationCertificate = await configuration.ApplicationCertificate.Find(false);
             }
         }
+
+        /// <summary>
+        /// Updates the validator with a new application certificate.
+        /// </summary>
+        public virtual async Task UpdateCertificate(ApplicationConfiguration configuration)
+        {
+            lock (m_lock)
+            {
+                configuration.SecurityConfiguration.ApplicationCertificate.Certificate = null;
+            }
+
+            await Update(configuration);
+
+            lock (m_callbackLock)
+            {
+                if (m_CertificateUpdate != null)
+                {
+                    var args = new CertificateUpdateEventArgs(configuration);
+                    m_CertificateUpdate(this, args);
+                }
+            }
+        }
+
 
         /// <summary>
         /// Validates the specified certificate against the trust list.
@@ -964,6 +1009,7 @@ namespace Opc.Ua
         private CertificateIdentifierCollection m_issuerCertificateList;
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
+        private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
         private bool m_rejectSHA1SignedCertificates;
         private ushort m_minimumCertificateKeySize;
@@ -1021,9 +1067,50 @@ namespace Opc.Ua
         #endregion
     }
 
+
     /// <summary>
     /// Used to handled certificate validation errors.
     /// </summary>
     public delegate void CertificateValidationEventHandler(CertificateValidator sender, CertificateValidationEventArgs e);
     #endregion
+
+    #region CertificateUpdateEventArgs Class
+    /// <summary>
+    /// The event arguments provided when a certificate validation error occurs.
+    /// </summary>
+    public class CertificateUpdateEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        internal CertificateUpdateEventArgs(ApplicationConfiguration configuration)
+        {
+            m_configuration = configuration;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The certificate.
+        /// </summary>
+        public ApplicationConfiguration Configuration
+        {
+            get { return m_configuration; }
+        }
+        #endregion
+
+        #region Private Fields
+        private ApplicationConfiguration m_configuration;
+        #endregion
+    }
+
+    
+    /// <summary>
+    /// Used to handle certificate update events.
+    /// </summary>
+    public delegate void CertificateUpdateEventHandler(CertificateValidator sender, CertificateUpdateEventArgs e);
+
+    #endregion
+
 }
