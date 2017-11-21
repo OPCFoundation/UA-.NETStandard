@@ -324,16 +324,17 @@ namespace Opc.Ua.Bindings
                             m_serverCertificate,
                             m_descriptions);
 
+                        if (m_callback != null)
+                        {
+                            channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                        }
+
                         // start accepting messages on the channel.
                         channel.Attach(++m_lastChannelId, e.AcceptSocket);
 
                         // save the channel for shutdown and reconnects.
                         m_channels.Add(m_lastChannelId, channel);
 
-                        if (m_callback != null)
-                        {
-                            channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                        }
                     }
                     catch (Exception ex)
                     {
