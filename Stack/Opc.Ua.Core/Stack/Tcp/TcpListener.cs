@@ -371,14 +371,17 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                if (m_callback != null)
+                lock (m_lock)
                 {
-                    IAsyncResult result = m_callback.BeginProcessRequest(
-                        channel.GlobalChannelId,
-                        channel.EndpointDescription,
-                        request,
-                        OnProcessRequestComplete,
-                        new object[] { channel, requestId, request });
+                    if (m_callback != null)
+                    {
+                        IAsyncResult result = m_callback.BeginProcessRequest(
+                            channel.GlobalChannelId,
+                            channel.EndpointDescription,
+                            request,
+                            OnProcessRequestComplete,
+                            new object[] { channel, requestId, request });
+                    }
                 }
             }
             catch (Exception e)
@@ -391,13 +394,17 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                object[] args = (object[])result.AsyncState;
-
-                if (m_callback != null)
+                lock (m_lock)
                 {
-                    TcpServerChannel channel = (TcpServerChannel)args[0];
-                    IServiceResponse response = m_callback.EndProcessRequest(result);
-                    channel.SendResponse((uint)args[1], response);
+
+                    object[] args = (object[])result.AsyncState;
+
+                    if (m_callback != null)
+                    {
+                        TcpServerChannel channel = (TcpServerChannel)args[0];
+                        IServiceResponse response = m_callback.EndProcessRequest(result);
+                        channel.SendResponse((uint)args[1], response);
+                    }
                 }
             }
             catch (Exception e)
