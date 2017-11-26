@@ -192,7 +192,10 @@ namespace Opc.Ua.Bindings
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(Int32.MaxValue);
-                    m_listeningSocket.AcceptAsync(args);
+                    if (!m_listeningSocket.AcceptAsync(args))
+                    {
+                        OnAccept(null, args);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -211,7 +214,10 @@ namespace Opc.Ua.Bindings
                     args.UserToken = m_listeningSocketIPv6;
                     m_listeningSocketIPv6.Bind(endpointIPv6);
                     m_listeningSocketIPv6.Listen(Int32.MaxValue);
-                    m_listeningSocketIPv6.AcceptAsync(args);
+                    if (!m_listeningSocketIPv6.AcceptAsync(args))
+                    {
+                        OnAccept(null, args);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -298,68 +304,75 @@ namespace Opc.Ua.Bindings
         private void OnAccept(object sender, SocketAsyncEventArgs e)
         {
             TcpServerChannel channel = null;
-
-            lock (m_lock)
+            bool repeatAccept = false;
+            do
             {
-                Socket listeningSocket = e.UserToken as Socket;
-
-                if (listeningSocket == null)
+                repeatAccept = false;
+                lock (m_lock)
                 {
-                    Utils.Trace("OnAccept: Listensocket was null.");
-                    e.Dispose();
-                    return;
-                }
+                    Socket listeningSocket = e.UserToken as Socket;
 
-                // check if the accept socket has been created.
-                if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
-                {
-                    try
+                    if (listeningSocket == null)
                     {
-                        // create the channel to manage incoming messages.
-                        channel = new TcpServerChannel(
-                            m_listenerId,
-                            this,
-                            m_bufferManager,
-                            m_quotas,
-                            m_serverCertificate,
-                            m_descriptions);
+                        Utils.Trace("OnAccept: Listensocket was null.");
+                        e.Dispose();
+                        return;
+                    }
 
-                        if (m_callback != null)
+                    // check if the accept socket has been created.
+                    if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    {
+                        try
                         {
-                            channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                            // create the channel to manage incoming messages.
+                            channel = new TcpServerChannel(
+                                m_listenerId,
+                                this,
+                                m_bufferManager,
+                                m_quotas,
+                                m_serverCertificate,
+                                m_descriptions);
+
+                            if (m_callback != null)
+                            {
+                                channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                            }
+
+                            // start accepting messages on the channel.
+                            channel.Attach(++m_lastChannelId, e.AcceptSocket);
+
+                            // save the channel for shutdown and reconnects.
+                            m_channels.Add(m_lastChannelId, channel);
+
                         }
-
-                        // start accepting messages on the channel.
-                        channel.Attach(++m_lastChannelId, e.AcceptSocket);
-
-                        // save the channel for shutdown and reconnects.
-                        m_channels.Add(m_lastChannelId, channel);
-
+                        catch (Exception ex)
+                        {
+                            Utils.Trace(ex, "Unexpected error accepting a new connection.");
+                        }
                     }
-                    catch (Exception ex)
+
+                    e.Dispose();
+
+                    if (e.SocketError != SocketError.OperationAborted)
                     {
-                        Utils.Trace(ex, "Unexpected error accepting a new connection.");
+                        // go back and wait for the next connection.
+                        try
+                        {
+                            e = new SocketAsyncEventArgs();
+                            e.Completed += OnAccept;
+                            e.UserToken = listeningSocket;
+                            if (!listeningSocket.AcceptAsync(e))
+                            {
+                                repeatAccept = true;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Utils.Trace(ex, "Unexpected error listening for a new connection.");
+                        }
                     }
                 }
-
-                e.Dispose();
-
-                if (e.SocketError != SocketError.OperationAborted)
-                {
-                    // go back and wait for the next connection.
-                    try
-                    {
-                        e = new SocketAsyncEventArgs();
-                        e.Completed += OnAccept;
-                        e.UserToken = listeningSocket;
-                        listeningSocket.AcceptAsync(e);
-                    }
-                    catch (Exception ex)
-                    {
-                        Utils.Trace(ex, "Unexpected error listening for a new connection.");
-                    }
-                }
-            }
+            } while (repeatAccept);
         }
         #endregion
 
