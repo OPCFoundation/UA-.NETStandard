@@ -279,6 +279,13 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
+                // check if session timeout has expired.
+                if (session.HasExpired)
+                {
+                    m_server.CloseSession(null, session.Id, false);
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
                 // create new server nonce.
                 serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
 
