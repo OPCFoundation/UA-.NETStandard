@@ -1539,6 +1539,14 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+                // set type identifier for custom complex data types before decode.
+                IComplexTypeInstance complexTypeInstance = encodeable as IComplexTypeInstance;
+
+                if (complexTypeInstance != null)
+                {
+                    complexTypeInstance.TypeId = extension.TypeId;
+                }
             }
 
             // get the length.
