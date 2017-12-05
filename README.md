@@ -1,7 +1,7 @@
 # OPC UA .Net Standard Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard/library). .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
+This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard/library) and is certified for compliance through the OPC Foundation's Certification Test Tool (CTT) V1.03. .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
