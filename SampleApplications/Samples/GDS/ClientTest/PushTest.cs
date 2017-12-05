@@ -84,6 +84,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             _domainNames = Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
+            CreateCATestCerts(_pushClient.TempStorePath);
         }
 
         /// <summary>
@@ -177,6 +178,64 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.IsTrue(Utils.IsEqual(expectFullTrustList, fullTrustList));
         }
 
+        [Test, Order(301)]
+        public void AddRemoveCert()
+        {
+            X509Certificate2 trustedCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TrustedCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
+            X509Certificate2 issuerCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "IssuerCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
+            ConnectPushClient(true);
+            TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
+            _pushClient.PushClient.AddCertificate(trustedCert, true);
+            _pushClient.PushClient.AddCertificate(issuerCert, false);
+            TrustListDataType afterAddTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
+            Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
+            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
+            _pushClient.PushClient.RemoveCertificate(trustedCert.Thumbprint, true);
+            _pushClient.PushClient.RemoveCertificate(issuerCert.Thumbprint, false);
+            TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.IsTrue(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+        }
+
+        [Test, Order(302)]
+        public void AddRemoveCATrustedCert()
+        {
+            ConnectPushClient(true);
+            TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
+            _pushClient.PushClient.AddCertificate(_caCert, true);
+            _pushClient.PushClient.AddCrl(_caCrl, true);
+            TrustListDataType afterAddTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
+            Assert.Greater(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
+            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
+            Assert.That(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false); }, Throws.Exception);
+            TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+            _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, true);
+            afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.IsTrue(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+        }
+
+        [Test, Order(303)]
+        public void AddRemoveCAIssuerCert()
+        {
+            ConnectPushClient(true);
+            TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
+            _pushClient.PushClient.AddCertificate(_caCert, false);
+            _pushClient.PushClient.AddCrl(_caCrl, false);
+            TrustListDataType afterAddTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
+            Assert.Greater(afterAddTrustList.IssuerCrls.Count, beforeTrustList.IssuerCrls.Count);
+            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
+            Assert.That(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, true); }, Throws.Exception);
+            TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+            _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false);
+            afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+            Assert.IsTrue(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+        }
+
+
         [Test, Order(400)]
         public void CreateSigningRequestBadParms()
         {
@@ -185,6 +244,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             NodeId invalidCertType = new NodeId(Guid.NewGuid());
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(invalidCertGroup, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, invalidCertType, null, false, null); }, Throws.Exception);
+            Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(invalidCertGroup, invalidCertType, null, false, null); }, Throws.Exception);
         }
 
@@ -192,7 +252,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         public void CreateSigningRequestNullParms()
         {
             ConnectPushClient(true);
-            byte[] csr = _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null);
+            byte[] csr = _pushClient.PushClient.CreateSigningRequest(null, _pushClient.PushClient.ApplicationCertificateType, null, false, null);
             Assert.IsNotNull(csr);
         }
 
@@ -214,7 +274,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         public void CreateSigningRequestNullParmsWithNewPrivateKey()
         {
             ConnectPushClient(true);
-            byte[] csr = _pushClient.PushClient.CreateSigningRequest(null, null, null, true, Encoding.ASCII.GetBytes("OPCTest"));
+            byte[] csr = _pushClient.PushClient.CreateSigningRequest(null, _pushClient.PushClient.ApplicationCertificateType, null, true, Encoding.ASCII.GetBytes("OPCTest"));
             Assert.IsNotNull(csr);
         }
 
@@ -259,16 +319,14 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, null, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidRawCert }); }, Throws.Exception);
-            // positive test, update server with its own cert...
-            byte[] mockPrivateKey = new byte[0];
-            byte[][] issuerCerts = new byte[0][];
+            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null); }, Throws.Exception);
             var success = _pushClient.PushClient.UpdateCertificate(
-                _pushClient.PushClient.DefaultApplicationGroup,
+                null,
                 _pushClient.PushClient.ApplicationCertificateType,
                 serverCert.RawData,
-                "",
-                mockPrivateKey,
-                issuerCerts);
+                null,
+                null,
+                null);
             if (success)
             {
                 _pushClient.PushClient.ApplyChanges();
@@ -281,13 +339,12 @@ namespace NUnit.Opc.Ua.Gds.Test
         {
             ConnectPushClient(true);
             ConnectGDSClient(true);
-            byte[] nonce = new byte[0];
             byte[] csr = _pushClient.PushClient.CreateSigningRequest(
-                _pushClient.PushClient.DefaultApplicationGroup,
+                null,
                 _pushClient.PushClient.ApplicationCertificateType,
-                "",
+                null,
                 false,
-                nonce);
+                null);
             Assert.IsNotNull(csr);
             NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
                 _applicationRecord.ApplicationId,
@@ -312,14 +369,12 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.NotNull(issuerCertificates);
             Assert.IsNull(privateKey);
             DisconnectGDSClient();
-
-            byte[] mockPrivateKey = new byte[0];
-            var success = _pushClient.PushClient.UpdateCertificate(
-                _pushClient.PushClient.DefaultApplicationGroup,
+            bool success = _pushClient.PushClient.UpdateCertificate(
+                null,
                 _pushClient.PushClient.ApplicationCertificateType,
-                certificate, 
-                "",
-                mockPrivateKey, 
+                certificate,
+                null,
+                null,
                 issuerCertificates);
             if (success)
             {
@@ -482,8 +537,8 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
-        #endregion
-        #region Private Methods
+#endregion
+#region Private Methods
         private void ConnectPushClient(bool sysAdmin)
         {
             _pushClient.PushClient.AdminCredentials = sysAdmin ? _pushClient.SysAdminUser : _pushClient.AppUser;
@@ -715,6 +770,70 @@ namespace NUnit.Opc.Ua.Gds.Test
             return result;
         }
 
+        /// <summary>
+        /// Create CA test certificates.
+        /// </summary>
+        private void CreateCATestCerts(string tempStorePath)
+        {
+            Assert.IsTrue(EraseStore(tempStorePath));
+
+            string subjectName = "CN=CA Test Cert, O=OPC Foundation";
+            X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
+                CertificateStoreType.Directory,
+                tempStorePath,
+                null,
+                null,
+                null,
+                subjectName,
+                null,
+                CertificateFactory.defaultKeySize,
+                DateTime.UtcNow,
+                CertificateFactory.defaultLifeTime,
+                CertificateFactory.defaultHashSize,
+                true,
+                null,
+                null);
+
+            _caCert = newCACert;
+
+            // initialize cert revocation list (CRL)
+            X509CRL newCACrl = CertificateFactory.RevokeCertificateAsync(tempStorePath, newCACert).Result;
+
+            _caCrl = newCACrl;
+        }
+
+        private bool EraseStore(string storePath)
+        {
+            bool result = true;
+            try
+            {
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
+                {
+                    var storeCerts = store.Enumerate().Result;
+                    foreach (var cert in storeCerts)
+                    {
+                        if (!store.Delete(cert.Thumbprint).Result)
+                        {
+                            result = false;
+                        }
+                    }
+                    var storeCrls = store.EnumerateCRLs();
+                    foreach (var crl in storeCrls)
+                    {
+                        if (!store.DeleteCRL(crl))
+                        {
+                            result = false;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                result = false;
+            }
+            return result;
+        }
+
         #endregion
 
         #region Private Fields
@@ -728,6 +847,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         private ApplicationRecordDataType _applicationRecord;
         private X509Certificate2 _selfSignedServerCert;
         private string[] _domainNames;
+        private X509Certificate2 _caCert;
+        private X509CRL _caCrl;
         #endregion
     }
 }

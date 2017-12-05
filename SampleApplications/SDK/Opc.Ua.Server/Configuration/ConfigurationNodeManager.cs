@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             ServerCertificateGroup defaultApplicationGroup = new ServerCertificateGroup
             {
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
-                CertificateTypes = new NodeId[] { ObjectTypeIds.ApplicationCertificateType },
+                CertificateTypes = new NodeId[] { ObjectTypeIds.RsaSha256ApplicationCertificateType },
                 ApplicationCertificate = configuration.SecurityConfiguration.ApplicationCertificate,
                 IssuerStorePath = configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath,
                 TrustedStorePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath
@@ -508,6 +508,12 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId
             )
         {
+            // verify typeid must be set
+            if (NodeId.IsNull(certificateTypeId))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate type not specified.");
+            }
+
             // verify requested certificate group
             if (NodeId.IsNull(certificateGroupId))
             {
@@ -517,22 +523,20 @@ namespace Opc.Ua.Server
             ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId));
             if (certificateGroup == null)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate Group not found.");
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
             }
 
             // verify certificate type
-            if (!NodeId.IsNull(certificateTypeId))
+            bool foundCertType = certificateGroup.CertificateTypes.Any(t => Utils.IsEqual(t, certificateTypeId));
+            if (!foundCertType)
             {
-                bool foundCertType = certificateGroup.CertificateTypes.Any(t => Utils.IsEqual(t, certificateTypeId));
-                if (!foundCertType)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate Type not supported.");
-                }
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate type not valid for certificate group.");
             }
+
             return certificateGroup;
         }
-
         #endregion
+
         #region Private Fields            
         private class UpdateCertificateData
         {

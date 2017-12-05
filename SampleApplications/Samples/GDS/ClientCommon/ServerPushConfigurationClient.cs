@@ -57,7 +57,8 @@ namespace Opc.Ua.Gds.Client
         public NodeId DefaultApplicationGroup { get; private set; }
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }
-        public NodeId ApplicationCertificateType { get => Opc.Ua.ObjectTypeIds.ApplicationCertificateType; }
+        // TODO: currently only sha256 cert is supported
+        public NodeId ApplicationCertificateType { get => Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType; }
 
         /// <summary>
         /// Gets the application instance.
@@ -261,40 +262,12 @@ namespace Opc.Ua.Gds.Client
                 m_session.Factory.AddEncodeableTypes(typeof(Opc.Ua.DataTypeIds).Assembly);
             }
 
+            m_session.KeepAlive += Session_KeepAlive;
+            m_session.KeepAlive += KeepAlive;
+
             RaiseConnectionStatusChangedEvent();
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            m_session.KeepAlive += Session_KeepAlive;
-
-            Subscription subscription = new Subscription
-            {
-                Handle = this,
-                DisplayName = null,
-                PublishingInterval = 1000,
-                KeepAliveCount = 10,
-                LifetimeCount = 100,
-                MaxNotificationsPerPublish = 1000,
-                PublishingEnabled = true,
-                TimestampsToReturn = TimestampsToReturn.Neither
-            };
-
-            m_session.AddSubscription(subscription);
-            subscription.Create();
-
-            MonitoredItem monitoredItem = new MonitoredItem
-            {
-                StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus,
-                AttributeId = Attributes.Value,
-                SamplingInterval = 1000,
-                QueueSize = 0,
-                DiscardOldest = true,
-                Handle = typeof(ServerStatusDataType)
-            };
-
-            monitoredItem.Notification += ServerStatus_Notification;
-
-            subscription.AddItem(monitoredItem);
-            subscription.ApplyChanges();
 
             // init some helpers
             DefaultApplicationGroup = ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, m_session.NamespaceUris);
@@ -517,7 +490,7 @@ namespace Opc.Ua.Gds.Client
 
                     return (bool)outputArguments[0];
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
                     if (IsConnected)
                     {
@@ -527,8 +500,87 @@ namespace Opc.Ua.Gds.Client
                             fileHandle);
                     }
 
-                    throw;
+                    throw e;
                 }
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
+        }
+
+        /// <summary>
+        /// Add certificate.
+        /// </summary>
+        public void AddCertificate(X509Certificate2 certificate, bool isTrustedCertificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            IUserIdentity oldUser = ElevatePermissions();
+            try
+            {
+                m_session.Call(
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
+                    certificate.RawData,
+                    isTrustedCertificate
+                    );
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
+        }
+
+        /// <summary>
+        /// Add certificate.
+        /// </summary>
+        public void AddCrl(X509CRL crl, bool isTrustedCertificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            IUserIdentity oldUser = ElevatePermissions();
+            try
+            {
+                m_session.Call(
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
+                    crl.RawData,
+                    isTrustedCertificate
+                    );
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
+        }
+
+
+        /// <summary>
+        /// Remove certificate.
+        /// </summary>
+        public void RemoveCertificate(string thumbprint, bool isTrustedCertificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            IUserIdentity oldUser = ElevatePermissions();
+            try
+            {
+                m_session.Call(
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate, m_session.NamespaceUris),
+                    thumbprint,
+                    isTrustedCertificate
+                    );
             }
             finally
             {
@@ -546,10 +598,10 @@ namespace Opc.Ua.Gds.Client
         /// <param name="nonce">The nonce.</param>
         /// <returns></returns>
         public byte[] CreateSigningRequest(
-            NodeId certificateGroupId, 
-            NodeId certificateTypeId, 
-            string subjectName, 
-            bool regeneratePrivateKey, 
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            bool regeneratePrivateKey,
             byte[] nonce)
         {
             if (!IsConnected)
@@ -588,11 +640,11 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         public bool UpdateCertificate(
-            NodeId certificateGroupId, 
-            NodeId certificateTypeId, 
-            byte[] certificate, 
-            string privateKeyFormat, 
-            byte[] privateKey, 
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificate,
+            string privateKeyFormat,
+            byte[] privateKey,
             byte[][] issuerCertificates)
         {
             if (!IsConnected)
@@ -650,7 +702,7 @@ namespace Opc.Ua.Gds.Client
                 X509Certificate2Collection collection = new X509Certificate2Collection();
                 foreach (var rawCertificate in rawCertificates)
                 {
-                    collection.Add(new X509Certificate(rawCertificate));
+                    collection.Add(new X509Certificate2(rawCertificate));
                 }
                 return collection;
             }

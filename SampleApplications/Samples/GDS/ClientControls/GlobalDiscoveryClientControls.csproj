@@ -87,6 +87,12 @@
     <Compile Include="Controls\SelectGdsDialog.Designer.cs">
       <DependentUpon>SelectGdsDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\SelectPushServerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectPushServerDialog.designer.cs">
+      <DependentUpon>SelectPushServerDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\SelectServerDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -171,6 +177,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\SelectGdsDialog.resx">
       <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectPushServerDialog.resx">
+      <DependentUpon>SelectPushServerDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\SelectServerDialog.resx">
       <DependentUpon>SelectServerDialog.cs</DependentUpon>

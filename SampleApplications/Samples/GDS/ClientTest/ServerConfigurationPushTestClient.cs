@@ -49,6 +49,7 @@ namespace Opc.Ua.Gds.Test
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity SysAdminUser { get; private set; }
+        public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
@@ -86,7 +87,7 @@ namespace Opc.Ua.Gds.Test
                 AppUser = new UserIdentity(clientConfiguration.AppUserName, clientConfiguration.AppPassword);
             }
             SysAdminUser = new UserIdentity(clientConfiguration.SysAdminUserName, clientConfiguration.SysAdminPassword);
-
+            TempStorePath = clientConfiguration.TempStorePath;
         }
 
         public void DisconnectClient()
@@ -165,6 +166,8 @@ namespace Opc.Ua.Gds.Test
         public string SysAdminUserName { get; set; }
         [DataMember(Order = 5, IsRequired = true)]
         public string SysAdminPassword { get; set; }
+        [DataMember(Order = 6, IsRequired = true)]
+        public string TempStorePath { get; set; }
         #endregion
 
         #region Private Members

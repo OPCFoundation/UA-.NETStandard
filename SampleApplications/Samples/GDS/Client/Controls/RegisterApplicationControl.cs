@@ -68,6 +68,7 @@ namespace Opc.Ua.Gds.Client
         private string m_lastDirPath;
         private string m_lastSavePath;
         private GlobalDiscoveryServerClient m_gds;
+        private ServerPushConfigurationClient m_pushClient;
         private RegisteredApplication m_application;
         private bool m_promptOnRegistrationTypeChange;
         private string m_externalEditor;
@@ -93,9 +94,10 @@ namespace Opc.Ua.Gds.Client
             }
         }
         
-        public void Initialize(GlobalDiscoveryServerClient gds, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
+        public void Initialize(GlobalDiscoveryServerClient gds, ServerPushConfigurationClient pushClient, EndpointDescription endpoint, GlobalDiscoveryClientConfiguration configuration)
         {
             m_gds = gds;
+            m_pushClient = pushClient;
             m_application.ServerUrl = null;
 
             if (configuration != null)
@@ -103,6 +105,11 @@ namespace Opc.Ua.Gds.Client
                 m_externalEditor = configuration.ExternalEditor;
             }
 
+            InitializeEndpoint(endpoint);
+        }
+
+        private void InitializeEndpoint(EndpointDescription endpoint)
+        {
             if (endpoint != null)
             {
                 ClearFields();
@@ -122,6 +129,7 @@ namespace Opc.Ua.Gds.Client
                 RaiseRegisteredApplicationChangedEvent(m_application);
             }
         }
+
 
         private string SelectServerUrl(IList<string> discoveryUrls)
         {
@@ -1846,7 +1854,15 @@ namespace Opc.Ua.Gds.Client
 
         private void PickServerButton_Click(object sender, EventArgs e)
         {
-            InitializePushConfiguration();
+            List<string> list = new List<string>();
+            list.Add("opc.tcp://localhost:58810/GlobalDiscoveryServer");
+            list.Add("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
+            string uri = new SelectPushServerDialog().ShowDialog(null, m_pushClient, list);
+            if (uri != null && m_pushClient.IsConnected)
+            {
+                EndpointDescription endpoint = m_pushClient.Endpoint.Description;
+                InitializeEndpoint(endpoint);
+            }
         }
     }
 

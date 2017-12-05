@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Client
                 m_trustListStorePath = (isHttps) ? m_application.HttpsTrustListStorePath : m_application.TrustListStorePath;
                 m_issuerListStorePath = (isHttps) ? m_application.HttpsIssuerListStorePath : m_application.IssuerListStorePath;
                 CertificateStoreControl.Initialize(m_trustListStorePath, m_issuerListStorePath, null);
-                MergeWithGdsButton.Enabled = !String.IsNullOrEmpty(m_trustListStorePath);
+                MergeWithGdsButton.Enabled = !String.IsNullOrEmpty(m_trustListStorePath) || m_application.RegistrationType == RegistrationType.ServerPush;
             }
 
             ApplyChangesButton.Enabled = false;
@@ -77,7 +77,8 @@ namespace Opc.Ua.Gds.Client
                     if (m_application.RegistrationType == RegistrationType.ServerPush)
                     {
                         var trustList = m_server.ReadTrustList();
-                        CertificateStoreControl.Initialize(trustList);
+                        var rejectedList = m_server.GetRejectedList();
+                        CertificateStoreControl.Initialize(trustList, rejectedList, true);
                     }
                     else
                     {
@@ -174,7 +175,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (m_application.RegistrationType == RegistrationType.ServerPush)
                 {
-                    CertificateStoreControl.Initialize(trustList);
+                    CertificateStoreControl.Initialize(trustList, null, deleteBeforeAdd);
 
                     MessageBox.Show(
                         Parent,

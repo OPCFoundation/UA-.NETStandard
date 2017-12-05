@@ -449,12 +449,13 @@ public class CertificateFactory
     /// The issuer CA public key, the private key and the crl reside in the storepath.
     /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
     /// </summary>
-    public static async Task RevokeCertificateAsync(
+    public static async Task<X509CRL> RevokeCertificateAsync(
         string storePath,
         X509Certificate2 certificate,
         string issuerKeyFilePassword = null
         )
     {
+        X509CRL updatedCRL = null;
         try
         {
             string subjectName = certificate.IssuerName.Name;
@@ -572,7 +573,7 @@ public class CertificateFactory
                     X509Crl updatedCrl = crlGen.Generate(signatureFactory);
 
                     // add updated CRL to store
-                    X509CRL updatedCRL = new X509CRL(updatedCrl.GetEncoded());
+                    updatedCRL = new X509CRL(updatedCrl.GetEncoded());
                     store.AddCRL(updatedCRL);
 
                     // delete outdated CRLs from store
@@ -588,6 +589,7 @@ public class CertificateFactory
         {
             throw e;
         }
+        return updatedCRL;
     }
 
     /// <summary>

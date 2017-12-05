@@ -160,9 +160,12 @@ namespace Opc.Ua.Gds.Client.Controls
             NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
         }
 
-        public void Initialize(TrustListDataType trustList)
+        public void Initialize(TrustListDataType trustList, X509Certificate2Collection rejectedList, bool deleteBeforeAdd)
         {
-            CertificatesTable.Rows.Clear();
+            if (deleteBeforeAdd)
+            {
+                CertificatesTable.Rows.Clear();
+            }
 
             if (trustList != null)
             {
@@ -217,6 +220,14 @@ namespace Opc.Ua.Gds.Client.Controls
                 }
             }
 
+            if (rejectedList != null)
+            {
+                foreach (X509Certificate2 certificate in rejectedList)
+                {
+                    AddCertificate(certificate, Status.Rejected, null);
+                }
+            }
+
             m_dataset.AcceptChanges();
             NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
         }
@@ -233,31 +244,33 @@ namespace Opc.Ua.Gds.Client.Controls
                 DataRowView source = row.DataBoundItem as DataRowView;
 
                 Status status = (Status)source.Row[4];
-                X509Certificate2 certificate = (X509Certificate2)source.Row[7];
-                List<X509CRL> crls = (List<X509CRL>)source.Row[9];
+                X509Certificate2 certificate = source.Row[7] as X509Certificate2;
+                List<X509CRL> crls = source.Row[9] as List<X509CRL>;
 
-                if (status == Status.Trusted)
+                if (certificate != null)
                 {
-                    trusted.Add(certificate.RawData);
-
-                    if (crls != null)
+                    if (status == Status.Trusted)
                     {
-                        foreach (var crl in crls)
+                        trusted.Add(certificate.RawData);
+
+                        if (crls != null)
                         {
-                            trustedCrls.Add(crl.RawData);
+                            foreach (var crl in crls)
+                            {
+                                trustedCrls.Add(crl.RawData);
+                            }
                         }
                     }
-                }
-
-                else if (status == Status.Issuer)
-                {
-                    issuers.Add(certificate.RawData);
-
-                    if (crls != null)
+                    else if (status == Status.Issuer)
                     {
-                        foreach (var crl in crls)
+                        issuers.Add(certificate.RawData);
+
+                        if (crls != null)
                         {
-                            issuersCrls.Add(crl.RawData);
+                            foreach (var crl in crls)
+                            {
+                                issuersCrls.Add(crl.RawData);
+                            }
                         }
                     }
                 }

@@ -82,7 +82,8 @@
         <AppPassword></AppPassword>
         <SysAdminUserName>sysadmin</SysAdminUserName>
         <SysAdminPassword>demo</SysAdminPassword>
-    </ServerConfigurationPushTestClientConfiguration>
+        <TempStorePath>%LocalApplicationData%/OPC/PKI/temp</TempStorePath>
+      </ServerConfigurationPushTestClientConfiguration>
     </ua:XmlElement>
   </Extensions>
 

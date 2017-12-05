@@ -370,7 +370,7 @@ namespace Opc.Ua.Server
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        if(UpdateStoreCrls(m_issuerStorePath, trustedCrls))
+                        if(UpdateStoreCrls(m_trustedStorePath, trustedCrls))
                         {
                             updateMasks |= TrustListMasks.TrustedCrls;
                         }
@@ -481,11 +481,41 @@ namespace Opc.Ua.Server
 
                 using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
                 {
+                    var certCollection = store.FindByThumbprint(thumbprint).Result;
+
+                    if (certCollection.Count == 0)
+                    {
+                        return StatusCodes.BadInvalidArgument;
+                    }
+
+                    // delete all CRLs signed by cert
+                    var crlsToDelete = new List<X509CRL>();
+                    foreach (var crl in store.EnumerateCRLs())
+                    {
+                        foreach (var cert in certCollection)
+                        {
+                            if (Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
+                                crl.VerifySignature(cert, false))
+                            {
+                                crlsToDelete.Add(crl);
+                                break;
+                            }
+                        }
+                    }
+
                     if (!store.Delete(thumbprint).Result)
                     {
                         return StatusCodes.BadInvalidArgument;
                     }
-                    // TODO: remove CRL for cert with thumbprint
+
+                    foreach (var crl in crlsToDelete)
+                    {
+                        if (!store.DeleteCRL(crl))
+                        {
+                            // intentionally ignore errors, try best effort
+                            Utils.Trace("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
+                        }
+                    }
                 }
 
                 m_node.LastUpdateTime.Value = DateTime.UtcNow;

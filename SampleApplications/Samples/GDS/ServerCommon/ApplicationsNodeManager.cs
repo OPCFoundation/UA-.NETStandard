@@ -314,7 +314,7 @@ namespace Opc.Ua.Gds.Server
                             Id = DefaultApplicationGroupId,
                             Configuration = certificateGroupConfiguration,
                             Certificate = new X509Certificate2(certificate.RawData),
-                            CertificateType = Opc.Ua.ObjectTypeIds.ApplicationCertificateType,
+                            CertificateType = Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                             DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState))
                         };
 
@@ -381,7 +381,7 @@ namespace Opc.Ua.Gds.Server
                     {
                         case "Default":
                             certificateGroup.Id = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
-                            certificateGroup.CertificateType = Opc.Ua.ObjectTypeIds.ApplicationCertificateType;
+                            certificateGroup.CertificateType = Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
                             certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
                             break;
                         case "Https":
@@ -538,7 +538,7 @@ namespace Opc.Ua.Gds.Server
                         activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                         activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
 
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.ApplicationCertificateType };
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                         activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                         activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
                         activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value = false;
