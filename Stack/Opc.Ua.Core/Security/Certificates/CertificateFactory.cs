@@ -1005,7 +1005,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// 
+    /// helper to build alternate name domains list for certs.
     /// </summary>
     private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
     {

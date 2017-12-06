@@ -92,12 +92,12 @@ namespace Opc.Ua.Bindings
         {
             add
             {
-                m_InternalComplete += value;
+                m_internalComplete += value;
                 m_args.Completed += OnComplete;
             }
             remove
             {
-                m_InternalComplete -= value;
+                m_internalComplete -= value;
                 m_args.Completed -= OnComplete;
             }
         }
@@ -105,7 +105,7 @@ namespace Opc.Ua.Bindings
         protected void OnComplete(object sender, SocketAsyncEventArgs e)
         {
             if (e.UserToken == null) return;
-            m_InternalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
+            m_internalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
         }
 
         public int BytesTransferred
@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings
 
         public SocketAsyncEventArgs m_args;
         private object m_userToken;
-        private event EventHandler<IMessageSocketAsyncEventArgs> m_InternalComplete;
+        private event EventHandler<IMessageSocketAsyncEventArgs> m_internalComplete;
     }
 
     /// <summary>

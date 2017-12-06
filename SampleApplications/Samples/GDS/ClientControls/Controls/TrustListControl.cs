@@ -183,7 +183,8 @@ namespace Opc.Ua.Gds.Client.Controls
                             {
                                 X509CRL crl = new X509CRL(crlBytes);
                                 
-                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject))
+                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject) &&
+                                    crl.VerifySignature(certificate, false))
                                 {
                                     crls.Add(crl);
                                 }
@@ -208,7 +209,8 @@ namespace Opc.Ua.Gds.Client.Controls
                             {
                                 X509CRL crl = new X509CRL(crlBytes);
 
-                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject))
+                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject) &&
+                                    crl.VerifySignature(certificate, false))
                                 {
                                     crls.Add(crl);
                                 }

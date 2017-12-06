@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator
+    public class CertificateValidator : X509CertificateValidator
     {
         #region Constructors
         /// <summary>
@@ -200,7 +200,7 @@ namespace Opc.Ua
         /// Validates the specified certificate against the trust list.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public virtual void Validate(X509Certificate2 certificate)
+        public override void Validate(X509Certificate2 certificate)
         {
             Validate(new X509Certificate2Collection() { certificate });
         }
@@ -821,14 +821,13 @@ namespace Opc.Ua
             }
         }
 
-
         /// <summary>
         /// Returns an object that can be used with WCF channel.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public X509CertificateValidator GetChannelValidator()
         {
-            return new WcfValidatorWrapper(this);
+            return this as X509CertificateValidator;
         }
         #endregion
 
@@ -979,26 +978,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region WcfValidatorWrapper Class
-        /// <summary>
-        /// Wraps a WCF validator so the validator can be used in WCF bindings.
-        /// </summary>
-        internal class WcfValidatorWrapper : X509CertificateValidator
-        {
-            public WcfValidatorWrapper(CertificateValidator validator)
-            {
-                m_validator = validator;
-            }
-
-            public override void Validate(X509Certificate2 certificate)
-            {
-                m_validator.Validate(certificate);
-            }
-
-            private CertificateValidator m_validator;
-        }
-        #endregion
-
         #region Private Fields
         private object m_lock = new object();
         private object m_callbackLock = new object();
@@ -1105,7 +1084,7 @@ namespace Opc.Ua
         #endregion
     }
 
-    
+
     /// <summary>
     /// Used to handle certificate update events.
     /// </summary>

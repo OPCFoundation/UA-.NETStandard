@@ -947,7 +947,7 @@ namespace Opc.Ua
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
         /// </summary>
         /// <remarks>
-        /// It is useful for client/server applications which the cert store to simplify self signed certificate trust.
+        /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public bool AddAppCertToTrustedStore

@@ -324,7 +324,6 @@ namespace Opc.Ua.Server
 
             switch ((uint)typeId.Identifier)
             {
-
                 case ObjectTypes.ServerType:
                     {
                         if (passiveNode is ServerObjectState)

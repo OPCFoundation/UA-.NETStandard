@@ -28,9 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
-using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Server
@@ -69,7 +68,7 @@ namespace Opc.Ua.Server
             byte mode,
             ref uint fileHandle)
         {
-            return Open(context, method, objectId, (OpenFileMode) mode, TrustListMasks.All, ref fileHandle);
+            return Open(context, method, objectId, (OpenFileMode)mode, TrustListMasks.All, ref fileHandle);
         }
 
         private ServiceResult OpenWithMasks(
@@ -109,7 +108,10 @@ namespace Opc.Ua.Server
             {
                 if (m_sessionId != null)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    // to avoid deadlocks, last open always wins
+                    m_sessionId = null;
+                    m_strm = null;
+                    m_node.OpenCount.Value = 0;
                 }
 
                 m_readMode = mode == OpenFileMode.Read;
@@ -170,7 +172,6 @@ namespace Opc.Ua.Server
                     m_strm = new MemoryStream(DefaultTrustListCapacity);
                 }
 
-                // TODO: allow multiple open?
                 m_node.OpenCount.Value = 1;
             }
 
@@ -302,7 +303,7 @@ namespace Opc.Ua.Server
                 try
                 {
 
-                    TrustListDataType trustList = DecodeTrustListData(context,m_strm);
+                    TrustListDataType trustList = DecodeTrustListData(context, m_strm);
                     TrustListMasks masks = (TrustListMasks)trustList.SpecifiedLists;
 
                     X509Certificate2Collection issuerCertificates = null;
@@ -356,21 +357,21 @@ namespace Opc.Ua.Server
                     }
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
                     {
-                        if(UpdateStoreCrls(m_issuerStorePath, issuerCrls))
+                        if (UpdateStoreCrls(m_issuerStorePath, issuerCrls))
                         {
                             updateMasks |= TrustListMasks.IssuerCrls;
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
-                        if(UpdateStoreCertificates(m_trustedStorePath, trustedCertificates))
+                        if (UpdateStoreCertificates(m_trustedStorePath, trustedCertificates))
                         {
                             updateMasks |= TrustListMasks.TrustedCertificates;
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        if(UpdateStoreCrls(m_trustedStorePath, trustedCrls))
+                        if (UpdateStoreCrls(m_trustedStorePath, trustedCrls))
                         {
                             updateMasks |= TrustListMasks.TrustedCrls;
                         }
@@ -561,7 +562,7 @@ namespace Opc.Ua.Server
         }
 
         private bool UpdateStoreCrls(
-            string storePath, 
+            string storePath,
             IList<X509CRL> updatedCrls)
         {
             bool result = true;
@@ -637,12 +638,26 @@ namespace Opc.Ua.Server
 
         private void HasSecureReadAccess(ISystemContext context)
         {
-            m_readAccess?.Invoke(context);
+            if (m_readAccess != null)
+            {
+                m_readAccess.Invoke(context);
+            }
+            else
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
         }
 
         private void HasSecureWriteAccess(ISystemContext context)
         {
-            m_writeAccess?.Invoke(context);
+            if (m_writeAccess != null)
+            {
+                m_writeAccess.Invoke(context);
+            }
+            else
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
         }
         #endregion
 
@@ -657,7 +672,7 @@ namespace Opc.Ua.Server
         private TrustListState m_node;
         private Stream m_strm;
         private bool m_readMode;
-#endregion
+        #endregion
 
     }
 

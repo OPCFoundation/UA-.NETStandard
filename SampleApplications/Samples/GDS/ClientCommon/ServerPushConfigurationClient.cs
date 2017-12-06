@@ -327,13 +327,13 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 ReadValueIdCollection nodesToRead = new ReadValueIdCollection
-            {
-                new ReadValueId()
                 {
-                    NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
-                    AttributeId = Attributes.Value
-                }
-            };
+                    new ReadValueId()
+                    {
+                        NodeId = ExpandedNodeId.ToNodeId(Opc.Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
+                        AttributeId = Attributes.Value
+                    }
+                };
 
                 DataValueCollection results = null;
                 DiagnosticInfoCollection diagnosticInfos = null;

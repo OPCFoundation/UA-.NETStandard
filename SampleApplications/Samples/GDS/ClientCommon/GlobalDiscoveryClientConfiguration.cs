@@ -69,9 +69,6 @@ namespace Opc.Ua.Gds.Client
 
         [DataMember(Order = 2)]
         public string ExternalEditor { get; set; }
-
-        [DataMember(Order = 3)]
-        public string TemporaryStorePath { get; set; }
         #endregion
 
         #region Private Members
