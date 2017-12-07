@@ -16,6 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Net;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -634,6 +635,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Called after the application certificate update.
+        /// </summary>
+        protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        {
+            // disconnect all sessions
+            InstanceCertificate = e.SecurityConfiguration.ApplicationCertificate.Certificate;
+            foreach (var listener in TransportListeners)
+            {
+                UaTcpChannelListener tcpListener = listener as UaTcpChannelListener;
+                if (tcpListener != null)
+                {
+                    tcpListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                    continue;
+                }
+                UaHttpsChannelListener httpsListener = listener as UaHttpsChannelListener;
+                if (httpsListener != null)
+                {
+                    httpsListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                    continue;
+                }
+            }
+        }
+
+        /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>
         protected List<EndpointDescription> CreateUaTcpServiceHost(
@@ -741,7 +766,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
-					throw e;
+                    throw e;
                 }
             }
 
@@ -1124,12 +1149,12 @@ namespace Opc.Ua
                 // find matching base address.
                 foreach (BaseAddress baseAddress in baseAddresses)
                 {
-					bool translateHttpsEndpoint = false;
-					if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
-					{
-						translateHttpsEndpoint = true;
-					}
-					
+                    bool translateHttpsEndpoint = false;
+                    if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                    {
+                        translateHttpsEndpoint = true;
+                    }
+                    
                     if (endpoint.TransportProfileUri != baseAddress.ProfileUri && !translateHttpsEndpoint)
                     {
                         continue;

@@ -138,12 +138,12 @@
     <ua:XmlElement>
       <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
         <AuthoritiesStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/authorities</AuthoritiesStorePath>
-        <ApplicationCertificatesStorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/applications</ApplicationCertificatesStorePath>
+        <ApplicationCertificatesStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/applications</ApplicationCertificatesStorePath>
         <DefaultSubjectNameContext>O=SomeCompany Inc.</DefaultSubjectNameContext>
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
-            <SubjectName>CN=IOP-2017 CA, O=OPC Foundation</SubjectName>
+            <SubjectName>CN=IOP-2018 CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/CA/default</BaseStorePath>
             <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>

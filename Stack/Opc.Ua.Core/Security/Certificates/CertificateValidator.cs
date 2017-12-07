@@ -176,20 +176,20 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with a new application certificate.
         /// </summary>
-        public virtual async Task UpdateCertificate(ApplicationConfiguration configuration)
+        public virtual async Task UpdateCertificate(SecurityConfiguration securityConfiguration)
         {
             lock (m_lock)
             {
-                configuration.SecurityConfiguration.ApplicationCertificate.Certificate = null;
+                securityConfiguration.ApplicationCertificate.Certificate = null;
             }
 
-            await Update(configuration);
+            await Update(securityConfiguration);
 
             lock (m_callbackLock)
             {
                 if (m_CertificateUpdate != null)
                 {
-                    var args = new CertificateUpdateEventArgs(configuration);
+                    var args = new CertificateUpdateEventArgs(securityConfiguration, GetChannelValidator());
                     m_CertificateUpdate(this, args);
                 }
             }
@@ -1063,24 +1063,35 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateUpdateEventArgs(ApplicationConfiguration configuration)
+        internal CertificateUpdateEventArgs(
+            SecurityConfiguration configuration,
+            X509CertificateValidator validator)
         {
             m_configuration = configuration;
+            m_validator = validator;
         }
         #endregion
 
         #region Public Properties
         /// <summary>
-        /// The certificate.
+        /// The new security configuration.
         /// </summary>
-        public ApplicationConfiguration Configuration
+        public SecurityConfiguration SecurityConfiguration
         {
             get { return m_configuration; }
+        }
+        /// <summary>
+        /// The new certificate validator.
+        /// </summary>
+        public X509CertificateValidator CertificateValidator
+        {
+            get { return m_validator; }
         }
         #endregion
 
         #region Private Fields
-        private ApplicationConfiguration m_configuration;
+        private SecurityConfiguration m_configuration;
+        private X509CertificateValidator m_validator;
         #endregion
     }
 

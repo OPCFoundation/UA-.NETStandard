@@ -2582,16 +2582,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
-        /// <summary>
-        /// Called after the application certificate update.
-        /// </summary>
-        protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
-        {
-            Stop();
-            Start(e.Configuration);
-        }
-
         /// <summary>
         /// Called when the server configuration is changed on disk.
         /// </summary>

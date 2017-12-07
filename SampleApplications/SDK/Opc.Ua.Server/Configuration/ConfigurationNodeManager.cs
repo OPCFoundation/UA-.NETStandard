@@ -453,7 +453,7 @@ namespace Opc.Ua.Server
                     {
                         await Task.Delay(1000);
                         // update certificates
-                        await m_configuration.CertificateValidator.UpdateCertificate(m_configuration);
+                        await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
                     }
                 );
             }
