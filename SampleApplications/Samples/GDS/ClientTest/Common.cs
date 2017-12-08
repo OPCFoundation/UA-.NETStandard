@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using NUnit.Framework;
 using Opc.Ua.Configuration;
 using System;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 
@@ -131,6 +133,50 @@ namespace Opc.Ua.Gds.Test
                 }
             }
             return url;
+        }
+
+        public static void VerifyApplicationCertIntegrity(byte[] certificate, byte[] privateKey, string privateKeyPassword, string privateKeyFormat, byte[][] issuerCertificates)
+        {
+            X509Certificate2 newCert = new X509Certificate2(certificate);
+            Assert.IsNotNull(newCert);
+            X509Certificate2 newPrivateKeyCert = null;
+            if (privateKeyFormat == "PFX")
+            {
+                newPrivateKeyCert = CertificateFactory.CreateCertificateFromPKCS12(privateKey, privateKeyPassword);
+            }
+            else if (privateKeyFormat == "PEM")
+            {
+                newPrivateKeyCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, privateKeyPassword);
+            }
+            else
+            {
+                Assert.Fail("Invalid private key format");
+            }
+            Assert.IsNotNull(newPrivateKeyCert);
+            // verify the public cert matches the private key
+            Assert.IsTrue(CertificateFactory.VerifyRSAKeyPair(newCert, newPrivateKeyCert, true));
+            Assert.IsTrue(CertificateFactory.VerifyRSAKeyPair(newPrivateKeyCert, newPrivateKeyCert, true));
+            CertificateIdentifierCollection issuerCertIdCollection = new CertificateIdentifierCollection();
+            foreach (var issuer in issuerCertificates)
+            {
+                var issuerCert = new X509Certificate2(issuer);
+                Assert.IsNotNull(issuerCert);
+                issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
+            }
+
+            // verify cert with issuer chain
+            CertificateValidator certValidator = new CertificateValidator();
+            CertificateTrustList issuerStore = new CertificateTrustList();
+            CertificateTrustList trustedStore = new CertificateTrustList();
+            trustedStore.TrustedCertificates = issuerCertIdCollection;
+            certValidator.Update(trustedStore, issuerStore, null);
+            Assert.That(() =>
+            {
+                certValidator.Validate(newCert);
+            }, Throws.Exception);
+            issuerStore.TrustedCertificates = issuerCertIdCollection;
+            certValidator.Update(issuerStore, trustedStore, null);
+            certValidator.Validate(newCert);
         }
 
     }

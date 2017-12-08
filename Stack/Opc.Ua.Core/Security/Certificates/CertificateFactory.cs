@@ -381,7 +381,7 @@ public class CertificateFactory
                     }
 
                     store.Open(storePath);
-                    store.Add(certificate, password);
+                    store.Add(certificate, password).Wait();
                     store.Close();
                 }
             }
@@ -431,6 +431,7 @@ public class CertificateFactory
             catch (Exception e)
             {
                 ex = e;
+                certificate?.Dispose();
                 certificate = null;
             }
             flagsRetryCounter++;

@@ -459,7 +459,7 @@ namespace NUnit.Opc.Ua.Gds.Test
                             application.PrivateKey = privateKey;
                             application.IssuerCertificates = issuerCertificates;
                             application.CertificateRequestId = null;
-                            // TODO: verify cert subject and extensions
+                            TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
                         }
                         else
                         {
@@ -512,6 +512,7 @@ namespace NUnit.Opc.Ua.Gds.Test
                     csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
                 }
                 byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+                csrCertificate.Dispose();
                 NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
@@ -550,7 +551,7 @@ namespace NUnit.Opc.Ua.Gds.Test
                             application.Certificate = certificate;
                             application.IssuerCertificates = issuerCertificates;
                             application.CertificateRequestId = null;
-                            // TODO: verify cert subject and extensions
+                            TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
                         }
                         else
                         {

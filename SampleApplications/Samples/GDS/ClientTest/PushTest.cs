@@ -181,20 +181,22 @@ namespace NUnit.Opc.Ua.Gds.Test
         [Test, Order(301)]
         public void AddRemoveCert()
         {
-            X509Certificate2 trustedCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TrustedCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
-            X509Certificate2 issuerCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "IssuerCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
-            ConnectPushClient(true);
-            TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
-            _pushClient.PushClient.AddCertificate(trustedCert, true);
-            _pushClient.PushClient.AddCertificate(issuerCert, false);
-            TrustListDataType afterAddTrustList = _pushClient.PushClient.ReadTrustList();
-            Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
-            Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
-            Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
-            _pushClient.PushClient.RemoveCertificate(trustedCert.Thumbprint, true);
-            _pushClient.PushClient.RemoveCertificate(issuerCert.Thumbprint, false);
-            TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
-            Assert.IsTrue(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+            using (X509Certificate2 trustedCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TrustedCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            using (X509Certificate2 issuerCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "IssuerCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            {
+                ConnectPushClient(true);
+                TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
+                _pushClient.PushClient.AddCertificate(trustedCert, true);
+                _pushClient.PushClient.AddCertificate(issuerCert, false);
+                TrustListDataType afterAddTrustList = _pushClient.PushClient.ReadTrustList();
+                Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
+                Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
+                Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
+                _pushClient.PushClient.RemoveCertificate(trustedCert.Thumbprint, true);
+                _pushClient.PushClient.RemoveCertificate(issuerCert.Thumbprint, false);
+                TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
+                Assert.IsTrue(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
+            }
         }
 
         [Test, Order(302)]
@@ -297,41 +299,43 @@ namespace NUnit.Opc.Ua.Gds.Test
         public void UpdateCertificateSelfSignedNoPrivateKey()
         {
             ConnectPushClient(true);
-            X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            if (!Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+            using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            using (X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
             {
-                Assert.Ignore("Server has no self signed cert in use.");
+                if (!Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+                {
+                    Assert.Ignore("Server has no self signed cert in use.");
+                }
+                byte[] invalidRawCert = { 0xba, 0xd0, 0xbe, 0xef, 3 };
+                // negative test all parameter combinations
+                NodeId invalidCertGroup = new NodeId(333);
+                NodeId invalidCertType = new NodeId(Guid.NewGuid());
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, null, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(invalidCertGroup, null, serverCert.RawData, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(invalidCertGroup, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", null, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", invalidCert.RawData, null); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, null, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidRawCert }); }, Throws.Exception);
+                Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null); }, Throws.Exception);
+                var success = _pushClient.PushClient.UpdateCertificate(
+                    null,
+                    _pushClient.PushClient.ApplicationCertificateType,
+                    serverCert.RawData,
+                    null,
+                    null,
+                    null);
+                if (success)
+                {
+                    _pushClient.PushClient.ApplyChanges();
+                }
+                VerifyNewPushServerCert(serverCert.RawData);
             }
-            X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256);
-            byte[] invalidRawCert = { 0xba, 0xd0, 0xbe, 0xef, 3 };
-            // negative test all parameter combinations
-            NodeId invalidCertGroup = new NodeId(333);
-            NodeId invalidCertType = new NodeId(Guid.NewGuid());
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, null, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(invalidCertGroup, null, serverCert.RawData, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(invalidCertGroup, invalidCertType, serverCert.RawData, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", null, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", invalidCert.RawData, null); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, null, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidRawCert }); }, Throws.Exception);
-            Assert.That(() => { _pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null); }, Throws.Exception);
-            var success = _pushClient.PushClient.UpdateCertificate(
-                null,
-                _pushClient.PushClient.ApplicationCertificateType,
-                serverCert.RawData,
-                null,
-                null,
-                null);
-            if (success)
-            {
-                _pushClient.PushClient.ApplyChanges();
-            }
-            VerifyNewPushServerCert(serverCert.RawData);
         }
 
         [Test, Order(510)]
@@ -434,14 +438,13 @@ namespace NUnit.Opc.Ua.Gds.Test
                 Assert.Fail("Testing unsupported key format {0}.", keyFormat);
             }
 
-            byte[][] issuerCerts = new byte[0][];
             var success = _pushClient.PushClient.UpdateCertificate(
                 _pushClient.PushClient.DefaultApplicationGroup,
                 _pushClient.PushClient.ApplicationCertificateType,
                 newCert.RawData,
                 keyFormat,
                 privateKey,
-                issuerCerts);
+                null);
 
             if (success)
             {

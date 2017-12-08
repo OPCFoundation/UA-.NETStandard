@@ -1088,7 +1088,7 @@ namespace Opc.Ua
                 builder.Port = -1;
                 builder.Path = Guid.NewGuid().ToString();
 
-                return builder.Uri.ToString(); ;
+                return builder.Uri.ToString();
             }
 
             // prefix non-urls with the hostname.

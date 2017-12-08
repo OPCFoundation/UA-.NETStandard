@@ -477,8 +477,9 @@ namespace Opc.Ua.Gds.Client
                     return;
                 }
 
-                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, exception);
+                RequestProgressLabel.Visible = false;
                 CertificateRequestTimer.Enabled = false;
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, exception);
             }
         }
 
