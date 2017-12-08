@@ -4,7 +4,7 @@ dotnet: 2.0.0
 os:
   - linux
   - osx
-sudo: required
+sudo: false
 dist: trusty
 osx_image: xcode9.1
 
@@ -16,6 +16,7 @@ script:
   - echo "========== build all .Net Core samples ============"
   - dotnet restore "UA Core Library.sln"
   - dotnet restore "UA-NetStandard.sln"
+  - dotnet restore "UA Global Discovery Server.sln"
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient
@@ -26,6 +27,14 @@ script:
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer
   - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer
+  - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
+  - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest
+  - dotnet build -c Release SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Debug --filter TestCategory!="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Release --filter TestCategory!="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Debug --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test -c Release --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
   - echo "========== run .Net Core samples ============"
   - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/netcoreapp2.0
   - dotnet NetCoreConsoleServer.dll -t 10 -a
@@ -34,5 +43,15 @@ script:
 
 after_script:
   - echo "========== build done ============"
+
+after_failure:
+  - cd $HOME
+  - cd .local/share/OPC
+  - ls -R
+  - cd Logs
+  - cat GlobalDiscoveryTestClient.log.txt
+  - cat ServerConfigurationPushTestClient.log.txt
+  - cat GlobalDiscoveryTestServer.log.txt
+  - cd $TRAVIS_BUILD_DIR
 
 

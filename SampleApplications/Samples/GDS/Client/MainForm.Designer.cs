@@ -14,7 +14,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     partial class MainForm
     {
@@ -67,9 +67,9 @@ namespace Opc.Ua.GdsClient
             this.ConnectButton = new System.Windows.Forms.Button();
             this.DiscnnectButton = new System.Windows.Forms.Button();
             this.DiscoveryPanel = new Opc.Ua.Gds.Client.Controls.DiscoveryControl();
-            this.TrustListPanel = new Opc.Ua.GdsClient.ApplicationTrustListControl();
-            this.CertificatePanel = new Opc.Ua.GdsClient.ApplicationCertificateControl();
-            this.RegistrationPanel = new Opc.Ua.GdsClient.RegisterApplicationControl();
+            this.TrustListPanel = new Opc.Ua.Gds.Client.ApplicationTrustListControl();
+            this.CertificatePanel = new Opc.Ua.Gds.Client.ApplicationCertificateControl();
+            this.RegistrationPanel = new Opc.Ua.Gds.Client.RegisterApplicationControl();
             this.ServerStatusPanel = new Opc.Ua.Gds.Client.Controls.ServerStatusControl();
             this.BottomStatusStrip.SuspendLayout();
             this.LeftPanel.SuspendLayout();
@@ -96,7 +96,7 @@ namespace Opc.Ua.GdsClient
             // 
             this.GdsServerStatusIcon.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.GdsServerStatusIcon.ForeColor = System.Drawing.Color.Transparent;
-            this.GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+            this.GdsServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             this.GdsServerStatusIcon.Margin = new System.Windows.Forms.Padding(0);
             this.GdsServerStatusIcon.Name = "GdsServerStatusIcon";
             this.GdsServerStatusIcon.Padding = new System.Windows.Forms.Padding(3, 0, 3, 0);
@@ -120,7 +120,7 @@ namespace Opc.Ua.GdsClient
             // 
             this.ServerStatusIcon.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.ServerStatusIcon.ForeColor = System.Drawing.Color.Transparent;
-            this.ServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+            this.ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             this.ServerStatusIcon.Margin = new System.Windows.Forms.Padding(0);
             this.ServerStatusIcon.Name = "ServerStatusIcon";
             this.ServerStatusIcon.Padding = new System.Windows.Forms.Padding(3, 0, 3, 0);
@@ -336,7 +336,7 @@ namespace Opc.Ua.GdsClient
             this.ConnectButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.ConnectButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ConnectButton.ForeColor = System.Drawing.Color.White;
-            this.ConnectButton.Image = global::Opc.Ua.GdsClient.Properties.Resources.media_play_green;
+            this.ConnectButton.Image = global::Opc.Ua.Gds.Client.Properties.Resources.media_play_green;
             this.ConnectButton.Location = new System.Drawing.Point(812, 0);
             this.ConnectButton.Margin = new System.Windows.Forms.Padding(0);
             this.ConnectButton.Name = "ConnectButton";
@@ -352,7 +352,7 @@ namespace Opc.Ua.GdsClient
             this.DiscnnectButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.DiscnnectButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.DiscnnectButton.ForeColor = System.Drawing.Color.White;
-            this.DiscnnectButton.Image = global::Opc.Ua.GdsClient.Properties.Resources.media_stop_red;
+            this.DiscnnectButton.Image = global::Opc.Ua.Gds.Client.Properties.Resources.media_stop_red;
             this.DiscnnectButton.Location = new System.Drawing.Point(844, 0);
             this.DiscnnectButton.Margin = new System.Windows.Forms.Padding(0);
             this.DiscnnectButton.Name = "DiscnnectButton";
@@ -398,8 +398,8 @@ namespace Opc.Ua.GdsClient
             this.RegistrationPanel.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.RegistrationPanel.Size = new System.Drawing.Size(879, 450);
             this.RegistrationPanel.TabIndex = 1;
-            this.RegistrationPanel.SelectServer += new System.EventHandler<Opc.Ua.GdsClient.SelectServerEventArgs>(this.RegistrationPanel_ServerRequired);
-            this.RegistrationPanel.RegisteredApplicationChanged += new System.EventHandler<Opc.Ua.GdsClient.RegisteredApplicationChangedEventArgs>(this.RegistrationPanel_RegisteredApplicationChangedAsync);
+            this.RegistrationPanel.SelectServer += new System.EventHandler<Opc.Ua.Gds.Client.SelectServerEventArgs>(this.RegistrationPanel_ServerRequired);
+            this.RegistrationPanel.RegisteredApplicationChanged += new System.EventHandler<Opc.Ua.Gds.Client.RegisteredApplicationChangedEventArgs>(this.RegistrationPanel_RegisteredApplicationChangedAsync);
             // 
             // ServerStatusPanel
             // 

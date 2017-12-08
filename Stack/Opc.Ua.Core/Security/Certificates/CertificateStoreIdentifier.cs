@@ -123,7 +123,7 @@ namespace Opc.Ua
 
             if (String.IsNullOrEmpty(storeType))
             {
-                return (ICertificateStore) new CertificateIdentifierCollection();
+                return new CertificateIdentifierCollection();
             }
 
             switch (storeType)

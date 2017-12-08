@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Controls
         }
         #endregion
 
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Quit the application", "OPC UA", MessageBoxButtons.YesNoCancel) == DialogResult.Yes)
             {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Controls
             }
         }
 
-        private void contentsToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ContentsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {

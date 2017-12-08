@@ -280,6 +280,7 @@
             this.ApplicationUriTextBox.Name = "ApplicationUriTextBox";
             this.ApplicationUriTextBox.Size = new System.Drawing.Size(655, 20);
             this.ApplicationUriTextBox.TabIndex = 9;
+            this.ApplicationUriTextBox.TextChanged += new System.EventHandler(this.ApplicationUriTextBox_TextChanged);
             // 
             // ApplicationNameTextBox
             // 
@@ -288,6 +289,7 @@
             this.ApplicationNameTextBox.Name = "ApplicationNameTextBox";
             this.ApplicationNameTextBox.Size = new System.Drawing.Size(655, 20);
             this.ApplicationNameTextBox.TabIndex = 11;
+            this.ApplicationNameTextBox.TextChanged += new System.EventHandler(this.ApplicationNameTextBox_TextChanged);
             // 
             // ProductUriTextBox
             // 
@@ -296,6 +298,7 @@
             this.ProductUriTextBox.Name = "ProductUriTextBox";
             this.ProductUriTextBox.Size = new System.Drawing.Size(655, 20);
             this.ProductUriTextBox.TabIndex = 12;
+            this.ProductUriTextBox.TextChanged += new System.EventHandler(this.ProductUriTextBox_TextChanged);
             // 
             // ServerCapabilitiesButton
             // 

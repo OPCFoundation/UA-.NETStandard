@@ -29,6 +29,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IdentityModel.Selectors;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
@@ -121,22 +122,22 @@ namespace Opc.Ua.Bindings
 
             m_uri = baseAddress;
             m_descriptions = settings.Descriptions;
-            m_configuration = settings.Configuration;
+            var configuration = settings.Configuration;
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
 
-            m_quotas.MaxBufferSize = m_configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = m_configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = m_configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = m_configuration.SecurityTokenLifetime;
+            m_quotas.MaxBufferSize = configuration.MaxBufferSize;
+            m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+            m_quotas.ChannelLifetime = configuration.ChannelLifetime;
+            m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
 
             m_quotas.MessageContext = new ServiceMessageContext();
 
-            m_quotas.MessageContext.MaxArrayLength = m_configuration.MaxArrayLength;
-            m_quotas.MessageContext.MaxByteStringLength = m_configuration.MaxByteStringLength;
-            m_quotas.MessageContext.MaxMessageSize = m_configuration.MaxMessageSize;
-            m_quotas.MessageContext.MaxStringLength = m_configuration.MaxStringLength;
+            m_quotas.MessageContext.MaxArrayLength = configuration.MaxArrayLength;
+            m_quotas.MessageContext.MaxByteStringLength = configuration.MaxByteStringLength;
+            m_quotas.MessageContext.MaxMessageSize = configuration.MaxMessageSize;
+            m_quotas.MessageContext.MaxStringLength = configuration.MaxStringLength;
             m_quotas.MessageContext.NamespaceUris = settings.NamespaceUris;
             m_quotas.MessageContext.ServerUris = new StringTable();
             m_quotas.MessageContext.Factory = settings.Factory;
@@ -297,6 +298,29 @@ namespace Opc.Ua.Bindings
                 await context.Response.WriteAsync(e.Message);
             }
         }
+
+        /// <summary>
+        /// Called when a UpdateCertificate event occured.
+        /// </summary>
+        internal void CertificateUpdate(
+            X509CertificateValidator validator,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain)
+        {
+            Stop();
+
+            m_quotas.CertificateValidator = validator;
+            m_serverCert = serverCertificate;
+            foreach (var description in m_descriptions)
+            {
+                if (description.ServerCertificate != null)
+                {
+                    description.ServerCertificate = serverCertificate.RawData;
+                }
+            }
+
+            Start();
+        }
         #endregion
 
         #region Private Fields
@@ -305,7 +329,6 @@ namespace Opc.Ua.Bindings
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
-        private EndpointConfiguration m_configuration;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
         private WebHostBuilder m_host;

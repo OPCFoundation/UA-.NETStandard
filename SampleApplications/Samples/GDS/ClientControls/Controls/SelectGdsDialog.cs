@@ -42,9 +42,9 @@ namespace Opc.Ua.Gds.Client.Controls
             Icon = ImageListControl.AppIcon;
         }
 
-        private GlobalDiscoveryServerMethods m_gds;
+        private GlobalDiscoveryServerClient m_gds;
 
-        public string ShowDialog(IWin32Window owner, GlobalDiscoveryServerMethods gds, IList<string> serverUrls)
+        public string ShowDialog(IWin32Window owner, GlobalDiscoveryServerClient gds, IList<string> serverUrls)
         {
             m_gds = gds;
 

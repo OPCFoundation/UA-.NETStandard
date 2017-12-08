@@ -37,7 +37,7 @@ using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client.Controls;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class MainForm : Form
     {
@@ -63,22 +63,25 @@ namespace Opc.Ua.GdsClient
 
             m_filters = new QueryServersFilter();
             m_identity = new UserIdentity();
-            m_gds = new GlobalDiscoveryServerMethods(m_application, m_configuration);
+            m_gds = new GlobalDiscoveryServerClient(m_application, m_configuration.GlobalDiscoveryServerUrl);
             m_gds.KeepAlive += GdsServer_KeepAlive;
             m_gds.ServerStatusChanged += GdsServer_StatusNotification;
-            m_lds = new LocalDiscoveryServerMethods(m_application.ApplicationConfiguration);
-            m_server = new ServerPushConfigurationMethods(m_application);
+            m_lds = new LocalDiscoveryServerClient(m_application.ApplicationConfiguration);
+            m_server = new ServerPushConfigurationClient(m_application);
+            m_server.AdminCredentialsRequired += Server_AdminCredentialsRequired;
             m_server.KeepAlive += Server_KeepAlive;
             m_server.ServerStatusChanged += Server_StatusNotification;
             m_server.ConnectionStatusChanged += Server_ConnectionStatusChanged;
 
-            RegistrationPanel.Initialize(m_gds, null, m_configuration);
+            RegistrationPanel.Initialize(m_gds, m_server, null, m_configuration);
 
             m_application.ApplicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
             UpdateStatus(true, DateTime.MinValue, "---");
             UpdateGdsStatus(true, DateTime.MinValue, "---");
+            UpdateMainFormHeader();
 
             ShowPanel(Panel.None);
+
 
             SelectServerButton.Enabled = false;
             ServerStatusButton.Enabled = false;
@@ -92,9 +95,9 @@ namespace Opc.Ua.GdsClient
         private ConfiguredEndpointCollection m_endpoints = null;
         private QueryServersFilter m_filters;
         private UserIdentity m_identity;
-        private GlobalDiscoveryServerMethods m_gds;
-        private LocalDiscoveryServerMethods m_lds;
-        private ServerPushConfigurationMethods m_server;
+        private GlobalDiscoveryServerClient m_gds;
+        private LocalDiscoveryServerClient m_lds;
+        private ServerPushConfigurationClient m_server;
         private RegisteredApplication m_registeredApplication;
         private GlobalDiscoveryClientConfiguration m_configuration;
         private bool m_gdsConfigured;
@@ -218,7 +221,7 @@ namespace Opc.Ua.GdsClient
                 if (endpoint != null)
                 {
                     SetServer(endpoint);
-                    RegistrationPanel.Initialize(m_gds, endpoint, m_configuration);
+                    RegistrationPanel.Initialize(m_gds, m_server, endpoint, m_configuration);
                     SelectGdsButton.Visible = true;
                     return;
                 }
@@ -240,14 +243,7 @@ namespace Opc.Ua.GdsClient
                     return;
                 }
 
-                if (endpoint.Description.Server.ApplicationUri == endpoint.Description.EndpointUrl)
-                {
-                    m_server.Connect(endpoint.Description.EndpointUrl);
-                }
-                else
-                {
-                    m_server.Connect(endpoint);
-                }
+                await m_server.Connect(endpoint.Description.EndpointUrl);
 
                 ServerStatusPanel.Initialize(m_server);
                 await CertificatePanel.Initialize(m_configuration, m_gds, m_server, m_registeredApplication, false);
@@ -359,7 +355,7 @@ namespace Opc.Ua.GdsClient
 
         private void Server_KeepAlive(Session session, KeepAliveEventArgs e)
         {
-            if (InvokeRequired)
+            if (this.InvokeRequired)
             {
                 BeginInvoke(new KeepAliveEventHandler(Server_KeepAlive), session, e);
                 return;
@@ -370,6 +366,12 @@ namespace Opc.Ua.GdsClient
                 // check for events from discarded sessions.
                 if (!Object.ReferenceEquals(session, m_server.Session))
                 {
+                    return;
+                }
+
+                if (e == null)
+                {
+                    UpdateStatus(false, DateTime.Now, "Disconnected");
                     return;
                 }
 
@@ -393,11 +395,11 @@ namespace Opc.Ua.GdsClient
         {
             if (error)
             {
-                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.error;
+                GdsServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.error;
             }
             else
             {
-                GdsServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+                GdsServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             }
 
             GdsServerStatusLabel.Text = String.Format(status, args);
@@ -408,25 +410,18 @@ namespace Opc.Ua.GdsClient
 
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
-#if TODO_SERVERPUSH
             if (error)
             {
-                ServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.error;
+                ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.error;
             }
             else
             {
-                ServerStatusIcon.Image = global::Opc.Ua.GdsClient.Properties.Resources.nav_plain_green;
+                ServerStatusIcon.Image = global::Opc.Ua.Gds.Client.Properties.Resources.nav_plain_green;
             }
-
             ServerStatusLabel.Text = String.Format(status, args);
             ServerStatusLabel.ForeColor = (error) ? Color.Red : Color.Empty;
-            ServerStatusTime.Text = (time != DateTime.MinValue) ? time.ToLocalTime().ToString("hh:mm:ss") : "---";
+            ServerStatusTime.Text = (time != DateTime.MinValue) ? time.ToLocalTime().ToString("hh:mm:ss") : "";
             ServerStatusTime.ForeColor = (error) ? Color.Red : Color.Empty;
-#else
-            ServerStatusTime.Visible = false;
-            ServerStatusLabel.Visible = false;
-            ServerStatusIcon.Visible = false;
-#endif
         }
 
         private void DisconnectButton_Click(object sender, EventArgs e)
@@ -592,7 +587,7 @@ namespace Opc.Ua.GdsClient
 #endif
                 await CertificatePanel.Initialize(m_configuration, m_gds, m_server, e.Application, false);
                 TrustListPanel.Initialize(m_gds, m_server, e.Application, false);
-
+                UpdateMainFormHeader();
             }
             catch (Exception ex)
             {
@@ -620,6 +615,46 @@ namespace Opc.Ua.GdsClient
                 UpdateGdsStatus(false, DateTime.UtcNow, "Connected");
             }
         }
+
+        private void Server_AdminCredentialsRequired(object sender, AdminCredentialsRequiredEventArgs e)
+        {
+            try
+            {
+                var identity = new Opc.Ua.Client.Controls.UserNamePasswordDlg().ShowDialog(e.Credentials, "Provide PushServer Administrator Credentials");
+
+                if (identity != null)
+                {
+                    e.Credentials = identity;
+                    e.CacheCredentials = true;
+                }
+            }
+            catch (Exception exception)
+            {
+                ExceptionDlg.Show(this.Text, exception);
+            }
+        }
+
+        private void UpdateMainFormHeader()
+        {
+            string newText = "Global Discovery Client ";
+            if (m_registeredApplication != null)
+            {
+                switch (m_registeredApplication.RegistrationType)
+                {
+                    case RegistrationType.ServerPush:
+                        newText += "(Server Push)";
+                        break;
+                    case RegistrationType.ClientPull:
+                        newText += "(Client Pull)";
+                        break;
+                    case RegistrationType.ServerPull:
+                        newText += "(Server Pull)";
+                        break;
+                }
+            }
+            this.Text = newText;
+        }
+
     }
 }
 

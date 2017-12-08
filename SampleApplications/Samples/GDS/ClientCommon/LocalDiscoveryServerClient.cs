@@ -30,12 +30,12 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
-    public class LocalDiscoveryServerMethods
+    public class LocalDiscoveryServerClient
     {
         #region Constructors
-        public LocalDiscoveryServerMethods(ApplicationConfiguration configuration)
+        public LocalDiscoveryServerClient(ApplicationConfiguration configuration)
         {
             ApplicationConfiguration = configuration;
             MessageContext = configuration.CreateMessageContext();
@@ -43,8 +43,10 @@ namespace Opc.Ua.Gds
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentUICulture;
 
-            List<string> locales = new List<string>();
-            locales.Add(culture.Name);
+            List<string> locales = new List<string>
+            {
+                culture.Name
+            };
 
             culture = System.Globalization.CultureInfo.CurrentCulture;
 
@@ -58,7 +60,7 @@ namespace Opc.Ua.Gds
                 locales.Add("en-US");
             }
 
-            PreferredLocales = locales.ToArray(); 
+            PreferredLocales = locales.ToArray();
         }
         #endregion
 
@@ -105,12 +107,12 @@ namespace Opc.Ua.Gds
 
             FindServersData data = new FindServersData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client 
+                DiscoveryClient = client
             };
 
             data.InnerResult = client.BeginFindServers(
                 null,
-                (actualEndpointUrl)??endpointUrl,
+                (actualEndpointUrl) ?? endpointUrl,
                 new StringCollection((preferredLocales) ?? PreferredLocales),
                 (serverUris != null) ? new StringCollection(serverUris) : null,
                 OnFindServersComplete,

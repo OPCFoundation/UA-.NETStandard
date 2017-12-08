@@ -26,15 +26,15 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
- 
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
-    [DataContract(Namespace=Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class CertificateWrapper : IFormattable, IEncodeable
     {
         public X509Certificate2 Certificate { get; set; }

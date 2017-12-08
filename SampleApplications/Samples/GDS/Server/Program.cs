@@ -28,11 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Windows.Forms;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     static class Program
     {
@@ -47,9 +46,11 @@ namespace Opc.Ua.GdsServer
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance();
-            application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer";
+            ApplicationInstance application = new ApplicationInstance
+            {
+                ApplicationType = ApplicationType.Server,
+                ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer"
+            };
 
             try
             {
@@ -60,7 +61,7 @@ namespace Opc.Ua.GdsServer
                 application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
-                var server = new GlobalDiscoveryServer();
+                var server = new GlobalDiscoverySampleServer(new SqlApplicationsDatabase());
                 application.Start(server).Wait();
 
                 // run the application interactively.

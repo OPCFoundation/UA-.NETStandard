@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,64 +27,51 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Xml;
+using System.Runtime.Serialization;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Client
 {
-    public enum GdsRole
+    /// <summary>
+    /// Stores the configuration the data access node manager.
+    /// </summary>
+    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    public class GlobalDiscoveryClientConfiguration
     {
-        ApplicationAdmin,
-        ApplicationUser
-    }
-
-    public class RoleBasedIdentity : IUserIdentity
-    {
-        private IUserIdentity m_identity;
-        private GdsRole m_role;
-
-        public RoleBasedIdentity(IUserIdentity identity, GdsRole role)
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public GlobalDiscoveryClientConfiguration()
         {
-            m_identity = identity;
-            m_role = role;
-        }
-
-        public GdsRole Role
-        {
-            get { return m_role; }
-        }
-
-        public string DisplayName
-        {
-            get { return m_identity.DisplayName; }
+            Initialize();
         }
 
         /// <summary>
-        /// The user token policy.
+        /// Initializes the object during deserialization.
         /// </summary>
-        /// <value>The user token policy.</value>
-        public string PolicyId
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
         {
-            get { return m_identity.PolicyId; }
+            Initialize();
         }
 
-        public UserTokenType TokenType
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
         {
-            get { return m_identity.TokenType; }
         }
+        #endregion
 
-        public XmlQualifiedName IssuedTokenType
-        {
-            get { return m_identity.IssuedTokenType; }
-        }
+        #region Public
+        [DataMember(Order = 1)]
+        public string GlobalDiscoveryServerUrl { get; set; }
 
-        public bool SupportsSignatures
-        {
-            get { return m_identity.SupportsSignatures; }
-        }
+        [DataMember(Order = 2)]
+        public string ExternalEditor { get; set; }
+        #endregion
 
-        public UserIdentityToken GetIdentityToken()
-        {
-            return m_identity.GetIdentityToken();
-        }
+        #region Private Members
+        #endregion
     }
 }

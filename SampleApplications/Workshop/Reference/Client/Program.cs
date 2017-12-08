@@ -54,10 +54,10 @@ namespace Quickstarts.ReferenceClient
             {
                 
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // run the application interactively.
                 Application.Run(new MainForm(application.ApplicationConfiguration));

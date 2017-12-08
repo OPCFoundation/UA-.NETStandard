@@ -35,7 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Gds;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class ApplicationTrustListControl : UserControl
     {
@@ -44,13 +44,13 @@ namespace Opc.Ua.GdsClient
             InitializeComponent();
         }
 
-        private GlobalDiscoveryServerMethods m_gds;
-        private ServerPushConfigurationMethods m_server;
+        private GlobalDiscoveryServerClient m_gds;
+        private ServerPushConfigurationClient m_server;
         private RegisteredApplication m_application;
         private string m_trustListStorePath;
         private string m_issuerListStorePath;
 
-        public void Initialize(GlobalDiscoveryServerMethods gds, ServerPushConfigurationMethods server, RegisteredApplication application, bool isHttps)
+        public void Initialize(GlobalDiscoveryServerClient gds, ServerPushConfigurationClient server, RegisteredApplication application, bool isHttps)
         {
             m_gds = gds;
             m_server = server;
@@ -62,7 +62,7 @@ namespace Opc.Ua.GdsClient
                 m_trustListStorePath = (isHttps) ? m_application.HttpsTrustListStorePath : m_application.TrustListStorePath;
                 m_issuerListStorePath = (isHttps) ? m_application.HttpsIssuerListStorePath : m_application.IssuerListStorePath;
                 CertificateStoreControl.Initialize(m_trustListStorePath, m_issuerListStorePath, null);
-                MergeWithGdsButton.Enabled = !String.IsNullOrEmpty(m_trustListStorePath);
+                MergeWithGdsButton.Enabled = !String.IsNullOrEmpty(m_trustListStorePath) || m_application.RegistrationType == RegistrationType.ServerPush;
             }
 
             ApplyChangesButton.Enabled = false;
@@ -77,7 +77,8 @@ namespace Opc.Ua.GdsClient
                     if (m_application.RegistrationType == RegistrationType.ServerPush)
                     {
                         var trustList = m_server.ReadTrustList();
-                        CertificateStoreControl.Initialize(trustList);
+                        var rejectedList = m_server.GetRejectedList();
+                        CertificateStoreControl.Initialize(trustList, rejectedList, true);
                     }
                     else
                     {
@@ -129,9 +130,8 @@ namespace Opc.Ua.GdsClient
                         continue;
                     }
 
-                    DirectoryCertificateStore ds = store as DirectoryCertificateStore;
 
-                    if (ds != null)
+                    if (store is DirectoryCertificateStore ds)
                     {
                         string path = Utils.GetAbsoluteFilePath(m_application.CertificatePublicKeyPath, true, false, false);
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.GdsClient
 
                 if (m_application.RegistrationType == RegistrationType.ServerPush)
                 {
-                    CertificateStoreControl.Initialize(trustList);
+                    CertificateStoreControl.Initialize(trustList, null, deleteBeforeAdd);
 
                     MessageBox.Show(
                         Parent,

@@ -33,12 +33,13 @@ using System.Data;
 using System.Text;
 using System.Windows.Forms;
 using Opc.Ua.Client.Controls;
+using System.Linq;
 
 namespace Opc.Ua.Gds.Client.Controls
 {
     public partial class ViewServersOnNetworkDialog : Form
     {
-        public ViewServersOnNetworkDialog(GlobalDiscoveryServerMethods gds)
+        public ViewServersOnNetworkDialog(GlobalDiscoveryServerClient gds)
         {
             InitializeComponent();
             Icon = ClientUtils.GetAppIcon();
@@ -60,7 +61,7 @@ namespace Opc.Ua.Gds.Client.Controls
 
         private DataTable ServersTable { get { return m_dataset.Tables[0]; } }
         private DataSet m_dataset;
-        private GlobalDiscoveryServerMethods m_gds;
+        private GlobalDiscoveryServerClient m_gds;
 
         public List<ServerOnNetwork> ShowDialog(IWin32Window owner, ref QueryServersFilter filters)
         {
@@ -116,7 +117,7 @@ namespace Opc.Ua.Gds.Client.Controls
                 uint maxNoOfRecords = (uint)NumberOfRecordsUpDown.Value;
 
                 var servers = m_gds.QueryServers(
-                    maxNoOfRecords,
+                    0,
                     ApplicationNameTextBox.Text.Trim(),
                     ApplicationUriTextBox.Text.Trim(),
                     ProductUriTextBox.Text.Trim(),
@@ -133,7 +134,8 @@ namespace Opc.Ua.Gds.Client.Controls
                         SearchButton.Visible = false;
                         NextButton.Visible = true;
                         StopButton.Visible = true;
-                        StopButton.Tag = servers;
+                        var nextServers = servers.Where(x => x.RecordId > server.RecordId);
+                        StopButton.Tag = nextServers;
                         break;
                     }
 
@@ -197,18 +199,18 @@ namespace Opc.Ua.Gds.Client.Controls
 
                 uint maxNoOfRecords = (uint)NumberOfRecordsUpDown.Value;
 
-                bool found = false;
+                bool foundAll = false;
 
                 foreach (var server in servers)
                 {
-                    found = true;
-
                     if (maxNoOfRecords == 0)
                     {
+                        foundAll = true;
                         SearchButton.Visible = false;
                         NextButton.Visible = true;
                         StopButton.Visible = true;
-                        StopButton.Tag = servers;
+                        var nextServers = servers.Where(x => x.RecordId > server.RecordId);
+                        StopButton.Tag = nextServers;
                         break;
                     }
 
@@ -241,7 +243,7 @@ namespace Opc.Ua.Gds.Client.Controls
                     ServersTable.Rows.Add(row);
                 }
 
-                if (!found)
+                if (!foundAll)
                 {
                     SearchButton.Visible = true;
                     SearchButton.Enabled = true;
@@ -273,6 +275,24 @@ namespace Opc.Ua.Gds.Client.Controls
             }
         }
 
+        private void SearchButton_Reset(object sender, EventArgs e)
+        {
+            try
+            {
+                SearchButton.Visible = true;
+                SearchButton.Enabled = true;
+                StopButton.Visible = false;
+                StopButton.Tag = null;
+                NextButton.Visible = false;
+                ServersTable.Rows.Clear();
+            }
+            catch (Exception ex)
+            {
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
+            }
+        }
+
+
         private void ServerCapabilitiesButton_Click(object sender, EventArgs e)
         {
             try
@@ -298,11 +318,27 @@ namespace Opc.Ua.Gds.Client.Controls
 
                 ServerCapabilitiesTextBox.Text = buffer.ToString();
                 ServerCapabilitiesTextBox.Tag = capabilities;
+                SearchButton_Reset(sender, e);
             }
             catch (Exception ex)
             {
                 Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
+        }
+
+        private void ApplicationUriTextBox_TextChanged(object sender, EventArgs e)
+        {
+            SearchButton_Reset(sender, e);
+        }
+
+        private void ApplicationNameTextBox_TextChanged(object sender, EventArgs e)
+        {
+            SearchButton_Reset(sender, e);
+        }
+
+        private void ProductUriTextBox_TextChanged(object sender, EventArgs e)
+        {
+            SearchButton_Reset(sender, e);
         }
     }
 

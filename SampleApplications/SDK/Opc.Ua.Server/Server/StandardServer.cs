@@ -2862,6 +2862,8 @@ namespace Opc.Ua.Server
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += new EventHandler<ConfigurationWatcherEventArgs>(this.OnConfigurationChanged);
                     }
+
+                    CertificateValidator.CertificateUpdate += OnCertificateUpdate;
                 }
                 catch (Exception e)
                 {
@@ -2879,6 +2881,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override void OnServerStopping()
         {
+            ShutDownDelay();
+
             // halt any outstanding timer.
             lock (m_registrationLock)
             {
@@ -2921,6 +2925,41 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Implements the server shutdown delay if session are connected.
+        /// </summary>
+        protected void ShutDownDelay()
+        {
+            try
+            {
+                // check for connected clients
+                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
+
+                if (currentessions.Count > 0)
+                {
+                    // provide some time for the connected clients to detect the shutdown state.
+                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
+                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
+                    ServerInternal.Status.Value.State = ServerState.Shutdown;
+                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
+                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                    for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
+                    {
+                        ServerInternal.Status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
+                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
+                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                        Thread.Sleep(1000);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore error during shutdown procedure.
             }
         }
 
@@ -3070,9 +3109,9 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();    
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

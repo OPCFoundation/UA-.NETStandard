@@ -27,34 +27,45 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.IO;
+using Newtonsoft.Json;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Server.Database
 {
-    public partial class RegisteredApplication
+    public class JsonApplicationsDatabase : LinqApplicationsDatabase
     {
-        [System.Xml.Serialization.XmlIgnore()]
-        public string ApplicationId { get; set; }
-
-        /// <summary>
-        /// Gets the name of the HTTPS domain for the application.
-        /// </summary>
-        /// <returns></returns>
-        public string GetHttpsDomainName()
+        #region Constructors
+        public JsonApplicationsDatabase(string fileName)
         {
-            if (this.DiscoveryUrl != null)
-            {
-                foreach (string disoveryUrl in this.DiscoveryUrl)
-                {
-                    if (Uri.IsWellFormedUriString(disoveryUrl, UriKind.Absolute))
-                    {
-                        Uri url = new Uri(disoveryUrl);
-                        return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
-                    }
-                }
-            }
-
-            return null;
+            m_fileName = fileName;
         }
+        static public JsonApplicationsDatabase Load(string fileName)
+        {
+            try
+            {
+                string json = File.ReadAllText(fileName);
+                JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
+                db.FileName = fileName;
+                return db;
+            }
+            catch
+            {
+                return new JsonApplicationsDatabase(fileName);
+            }
+        }
+        #endregion
+        #region Public Members
+        public override void Save()
+        {
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            File.WriteAllText(m_fileName, json);
+        }
+        [JsonIgnore]
+        public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
+        #endregion
+        #region Private Fields
+        [JsonIgnore]
+        string m_fileName;
+        #endregion
     }
 }

@@ -32,25 +32,29 @@ using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using System.Threading.Tasks;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerMethods
+    public class GlobalDiscoveryServerClient
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerMethods"/> class.
+        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
-        public GlobalDiscoveryServerMethods(ApplicationInstance application, GlobalDiscoveryClientConfiguration config)
+        public GlobalDiscoveryServerClient(
+            ApplicationInstance application, 
+            string endpointUrl,
+            IUserIdentity adminUserIdentity = null)
         {
             m_application = application;
-            m_application.ApplicationName = "GDS Client";
-            m_endpointUrl = config.GlobalDiscoveryServerUrl;
-            m_adminCredentials = new UserIdentity("appadmin", "demo");
+            m_endpointUrl = endpointUrl;
+            // preset admin 
+            m_adminCredentials = adminUserIdentity;
         }
         #endregion
 
@@ -72,7 +76,7 @@ namespace Opc.Ua.Gds
         /// <value>
         /// The admin credentials.
         /// </value>
-        public UserIdentity AdminCredentials
+        public IUserIdentity AdminCredentials
         {
             get { return m_adminCredentials; }
             set { m_adminCredentials = value; }
@@ -135,7 +139,7 @@ namespace Opc.Ua.Gds
         /// <returns>
         /// TRUE if successful; FALSE otherwise.
         /// </returns>
-        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerMethods lds)
+        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
         {
             List<string> gdsUrls = new List<string>();
 
@@ -145,7 +149,7 @@ namespace Opc.Ua.Gds
 
                 if (lds == null)
                 {
-                    lds = new LocalDiscoveryServerMethods(this.Application.ApplicationConfiguration);
+                    lds = new LocalDiscoveryServerClient(this.Application.ApplicationConfiguration);
                 }
 
                 var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
@@ -167,18 +171,21 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Connects using the default endpoint.
+        /// </summary>
+        public void Connect()
+        {
+            Connect(m_endpoint).Wait();
+        }
+
+        /// <summary>
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
-        public async void Connect(string endpointUrl)
+        public async Task Connect(string endpointUrl)
         {
-            if (endpointUrl == null)
-            {
-                endpointUrl = m_endpointUrl;
-            }
-
             if (String.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -186,7 +193,55 @@ namespace Opc.Ua.Gds
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+            }
+
+            bool serverHalted = false;
+            do
+            {
+                serverHalted = false;
+                try
+                {
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+
+                    await Connect(endpoint);
+                }
+                catch (ServiceResultException e)
+                {
+                    if (e.StatusCode == StatusCodes.BadServerHalted)
+                    {
+                        serverHalted = true;
+                        await Task.Delay(1000);
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+                }
+            } while (serverHalted);
+        }
+
+        /// <summary>
+        /// Connects the specified endpoint.
+        /// </summary>
+        /// <param name="endpoint">The endpoint.</param>
+        public async Task Connect(ConfiguredEndpoint endpoint)
+        {
+            if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
+            {
+                m_adminCredentials = null;
+            }
+
+            if (endpoint == null)
+            {
+                endpoint = m_endpoint;
+
+                if (endpoint == null)
+                {
+                    throw new ArgumentNullException("endpoint");
+                }
             }
 
             if (m_session != null)
@@ -194,10 +249,6 @@ namespace Opc.Ua.Gds
                 m_session.Dispose();
                 m_session = null;
             }
-
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             m_session = await Session.Create(
                 m_application.ApplicationConfiguration,
@@ -208,6 +259,8 @@ namespace Opc.Ua.Gds
                 60000,
                 AdminCredentials,
                 m_preferredLocales);
+
+            m_endpoint = m_session.ConfiguredEndpoint;
 
             m_session.SessionClosing += Session_SessionClosing;
             m_session.KeepAlive += Session_KeepAlive;
@@ -221,39 +274,13 @@ namespace Opc.Ua.Gds
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             m_endpointUrl = m_session.ConfiguredEndpoint.EndpointUrl.ToString();
 
-#if TODO_GDS_STATUS_SUBSCRIPTION
-            Subscription subscription = new Subscription();
-            subscription.Handle = this;
-            subscription.DisplayName = null;
-            subscription.PublishingInterval = 1000;
-            subscription.KeepAliveCount = 10;
-            subscription.LifetimeCount = 100;
-            subscription.MaxNotificationsPerPublish = 10;
-            subscription.PublishingEnabled = true;
-            subscription.TimestampsToReturn = TimestampsToReturn.Neither;
-
-            m_session.AddSubscription(subscription);
-            subscription.Create();
-
-            MonitoredItem monitoredItem = new MonitoredItem();
-            monitoredItem.StartNodeId = Opc.Ua.VariableIds.Server_ServerStatus;
-            monitoredItem.AttributeId = Attributes.Value;
-            monitoredItem.SamplingInterval = 1000;
-            monitoredItem.QueueSize = 0;
-            monitoredItem.DiscardOldest = true;
-            monitoredItem.Handle = typeof(ServerStatusDataType);
-            monitoredItem.Notification += ServerStatusChanged;
-
-            subscription.AddItem(monitoredItem);
-            subscription.ApplyChanges();
-#endif
         }
 
         public void Disconnect()
         {
             if (m_session != null)
             {
-                KeepAlive(m_session, null);
+                KeepAlive?.Invoke(m_session, null);
                 m_session.Close();
                 m_session = null;
             }
@@ -263,7 +290,7 @@ namespace Opc.Ua.Gds
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                m_session.Dispose();
+                m_session?.Dispose();
                 m_session = null;
             }
         }
@@ -283,9 +310,9 @@ namespace Opc.Ua.Gds
         /// Occurs when the server status changes.
         /// </summary>
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
-#endregion
+        #endregion
 
-#region GDS Methods
+        #region GDS Methods
         /// <summary>
         /// Finds the applications with the specified application uri.
         /// </summary>
@@ -295,7 +322,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -316,13 +343,41 @@ namespace Opc.Ua.Gds
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
+        /// <param name="startingRecordId">The id of the first record to return.</param>
         /// <param name="maxRecordsToReturn">The max records to return.</param>
         /// <param name="applicationName">The filter applied to the application name.</param>
         /// <param name="applicationUri">The filter applied to the application uri.</param>
         /// <param name="productUri">The filter applied to the product uri.</param>
         /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
         /// <returns>A enumarator used to access the results.</returns>
-        public IEnumerable<ServerOnNetwork> QueryServers(
+        public IList<ServerOnNetwork> QueryServers(
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
+            string productUri,
+            IList<string> serverCapabilities)
+        {
+            return QueryServers(
+                0,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities);
+        }
+
+        /// <summary>
+        /// Queries the GDS for any servers matching the criteria.
+        /// </summary>
+        /// <param name="startingRecordId">The id of the first record to return.</param>
+        /// <param name="maxRecordsToReturn">The max records to return.</param>
+        /// <param name="applicationName">The filter applied to the application name.</param>
+        /// <param name="applicationUri">The filter applied to the application uri.</param>
+        /// <param name="productUri">The filter applied to the product uri.</param>
+        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
+        /// <returns>A enumarator used to access the results.</returns>
+        public IList<ServerOnNetwork> QueryServers(
+            uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
             string applicationUri,
@@ -331,10 +386,9 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
-            uint startingRecordId = 0;
             var outputArguments = m_session.Call(
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryServers, m_session.NamespaceUris),
@@ -354,7 +408,7 @@ namespace Opc.Ua.Gds
 
             return servers;
         }
-        
+
         /// <summary>
         /// Get the application record.
         /// </summary>
@@ -364,7 +418,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -389,7 +443,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -406,6 +460,23 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
+        /// Updates the application.
+        /// </summary>
+        /// <param name="application">The application.</param>
+        public void UpdateApplication(ApplicationRecordDataType application)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UpdateApplication, m_session.NamespaceUris),
+                application);
+        }
+
+        /// <summary>
         /// Unregisters the application.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
@@ -413,7 +484,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             m_session.Call(
@@ -446,7 +517,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -482,7 +553,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -519,7 +590,7 @@ namespace Opc.Ua.Gds
 
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -558,7 +629,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -586,7 +657,7 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
@@ -597,10 +668,45 @@ namespace Opc.Ua.Gds
 
             if (outputArguments.Count > 0)
             {
-                 return outputArguments[0] as NodeId;
+                return outputArguments[0] as NodeId;
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets the certificate status.
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <param name="certificateGroupId">Type of the trust list.</param>
+        /// <returns></returns>
+        public Boolean GetCertificateStatus(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            var outputArguments = m_session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateStatus, m_session.NamespaceUris),
+                applicationId,
+                certificateGroupId,
+                certificateTypeId);
+
+            if (outputArguments.Count > 0 && outputArguments[0] != null)
+            {
+                Boolean? result = outputArguments[0] as Boolean?;
+                if (result != null)
+                {
+                    return (bool)result;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -610,13 +716,13 @@ namespace Opc.Ua.Gds
         {
             if (!IsConnected)
             {
-                Connect(null);
+                Connect();
             }
 
             var outputArguments = m_session.Call(
                 trustListId,
                 Opc.Ua.MethodIds.FileType_Open,
-                (byte)1);
+                (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
             MemoryStream ostrm = new MemoryStream();
@@ -668,9 +774,9 @@ namespace Opc.Ua.Gds
 
             return trustList;
         }
-#endregion
-        
-#region Private Methods
+        #endregion
+
+        #region Private Methods
         private IUserIdentity ElevatePermissions()
         {
             IUserIdentity oldUser = m_session.Identity;
@@ -730,14 +836,15 @@ namespace Opc.Ua.Gds
                 Utils.Trace(e, "Error reverting to normal permissions.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ApplicationInstance m_application;
+        private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;
         private Session m_session;
-        private UserIdentity m_adminCredentials;
-#endregion
+        private IUserIdentity m_adminCredentials;
+        #endregion
     }
 }

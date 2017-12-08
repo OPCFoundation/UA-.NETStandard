@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,54 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
+using System;
 
-namespace Opc.Ua.Gds
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// The arguments passed with a AdminCredentialsRequiredEventArgs event.
     /// </summary>
-    [DataContract(Namespace=Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
-    public class GlobalDiscoveryClientConfiguration
+    public class AdminCredentialsRequiredEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
-        /// The default constructor.
+        /// Initializes a new instance of the <see cref="AdminCredentialsRequiredEventArgs"/> class.
         /// </summary>
-        public GlobalDiscoveryClientConfiguration()
+        public AdminCredentialsRequiredEventArgs()
         {
-            Initialize();
         }
 
         /// <summary>
-        /// Initializes the object during deserialization.
+        /// Gets or sets the credentials.
         /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public UserIdentity Credentials { get; set; }
 
         /// <summary>
-        /// Sets private members to default values.
+        /// Gets or sets a flag indicating the credentials should be cached.
         /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public
-        [DataMember(Order = 1)]
-        public string GlobalDiscoveryServerUrl { get; set; }
-
-        [DataMember(Order=2)]
-        public string ExternalEditor { get; set; }
-
-        [DataMember(Order = 3)]
-        public string TemporaryStorePath { get; set; }
-        #endregion
-
-        #region Private Members
-        #endregion
+        public bool CacheCredentials { get; set; }
     }
+
+    /// <summary>
+    /// A delegate used to handle AdminCredentialsRequired events.
+    /// </summary>
+    public delegate void AdminCredentialsRequiredEventHandler(object sender, AdminCredentialsRequiredEventArgs e);
 }

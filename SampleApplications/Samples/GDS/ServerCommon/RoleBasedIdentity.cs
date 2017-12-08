@@ -26,36 +26,65 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
- 
-using System;
 
-namespace Opc.Ua.Gds
+using System.Xml;
+
+namespace Opc.Ua.Gds.Server
 {
-    /// <summary>
-    /// The arguments passed with a AdminCredentialsRequiredEventArgs event.
-    /// </summary>
-    public class AdminCredentialsRequiredEventArgs : EventArgs
+    public enum GdsRole
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AdminCredentialsRequiredEventArgs"/> class.
-        /// </summary>
-        public AdminCredentialsRequiredEventArgs()
+        ApplicationAdmin,
+        ApplicationUser
+    }
+
+    public class RoleBasedIdentity : IUserIdentity
+    {
+        private IUserIdentity m_identity;
+        private GdsRole m_role;
+
+        public RoleBasedIdentity(IUserIdentity identity, GdsRole role)
         {
+            m_identity = identity;
+            m_role = role;
+        }
+
+        public GdsRole Role
+        {
+            get { return m_role; }
+        }
+
+        public string DisplayName
+        {
+            get { return m_identity.DisplayName; }
         }
 
         /// <summary>
-        /// Gets or sets the credentials.
+        /// The user token policy.
         /// </summary>
-        public UserIdentity Credentials { get; set; }
+        /// <value>The user token policy.</value>
+        public string PolicyId
+        {
+            get { return m_identity.PolicyId; }
+        }
 
-        /// <summary>
-        /// Gets or sets a flag indicating the credentials should be cached.
-        /// </summary>
-        public bool CacheCredentials { get; set; }
+        public UserTokenType TokenType
+        {
+            get { return m_identity.TokenType; }
+        }
+
+        public XmlQualifiedName IssuedTokenType
+        {
+            get { return m_identity.IssuedTokenType; }
+        }
+
+        public bool SupportsSignatures
+        {
+            get { return m_identity.SupportsSignatures; }
+        }
+
+        public UserIdentityToken GetIdentityToken()
+        {
+            return m_identity.GetIdentityToken();
+        }
     }
-
-    /// <summary>
-    /// A delegate used to handle AdminCredentialsRequired events.
-    /// </summary>
-    public delegate void AdminCredentialsRequiredEventHandler(object sender, AdminCredentialsRequiredEventArgs e);
 }

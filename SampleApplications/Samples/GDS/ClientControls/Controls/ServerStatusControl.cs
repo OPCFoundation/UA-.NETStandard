@@ -40,9 +40,9 @@ namespace Opc.Ua.Gds.Client.Controls
             InitializeComponent();
         }
 
-        private ServerPushConfigurationMethods m_server;
+        private ServerPushConfigurationClient m_server;
 
-        public void Initialize(ServerPushConfigurationMethods server)
+        public void Initialize(ServerPushConfigurationClient server)
         {
             m_server = server;
             ServerBrowseControl.Initialize((server != null) ? server.Session : null, Opc.Ua.ObjectIds.ObjectsFolder, ReferenceTypeIds.HierarchicalReferences);

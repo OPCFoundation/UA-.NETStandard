@@ -30,7 +30,7 @@
 using System.Runtime.Serialization;
 using System.Collections.Generic;
 
-namespace Opc.Ua.GdsServer
+namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
@@ -81,7 +81,7 @@ namespace Opc.Ua.GdsServer
         public StringCollection KnownHostNames { get; set; }
 
         [DataMember(Order = 6)]
-        public uint ShutdownDelay { get; set; }
+        public string DatabaseStorePath { get; set; }
         #endregion
 
         #region Private Members

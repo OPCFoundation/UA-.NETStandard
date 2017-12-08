@@ -4,7 +4,7 @@
 #---------------------------------#
 
 # version format
-version: 0.2.0.{build}-{branch}
+version: 1.3.350.{build}-{branch}
 
 
 # branches to build
@@ -33,12 +33,18 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
+    test_name: "void"
   - solution_name: "UA-NetStandard.sln"
+    test_name: "void"
   - solution_name: "UA Global Discovery Server.sln"
+    test_name: "SampleApplications/Samples/GDS/ClientTest/GlobalDiscoveryClientTest.csproj"
   - solution_name: "UA Universal Windows.sln"
+    test_name: "void"
   - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
+    test_name: "void"
   - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  
-  
+    test_name: "void"
+
 # this is how to allow failing jobs in the matrix
 matrix:
   fast_finish: false     # set this flag to immediately finish build once one of the jobs fails.
@@ -58,8 +64,15 @@ build_script:
   - msbuild "%solution_name%" /p:Configuration=Debug /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
   - msbuild "%solution_name%" /p:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 
-  # to disable automatic tests
-test: off
+# test 
+test:
+
+test_script:
+  - if NOT "%test_name%" == "void" ( dotnet test "%test_name%" )
+# TODO nunit3-console v3.6 cannot load csproj, enable when newer version is available
+#  - if NOT "%test_name%" == "void" ( nunit3-console "%test_name%" --result=./myresults.xml;format=AppVeyor )
+#  - $wc = New-Object 'System.Net.WebClient'
+#  - $wc.UploadFile("https://ci.appveyor.com/api/testresults/nunit3/$($env:APPVEYOR_JOB_ID)", (Resolve-Path ./myresults.xml))
 
 # build cache to preserve files/folders between builds
 cache:

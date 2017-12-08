@@ -549,7 +549,7 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of CertificateIdentifier objects.
     /// </summary>
-    public partial class CertificateIdentifierCollection
+    public partial class CertificateIdentifierCollection : ICertificateStore
     {
         /// <summary>
         /// Creates a new object that is a copy of the current instance.
@@ -691,7 +691,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <returns>The matching certificate</returns>
-        public async Task<X509Certificate2> FindByThumbprint(string thumbprint)
+        public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
             {
@@ -704,12 +704,17 @@ namespace Opc.Ua
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
-                    return certificate;
+                    return new X509Certificate2Collection { certificate };
                 }
             }
 
-            return null;
+            return new X509Certificate2Collection();
         }
+
+        /// <summary>
+        /// Whether the store support CRLs.
+        /// </summary>
+        public bool SupportsCRLs { get { return false; } }
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
@@ -724,7 +729,7 @@ namespace Opc.Ua
         /// </summary>
         public List<X509CRL> EnumerateCRLs()
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            return new List<X509CRL>();
         }
 
         /// <summary>
@@ -732,7 +737,7 @@ namespace Opc.Ua
         /// </summary>
         public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            return new List<X509CRL>();
         }
 
         /// <summary>

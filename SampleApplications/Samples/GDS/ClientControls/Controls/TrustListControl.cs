@@ -160,9 +160,12 @@ namespace Opc.Ua.Gds.Client.Controls
             NoDataWarningLabel.Visible = CertificatesTable.Rows.Count == 0;
         }
 
-        public void Initialize(TrustListDataType trustList)
+        public void Initialize(TrustListDataType trustList, X509Certificate2Collection rejectedList, bool deleteBeforeAdd)
         {
-            CertificatesTable.Rows.Clear();
+            if (deleteBeforeAdd)
+            {
+                CertificatesTable.Rows.Clear();
+            }
 
             if (trustList != null)
             {
@@ -180,7 +183,8 @@ namespace Opc.Ua.Gds.Client.Controls
                             {
                                 X509CRL crl = new X509CRL(crlBytes);
                                 
-                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject))
+                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject) &&
+                                    crl.VerifySignature(certificate, false))
                                 {
                                     crls.Add(crl);
                                 }
@@ -205,7 +209,8 @@ namespace Opc.Ua.Gds.Client.Controls
                             {
                                 X509CRL crl = new X509CRL(crlBytes);
 
-                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject))
+                                if (Utils.CompareDistinguishedName(crl.Issuer, certificate.Subject) &&
+                                    crl.VerifySignature(certificate, false))
                                 {
                                     crls.Add(crl);
                                 }
@@ -214,6 +219,14 @@ namespace Opc.Ua.Gds.Client.Controls
 
                         AddCertificate(certificate, Status.Issuer, crls);
                     }
+                }
+            }
+
+            if (rejectedList != null)
+            {
+                foreach (X509Certificate2 certificate in rejectedList)
+                {
+                    AddCertificate(certificate, Status.Rejected, null);
                 }
             }
 
@@ -233,31 +246,33 @@ namespace Opc.Ua.Gds.Client.Controls
                 DataRowView source = row.DataBoundItem as DataRowView;
 
                 Status status = (Status)source.Row[4];
-                X509Certificate2 certificate = (X509Certificate2)source.Row[7];
-                List<X509CRL> crls = (List<X509CRL>)source.Row[9];
+                X509Certificate2 certificate = source.Row[7] as X509Certificate2;
+                List<X509CRL> crls = source.Row[9] as List<X509CRL>;
 
-                if (status == Status.Trusted)
+                if (certificate != null)
                 {
-                    trusted.Add(certificate.RawData);
-
-                    if (crls != null)
+                    if (status == Status.Trusted)
                     {
-                        foreach (var crl in crls)
+                        trusted.Add(certificate.RawData);
+
+                        if (crls != null)
                         {
-                            trustedCrls.Add(crl.RawData);
+                            foreach (var crl in crls)
+                            {
+                                trustedCrls.Add(crl.RawData);
+                            }
                         }
                     }
-                }
-
-                else if (status == Status.Issuer)
-                {
-                    issuers.Add(certificate.RawData);
-
-                    if (crls != null)
+                    else if (status == Status.Issuer)
                     {
-                        foreach (var crl in crls)
+                        issuers.Add(certificate.RawData);
+
+                        if (crls != null)
                         {
-                            issuersCrls.Add(crl.RawData);
+                            foreach (var crl in crls)
+                            {
+                                issuersCrls.Add(crl.RawData);
+                            }
                         }
                     }
                 }
@@ -290,9 +305,7 @@ namespace Opc.Ua.Gds.Client.Controls
         {
             foreach (X509Extension extension in certificate.Extensions)
             {
-                X509BasicConstraintsExtension basicContraints = extension as X509BasicConstraintsExtension;
-
-                if (basicContraints != null)
+                if (extension is X509BasicConstraintsExtension basicContraints)
                 {
                     if (basicContraints.CertificateAuthority)
                     {
@@ -392,8 +405,10 @@ namespace Opc.Ua.Gds.Client.Controls
                 foreach (DataGridViewCell cell in CertificateListGridView.SelectedCells)
                 {
                     DataRowView source = CertificateListGridView.Rows[cell.RowIndex].DataBoundItem as DataRowView;
-                    EditValueDlg dialog = new EditValueDlg();
-                    dialog.Size = new Size(800, 400);
+                    EditValueDlg dialog = new EditValueDlg
+                    {
+                        Size = new Size(800, 400)
+                    };
                     dialog.ShowDialog(null, "", new CertificateWrapper() { Certificate = (X509Certificate2)source.Row[7] }, true, this.Text);
                     break;
                 }
@@ -499,18 +514,19 @@ namespace Opc.Ua.Gds.Client.Controls
                     directory = m_certificateFile.DirectoryName;
                 }
 
-                OpenFileDialog dialog = new OpenFileDialog();
-
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = "*.der";
-                dialog.Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*";
-                dialog.Title = "Import Certificate";
-                dialog.Multiselect = false;
-                dialog.ValidateNames = true;
-                dialog.FileName = (m_certificateFile != null) ? m_certificateFile.Name : null;
-                dialog.InitialDirectory = directory;
-                dialog.RestoreDirectory = true;
+                OpenFileDialog dialog = new OpenFileDialog
+                {
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    DefaultExt = "*.der",
+                    Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*",
+                    Title = "Import Certificate",
+                    Multiselect = false,
+                    ValidateNames = true,
+                    FileName = m_certificateFile?.Name,
+                    InitialDirectory = directory,
+                    RestoreDirectory = true
+                };
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
@@ -566,16 +582,17 @@ namespace Opc.Ua.Gds.Client.Controls
                     directory = m_certificateFile.DirectoryName;
                 }
 
-                SaveFileDialog dialog = new SaveFileDialog();
-
-                dialog.CheckFileExists = false;
-                dialog.CheckPathExists = true;
-                dialog.DefaultExt = ".der";
-                dialog.Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*";
-                dialog.ValidateNames = true;
-                dialog.Title = "Export Certificate";
-                dialog.FileName = String.Format("{0} [{1}].der", GetCommonName(certificate), certificate.Thumbprint);
-                dialog.InitialDirectory = directory;
+                SaveFileDialog dialog = new SaveFileDialog
+                {
+                    CheckFileExists = false,
+                    CheckPathExists = true,
+                    DefaultExt = ".der",
+                    Filter = "Certificate Files (*.der)|*.der|All Files (*.*)|*.*",
+                    ValidateNames = true,
+                    Title = "Export Certificate",
+                    FileName = String.Format("{0} [{1}].der", GetCommonName(certificate), certificate.Thumbprint),
+                    InitialDirectory = directory
+                };
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
