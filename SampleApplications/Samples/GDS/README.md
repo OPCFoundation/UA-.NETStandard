@@ -8,7 +8,7 @@ The Solution is split into these projects:
 - **GlobalDiscoveryServerLibrary:** Common Global Discovery Server classes for .Net 4.6 and .Net Standard.
 - **NetCoreGlobalDiscoveryServer:** Global Discovery Server for .Net Standard with Json database implementation to demonstrate the abstracted database registration and certificate authority interface. (The gdsdb.json is not a secure database and should only be used for testing).
 - **GlobalDiscoveryClient:** Global Discovery Client for .Net 4.6. with Windows forms user interface.
-- **GlobalDiscoveryClientControls:** Global Discovery Client Controls reusable controls for .Net 4.6.
+- **GlobalDiscoveryClientControls:** Global Discovery Client reusable controls for .Net 4.6.
 - **GlobalDiscoveryClientLibrary:** Common Global Discovery Client classes for .Net 4.6 and .Net Standard.
 - **GlobalDiscoveryClientTest:** Unit tests for .Net Standard Global Discovery client and server libraries.
 
@@ -47,21 +47,30 @@ The sample GDS servers only implement the username/password authentication. The 
   - This user is defined for server push management and has the ability to access the server configuration nodes of the GDS server to update the server certificate and the trust lists. Server push configuration management is not a requirement for a GDS server and only supported here to demonstrate the functionality.
 
 ## Certificates
-The global discovery server creates the CA certificates for all configured certificate groups on the first start. By default a global discovery server accepts any incoming secure connection with an authenticated user ([GDS Users]). The console server certificates are stored in **%LocalApplicationData%/OPC Foundation/GDS/PKI** while the Windows .Net 4.6 server stores the certificates in **%CommonApplicationData%\OPC Foundation\GDS\PKI**. **%CommonApplicationData%** maps to the path set by the environment variable **ProgramData** on Windows. On Linux and macOS **%LocalApplicationData%** maps to **~/root/.local/share**. On Windows **%LocalApplicationData%** maps to **%USERPROFILE%\AppData\Local**. 
+The global discovery server creates the CA certificates for all configured certificate groups on the first start.
+
+By default, a global discovery server accepts any incoming secure connection with an authenticated user ([GDS Users]). 
+
+The console server certificates are stored in **%LocalApplicationData%/OPC Foundation/GDS/PKI** while the Windows .Net 4.6 server stores the certificates in **%CommonApplicationData%\OPC Foundation\GDS\PKI**. 
+**%CommonApplicationData%** maps to the path set by the environment variable **ProgramData** on Windows. 
+
+On Linux and macOS **%LocalApplicationData%** maps to **~/root/.local/share**.
+
+On Windows **%LocalApplicationData%** maps to **%USERPROFILE%\AppData\Local**. 
 
 ### GDS Certificate stores
 Under **PKI**, the following stores contain certificates under **certs**, CRLs under **crl** or private keys under **private**.
-- **own** contains the reference server public certificate and private key.
+- **own** contains the GDS public certificate and private key.
 - **rejected** contains the rejected client certificates. To trust a client certificate, copy the rejected certificate to the **trusted/certs** folder.
 - **trusted** contains *trusted* client and CAs certificates and CRLs.
 - **issuers** contains CAs certificates and CRLs needed for validation of certificate chains.
 
 ### GDS CA Certificate stores
 Under **PKI**, the following stores contain certificates under **certs**, CRLs under **crl** or private keys under **private**.
-- **authorities** contains the public certificate, CRLs and private keys of the CA authorities.
-- **applications** contains the public certificates of all applications regsitered with the GDS.
+- **authorities** contains the public certificates, CRLs and private keys of the CA authorities.
+- **applications** contains the public certificates of all applications registered with the GDS.
 - **PKI/CA** contains folders for all supported certificate groups. At this point only the `DefaultApplicationGroup` **default** is supported.
-  - **PKI/CA/default** contains the *issuer* and *trusted* stores for the default application group. Each store contains the CA certificates and CRLs.
+  - **PKI/CA/default** contains the *issuer* and *trusted* list for the default application group. Each store contains the CA certificates and CRLs.
 
 ### Customize the GDS CA Certificates
 To customize the CA certificate search for `<SubjectName>CN=IOP-2017 CA, O=OPC Foundation</SubjectName>` and enter your new subject. Then search the code and the configuration files for `SomeCompany` and enter your company name as appropriate.
@@ -70,14 +79,14 @@ To customize the CA certificate search for `<SubjectName>CN=IOP-2017 CA, O=OPC F
 1. Open the solution **UA Global Discovery Server.sln** with VisualStudio.
 2. Choose the project `GlobalDiscoveryClient` in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `Ctrl-F5` to build and execute the sample.
-4. Press the 'Registration' button to connect to a running GDS. Use the `GDS Administrator` credentials in [GDS Users] to connect and to be able to register applications and to issue certificates.
+4. Press the `Registration` button to connect to a running GDS. Use the `GDS Administrator` credentials in [GDS Users] to connect and to be able to register applications and to issue certificates.
 5. Select the appropriate `Registration Type`: [Client or Server Pull Management] or [Server Push Management] and proceed with the registration.
 
 ### Client or Server Pull Management
 1. Always `Clear` registration form to start a new or to update an existing registration.
 2. Register the application in one of the described ways under [Pull Registration].
 3. Press the `Certificate` button. Inspect an existing certificate in the form. To issue a CA signed certificate press `Request New` certificate which triggers either a certificate signing request or a new keypair request, whichever is more appropriate. After a short while the new CA signed certificates are issued and the GDS client may ask to override existing certificates.
-4. Press the `Trust List` button. Inspect the existing trusted and issuer list of the application. To add the CA certificate and the CRL to the trusted store press the `Merge with GDS` button.
+4. Press the `Trust List` button. Inspect the existing trusted and issuer list of the application. To add the CA certificate and the CRL to the trusted list press the `Merge with GDS` button.
 
 ### Pull Registration
 
@@ -95,8 +104,8 @@ To customize the CA certificate search for `<SubjectName>CN=IOP-2017 CA, O=OPC F
 - or the path to new or existing public/private key pair:
   - Certificate Public Key Path: A DER encoded certificate with a public key.
   - Certificate Private Key Path: A PFX or PEM encoded private key.
-- Trust List Store Path: *optional* to copy GDS CA public certificate to the trusted store.
-- Issuer List Store Path: *optional* to copy GDS CA public certificate to the issuer store.
+- Trust List Store Path: *optional* to copy the GDS CA public certificate to the trusted store.
+- Issuer List Store Path: *optional* to copy the GDS CA public certificate to the issuer store.
 - Domains: Enter the domain names to be added to the certificate extension as hostnames or IP addresses.
 2. `Register` the application or `Apply Changes`. 
 3. The `Application ID` should display a proper NodeId after registration.
@@ -122,12 +131,12 @@ The GDS client can fill in the full information from a UA .Net Standard applicat
 ### Server Push Management
 Push configuration requires server configuration node support and a session with the managed server. 
 1. Select `Server - Push Management`
-2. Press `Pick Server` to connect to the managed server. Special system administrator credentials might be necessary to access the server configuration nodes.
+2. Press `Pick Server` to connect to the managed server. Special system administrator credentials might be necessary to access the server configuration nodes - see [GDS Users].
 3. Fill the remaining registration fields which can not be extracted from the server endpoint information.
 2. `Register` the application or `Apply Changes`. 
 3. The `Application ID` should display a proper NodeId after registration.
-6. Press the 'Server Status' and then the `green arrow' connect button to inspect the status. Being connected is mandatory to remote manage the server.
-3. Press the `Certificate` button. Inspect an existing certificate in the form. To issue a CA signed certificate press `Request New` certificate which triggers a certificate signing request. After a short while the new CA signed certificates is updated on the server directly. After the update, the user might be asked to `Apply Changes` in the `Server Status` form.
+6. Press the `Server Status` and then the `green arrow` connect button to inspect the status. Being connected is mandatory to remote manage the server in the next steps.
+3. Press the `Certificate` button. Inspect an existing certificate in the form. To issue a CA signed certificate press `Request New` certificate, which triggers a certificate signing request. After a short while the new CA signed certificates is updated on the server directly. After the update, the GDS client user might be asked to `Apply Changes` in the `Server Status` form.
 8. Press the `Trust List` button. `Reload`the trust list from the managed server. Manage the certificates and `Merge with GDS` to add the GDS CA certificate to the trust list. `Push To Server` to save the updated trust list on the server.
 
 
