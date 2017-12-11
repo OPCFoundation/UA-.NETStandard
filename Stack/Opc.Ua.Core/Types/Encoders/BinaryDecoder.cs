@@ -498,8 +498,14 @@ namespace Opc.Ua
             }
 
             XmlDocument document = new XmlDocument();
-            document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
-
+            try
+            {
+                document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+            }
+            catch (XmlException)
+            {
+                return null;
+            }
             return document.DocumentElement;
         }
 
