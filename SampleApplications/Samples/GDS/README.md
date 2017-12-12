@@ -93,14 +93,14 @@ To customize the CA certificate search for `<SubjectName>CN=IOP-2017 CA, O=OPC F
 #### Manually enter the registration for an application
 1. In this case the entries in the `Client -` or `Server - Pull management` form must be filled in. Some fields are *ignored* if the application type is Client, some fields are *optional*.
 - Application ID: The unique identifier *assigned by the GDS* to the application.
-- Application Name: The default name of the Application 
+- Application Name: The default name of the Application.
 - Application URI: The URI for the Application. This URI is also stored in the application certificate extensions.
 - Product URI: A globally unique URI for the product associated with the Application. This URI is assigned by the vendor of the Application.
 - Discovery URLs: The list of discovery URLs for a *Server Application*.
 - Server Capabilities: The list of *Server* capability identifiers for the Application.
 - To use an existing store with or without existing public/private key:
-  - Certificate Store Path: local X509 store or directory store
-  - Certificate Subject Name: The certificate distiguished name
+  - Certificate Store Path: local X509 store (CurrentUser\UA_MachineDefault) or directory store.
+  - Certificate Subject Name: The certificate distinguished name.
 - or the path to new or existing public/private key pair:
   - Certificate Public Key Path: A DER encoded certificate with a public key.
   - Certificate Private Key Path: A PFX or PEM encoded private key.
