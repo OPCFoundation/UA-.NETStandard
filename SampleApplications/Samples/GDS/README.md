@@ -138,5 +138,7 @@ Push configuration requires server configuration node support and a session with
 6. Press the `Server Status` and then the `green arrow` connect button to inspect the status. Being connected is mandatory to remote manage the server in the next steps.
 3. Press the `Certificate` button. Inspect an existing certificate in the form. To issue a CA signed certificate press `Request New` certificate, which triggers a certificate signing request. After a short while the new CA signed certificates is updated on the server directly. After the update, the GDS client user might be asked to `Apply Changes` in the `Server Status` form.
 8. Press the `Trust List` button. `Reload`the trust list from the managed server. Manage the certificates and `Merge with GDS` to add the GDS CA certificate to the trust list. `Push To Server` to save the updated trust list on the server.
+8. Press the `Server Status` button and then press `Apply Changes` to update the security settings on the server. After a regular certificate update the managed server may require a reboot or at least closes all sessions and requires a reconnect. Press the `green arrow` connect button to reconnect to the server using the new certificate.  
+9. Press the `Certificate` button and inspect the new CA signed certificate to verify the new certificate is being used for the new session.
 
 
