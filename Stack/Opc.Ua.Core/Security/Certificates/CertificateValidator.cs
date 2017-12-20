@@ -711,7 +711,7 @@ namespace Opc.Ua
 
             using (RSAWrapper rsa = RSAWrapper.Create(certificate.GetRSAPublicKey()))
             {
-                if (rsa.RSA.KeySize < m_minimumCertificateKeySize)
+                if (rsa.Rsa.KeySize < m_minimumCertificateKeySize)
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Certificate doesn't meet minimum key length requirement");
                 }
