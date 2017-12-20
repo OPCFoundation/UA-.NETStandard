@@ -28,9 +28,9 @@ namespace Opc.Ua
         /// </summary>
         public static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(encryptingCertificate.GetRSAPublicKey()))
             {
-                return GetPlainTextBlockSize(rsa, useOaep);
+                return GetPlainTextBlockSize(rsa.RSA, useOaep);
             }
         }
 
@@ -58,11 +58,11 @@ namespace Opc.Ua
         /// </summary>
         public static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(encryptingCertificate.GetRSAPublicKey()))
             {
                 if (rsa != null)
                 {
-                    return rsa.KeySize / 8;
+                    return rsa.RSA.KeySize / 8;
                 }
             }
             return -1;
@@ -73,14 +73,14 @@ namespace Opc.Ua
         /// </summary>
         public static int RsaPkcs15_GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(signingCertificate.GetRSAPublicKey()))
             {
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
 
-                return rsa.KeySize / 8;
+                return rsa.RSA.KeySize / 8;
             }
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(signingCertificate.GetRSAPrivateKey()))
             {
 
                 if (rsa == null)
@@ -101,7 +101,7 @@ namespace Opc.Ua
                 }
 
                 // create the signature.
-                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+                return rsa.RSA.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             }
         }
 
@@ -113,7 +113,7 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(signingCertificate.GetRSAPrivateKey()))
             {
 
                 if (rsa == null)
@@ -122,7 +122,7 @@ namespace Opc.Ua
                 }
 
                 // create the signature.
-                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                return rsa.RSA.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
         }
 
@@ -135,7 +135,7 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(signingCertificate.GetRSAPublicKey()))
             {
 
                 if (rsa == null)
@@ -144,7 +144,7 @@ namespace Opc.Ua
                 }
 
                 // verify signature.
-                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+                return rsa.RSA.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             }
         }
 
@@ -157,7 +157,7 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate)
         {
             // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(signingCertificate.GetRSAPublicKey()))
             {
 
                 if (rsa == null)
@@ -166,7 +166,7 @@ namespace Opc.Ua
                 }
 
                 // verify signature.
-                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                return rsa.RSA.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
         }
 
@@ -211,7 +211,7 @@ namespace Opc.Ua
             ArraySegment<byte> outputBuffer)
         {
             // get the encrypting key.
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(encryptingCertificate.GetRSAPublicKey()))
             {
 
                 if (rsa == null)
@@ -220,7 +220,7 @@ namespace Opc.Ua
                 }
 
                 int inputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
-                int outputBlockSize = rsa.KeySize / 8;
+                int outputBlockSize = rsa.RSA.KeySize / 8;
 
                 // verify the input data is the correct block size.
                 if (dataToEncrypt.Count % inputBlockSize != 0)
@@ -244,12 +244,12 @@ namespace Opc.Ua
                         Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
                         if (useOaep == true)
                         {
-                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.OaepSHA1);
+                            byte[] cipherText = rsa.RSA.Encrypt(input, RSAEncryptionPadding.OaepSHA1);
                             ostrm.Write(cipherText, 0, cipherText.Length);
                         }
                         else
                         {
-                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.Pkcs1);
+                            byte[] cipherText = rsa.RSA.Encrypt(input, RSAEncryptionPadding.Pkcs1);
                             ostrm.Write(cipherText, 0, cipherText.Length);
                         }
                     }
@@ -302,14 +302,14 @@ namespace Opc.Ua
             ArraySegment<byte> outputBuffer)
         {
             // get the encrypting key.
-            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
+            using (RSAWrapper rsa = RSAWrapper.Create(encryptingCertificate.GetRSAPrivateKey()))
             {
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
                 }
 
-                int inputBlockSize = rsa.KeySize / 8;
+                int inputBlockSize = rsa.RSA.KeySize / 8;
                 int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, useOaep);
 
                 // verify the input data is the correct block size.
@@ -334,12 +334,12 @@ namespace Opc.Ua
                         Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
                         if (useOaep == true)
                         {
-                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.OaepSHA1);
+                            byte[] plainText = rsa.RSA.Decrypt(input, RSAEncryptionPadding.OaepSHA1);
                             ostrm.Write(plainText, 0, plainText.Length);
                         }
                         else
                         {
-                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.Pkcs1);
+                            byte[] plainText = rsa.RSA.Decrypt(input, RSAEncryptionPadding.Pkcs1);
                             ostrm.Write(plainText, 0, plainText.Length);
                         }
                     }
@@ -350,5 +350,33 @@ namespace Opc.Ua
             }
         }
         #endregion
+    }
+    public class RSAWrapper : IDisposable
+    {
+        static bool neverDispose = true;
+        public RSA RSA { get; private set; }
+        public RSAWrapper(RSA rsa)
+        {
+            RSA = rsa;
+        }
+        public static RSAWrapper Create(RSA rsa)
+        {
+            return new RSAWrapper(rsa);
+        }
+
+        /// <summary>
+        /// IDisposable interface
+        /// </summary>
+        public virtual void Dispose()
+        {
+            if (neverDispose)
+            {
+                RSA = null;
+            }
+            else
+            {
+                RSA?.Dispose();
+            }
+        }
     }
 }

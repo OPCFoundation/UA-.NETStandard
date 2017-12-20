@@ -836,18 +836,18 @@ public class CertificateFactory
         try
         {
             // verify the public and private key match
-            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+            using (RSAWrapper rsaPrivateKey = RSAWrapper.Create(certWithPrivateKey.GetRSAPrivateKey()))
             {
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
+                using (RSAWrapper rsaPublicKey = RSAWrapper.Create(certWithPublicKey.GetRSAPublicKey()))
                 {
                     X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                     if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
                     { 
-                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                        result = VerifyRSAKeyPairCrypt(rsaPublicKey.RSA, rsaPrivateKey.RSA);
                     }
                     else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
                     {
-                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                        result = VerifyRSAKeyPairSign(rsaPublicKey.RSA, rsaPrivateKey.RSA);
                     }
                     else
                     {
@@ -1050,9 +1050,9 @@ public class CertificateFactory
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
-        using (RSA rsa = certificate.GetRSAPublicKey())
+        using (RSAWrapper rsa = RSAWrapper.Create(certificate.GetRSAPublicKey()))
         {
-            RSAParameters rsaParams = rsa.ExportParameters(false);
+            RSAParameters rsaParams = rsa.RSA.ExportParameters(false);
             return new RsaKeyParameters(
                                 false,
                                 new BigInteger(1, rsaParams.Modulus),
@@ -1067,9 +1067,9 @@ public class CertificateFactory
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
         // try to get signing/private key from certificate passed in
-        using (RSA rsa = certificate.GetRSAPrivateKey())
+        using (RSAWrapper rsa = RSAWrapper.Create(certificate.GetRSAPrivateKey()))
         {
-            RSAParameters rsaParams = rsa.ExportParameters(true);
+            RSAParameters rsaParams = rsa.RSA.ExportParameters(true);
             RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
                 new BigInteger(1, rsaParams.Modulus),
                 new BigInteger(1, rsaParams.Exponent),
