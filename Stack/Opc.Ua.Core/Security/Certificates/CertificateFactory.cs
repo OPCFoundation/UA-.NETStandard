@@ -843,11 +843,11 @@ public class CertificateFactory
                     X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                     if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
                     { 
-                        result = VerifyRSAKeyPairCrypt(rsaPublicKey.Rsa, rsaPrivateKey.Rsa);
+                        result = VerifyRSAKeyPairCrypt(rsaPublicKey.RSA, rsaPrivateKey.RSA);
                     }
                     else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
                     {
-                        result = VerifyRSAKeyPairSign(rsaPublicKey.Rsa, rsaPrivateKey.Rsa);
+                        result = VerifyRSAKeyPairSign(rsaPublicKey.RSA, rsaPrivateKey.RSA);
                     }
                     else
                     {
@@ -1052,7 +1052,7 @@ public class CertificateFactory
     {
         using (RSAWrapper rsa = RSAWrapper.Create(certificate.GetRSAPublicKey()))
         {
-            RSAParameters rsaParams = rsa.Rsa.ExportParameters(false);
+            RSAParameters rsaParams = rsa.RSA.ExportParameters(false);
             return new RsaKeyParameters(
                                 false,
                                 new BigInteger(1, rsaParams.Modulus),
@@ -1069,7 +1069,7 @@ public class CertificateFactory
         // try to get signing/private key from certificate passed in
         using (RSAWrapper rsa = RSAWrapper.Create(certificate.GetRSAPrivateKey()))
         {
-            RSAParameters rsaParams = rsa.Rsa.ExportParameters(true);
+            RSAParameters rsaParams = rsa.RSA.ExportParameters(true);
             RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
                 new BigInteger(1, rsaParams.Modulus),
                 new BigInteger(1, rsaParams.Exponent),
