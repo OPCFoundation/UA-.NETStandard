@@ -73,6 +73,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the length of a RSA PKCS#1 v1.5 signature of a digest.
+        /// </summary>
+        public static int GetSignatureLength(X509Certificate2 signingCertificate)
+        {
+            RSA rsa = signingCertificate.GetRSAPublicKey();
+            if (rsa == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+            }
+
+            return rsa.KeySize / 8;
+        }
+
+        /// <summary>
         /// Computes an RSA/SHA1 PKCS#1 v1.5 signature.
         /// </summary>
         public static byte[] RsaPkcs15Sha1_Sign(
