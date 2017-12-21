@@ -836,24 +836,20 @@ public class CertificateFactory
         try
         {
             // verify the public and private key match
-            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+            RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+            RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+            X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+            if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
             {
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
-                {
-                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
-                    { 
-                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                    }
-                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                    {
-                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                    }
-                    else
-                    {
-                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
-                    }
-                }
+                result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+            }
+            else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+            {
+                result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+            }
+            else
+            {
+                throw new CryptographicException("Don't know how to verify the public/private key pair.");
             }
         }
         catch (Exception e)
@@ -1050,14 +1046,12 @@ public class CertificateFactory
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
-        using (RSA rsa = certificate.GetRSAPublicKey())
-        {
-            RSAParameters rsaParams = rsa.ExportParameters(false);
-            return new RsaKeyParameters(
-                                false,
-                                new BigInteger(1, rsaParams.Modulus),
-                                new BigInteger(1, rsaParams.Exponent));
-        }
+        RSA rsa = certificate.GetRSAPublicKey();
+        RSAParameters rsaParams = rsa.ExportParameters(false);
+        return new RsaKeyParameters(
+            false,
+            new BigInteger(1, rsaParams.Modulus),
+            new BigInteger(1, rsaParams.Exponent));
     }
 
     /// <summary>
@@ -1067,20 +1061,18 @@ public class CertificateFactory
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
         // try to get signing/private key from certificate passed in
-        using (RSA rsa = certificate.GetRSAPrivateKey())
-        {
-            RSAParameters rsaParams = rsa.ExportParameters(true);
-            RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-                new BigInteger(1, rsaParams.Modulus),
-                new BigInteger(1, rsaParams.Exponent),
-                new BigInteger(1, rsaParams.D),
-                new BigInteger(1, rsaParams.P),
-                new BigInteger(1, rsaParams.Q),
-                new BigInteger(1, rsaParams.DP),
-                new BigInteger(1, rsaParams.DQ),
-                new BigInteger(1, rsaParams.InverseQ));
-            return keyParams;
-        }
+        RSA rsa = certificate.GetRSAPrivateKey();
+        RSAParameters rsaParams = rsa.ExportParameters(true);
+        RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+            new BigInteger(1, rsaParams.Modulus),
+            new BigInteger(1, rsaParams.Exponent),
+            new BigInteger(1, rsaParams.D),
+            new BigInteger(1, rsaParams.P),
+            new BigInteger(1, rsaParams.Q),
+            new BigInteger(1, rsaParams.DP),
+            new BigInteger(1, rsaParams.DQ),
+            new BigInteger(1, rsaParams.InverseQ));
+        return keyParams;
     }
 
     /// <summary>
