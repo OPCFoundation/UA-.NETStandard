@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>net46</TargetFramework>
     <AssemblyName>NetCoreConsoleServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>NetCoreConsoleServer</PackageId>

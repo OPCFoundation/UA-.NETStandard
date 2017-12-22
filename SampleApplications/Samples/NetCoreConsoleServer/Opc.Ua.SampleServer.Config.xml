@@ -13,27 +13,27 @@
     
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
-      <StoreType>X509Store</StoreType>
-      <StorePath>CurrentUser\My</StorePath>
+      <StoreType>Directory</StoreType>
+      <StorePath>./OPC Foundation/PKI/own</StorePath>
       <SubjectName>CN=UA Core Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/UA Certificate Authorities</StorePath>
+      <StorePath>./OPC Foundation/PKI/trusted</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- Where the trust list is stored (UA Applications) -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/UA Applications</StorePath>
+      <StorePath>./OPC Foundation/PKI/issuer</StorePath>
     </TrustedPeerCertificates>
     
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/CertificateStores/RejectedCertificates</StorePath>
+      <StorePath>./OPC Foundation/PKI/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -58,7 +58,6 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
-      <ua:String>https://localhost:51212/UA/SampleServer/</ua:String>
     </BaseAddresses>
 
     <!-- 
@@ -87,11 +86,10 @@
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!--Removing no secuirty option from the configuration as this is a security risk
-        <ServerSecurityPolicy>
+      <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
-      </ServerSecurityPolicy>-->
+      </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
@@ -164,7 +162,7 @@
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
 
-    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
+    <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
     
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
@@ -211,7 +209,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>./Opc.Ua.SampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

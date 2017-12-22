@@ -342,13 +342,13 @@
     <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.designer.cs">
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.Designer.cs">
       <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
     </Compile>
     <Compile Include="Common\DiscoveredServerOnNetworkListDlg.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.designer.cs">
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.Designer.cs">
       <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
     </Compile>
     <Compile Include="Common\SelectHostCtrl.cs">
