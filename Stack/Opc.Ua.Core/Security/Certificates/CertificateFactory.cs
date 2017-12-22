@@ -1195,7 +1195,9 @@ public class CertificateFactory
         // create pkcs12 store for cert and private key
         using (MemoryStream pfxData = new MemoryStream())
         {
-            Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
+            Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
+            builder.SetUseDerEncoding(true);
+            Pkcs12Store pkcsStore = builder.Build();
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);
