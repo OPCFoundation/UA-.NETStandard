@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <AssemblyName>NetCoreConsoleServer</AssemblyName>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>MonoConsoleServer</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>NetCoreConsoleServer</PackageId>
+    <PackageId>MonoConsoleServer</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Opc.Ua.SampleServer.Config.xml">
+    <None Update="Opc.Ua.MonoSampleServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

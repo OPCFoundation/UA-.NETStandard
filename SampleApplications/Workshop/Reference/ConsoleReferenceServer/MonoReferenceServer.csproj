@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>MonoReferenceServer</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <PackageId>MonoReferenceServer</PackageId>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Server\ReferenceNodeManager.cs;..\Server\ReferenceServer.cs;..\Server\ReferenceServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Mono.Options" Version="5.3.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Quickstarts.MonoReferenceServer.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

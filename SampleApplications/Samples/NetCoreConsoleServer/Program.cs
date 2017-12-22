@@ -210,7 +210,11 @@ namespace NetCoreConsoleServer
 
             application.ApplicationName = "UA Core Sample Server";
             application.ApplicationType = ApplicationType.Server;
+#if NET46
+            application.ConfigSectionName = "Opc.Ua.MonoSampleServer";
+#else
             application.ConfigSectionName = "Opc.Ua.SampleServer";
+#endif
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);

@@ -223,7 +223,11 @@ namespace Quickstarts.ReferenceServer
 
             application.ApplicationName = "Quickstart Reference Server";
             application.ApplicationType = ApplicationType.Server;
+#if NET46
+            application.ConfigSectionName = "Quickstarts.MonoReferenceServer";
+#else
             application.ConfigSectionName = "Quickstarts.ReferenceServer";
+#endif
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
