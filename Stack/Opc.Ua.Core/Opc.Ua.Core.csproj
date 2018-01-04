@@ -5,8 +5,8 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
-    <Version>1.03.350.0</Version>
-    <AssemblyVersion>1.03.350.0</AssemblyVersion>
+    <Version>1.03.350</Version>
+    <AssemblyVersion>1.03.350</AssemblyVersion>
     <FileVersion>1.03.350.0</FileVersion>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>

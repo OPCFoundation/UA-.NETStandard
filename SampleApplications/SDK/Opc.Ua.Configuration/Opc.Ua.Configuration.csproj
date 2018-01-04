@@ -4,8 +4,8 @@
     <TargetFrameworks>net46;netstandard1.4;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Configuration</AssemblyName>
     <PackageId>Opc.Ua.Configuration</PackageId>
-    <Version>1.03.350.0</Version>
-    <AssemblyVersion>1.03.350.0</AssemblyVersion>
+    <Version>1.03.350</Version>
+    <AssemblyVersion>1.03.350</AssemblyVersion>
     <FileVersion>1.03.350.0</FileVersion>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>
