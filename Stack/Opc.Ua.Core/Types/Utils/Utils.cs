@@ -2445,7 +2445,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            return AssemblyVersionInfo.CurrentVersion;
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
         }
 
         /// <summary>
@@ -2453,7 +2453,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-            return AssemblyVersionInfo.CurrentFileVersion;
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version;
         }
 
 #endregion

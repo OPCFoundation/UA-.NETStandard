@@ -4,10 +4,21 @@
     <TargetFrameworks>net46;netstandard1.4;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Server</AssemblyName>
     <PackageId>Opc.Ua.Server</PackageId>
+    <Version>1.03.350.0</Version>
+    <AssemblyVersion>1.03.350.0</AssemblyVersion>
+    <FileVersion>1.03.350.0</FileVersion>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>OPC UA Server Class Library</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

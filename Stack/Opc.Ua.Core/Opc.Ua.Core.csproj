@@ -5,6 +5,13 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
+    <Version>1.03.350.0</Version>
+    <AssemblyVersion>1.03.350.0</AssemblyVersion>
+    <FileVersion>1.03.350.0</FileVersion>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>OPC UA Core Class Library</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +36,10 @@
     <PackageReference Include="System.ServiceModel.Primitives" Version="4.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.0.0" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

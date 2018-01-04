@@ -4,6 +4,13 @@
     <TargetFrameworks>net46;netstandard1.4;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Sample</AssemblyName>
     <PackageId>Opc.Ua.Sample</PackageId>
+    <Version>1.03.350.0</Version>
+    <AssemblyVersion>1.03.350.0</AssemblyVersion>
+    <FileVersion>1.03.350.0</FileVersion>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>OPC UA Sample Class Library</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +22,10 @@
     <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
 
 </Project>

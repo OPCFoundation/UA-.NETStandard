@@ -784,14 +784,13 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-
         internal TransportChannelSettings m_settings;
         internal ServiceMessageContext m_messageContext;
         internal ITransportChannel m_wcfBypassChannel;
         internal int m_operationTimeout;
         internal ChannelFactory m_channelFactory;
         internal IChannelBase m_channel;
-        internal const string g_ImplementationString = "Opc.Ua.ChannelBase WCF Client " + AssemblyVersionInfo.CurrentVersion;
+        internal string g_ImplementationString = "Opc.Ua.ChannelBase WCF Client " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
     
