@@ -33,15 +33,15 @@ internal static class AssemblyVersionInfo
     /// <summary>
     /// The current copy right notice.
     /// </summary>
-    public const string Copyright = "Copyright © 2004-2016 OPC Foundation, Inc";
+    public const string Copyright = "Copyright © 2004-2018 OPC Foundation, Inc";
 
     /// <summary>
     /// The current build version.
     /// </summary>
-    public const string CurrentVersion = "1.03.340.0";
+    public const string CurrentVersion = "1.03.351";
 
     /// <summary>
     /// The current build file version.
     /// </summary>
-    public const string CurrentFileVersion = "1.03.340.0";
+    public const string CurrentFileVersion = "1.03.351.0";
 }
