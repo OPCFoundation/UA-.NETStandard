@@ -1,0 +1,25 @@
+<xs:schema 
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd" 
+  xmlns:tns="http://opcfoundation.org/Quickstarts/SimpleEvents" 
+  targetNamespace="http://opcfoundation.org/Quickstarts/SimpleEvents" 
+  elementFormDefault="qualified"
+>
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+  
+  <xs:complexType name="CycleStepDataType">
+  	<xs:sequence>
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Duration" type="xs:double" minOccurs="0" />
+  	</xs:sequence>
+  </xs:complexType>
+  <xs:element name="CycleStepDataType" type="tns:CycleStepDataType" />
+
+  <xs:complexType name="ListOfCycleStepDataType">
+    <xs:sequence>
+      <xs:element name="CycleStepDataType" type="tns:CycleStepDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfCycleStepDataType" type="tns:ListOfCycleStepDataType" nillable="true"></xs:element>
+  
+</xs:schema>

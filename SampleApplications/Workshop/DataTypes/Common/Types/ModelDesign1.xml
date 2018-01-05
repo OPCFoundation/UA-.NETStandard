@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="DataTypes" Prefix="Quickstarts.DataTypes.Types" InternalPrefix="Quickstarts.DataTypes.Types">http://opcfoundation.org/UA/Quickstarts/DataTypes/Types</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:DataType SymbolicName="VehicleType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="Make" DataType="ua:String"></opc:Field>
+      <opc:Field Name="Model" DataType="ua:String"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="CarType" BaseType="VehicleType">
+    <opc:Fields>
+      <opc:Field Name="NoOfPassengers" DataType="ua:UInt32"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TruckType" BaseType="VehicleType">
+    <opc:Fields>
+      <opc:Field Name="CargoCapacity" DataType="ua:UInt32"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="DriverType">
+    <opc:Children>
+      <opc:Property SymbolicName="PrimaryVehicle" DataType="VehicleType" ValueRank="Scalar" AccessLevel="ReadWrite">
+        <opc:DefaultValue>
+          <uax:ExtensionObject>
+            <uax:Body>
+              <CarType>
+                <Make>Toyota</Make>
+                <Model>Prius</Model>
+                <NoOfPassengers>4</NoOfPassengers>
+              </CarType>
+            </uax:Body>
+          </uax:ExtensionObject>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="OwnedVehicles" DataType="VehicleType" ValueRank="Array" AccessLevel="ReadWrite">
+        <opc:DefaultValue>
+          <uax:ListOfExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <TruckType>
+                  <Make>Dodge</Make>
+                  <Model>Ram</Model>
+                  <CargoCapacity>500</CargoCapacity>
+                </TruckType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <VehicleType xsi:type="CarType">
+                  <Make>Porche</Make>
+                  <Model>Roadster</Model>
+                  <NoOfPassengers>2</NoOfPassengers>
+                </VehicleType>
+              </uax:Body>
+            </uax:ExtensionObject>
+          </uax:ListOfExtensionObject>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+    
+</opc:ModelDesign>

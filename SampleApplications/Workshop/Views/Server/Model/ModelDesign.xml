@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns:qve="http://opcfoundation.org/UA/Quickstarts/Engineering"
+	xmlns:qvo="http://opcfoundation.org/UA/Quickstarts/Operations"
+	xmlns="http://opcfoundation.org/UA/Quickstarts/Views"
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/Views"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="Engineering" Prefix="Quickstarts.Engineering" InternalPrefix="Quickstarts.Engineering">http://opcfoundation.org/UA/Quickstarts/Engineering</opc:Namespace>
+    <opc:Namespace Name="Operations" Prefix="Quickstarts.Operations" InternalPrefix="Quickstarts.Operations">http://opcfoundation.org/UA/Quickstarts/Operations</opc:Namespace>
+    <opc:Namespace Name="Views" Prefix="Quickstarts.Views" InternalPrefix="Quickstarts.Views">http://opcfoundation.org/UA/Quickstarts/Views</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:View SymbolicName="Engineering">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ViewsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:View>
+
+  <opc:View SymbolicName="Operations">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ViewsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:View>
+  
+  <opc:ObjectType SymbolicName="GenericControllerType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Property SymbolicName="qve:SerialNumber" DataType="ua:String"></opc:Property>
+      <opc:Property SymbolicName="qve:Manufacturer" DataType="ua:String"></opc:Property>
+      <opc:Variable SymbolicName="qvo:SetPoint" DataType="ua:Double" TypeDefinition="ua:AnalogItemType"></opc:Variable>
+      <opc:Variable SymbolicName="qvo:Measurement" DataType="ua:Double" TypeDefinition="ua:AnalogItemType"></opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:ObjectType SymbolicName="FlowControllerType" BaseType="GenericControllerType"></opc:ObjectType>  
+  <opc:ObjectType SymbolicName="LevelControllerType" BaseType="GenericControllerType"></opc:ObjectType>
+  
+  <opc:ObjectType SymbolicName="BoilerType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Object SymbolicName="WaterIn" TypeDefinition="ua:BaseObjectType">
+        <opc:Children>
+          <opc:Object SymbolicName="Flow" TypeDefinition="FlowControllerType"></opc:Object>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="SteamOut" TypeDefinition="ua:BaseObjectType">
+        <opc:Children>
+          <opc:Object SymbolicName="Flow" TypeDefinition="FlowControllerType"></opc:Object>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="Drum" TypeDefinition="ua:BaseObjectType">
+        <opc:Children>
+          <opc:Object SymbolicName="Level" TypeDefinition="LevelControllerType"></opc:Object>
+        </opc:Children>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+
+
+  <opc:Object SymbolicName="Plant" TypeDefinition="ua:FolderType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+</opc:ModelDesign>

@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Opc.Ua.Client.Controls.ExceptionDlg.Show(application.ApplicationName, e);
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }
