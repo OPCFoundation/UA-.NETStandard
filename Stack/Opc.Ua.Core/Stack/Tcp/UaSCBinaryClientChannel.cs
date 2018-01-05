@@ -583,7 +583,7 @@ namespace Opc.Ua.Bindings
 
                 string implementation = g_ImplementationString + 
                     m_socketFactory.Implementation + " " +
-                    AssemblyVersionInfo.CurrentVersion;
+                    Utils.GetAssemblySoftwareVersion();
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -1419,7 +1419,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_StartHandshake;
         private AsyncCallback m_HandshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private const string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + AssemblyVersionInfo.CurrentVersion;
+        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }

@@ -896,7 +896,7 @@ namespace Opc.Ua
         private Dictionary<ExpandedNodeId,ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private const string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + AssemblyVersionInfo.CurrentVersion;
+        private string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }
