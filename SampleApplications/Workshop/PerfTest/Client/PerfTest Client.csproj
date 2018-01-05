@@ -92,7 +92,7 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <Content Include="Quickstarts.PerfTestClient.Config.xml">
+    <Content Include="PerfTestClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="Properties\Settings.settings">

@@ -163,8 +163,14 @@ namespace Quickstarts.DataTypes
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
             
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.DataTypes.Types.Quickstarts.DataTypes.Types.PredefinedNodes.uanodes", typeof(Quickstarts.DataTypes.Types.VehicleType).Assembly, true);
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.DataTypes.Instances.Quickstarts.DataTypes.Instances.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context, 
+                "Quickstarts.DataTypes.Types.Quickstarts.DataTypes.Types.PredefinedNodes.uanodes", 
+                typeof(Quickstarts.DataTypes.Types.VehicleType).Assembly, 
+                true);
+            predefinedNodes.LoadFromBinaryResource(context, 
+                "Quickstarts.DataTypes.Instances.Quickstarts.DataTypes.Instances.PredefinedNodes.uanodes",
+                typeof(DataTypesNodeManager).GetTypeInfo().Assembly, 
+                true);
 
             return predefinedNodes;
         }

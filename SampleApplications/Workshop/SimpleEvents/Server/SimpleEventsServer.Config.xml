@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart DataAccess Server</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:DataAccessServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/DataAccessServer</ProductUri>
+  <ApplicationName>Quickstart SimpleEvents Server</ApplicationName>
+  <ApplicationUri>http://localhost/Quickstarts/SimpleEventsServer</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/Quickstarts/SimpleEventsServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart DataAccess Server</SubjectName>
+      <SubjectName>CN=Quickstart SimpleEvents Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -51,8 +51,8 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>http://localhost:62546/Quickstarts/DataAccessServer</ua:String>
-      <ua:String>opc.tcp://localhost:62547/Quickstarts/DataAccessServer</ua:String>
+      <ua:String>https://localhost:62540/Quickstarts/SimpleEventsServer</ua:String>
+      <ua:String>opc.tcp://localhost:62541/Quickstarts/SimpleEventsServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
@@ -88,7 +88,7 @@
       </ua:UserTokenPolicy>
       -->
     </UserTokenPolicies>
-    <DiagnosticsEnabled>true</DiagnosticsEnabled>
+    <DiagnosticsEnabled>false</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
@@ -127,19 +127,18 @@
       </SamplingRateGroup>
     </AvailableSamplingRates>
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
-    <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
-    <MaxSubscriptionCount>200</MaxSubscriptionCount>
+    <NodeManagerSaveFile>Quickstarts.SimpleEventsServer.nodes.xml</NodeManagerSaveFile>
   </ServerConfiguration>
 
   <Extensions>
     <ua:XmlElement>
-      <DataAccessServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/DataAccess">
-      </DataAccessServerConfiguration>
+      <SimpleEventsServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/SimpleEvents">
+      </SimpleEventsServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.DataAccessServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.SimpleEventsServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

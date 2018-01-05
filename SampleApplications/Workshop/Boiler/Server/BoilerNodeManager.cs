@@ -107,7 +107,10 @@ namespace Quickstarts.Boiler.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Boiler.Server.Quickstarts.Boiler.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context, 
+                "Quickstarts.Boiler.Server.Quickstarts.Boiler.PredefinedNodes.uanodes",
+                typeof(BoilerNodeManager).GetTypeInfo().Assembly, 
+                true);
             return predefinedNodes;
         }
         #endregion

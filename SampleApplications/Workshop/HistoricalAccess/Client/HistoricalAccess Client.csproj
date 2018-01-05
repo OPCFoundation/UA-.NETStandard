@@ -125,7 +125,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Quickstarts.HistoricalAccessClient.Config.xml">
+    <Content Include="HistoricalAccessClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="App.ico" />

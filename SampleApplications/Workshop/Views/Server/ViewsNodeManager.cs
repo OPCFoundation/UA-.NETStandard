@@ -108,7 +108,10 @@ namespace Quickstarts.ViewsServer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.ViewsServer.Model.Quickstarts.Views.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context, 
+                "Quickstarts.ViewsServer.Model.Quickstarts.Views.PredefinedNodes.uanodes",
+                typeof(ViewsNodeManager).GetTypeInfo().Assembly, 
+                true);
             return predefinedNodes;
         }
         #endregion

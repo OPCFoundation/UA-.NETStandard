@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart Empty Client</SubjectName>
+      <SubjectName>CN=Quickstart Empty Client, C=US, S=Arizona, O=SomeCompany, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->

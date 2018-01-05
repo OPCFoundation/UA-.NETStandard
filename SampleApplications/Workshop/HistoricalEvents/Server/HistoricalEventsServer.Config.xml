@@ -1,12 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ApplicationConfiguration
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart AlarmCondition Server</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:AlarmConditionServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/AlarmConditionServer</ProductUri>
+  <ApplicationName>Quickstart HistoricalEvents Server</ApplicationName>
+  <ApplicationUri>http://localhost/Quickstarts/HistoricalEventsServer</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/Quickstarts/HistoricalEventsServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart AlarmCondition Server</SubjectName>
+      <SubjectName>CN=Quickstart HistoricalEvents Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -35,9 +35,11 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
+
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
+  
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -50,8 +52,8 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>http://localhost:62543/Quickstarts/AlarmConditionServer</ua:String>
-      <ua:String>opc.tcp://localhost:62544/Quickstarts/AlarmConditionServer</ua:String>
+      <ua:String>https://localhost:62552/Quickstarts/HistoricalEventsServer</ua:String>
+      <ua:String>opc.tcp://localhost:62553/Quickstarts/HistoricalEventsServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
@@ -74,13 +76,13 @@
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
       </ua:UserTokenPolicy>
-      <!--
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
       </ua:UserTokenPolicy>
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
       </ua:UserTokenPolicy>
+      <!--
       <ua:UserTokenPolicy>
         <ua:TokenType>IssuedToken_3</ua:TokenType>
         <ua:IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</ua:IssuedTokenType>
@@ -103,71 +105,41 @@
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
-    <AvailableSamplingRates />
+    <AvailableSamplingRates>
+      <SamplingRateGroup>
+        <Start>5</Start>
+        <Increment>5</Increment>
+        <Count>20</Count>
+      </SamplingRateGroup>
+      <SamplingRateGroup>
+        <Start>100</Start>
+        <Increment>100</Increment>
+        <Count>4</Count>
+      </SamplingRateGroup>
+      <SamplingRateGroup>
+        <Start>500</Start>
+        <Increment>250</Increment>
+        <Count>2</Count>
+      </SamplingRateGroup>
+      <SamplingRateGroup>
+        <Start>1000</Start>
+        <Increment>500</Increment>
+        <Count>20</Count>
+      </SamplingRateGroup>
+    </AvailableSamplingRates>
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
-    <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
-    <MaxSubscriptionCount>50</MaxSubscriptionCount>    
+    <NodeManagerSaveFile>Quickstarts.HistoricalEventsServer.nodes.xml</NodeManagerSaveFile>
   </ServerConfiguration>
 
   <Extensions>
     <ua:XmlElement>
-      <AlarmConditionServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/AlarmCondition">
-        <Areas>
-          <AreaConfiguration>
-            <Name>Green</Name>
-            <SubAreas>
-              <AreaConfiguration>
-                <Name>East</Name>
-                <SubAreas>
-                  <AreaConfiguration>
-                    <Name>Red</Name>
-                    <SourcePaths>
-                      <ua:String>Colours/EastTank</ua:String>
-                      <ua:String>Colours/NorthMotor</ua:String>
-                    </SourcePaths>
-                  </AreaConfiguration>
-                  <AreaConfiguration>
-                    <Name>Blue</Name>
-                    <SourcePaths>
-                      <ua:String>Metals/WestTank</ua:String>
-                      <ua:String>Metals/SouthMotor</ua:String>
-                    </SourcePaths>
-                  </AreaConfiguration>
-                </SubAreas>
-              </AreaConfiguration>
-            </SubAreas>
-          </AreaConfiguration>
-          <AreaConfiguration>
-            <Name>Yellow</Name>
-            <SubAreas>
-              <AreaConfiguration>
-                <Name>West</Name>
-                <SubAreas>
-                  <AreaConfiguration>
-                    <Name>Red</Name>
-                    <SourcePaths>
-                      <ua:String>Metals/SouthMotor</ua:String>
-                      <ua:String>Colours/NorthMotor</ua:String>
-                    </SourcePaths>
-                  </AreaConfiguration>
-                  <AreaConfiguration>
-                    <Name>Blue</Name>
-                    <SourcePaths>
-                      <ua:String>Colours/EastTank</ua:String>
-                      <ua:String>Metals/WestTank</ua:String>
-                  </SourcePaths>
-                  </AreaConfiguration>
-                </SubAreas>
-              </AreaConfiguration>
-            </SubAreas>
-          </AreaConfiguration>
-        </Areas>
-      </AlarmConditionServerConfiguration>
+      <HistoricalEventsServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/HistoricalEvents">
+      </HistoricalEventsServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.AlarmConditionServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.HistoricalEventsServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
@@ -182,5 +154,5 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
-
+  
 </ApplicationConfiguration>

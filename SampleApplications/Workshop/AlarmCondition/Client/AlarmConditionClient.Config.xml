@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart HistoricalEvents Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:HistoricalEventsClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/HistoricalEventsClient</ProductUri>
+  <ApplicationName>Quickstart AlarmCondition Client</ApplicationName>
+  <ApplicationUri>urn:localhost:UA:AlarmConditionClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/AlarmConditionClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart HistoricalEvents Client</SubjectName>
+      <SubjectName>CN=Quickstart AlarmCondition Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -35,10 +35,32 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
-
   </SecurityConfiguration>
   
-  <TransportConfigurations></TransportConfigurations>
+  <TransportConfigurations>
+    <TransportConfiguration>
+      <UriScheme>http</UriScheme>
+      <TypeName>Opc.Ua.Bindings.UaSoapXmlBinding</TypeName>
+    </TransportConfiguration>
+    <TransportConfiguration>
+      <UriScheme>opc.tcp</UriScheme>
+      <TypeName>Opc.Ua.Bindings.UaTcpBinding</TypeName>
+    </TransportConfiguration>
+    <!--
+    <TransportConfiguration>
+      <UriScheme>net.tcp</UriScheme>
+      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverTcpBinding</TypeName>
+    </TransportConfiguration>
+    <TransportConfiguration>
+      <UriScheme>net.pipe</UriScheme>
+      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverPipeBinding</TypeName>
+    </TransportConfiguration>
+    <TransportConfiguration>
+      <UriScheme>opc.tcp</UriScheme>
+      <TypeName>Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStack</TypeName>
+    </TransportConfiguration>
+    -->
+  </TransportConfigurations>
   
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -59,7 +81,7 @@
       <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
-    <EndpointCacheFilePath>Quickstarts.HistoricalEventsClient.Endpoints.xml</EndpointCacheFilePath>
+    <EndpointCacheFilePath>Opc.Ua.SampleClient.Endpoints.xml</EndpointCacheFilePath>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
   </ClientConfiguration>
 
@@ -67,7 +89,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.HistoricalEventsClient.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.AlarmConditionClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

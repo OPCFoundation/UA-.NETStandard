@@ -97,7 +97,7 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <Content Include="Quickstarts.SimpleEventsClient.Config.xml">
+    <Content Include="SimpleEventsClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="Properties\Settings.settings">

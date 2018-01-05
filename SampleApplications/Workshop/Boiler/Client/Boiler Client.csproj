@@ -100,7 +100,7 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <Content Include="Quickstarts.BoilerClient.Config.xml">
+    <Content Include="BoilerClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="Properties\Settings.settings">

@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart AlarmCondition Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:AlarmConditionClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/AlarmConditionClient</ProductUri>
+  <ApplicationName>Quickstart HistoricalAccess Client</ApplicationName>
+  <ApplicationUri>urn:localhost:UA:HistoricalAccessClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/HistoricalAccessClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart AlarmCondition Client</SubjectName>
+      <SubjectName>CN=Quickstart HistoricalAccess Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -37,30 +37,7 @@
     </RejectedCertificateStore>
   </SecurityConfiguration>
   
-  <TransportConfigurations>
-    <TransportConfiguration>
-      <UriScheme>http</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlBinding</TypeName>
-    </TransportConfiguration>
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaTcpBinding</TypeName>
-    </TransportConfiguration>
-    <!--
-    <TransportConfiguration>
-      <UriScheme>net.tcp</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverTcpBinding</TypeName>
-    </TransportConfiguration>
-    <TransportConfiguration>
-      <UriScheme>net.pipe</UriScheme>
-      <TypeName>Opc.Ua.Bindings.UaSoapXmlOverPipeBinding</TypeName>
-    </TransportConfiguration>
-    <TransportConfiguration>
-      <UriScheme>opc.tcp</UriScheme>
-      <TypeName>Opc.Ua.NativeStack.NativeStackBinding,Opc.Ua.NativeStack</TypeName>
-    </TransportConfiguration>
-    -->
-  </TransportConfigurations>
+  <TransportConfigurations></TransportConfigurations>
   
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -89,7 +66,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.AlarmConditionClient.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.HistoricalAccessClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

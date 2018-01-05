@@ -120,7 +120,7 @@
     <Compile Include="UnderlyingSystem\UnderlyingSystemBlock.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Quickstarts.DataAccessServer.Config.xml">
+    <Content Include="DataAccessServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="App.ico" />

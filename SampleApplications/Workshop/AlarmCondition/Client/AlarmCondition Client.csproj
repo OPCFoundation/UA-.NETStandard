@@ -161,7 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="App.ico" />
-    <Content Include="Quickstarts.AlarmConditionClient.Config.xml">
+    <Content Include="AlarmConditionClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

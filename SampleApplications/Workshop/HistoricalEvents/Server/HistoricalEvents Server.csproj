@@ -95,7 +95,7 @@
     <Content Include="App.ico" />
     <Content Include="Model\ModelDesign.csv" />
     <Content Include="Model\ModelDesign.xml" />
-    <Content Include="Quickstarts.HistoricalEventsServer.Config.xml">
+    <Content Include="HistoricalEventsServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="BuildDesign.bat" />

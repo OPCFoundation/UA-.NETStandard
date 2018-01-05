@@ -61,7 +61,7 @@ namespace Quickstarts.PerfTestClient
         {
             InitializeComponent();
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://diamond:62522/Quickstarts/PerfTestServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/PerfTestServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion

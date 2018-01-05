@@ -94,8 +94,9 @@
     <Content Include="App.ico" />
     <Content Include="ModelDesign.csv" />
     <Content Include="ModelDesign.xml" />
-    <Content Include="Quickstarts.BoilerServer.Config.xml">
+    <Content Include="BoilerServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
     <Content Include="BuildDesign.bat" />
     <None Include="Properties\Settings.settings">

@@ -130,7 +130,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Quickstarts.DataAccessClient.Config.xml">
+    <Content Include="DataAccessClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="App.ico">

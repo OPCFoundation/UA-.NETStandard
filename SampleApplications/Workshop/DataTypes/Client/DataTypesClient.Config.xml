@@ -4,25 +4,37 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart PerfTest Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:PerfTestClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/PerfTestClient</ProductUri>
+  <ApplicationName>Quickstart DataTypes Client</ApplicationName>
+  <ApplicationUri>urn:localhost:somecompany.com:DataTypesClient</ApplicationUri>
+  <ProductUri>uri:somecompany.com:DataTypesClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
-
+  
   <SecurityConfiguration>
+
+    <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\Quickstarts\CertificateStores\PrivateKeys</StorePath>
-      <SubjectName>Quickstart PerfTest Client</SubjectName>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
+      <SubjectName>CN=Quickstart DataTypes Client, C=US, S=Arizona, O=SomeCompany, DC=localhost</SubjectName>
     </ApplicationCertificate>
-    <TrustedIssuerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\Quickstarts\CertificateStores\CertificateAuthorities</StorePath>
-    </TrustedIssuerCertificates>
+
+    <!-- Where the trust list is stored (UA Applications) -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\Quickstarts\CertificateStores\TrustList</StorePath>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
     </TrustedPeerCertificates>
+
+    <!-- Where the issuer certificate are stored (certificate authorities) -->
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+    </TrustedIssuerCertificates>
+
+    <!-- The directory used to store invalid certficates for later review by the administrator. -->
+    <RejectedCertificateStore>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+    </RejectedCertificateStore>
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
@@ -30,9 +42,9 @@
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
-    <MaxByteStringLength>4194304</MaxByteStringLength>
-    <MaxArrayLength>655350</MaxArrayLength>
-    <MaxMessageSize>8388608</MaxMessageSize>
+    <MaxByteStringLength>1048576</MaxByteStringLength>
+    <MaxArrayLength>65535</MaxArrayLength>
+    <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
     <ChannelLifetime>300000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
@@ -46,7 +58,7 @@
       <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
-    <EndpointCacheFilePath>Quickstarts.PerfTestClient.Endpoints.xml</EndpointCacheFilePath>
+    <EndpointCacheFilePath>DataTypesClient.Endpoints.xml</EndpointCacheFilePath>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
   </ClientConfiguration>
 
@@ -54,7 +66,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%\OPC Foundation\Logs\Quickstarts.PerfTestClient.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\DataTypesClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

@@ -5,8 +5,8 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
   <ApplicationName>Quickstart InformationModel Client</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:InformationModelClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/InformationModelClient</ProductUri>
+  <ApplicationUri>urn:localhost:UA:InformationModelClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/InformationModelClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart InformationModel Client</SubjectName>
+      <SubjectName>CN=Quickstart InformationModel Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->

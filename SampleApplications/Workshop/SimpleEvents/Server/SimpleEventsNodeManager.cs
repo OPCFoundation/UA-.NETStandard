@@ -105,7 +105,10 @@ namespace Quickstarts.SimpleEvents.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.SimpleEvents.Server.Quickstarts.SimpleEvents.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context,
+                "Quickstarts.SimpleEvents.Server.Quickstarts.SimpleEvents.PredefinedNodes.uanodes",
+                typeof(SimpleEventsNodeManager).GetTypeInfo().Assembly, 
+                true);
             return predefinedNodes;
         }
         #endregion

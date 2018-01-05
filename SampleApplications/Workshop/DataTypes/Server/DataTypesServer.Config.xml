@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart InformationModel Server</ApplicationName>
-  <ApplicationUri>urn:localhost:UASDK:InformationModelServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UASDK/InformationModelServer</ProductUri>
+  <ApplicationName>Quickstart DataTypes Server</ApplicationName>
+  <ApplicationUri>urn:localhost:somecompany.com:DataTypesServer</ApplicationUri>
+  <ProductUri>uri:somecompany.com:DataTypesServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart InformationModel Server</SubjectName>
+      <SubjectName>CN=Quickstart DataTypes Server, C=US, S=Arizona, O=SomeCompany, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -51,8 +51,8 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>http://localhost:62540/Quickstarts/BoilerServer</ua:String>
-      <ua:String>opc.tcp://localhost:62541/Quickstarts/BoilerServer</ua:String>
+      <ua:String>https://localhost:62540/DataTypesServer</ua:String>
+      <ua:String>opc.tcp://localhost:62541/DataTypesServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
@@ -88,7 +88,7 @@
       </ua:UserTokenPolicy>
       -->
     </UserTokenPolicies>
-    <DiagnosticsEnabled>false</DiagnosticsEnabled>
+    <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
@@ -127,18 +127,18 @@
       </SamplingRateGroup>
     </AvailableSamplingRates>
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
-    <NodeManagerSaveFile>Quickstarts.BoilerServer.nodes.xml</NodeManagerSaveFile>
+    <NodeManagerSaveFile>DataTypesServer.nodes.xml</NodeManagerSaveFile>
   </ServerConfiguration>
 
   <Extensions>
     <ua:XmlElement>
-      <BoilerServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/Boiler">
-      </BoilerServerConfiguration>
+      <DataTypesServerConfiguration xmlns="http://somecompany.com/DataTypes">
+      </DataTypesServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.BoilerServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\DataTypesServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

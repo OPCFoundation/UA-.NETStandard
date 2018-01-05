@@ -4,9 +4,9 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
-  <ApplicationName>Quickstart DataTypes Client</ApplicationName>
-  <ApplicationUri>urn:localhost:somecompany.com:DataTypesClient</ApplicationUri>
-  <ProductUri>uri:somecompany.com:DataTypesClient</ProductUri>
+  <ApplicationName>Quickstart HistoricalEvents Client</ApplicationName>
+  <ApplicationUri>urn:localhost:UA:HistoricalEventsClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/HistoricalEventsClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart DataTypes Client</SubjectName>
+      <SubjectName>CN=Quickstart HistoricalEvents Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -35,6 +35,7 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
+
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
@@ -58,7 +59,7 @@
       <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
-    <EndpointCacheFilePath>DataTypesClient.Endpoints.xml</EndpointCacheFilePath>
+    <EndpointCacheFilePath>Quickstarts.HistoricalEventsClient.Endpoints.xml</EndpointCacheFilePath>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
   </ClientConfiguration>
 
@@ -66,7 +67,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\DataTypesClient.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.HistoricalEventsClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

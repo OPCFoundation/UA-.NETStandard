@@ -110,7 +110,10 @@ namespace Quickstarts.HistoricalEvents.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.HistoricalEvents.Server.Model.Quickstarts.HistoricalEvents.PredefinedNodes.uanodes", null, true);
+            predefinedNodes.LoadFromBinaryResource(context, 
+                "Quickstarts.HistoricalEvents.Server.Model.Quickstarts.HistoricalEvents.PredefinedNodes.uanodes",
+                typeof(HistoricalEventsNodeManager).GetTypeInfo().Assembly,
+                true);
             return predefinedNodes;
         }
         #endregion

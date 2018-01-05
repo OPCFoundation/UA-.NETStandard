@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault</StorePath>
-      <SubjectName>Quickstart Methods Server</SubjectName>
+      <SubjectName>CN=Quickstart Methods Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the trust list is stored (UA Applications) -->
@@ -51,7 +51,7 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>http://localhost:62540/Quickstarts/MethodsServer</ua:String>
+      <ua:String>https://localhost:62540/Quickstarts/MethodsServer</ua:String>
       <ua:String>opc.tcp://localhost:62541/Quickstarts/MethodsServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>

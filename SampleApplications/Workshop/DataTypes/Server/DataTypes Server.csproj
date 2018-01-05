@@ -104,8 +104,9 @@
     </Compile>
     <Content Include="App.config" />
     <Content Include="App.ico" />
-    <Content Include="Quickstarts.DataTypesServer.Config.xml">
+    <Content Include="DataTypesServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
     <Content Include="Instances\ModelDesign2.xml" />
     <Content Include="Instances\Quickstarts.DataTypes.Instances.NodeSet.xml" />
