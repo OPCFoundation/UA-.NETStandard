@@ -35,9 +35,12 @@ namespace Opc.Ua
 
         public void Dispose()
         {
-            m_readableStore?.Dispose();
-            m_storeName = null;
-            m_readableStore = null;
+            // nothing to do
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            // nothing to do
         }
 
         /// <summary cref="ICertificateStore.Open(string)" />
@@ -90,9 +93,6 @@ namespace Opc.Ua
             }
 
             m_storeName = path.Substring(index + 1);
-
-            m_readableStore = new X509Store(m_storeName, m_storeLocation);
-            m_readableStore.Open(OpenFlags.ReadOnly);
         }
 
         public void Close()
@@ -102,7 +102,11 @@ namespace Opc.Ua
 
         public Task<X509Certificate2Collection> Enumerate()
         {
-            return Task.FromResult(m_readableStore.Certificates);
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            {
+                store.Open(OpenFlags.ReadOnly);
+                return Task.FromResult(new X509Certificate2Collection(store.Certificates));
+            }
         }
 
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
@@ -143,17 +147,22 @@ namespace Opc.Ua
 
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            X509Certificate2Collection collection = new X509Certificate2Collection();
-
-            foreach (X509Certificate2 certificate in m_readableStore.Certificates)
+            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
-                if (certificate.Thumbprint == thumbprint)
-                {
-                    collection.Add(certificate);
-                }
-            }
+                store.Open(OpenFlags.ReadOnly);
 
-            return Task.FromResult(collection);
+                X509Certificate2Collection collection = new X509Certificate2Collection();
+
+                foreach (X509Certificate2 certificate in store.Certificates)
+                {
+                    if (certificate.Thumbprint == thumbprint)
+                    {
+                        collection.Add(certificate);
+                    }
+                }
+
+                return Task.FromResult(collection);
+            }
         }
 
         public bool SupportsCRLs { get { return false; } }
@@ -185,6 +194,5 @@ namespace Opc.Ua
 
         private string m_storeName;
         private StoreLocation m_storeLocation;
-        private X509Store m_readableStore;
     }
 }
