@@ -30,6 +30,7 @@
 using System;
 using System.Windows.Forms;
 using Opc.Ua;
+using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
 
 namespace Quickstarts.ReferenceClient
@@ -46,6 +47,7 @@ namespace Quickstarts.ReferenceClient
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Client;
             application.ConfigSectionName = "Quickstarts.ReferenceClient";
@@ -64,13 +66,7 @@ namespace Quickstarts.ReferenceClient
             }
             catch (Exception e)
             {
-                string text = "Exception: " + e.Message;
-                if (e.InnerException != null)
-                {
-                    text += "\r\nInner exception: ";
-                    text += e.InnerException.Message;
-                }
-                MessageBox.Show(text, application.ApplicationName);
+                ExceptionDlg.Show(application.ApplicationName, e);
                 return;
             }
         }

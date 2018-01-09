@@ -185,7 +185,7 @@ namespace Quickstarts.ReferenceClient
         }
         #endregion
 
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Exit this application?", "Reference Client", MessageBoxButtons.YesNoCancel) == DialogResult.Yes)
             {

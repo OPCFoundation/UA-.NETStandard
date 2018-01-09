@@ -29,7 +29,7 @@
 
 using System;
 using Opc.Ua.Configuration;
-using Opc.Ua.Client.Controls;
+using Opc.Ua.Server.Controls;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -65,12 +65,11 @@ namespace Opc.Ua.Gds.Server
                 application.Start(server).Wait();
 
                 // run the application interactively.
-                System.Windows.Forms.Application.Run(new Opc.Ua.Server.Controls.ServerForm(server, application.ApplicationConfiguration));
+                System.Windows.Forms.Application.Run(new ServerForm(server, application.ApplicationConfiguration));
             }
             catch (Exception e)
             {
-                Opc.Ua.Client.Controls.ExceptionDlg.Show(application.ApplicationName, e);
-                return;
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

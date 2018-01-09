@@ -37,6 +37,7 @@
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+	<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -139,7 +140,7 @@
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\Samples\ServerControls.Net4\UA Server Controls.csproj">
-      <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
+      <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
       <Name>UA Server Controls</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">

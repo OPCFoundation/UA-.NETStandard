@@ -2468,12 +2468,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
-            Version version = Assembly.GetCallingAssembly().GetName().Version;
-            return Utils.Format("{0}.{1}", version.Major, version.Minor);
-#else
-            return AssemblyVersionInfo.CurrentVersion;
-#endif
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
         }
 
         /// <summary>
@@ -2481,12 +2476,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
-            Version version = Assembly.GetCallingAssembly().GetName().Version;
-            return Utils.Format("{0}.{1}", version.Build, (version.MajorRevision << 16) + version.MinorRevision);
-#else
-            return AssemblyVersionInfo.CurrentFileVersion;
-#endif
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version;
         }
 
         #endregion

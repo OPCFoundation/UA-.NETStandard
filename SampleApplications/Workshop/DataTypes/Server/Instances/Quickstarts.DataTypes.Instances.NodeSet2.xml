@@ -1,0 +1,232 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances</Uri>
+    <Uri>http://opcfoundation.org/UA/Quickstarts/DataTypes/Types</Uri>
+  </NamespaceUris>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="XmlElement">i=16</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="ExpandedNodeId">i=18</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Integer">i=27</Alias>
+    <Alias Alias="UInteger">i=28</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+  </Aliases>
+  <UADataType NodeId="ns=1;i=378" BrowseName="1:ParkingLotType">
+    <DisplayName>ParkingLotType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=379</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=379" BrowseName="EnumStrings" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=378</Reference>
+    </References>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=365" BrowseName="1:BicycleType">
+    <DisplayName>BicycleType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=314</Reference>
+    </References>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=281" BrowseName="1:ParkingLot">
+    <DisplayName>ParkingLot</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=380</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=375</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=283</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=380" BrowseName="1:LotType" DataType="ns=1;i=378" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>LotType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=281</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=375" BrowseName="1:DriverOfTheMonth">
+    <DisplayName>DriverOfTheMonth</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=376</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=377</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=341</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=281</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=376" BrowseName="2:PrimaryVehicle" DataType="ns=2;i=314" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>PrimaryVehicle</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=375</Reference>
+    </References>
+    <Value>
+      <ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <TypeId>
+          <Identifier>ns=1;i=366</Identifier>
+        </TypeId>
+        <Body>
+          <BicycleType xmlns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances">
+            <s0:Make xmlns:s0="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types">Trek</s0:Make>
+            <s0:Model xmlns:s0="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types">Compact</s0:Model>
+            <NoOfGears>10</NoOfGears>
+            <ManufacterName>
+              <uax:NamespaceIndex xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1</uax:NamespaceIndex>
+              <uax:Name xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">Hello</uax:Name>
+            </ManufacterName>
+          </BicycleType>
+        </Body>
+      </ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=377" BrowseName="2:OwnedVehicles" DataType="ns=2;i=314" ValueRank="1" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>OwnedVehicles</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=375</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>ns=2;i=319</Identifier>
+          </TypeId>
+          <Body>
+            <TruckType xmlns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types">
+              <Make>Dodge</Make>
+              <Model>Ram</Model>
+              <CargoCapacity>500</CargoCapacity>
+            </TruckType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>ns=2;i=318</Identifier>
+          </TypeId>
+          <Body>
+            <VehicleType xsi:type="CarType" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types">
+              <Make>Porche</Make>
+              <Model>Roadster</Model>
+              <NoOfPassengers>2</NoOfPassengers>
+            </VehicleType>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=283" BrowseName="1:VehiclesInLot" DataType="ns=2;i=314" ValueRank="1" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>VehiclesInLot</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=281</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=366" BrowseName="Default XML">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=365</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=367</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=341" BrowseName="1:Quickstarts.DataTypes.Instances" DataType="ByteString">
+    <DisplayName>Quickstarts.DataTypes.Instances</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=343</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=367</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=92</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=343" BrowseName="NamespaceUri" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=341</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances</String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=367" BrowseName="1:BicycleType" DataType="String">
+    <DisplayName>BicycleType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=341</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BicycleType']</String>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=370" BrowseName="Default Binary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=365</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=371</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=353" BrowseName="1:Quickstarts.DataTypes.Instances" DataType="ByteString">
+    <DisplayName>Quickstarts.DataTypes.Instances</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=355</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=371</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=93</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=355" BrowseName="NamespaceUri" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=353</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances</String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=371" BrowseName="1:BicycleType" DataType="String">
+    <DisplayName>BicycleType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=353</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BicycleType</String>
+    </Value>
+  </UAVariable>
+</UANodeSet>

@@ -107,28 +107,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="ServerDiagnosticsCtrl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ServerDiagnosticsCtrl.Designer.cs">
-      <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
-    </Compile>
-    <Compile Include="ServerForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ServerForm.Designer.cs">
-      <DependentUpon>ServerForm.cs</DependentUpon>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="ServerDiagnosticsCtrl.resx">
-      <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ServerForm.resx">
-      <DependentUpon>ServerForm.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Content Include="App.ico" />
@@ -149,6 +127,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\SampleApplications\Samples\ServerControls.Net4\UA Server Controls.csproj">
+      <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
+      <Name>UA Server Controls</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{8906c833-3c21-45b7-b103-1f27aa945075}</Project>
       <Name>Opc.Ua.Client</Name>

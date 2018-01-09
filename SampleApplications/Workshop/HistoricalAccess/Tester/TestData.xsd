@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="TestData"
+    targetNamespace="http://opcfoundation.org/UA/HA/TestData"
+    elementFormDefault="qualified"
+    xmlns="http://opcfoundation.org/UA/HA/TestData"
+    xmlns:mstns="http://opcfoundation.org/UA/HA/TestData"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+  <xs:element name="TestData">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="RawDataSets" type="ListOfRawDataSet"></xs:element>
+        <xs:element name="ProcessedDataSets" type="ListOfProcessedDataSetType"></xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:complexType name="RawDataSetType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string"></xs:element>
+      <xs:element name="Values" type="ValueSet"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ListOfRawDataSet">
+    <xs:sequence>
+      <xs:element name="DataSet" type="RawDataSetType"  minOccurs="0" maxOccurs="unbounded"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ProcessedDataSetType">
+    <xs:sequence>
+      <xs:element name="DataSetName" type="xs:string"></xs:element>
+      <xs:element name="AggregateName" type="xs:string"></xs:element>
+      <xs:element name="ProcessingInterval" type="xs:unsignedInt"></xs:element>
+      <xs:element name="Stepped" type="xs:boolean"></xs:element>
+      <xs:element name="TreatUncertainAsBad" type="xs:boolean"></xs:element>
+      <xs:element name="PercentBad" type="xs:unsignedShort"></xs:element>
+      <xs:element name="PercentGood" type="xs:unsignedShort"></xs:element>
+      <xs:element name="UseSlopedExtrapolation" type="xs:boolean"></xs:element>
+      <xs:element name="Values" type="ValueSet" minOccurs="0" ></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ListOfProcessedDataSetType">
+    <xs:sequence>
+      <xs:element name="DataSet" type="ProcessedDataSetType" maxOccurs="unbounded"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ValueType">
+    <xs:sequence>
+      <xs:element name="Timestamp" type="xs:string"></xs:element>
+      <xs:element name="Value" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="Quality" type="xs:string" minOccurs="0"></xs:element>
+      <xs:element name="Comment" type="xs:string" minOccurs="0"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ValueSet">
+    <xs:sequence>
+      <xs:element name="Value" type="ValueType" minOccurs="0" maxOccurs="unbounded"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

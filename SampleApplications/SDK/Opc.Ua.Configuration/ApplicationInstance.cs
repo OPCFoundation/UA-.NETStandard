@@ -255,6 +255,27 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <summary>
+        /// Processes the command line.
+        /// </summary>
+        /// <returns>
+        /// True if the arguments were processed; False otherwise.
+        /// </returns>
+        public bool ProcessCommandLine()
+        {
+            // ignore processing of command line
+            return false;
+        }
+
+        /// <summary>
+        /// Starts the UA server as a Windows Service.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        public void StartAsService(ServerBase server)
+        {
+            throw new NotImplementedException(".NetStandard Opc.Ua libraries do not support to start as a windows service");
+        }
+
+        /// <summary>
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
