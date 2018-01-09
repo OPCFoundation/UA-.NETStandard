@@ -1,5 +1,5 @@
 language: csharp
-mono: none
+mono: 5.4.0
 dotnet: 2.0.0
 os:
   - linux
@@ -13,20 +13,25 @@ addons:
     sources:
     packages:
 script: 
+  - echo "========== build all Mono samples ============"
+  - msbuild /p:configuration=Debug /t:restore,compile SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
+  - msbuild /p:configuration=Release /t:restore,compile SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
+  - msbuild /p:configuration=Debug /t:restore,compile SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
+  - msbuild /p:configuration=Release /t:restore,compile SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
   - echo "========== build all .Net Core samples ============"
   - dotnet restore "UA Core Library.sln"
   - dotnet restore "UA-NetStandard.sln"
   - dotnet restore "UA Global Discovery Server.sln"
-  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient
-  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer
-  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient
-  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer
+  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
+  - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
+  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
+  - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
-  - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer
-  - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer
+  - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
+  - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest

@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\Server\ReferenceNodeManager.cs;..\Server\ReferenceServer.cs;..\Server\ReferenceServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
 
