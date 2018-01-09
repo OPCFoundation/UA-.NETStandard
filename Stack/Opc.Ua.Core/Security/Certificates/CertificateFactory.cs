@@ -833,11 +833,13 @@ public class CertificateFactory
         bool throwOnError = false)
     {
         bool result = false;
+        RSA rsaPrivateKey = null;
+        RSA rsaPublicKey = null;
         try
         {
             // verify the public and private key match
-            RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-            RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+            rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+            rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
             X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
             if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
             {
@@ -861,6 +863,8 @@ public class CertificateFactory
         }
         finally
         {
+            RsaUtils.RSADispose(rsaPrivateKey);
+            RsaUtils.RSADispose(rsaPublicKey);
             if (!result && throwOnError)
             {
                 throw new CryptographicException("The public/private key pair in the certficates do not match.");
@@ -1046,12 +1050,20 @@ public class CertificateFactory
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
-        RSA rsa = certificate.GetRSAPublicKey();
-        RSAParameters rsaParams = rsa.ExportParameters(false);
-        return new RsaKeyParameters(
-            false,
-            new BigInteger(1, rsaParams.Modulus),
-            new BigInteger(1, rsaParams.Exponent));
+        RSA rsa = null;
+        try
+        {
+            rsa = certificate.GetRSAPublicKey();
+            RSAParameters rsaParams = rsa.ExportParameters(false);
+            return new RsaKeyParameters(
+                false,
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent));
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
+        }
     }
 
     /// <summary>
@@ -1060,19 +1072,27 @@ public class CertificateFactory
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
-        // try to get signing/private key from certificate passed in
-        RSA rsa = certificate.GetRSAPrivateKey();
-        RSAParameters rsaParams = rsa.ExportParameters(true);
-        RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-            new BigInteger(1, rsaParams.Modulus),
-            new BigInteger(1, rsaParams.Exponent),
-            new BigInteger(1, rsaParams.D),
-            new BigInteger(1, rsaParams.P),
-            new BigInteger(1, rsaParams.Q),
-            new BigInteger(1, rsaParams.DP),
-            new BigInteger(1, rsaParams.DQ),
-            new BigInteger(1, rsaParams.InverseQ));
-        return keyParams;
+        RSA rsa = null;
+        try
+        {
+            // try to get signing/private key from certificate passed in
+            rsa = certificate.GetRSAPrivateKey();
+            RSAParameters rsaParams = rsa.ExportParameters(true);
+            RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent),
+                new BigInteger(1, rsaParams.D),
+                new BigInteger(1, rsaParams.P),
+                new BigInteger(1, rsaParams.Q),
+                new BigInteger(1, rsaParams.DP),
+                new BigInteger(1, rsaParams.DQ),
+                new BigInteger(1, rsaParams.InverseQ));
+            return keyParams;
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
+        }
     }
 
     /// <summary>
