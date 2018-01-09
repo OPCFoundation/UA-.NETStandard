@@ -1,0 +1,28 @@
+<opc:TypeDictionary
+  xmlns:opc="http://opcfoundation.org/BinarySchema/"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.bsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  DefaultByteOrder="LittleEndian"
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"  
+>
+  <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
+  
+  <opc:StructuredType Name="VehicleType">
+    <opc:Field Name="Make" TypeName="opc:String" />
+    <opc:Field Name="Model" TypeName="opc:String" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="CarType">
+    <opc:Field Name="Make" TypeName="opc:String" />
+    <opc:Field Name="Model" TypeName="opc:String" />
+    <opc:Field Name="NoOfPassengers" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="TruckType">
+    <opc:Field Name="Make" TypeName="opc:String" />
+    <opc:Field Name="Model" TypeName="opc:String" />
+    <opc:Field Name="CargoCapacity" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+  
+</opc:TypeDictionary>

@@ -471,7 +471,6 @@
     <Compile Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.Designer.cs">
       <DependentUpon>DateTimeValueEditDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="Configuration\Common %28OLD%29\MessageDlg.cs" />
     <Compile Include="Configuration\Common %28OLD%29\NodeIdCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -641,6 +640,7 @@
     <Compile Include="HeaderBranding.designer.cs">
       <DependentUpon>HeaderBranding.cs</DependentUpon>
     </Compile>
+    <Compile Include="MessageDlg.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">

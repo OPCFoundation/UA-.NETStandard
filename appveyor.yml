@@ -40,6 +40,8 @@ environment:
     test_name: "SampleApplications/Samples/GDS/ClientTest/GlobalDiscoveryClientTest.csproj"
   - solution_name: "UA Universal Windows.sln"
     test_name: "void"
+  - solution_name: "UA Quickstart Applications.sln"
+    test_name: "void"
   - solution_name: "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
     test_name: "void"
   - solution_name: "SampleApplications/Workshop/Reference/UA Reference.sln"  

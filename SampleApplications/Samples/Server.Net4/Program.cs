@@ -54,34 +54,24 @@ namespace Opc.Ua.Sample
 
             try
             {
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
-                task.Wait();
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-                task2.Wait();
-                bool certOK = task2.Result;
+                bool certOK = application.CheckApplicationInstanceCertificate(false, 0).Result;
                 if (!certOK)
                 {
                     throw new Exception("Application instance certificate invalid!");
                 }
 
                 // start the server.
-                Task task3 = application.Start(new SampleServer());
-                task3.Wait();
+                application.Start(new SampleServer()).Wait();
 
                 // run the application interactively.
                 Application.Run(new ServerForm(application));
             }
             catch (Exception e)
             {
-                string text = "Exception: " + e.Message;
-                if (e.InnerException != null)
-                {
-                    text += "\r\nInner exception: ";
-                    text += e.InnerException.Message;
-                }
-                MessageBox.Show(text, application.ApplicationName);
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

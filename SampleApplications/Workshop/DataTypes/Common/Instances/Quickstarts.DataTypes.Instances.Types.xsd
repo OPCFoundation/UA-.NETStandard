@@ -1,0 +1,30 @@
+<xs:schema 
+  xmlns:s1="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd" 
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances" 
+  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances" 
+  elementFormDefault="qualified"
+>
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+  <xs:import namespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" />
+  
+  <xs:complexType name="BicycleType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="s1:VehicleType">
+        <xs:sequence>
+          <xs:element name="NoOfGears" type="xs:unsignedInt" minOccurs="1" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="BicycleType" type="tns:BicycleType" />
+
+  <xs:complexType name="ListOfBicycleType">
+    <xs:sequence>
+      <xs:element name="BicycleType" type="tns:BicycleType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfBicycleType" type="tns:ListOfBicycleType" nillable="true"></xs:element>
+  
+</xs:schema>
