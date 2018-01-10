@@ -5,9 +5,9 @@ testresult=0
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
-dotnet build
+dotnet build NetCoreConsoleServer.csproj
 echo start server
-dotnet run --no-restore --no-build -t 60 -a &
+dotnet run --no-restore --no-build NetCoreConsoleServer.csproj -t 60 -a &
 serverpid="$!"
 cd $workdir
 

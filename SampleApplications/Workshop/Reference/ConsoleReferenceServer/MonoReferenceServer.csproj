@@ -5,18 +5,18 @@
     <AssemblyName>MonoReferenceServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>MonoReferenceServer</PackageId>
-    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
-    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
-    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>Mono Reference Server</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="..\Server\ReferenceNodeManager.cs;..\Server\ReferenceServer.cs;..\Server\ReferenceServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
-
+  
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>

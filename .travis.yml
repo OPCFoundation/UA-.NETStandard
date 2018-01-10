@@ -13,23 +13,20 @@ addons:
     sources:
     packages:
 script: 
-  - echo "========== build all Mono samples ============"
-  - msbuild /p:configuration=Debug /t:restore,compile SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
-  - msbuild /p:configuration=Release /t:restore,compile SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
-  - msbuild /p:configuration=Debug /t:restore,compile SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
-  - msbuild /p:configuration=Release /t:restore,compile SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
-  - echo "========== build all .Net Core samples ============"
+  - echo "========== restore all .Net Core samples ============"
   - dotnet restore "UA Core Library.sln"
   - dotnet restore "UA-NetStandard.sln"
   - dotnet restore "UA Global Discovery Server.sln"
+  - dotnet restore "UA Quickstart Applications.sln"
+  - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
+  - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
+  - echo "========== build all .Net Core samples ============"
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
-  - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
-  - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
   - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer
@@ -45,6 +42,15 @@ script:
   - dotnet NetCoreConsoleServer.dll -t 10 -a
   - cd $TRAVIS_BUILD_DIR
   - ./testclientserver.sh
+  - echo "========== build all Mono samples ============"
+  - msbuild /t:restore SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
+  - msbuild /p:configuration=Debug /t:compile,publish SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
+  - msbuild /p:configuration=Release /t:compile,publish SampleApplications/Workshop/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj
+  - msbuild /t:restore SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
+  - msbuild /p:configuration=Debug /t:compile,publish SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
+  - msbuild /p:configuration=Release /t:compile,publish SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
+  - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/net46
+  - mono MonoConsoleServer.exe -t 10 -a
 
 after_script:
   - echo "========== build done ============"

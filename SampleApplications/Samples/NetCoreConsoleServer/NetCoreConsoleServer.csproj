@@ -5,6 +5,10 @@
     <AssemblyName>NetCoreConsoleServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>NetCoreConsoleServer</PackageId>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>.Net Core Console Server</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

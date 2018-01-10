@@ -5,6 +5,10 @@
     <AssemblyName>MonoConsoleServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>MonoConsoleServer</PackageId>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>Mono Console Server</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>	
   </PropertyGroup>
 
   <ItemGroup>
