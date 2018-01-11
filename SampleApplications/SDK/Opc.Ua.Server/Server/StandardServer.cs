@@ -2183,7 +2183,11 @@ namespace Opc.Ua.Server
                                     ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-
+                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration();
+                                    mdnsDiscoveryConfig.ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+                                    mdnsDiscoveryConfig.MdnsServerName = Utils.GetHostName();
+                                    ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
                                         requestHeader,
                                         m_registrationInfo,
