@@ -6,9 +6,9 @@ This OPC UA reference implementation is targeting the [.NET Standard](https://do
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
 2. Sample Servers and Clients, including all required controls, for .Net 4.6.1, .NetCore 2.0 and UWP.
-3. X.509 certificate support for client and server authentication
-4. SHA512 support
-5. Anonymous, username and X.509 certificate user authentication
+3. X.509 certificate support for client and server authentication.
+4. SHA512 support.
+5. Anonymous, username and X.509 certificate user authentication.
 6. UA-TCP & HTTPS transports (client and server)
 7. Folder & OS-level (X509Store) certificate-store support
 8. Sessions (including UI support in the samples)
@@ -17,7 +17,8 @@ This OPC UA reference implementation is targeting the [.NET Standard](https://do
 11. OPC UA [Aggregation Server](SampleApplications/Workshop/Aggregation/README.md)
 12. [OPC Classic adapter for OPC UA](ComIOP/README.md)
 13. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS/README.md)
-14. OPC UA Certification Test Tool Version 1.03.340.358 compliant
+14. OPC UA Certification Test Tool Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/) compliant. The UA [Reference Server](SampleApplications/Workshop/Reference/README.md) is certified for compliance by the OPC Foundation.
+15. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .Net projects.
 
 ## Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
