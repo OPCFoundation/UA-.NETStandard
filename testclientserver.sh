@@ -5,6 +5,7 @@ testresult=0
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
+rm -r obj
 dotnet build NetCoreConsoleServer.csproj
 echo start server
 dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a &
@@ -13,9 +14,10 @@ cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo build client
-dotnet build NetCoreConsoleServer.csproj
+rm -r obj
+dotnet build NetCoreConsoleClient.csproj
 echo start client
-dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 20 &
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 &
 clientpid="$!"
 cd $workdir
 
@@ -35,8 +37,8 @@ serverresult=$?
 if [ $? -eq 0 ]; then
 	echo "SUCCESS - Server test passed"
 else
-	testresult=$?
-	echo "FAILED - Server test failed with a status of $testresult"
+	serverresult=$?
+	echo "FAILED - Server test failed with a status of $serverresult"
 fi
 
 exit $testresult

@@ -75,7 +75,10 @@ namespace NetCoreConsoleServer
 
         public static int Main(string[] args)
         {
-            Console.WriteLine(".Net Core OPC UA Console Server sample");
+            Console.WriteLine(
+                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") + 
+                " OPC UA Console Server sample");
+
 
             // command line options
             bool showHelp = false;

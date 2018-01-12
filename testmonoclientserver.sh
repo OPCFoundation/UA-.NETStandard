@@ -5,18 +5,20 @@ testresult=0
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
-msbuild /p:configuration=Debug /t:restore,compile MonoConsoleServer.csproj
+rm -r obj
+msbuild /p:configuration=Debug /t:restore,build MonoConsoleServer.csproj
 echo start server
-cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/net46
+cd bin/Debug/net46
 mono MonoConsoleServer.exe -t 60 -a &
 serverpid="$!"
 cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo build client
-msbuild /p:configuration=Debug /t:restore,compile MonoConsoleClient.csproj
+rm -r obj
+msbuild /p:configuration=Debug /t:restore,build MonoConsoleClient.csproj
 echo start client
-cd SampleApplications/Samples/NetCoreConsoleClient/bin/Debug/net46
+cd bin/Debug/net46
 mono MonoConsoleClient.exe -t 20 &
 clientpid="$!"
 cd $workdir
@@ -37,8 +39,8 @@ serverresult=$?
 if [ $? -eq 0 ]; then
 	echo "SUCCESS - Server test passed"
 else
-	testresult=$?
-	echo "FAILED - Server test failed with a status of $testresult"
+	serverresult=$?
+	echo "FAILED - Server test failed with a status of $serverresult"
 fi
 
 exit $testresult
