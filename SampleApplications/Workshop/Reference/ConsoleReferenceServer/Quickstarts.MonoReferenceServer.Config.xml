@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>./OPC Foundation/PKI/own</StorePath>
-      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=Quickstart Mono Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->

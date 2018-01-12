@@ -77,7 +77,9 @@ namespace NetCoreConsoleClient
             if (showHelp)
             {
                 // show some app description message
-                Console.WriteLine("Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
+                Console.WriteLine(Utils.IsRunningOnMono() ?
+                    "Usage: mono MonoConsoleClient.exe [OPTIONS] [ENDPOINTURL]" :
+                    "Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
                 Console.WriteLine();
 
                 // output the options

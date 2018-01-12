@@ -51,6 +51,8 @@ script:
   - msbuild /p:configuration=Release /t:compile,publish SampleApplications/Samples/NetCoreConsoleServer/MonoConsoleServer.csproj
   - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/net46
   - mono MonoConsoleServer.exe -t 10 -a
+  - cd $TRAVIS_BUILD_DIR
+  - ./testmonoclientserver.sh
 
 after_script:
   - echo "========== build done ============"

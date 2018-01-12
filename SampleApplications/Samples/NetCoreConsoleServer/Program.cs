@@ -105,7 +105,7 @@ namespace NetCoreConsoleServer
 
             if (showHelp)
             {
-                Console.WriteLine("Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]");
+                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoConsoleServer.exe [OPTIONS]" : "Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]" );
                 Console.WriteLine();
 
                 Console.WriteLine("Options:");
@@ -210,11 +210,7 @@ namespace NetCoreConsoleServer
 
             application.ApplicationName = "UA Core Sample Server";
             application.ApplicationType = ApplicationType.Server;
-#if NET46
-            application.ConfigSectionName = "Opc.Ua.MonoSampleServer";
-#else
-            application.ConfigSectionName = "Opc.Ua.SampleServer";
-#endif
+            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Opc.Ua.MonoSampleServer" : "Opc.Ua.SampleServer";
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);

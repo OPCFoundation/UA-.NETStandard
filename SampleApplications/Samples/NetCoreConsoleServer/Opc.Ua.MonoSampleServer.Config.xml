@@ -209,7 +209,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>./Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>./Opc.Ua.MonoSampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

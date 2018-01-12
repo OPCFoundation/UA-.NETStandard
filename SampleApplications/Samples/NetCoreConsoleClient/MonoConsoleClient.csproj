@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <AssemblyName>NetCoreConsoleClient</AssemblyName>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>MonoConsoleClient</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>NetCoreConsoleClient</PackageId>
+    <PackageId>MonoConsoleClient</PackageId>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>
-    <Description>.Net Core Console Client</Description>
+    <Description>Mono Console Client</Description>
     <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
