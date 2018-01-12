@@ -123,7 +123,7 @@ namespace NetCoreConsoleClient
                 applicationCert = new CertificateIdentifier
                     {
                         StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/MachineAccount",
+                        StorePath = "OPC Foundation/CertificateStores/MachineDefault",
                         SubjectName = "UA Core Sample Client"
                     };
             }
