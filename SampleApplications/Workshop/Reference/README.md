@@ -42,7 +42,7 @@ Download and install the [OPC UA Compliance Test Tool](https://opcfoundation.org
 Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 
 ### UACTT sample configuration
-A sample configuration for the UACTT Version 1.03.340.358 can be found in [UAReferenceServer.ctt.xml](UAReferenceServer.ctt.xml). The reference server is tested against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess server Facet**. It is recommended to run the server as retail build with disabled logging, to avoid side effects due to timing artifacts when log entries are written to a disk drive. 
+A sample configuration for the UACTT Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](UAReferenceServer.ctt.xml). The reference server is tested against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**. It is recommended to run the server as retail build with disabled logging, to avoid side effects due to timing artifacts when log entries are written to a disk drive. 
 
 #### Finding the Address Space Configuration Code
 - Project: Reference Server
