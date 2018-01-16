@@ -33,6 +33,7 @@ using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -268,7 +269,7 @@ namespace Opc.Ua.Gds.Client
 
             if (m_session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
             {
-                m_session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).Assembly);
+                m_session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
             }
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
