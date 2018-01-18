@@ -133,7 +133,9 @@ namespace Opc.Ua.Gds.Test
             }
 
             // start the server.
-            m_server = new GlobalDiscoverySampleServer(JsonApplicationsDatabase.Load(databaseStorePath));
+            m_server = new GlobalDiscoverySampleServer(
+                JsonApplicationsDatabase.Load(databaseStorePath),
+                new CertificateGroup());
             await application.Start(m_server);
 
             ServerState serverState = Server.GetStatus().State;

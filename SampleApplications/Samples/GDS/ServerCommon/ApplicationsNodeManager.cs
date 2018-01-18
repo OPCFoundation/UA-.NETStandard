@@ -54,7 +54,9 @@ namespace Opc.Ua.Gds.Server
         public ApplicationsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            IApplicationsDatabase database)
+            IApplicationsDatabase database,
+            ICertificateGroupProvider certificateGroupProvider
+            )
             : base(server, configuration)
         {
             List<string> namespaceUris = new List<string>
@@ -89,6 +91,7 @@ namespace Opc.Ua.Gds.Server
 
             m_autoApprove = true;
             m_database = database;
+            m_certificateGroupProvider = certificateGroupProvider;
             m_certificateGroups = new Dictionary<NodeId, CertificateGroup>();
 
             try
@@ -248,7 +251,7 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private void RevokeCertificate(byte[] certificate)
+        private async Task RevokeCertificateAsync(byte[] certificate)
         {
             if (certificate != null && certificate.Length > 0)
             {
@@ -259,8 +262,7 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         var x509 = new X509Certificate2(certificate);
-                        certificateGroup.RevokeCertificate(x509);
-                        UpdateAuthorityCertInTrustedList(certificateGroup.Certificate, certificateGroup.Configuration.TrustedListPath).Wait();
+                        await certificateGroup.RevokeCertificateAsync(x509);
                     }
                     catch (Exception e)
                     {
@@ -270,10 +272,8 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async Task<CertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
+        protected async Task<CertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
         {
-            CertificateGroup certificateGroup = null;
-
             if (String.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
             {
                 throw new ArgumentNullException("SubjectName not specified");
@@ -284,76 +284,12 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException("BaseStorePath not specified");
             }
 
-            string subjectName = certificateGroupConfiguration.SubjectName.Replace("localhost", Utils.GetHostName());
-
-            Utils.Trace(Utils.TraceMasks.Information, "InitializeCertificateGroup: {0}", certificateGroupConfiguration.SubjectName);
-
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.AuthoritiesStorePath))
-            {
-                X509Certificate2Collection certificates = await store.Enumerate();
-                foreach (var certificate in certificates)
-                {
-                    if (Utils.CompareDistinguishedName(certificate.Subject, subjectName))
-                    {
-                        certificateGroup = new CertificateGroup(m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
-                        SetCertificateGroupNodes(certificateGroup, new X509Certificate2(certificate.RawData));
-                        break;
-                    }
-                }
-            }
-
-            if (certificateGroup == null)
-            {
-
-                Utils.Trace(Utils.TraceMasks.Security,
-                    "Create new CA Certificate: {0}, KeySize: {1}, HashSize: {2}, LifeTime: {3} months",
-                    subjectName,
-                    certificateGroupConfiguration.DefaultCertificateKeySize,
-                    certificateGroupConfiguration.DefaultCertificateHashSize,
-                    certificateGroupConfiguration.DefaultCertificateLifetime
-                    );
-
-                certificateGroup = new CertificateGroup(m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
-
-                X509Certificate2 newCertificate = certificateGroup.CreateCACertificate(subjectName);
-
-                SetCertificateGroupNodes(certificateGroup, newCertificate);
-            }
-
-            // sync the authority store with the trusted list
-            await UpdateAuthorityCertInTrustedList(certificateGroup.Certificate, certificateGroup.Configuration.TrustedListPath);
+            CertificateGroup certificateGroup = m_certificateGroupProvider.Create(
+                m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
+            SetCertificateGroupNodes(certificateGroup);
+            await certificateGroup.Init();
 
             return certificateGroup;
-        }
-
-        private async Task UpdateAuthorityCertInTrustedList(X509Certificate2 authorityCertificate, string trustListStorePath)
-        {
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(trustListStorePath))
-            {
-                X509Certificate2Collection certs = await store.FindByThumbprint(authorityCertificate.Thumbprint);
-                if (certs.Count == 0)
-                {
-                    await store.Add(authorityCertificate);
-                }
-
-                // delete existing CRL in trusted list
-                foreach (var crl in store.EnumerateCRLs(authorityCertificate, false))
-                {
-                    if (crl.VerifySignature(authorityCertificate, false))
-                    {
-                        store.DeleteCRL(crl);
-                    }
-                }
-
-                // copy latest CRL to trusted list
-                using (ICertificateStore storeAuthority = CertificateStoreIdentifier.OpenStore(m_configuration.AuthoritiesStorePath))
-                {
-                    foreach (var crl in storeAuthority.EnumerateCRLs(authorityCertificate, true))
-                    {
-                        store.AddCRL(crl);
-                    }
-                }
-            }
         }
         #endregion
 
@@ -553,7 +489,7 @@ namespace Opc.Ua.Gds.Server
 
             if (certificate != null)
             {
-                RevokeCertificate(certificate);
+                RevokeCertificateAsync(certificate).Wait();
             }
 
             return ServiceResult.Good;
@@ -816,12 +752,12 @@ namespace Opc.Ua.Gds.Server
             X509Certificate2 newCertificate = null;
             try
             {
-                newCertificate = certificateGroup.NewKeyPairRequest(
+                newCertificate = certificateGroup.NewKeyPairRequestAsync(
                     application,
                     subjectName,
                     domainNames,
                     privateKeyFormat,
-                    privateKeyPassword);
+                    privateKeyPassword).Result;
             }
             catch (Exception e)
             {
@@ -910,11 +846,11 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 string[] domainNames = GetDefaultDomainNames(application);
-                certificate = certificateGroup.SigningRequest(
+                certificate = certificateGroup.SigningRequestAsync(
                     application,
                     domainNames,
                     certificateRequest
-                    );
+                    ).Result;
             }
             catch (Exception e)
             {
@@ -1176,14 +1112,10 @@ namespace Opc.Ua.Gds.Server
             return new NodeId(++m_nextNodeId, NamespaceIndex);
         }
 
-        private void SetCertificateGroupNodes(
-            CertificateGroup certificateGroup,
-            X509Certificate2 certificate)
+        protected void SetCertificateGroupNodes(CertificateGroup certificateGroup)
         {
-            certificateGroup.Certificate = new X509Certificate2(certificate.RawData);
             certificateGroup.CertificateType = Opc.Ua.ObjectTypeIds.ApplicationCertificateType;
             certificateGroup.DefaultTrustList = null;
-
             switch (certificateGroup.Configuration.Id)
             {
                 case "Https":
@@ -1221,7 +1153,6 @@ namespace Opc.Ua.Gds.Server
                     new TrustList.SecureAccess(HasApplicationUserAccess),
                     new TrustList.SecureAccess(HasApplicationAdminAccess));
             }
-
         }
         #endregion
 
@@ -1230,6 +1161,7 @@ namespace Opc.Ua.Gds.Server
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
         private IApplicationsDatabase m_database;
+        private ICertificateGroupProvider m_certificateGroupProvider;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
         #endregion
     }

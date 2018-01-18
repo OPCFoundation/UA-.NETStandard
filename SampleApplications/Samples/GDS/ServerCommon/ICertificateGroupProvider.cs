@@ -28,34 +28,41 @@
  * ======================================================================*/
 
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// An abstract interface to the certificate provider
     /// </summary>
-    public interface ICertificateProvider
+    public interface ICertificateGroupProvider
     {
-        void RevokeCertificate(
+        CertificateGroup Create(
+            string path,
+            CertificateGroupConfiguration certificateGroupConfiguration);
+
+        Task Init();
+
+        Task<X509Certificate2> CreateCACertificateAsync(
+            string subjectName
+            );
+
+        Task RevokeCertificateAsync(
             X509Certificate2 certificate
             );
 
-        X509Certificate2 SigningRequest(
+        Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
             string[] domainNames,
             byte[] certificateRequest
             );
 
-        X509Certificate2 NewKeyPairRequest(
+        Task<X509Certificate2> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
             string privateKeyPassword
-            );
-
-        X509Certificate2 CreateCACertificate(
-            string subjectName
             );
     }
 }
