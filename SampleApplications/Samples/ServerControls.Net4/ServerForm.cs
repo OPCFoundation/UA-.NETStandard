@@ -67,9 +67,7 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
 
 
@@ -86,9 +84,7 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
         #endregion
 

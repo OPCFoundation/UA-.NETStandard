@@ -108,6 +108,7 @@
     <Compile Include="HeaderBranding.designer.cs">
       <DependentUpon>HeaderBranding.cs</DependentUpon>
     </Compile>
+    <Compile Include="ServerUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ExceptionDlg.resx">
