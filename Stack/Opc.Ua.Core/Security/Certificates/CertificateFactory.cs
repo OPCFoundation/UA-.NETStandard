@@ -833,27 +833,25 @@ public class CertificateFactory
         bool throwOnError = false)
     {
         bool result = false;
+        RSA rsaPrivateKey = null;
+        RSA rsaPublicKey = null;
         try
         {
             // verify the public and private key match
-            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+            rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+            rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+            X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+            if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
             {
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
-                {
-                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
-                    { 
-                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                    }
-                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                    {
-                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                    }
-                    else
-                    {
-                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
-                    }
-                }
+                result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+            }
+            else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+            {
+                result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+            }
+            else
+            {
+                throw new CryptographicException("Don't know how to verify the public/private key pair.");
             }
         }
         catch (Exception e)
@@ -865,6 +863,8 @@ public class CertificateFactory
         }
         finally
         {
+            RsaUtils.RSADispose(rsaPrivateKey);
+            RsaUtils.RSADispose(rsaPublicKey);
             if (!result && throwOnError)
             {
                 throw new CryptographicException("The public/private key pair in the certficates do not match.");
@@ -1050,13 +1050,19 @@ public class CertificateFactory
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
-        using (RSA rsa = certificate.GetRSAPublicKey())
+        RSA rsa = null;
+        try
         {
+            rsa = certificate.GetRSAPublicKey();
             RSAParameters rsaParams = rsa.ExportParameters(false);
             return new RsaKeyParameters(
-                                false,
-                                new BigInteger(1, rsaParams.Modulus),
-                                new BigInteger(1, rsaParams.Exponent));
+                false,
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent));
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
         }
     }
 
@@ -1066,9 +1072,11 @@ public class CertificateFactory
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
-        // try to get signing/private key from certificate passed in
-        using (RSA rsa = certificate.GetRSAPrivateKey())
+        RSA rsa = null;
+        try
         {
+            // try to get signing/private key from certificate passed in
+            rsa = certificate.GetRSAPrivateKey();
             RSAParameters rsaParams = rsa.ExportParameters(true);
             RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
                 new BigInteger(1, rsaParams.Modulus),
@@ -1080,6 +1088,10 @@ public class CertificateFactory
                 new BigInteger(1, rsaParams.DQ),
                 new BigInteger(1, rsaParams.InverseQ));
             return keyParams;
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
         }
     }
 
@@ -1203,7 +1215,9 @@ public class CertificateFactory
         // create pkcs12 store for cert and private key
         using (MemoryStream pfxData = new MemoryStream())
         {
-            Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
+            Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
+            builder.SetUseDerEncoding(true);
+            Pkcs12Store pkcsStore = builder.Build();
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);

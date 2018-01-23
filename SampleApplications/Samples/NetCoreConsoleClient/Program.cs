@@ -42,7 +42,9 @@ namespace NetCoreConsoleClient
 
         public static int Main(string[] args)
         {
-            Console.WriteLine(".Net Core OPC UA Console Client sample");
+            Console.WriteLine(
+                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") + 
+                " OPC UA Console Client sample");
 
             // command line options
             bool showHelp = false;
@@ -77,7 +79,9 @@ namespace NetCoreConsoleClient
             if (showHelp)
             {
                 // show some app description message
-                Console.WriteLine("Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
+                Console.WriteLine(Utils.IsRunningOnMono() ?
+                    "Usage: mono MonoConsoleClient.exe [OPTIONS] [ENDPOINTURL]" :
+                    "Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
                 Console.WriteLine();
 
                 // output the options
@@ -113,6 +117,25 @@ namespace NetCoreConsoleClient
             Console.WriteLine("1 - Create an Application Configuration.");
             exitCode = ExitCode.ErrorCreateApplication;
 
+            CertificateIdentifier applicationCert;
+            if (Utils.IsRunningOnMono())
+            {
+                applicationCert = new CertificateIdentifier
+                    {
+                        StoreType = "Directory",
+                        StorePath = "OPC Foundation/CertificateStores/MachineDefault",
+                        SubjectName = "UA Core Sample Client"
+                    };
+            }
+            else
+            {
+                applicationCert = new CertificateIdentifier
+                    {
+                        StoreType = "X509Store",
+                        StorePath = "CurrentUser\\My",
+                        SubjectName = "UA Core Sample Client"
+                    };
+            }
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             var config = new ApplicationConfiguration()
             {
@@ -121,12 +144,7 @@ namespace NetCoreConsoleClient
                 ApplicationUri = "urn:" + Utils.GetHostName() + ":OPCFoundation:CoreSampleClient",
                 SecurityConfiguration = new SecurityConfiguration
                 {
-                    ApplicationCertificate = new CertificateIdentifier
-                    {
-                        StoreType = "X509Store",
-                        StorePath = "CurrentUser\\My",
-                        SubjectName = "UA Core Sample Client"
-                    },
+                    ApplicationCertificate = applicationCert,
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
@@ -205,7 +223,7 @@ namespace NetCoreConsoleClient
             exitCode = ExitCode.ErrorCreateSession;
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            var session = await Session.Create(config, endpoint, false, ".Net Core OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+            var session = await Session.Create(config, endpoint, false, "OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
             exitCode = ExitCode.ErrorBrowseNamespace;

@@ -1,19 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <AssemblyName>NetCoreConsoleServer</AssemblyName>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>MonoConsoleServer</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>NetCoreConsoleServer</PackageId>
+    <PackageId>MonoConsoleServer</PackageId>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>
-    <Description>.Net Core Console Server</Description>
-    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
+    <Description>Mono Console Server</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>	
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Opc.Ua.MonoSampleServer.Config.xml" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
@@ -31,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Opc.Ua.SampleServer.Config.xml">
+    <None Update="Opc.Ua.MonoSampleServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

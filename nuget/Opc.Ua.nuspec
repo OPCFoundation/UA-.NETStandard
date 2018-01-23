@@ -2,14 +2,14 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua</id>
-    <version>1.03.350</version>
+    <version>1.03.351</version>
     <title>OPC UA .Net Standard Library</title>
     <description>This package contains the OPC UA reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
     <language>en-US</language>
-    <projectUrl>https://github.com/OPCFoundation/UA-.NETStandardLibrary</projectUrl>
+    <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <iconUrl>https://opcfoundation.org/wp-content/themes/opc/images/logo.jpg</iconUrl>
-    <licenseUrl>http://opcfoundation.github.io/UA-.NETStandardLibrary</licenseUrl>
+    <licenseUrl>http://opcfoundation.github.io/UA-.NETStandard</licenseUrl>
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
       <group targetFramework="net46" >
@@ -21,7 +21,7 @@
         <dependency id="System.Private.ServiceModel" version="4.3.0"/>
         <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
       </group>
-      <group targetFramework="netstandard1.4" >
+      <group targetFramework="netstandard1.3" >
         <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="1.1.2"/>
         <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "1.1.2"/>
         <dependency id="Newtonsoft.Json" version="10.0.3"/>
@@ -29,6 +29,7 @@
         <dependency id="System.Data.Common" version="4.3.0"/>
         <dependency id="System.Private.ServiceModel" version="4.3.0"/>
         <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
+        <dependency id="System.Xml.XmlSerializer" version="4.3.0"/>
       </group>
       <group targetFramework="netstandard2.0" >
         <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.0.0"/>
@@ -46,10 +47,10 @@
     <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Release\net46\Opc.Ua.Client.dll" target="lib\net46" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Release\net46\Opc.Ua.Server.dll" target="lib\net46" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Release\net46\Opc.Ua.Configuration.dll" target="lib\net46" />
-    <file src="..\Stack\Opc.Ua.Core\bin\Release\netstandard1.4\Opc.Ua.Core.dll" target="lib\netstandard1.4" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Release\netstandard1.4\Opc.Ua.Client.dll" target="lib\netstandard1.4" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Release\netstandard1.4\Opc.Ua.Server.dll" target="lib\netstandard1.4" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Release\netstandard1.4\Opc.Ua.Configuration.dll" target="lib\netstandard1.4" />
+    <file src="..\Stack\Opc.Ua.Core\bin\Release\netstandard1.3\Opc.Ua.Core.dll" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Release\netstandard1.3\Opc.Ua.Client.dll" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Release\netstandard1.3\Opc.Ua.Server.dll" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Release\netstandard1.3\Opc.Ua.Configuration.dll" target="lib\netstandard1.3" />
     <file src="..\Stack\Opc.Ua.Core\bin\Release\netstandard2.0\Opc.Ua.Core.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Release\netstandard2.0\Opc.Ua.Client.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Release\netstandard2.0\Opc.Ua.Server.dll" target="lib\netstandard2.0" />

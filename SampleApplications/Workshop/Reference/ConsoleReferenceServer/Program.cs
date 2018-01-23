@@ -91,7 +91,7 @@ namespace Quickstarts.ReferenceServer
     {
         public static int Main(string[] args)
         {
-            Console.WriteLine(".Net Core OPC UA Reference Server");
+            Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".Net Core");
 
             // command line options
             bool showHelp = false;
@@ -119,7 +119,7 @@ namespace Quickstarts.ReferenceServer
 
             if (showHelp)
             {
-                Console.WriteLine("Usage: dotnet ConsoleReferenceServer.dll [OPTIONS]");
+                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoReferenceServer.exe [OPTIONS]" : "Usage: dotnet ConsoleReferenceServer.dll [OPTIONS]");
                 Console.WriteLine();
 
                 Console.WriteLine("Options:");
@@ -223,7 +223,7 @@ namespace Quickstarts.ReferenceServer
 
             application.ApplicationName = "Quickstart Reference Server";
             application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Quickstarts.ReferenceServer";
+            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
