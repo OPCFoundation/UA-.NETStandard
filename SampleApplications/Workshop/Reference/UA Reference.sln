@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.14
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reference Client", "Client\Reference Client.csproj", "{9C1E7F15-2EE3-440D-8E17-00C38073822A}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -89,5 +89,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {82F7D44C-E84A-4228-BB0A-DCE158BEEB52}
 	EndGlobalSection
 EndGlobal

@@ -1,23 +1,25 @@
 #!/bin/bash
-echo Test the .Net Core console server and console client
+echo Test the Mono console server and console client
 workdir=$(pwd)
 testresult=0
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
 rm -r obj
-dotnet build NetCoreConsoleServer.csproj
+msbuild /p:configuration=Debug /t:restore,build MonoConsoleServer.csproj
 echo start server
-dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a &
+cd bin/Debug/net46
+mono MonoConsoleServer.exe -t 60 -a &
 serverpid="$!"
 cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo build client
 rm -r obj
-dotnet build NetCoreConsoleClient.csproj
+msbuild /p:configuration=Debug /t:restore,build MonoConsoleClient.csproj
 echo start client
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 &
+cd bin/Debug/net46
+mono MonoConsoleClient.exe -t 20 &
 clientpid="$!"
 cd $workdir
 

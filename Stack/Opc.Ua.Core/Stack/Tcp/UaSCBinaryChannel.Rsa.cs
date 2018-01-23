@@ -23,57 +23,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
-        /// <summary>
-        /// Return the plaintext block size for RSA OAEP encryption.
-        /// </summary>
-        protected static int Rsa_GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
-        {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
-            {
-                if (rsa != null)
-                {
-                    if (useOaep)
-                    {
-                        return rsa.KeySize / 8 - 42;
-                    }
-                    else
-                    {
-                        return rsa.KeySize / 8 - 11;
-                    }
-                }
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// Return the ciphertext block size for RSA OAEP encryption.
-        /// </summary>
-        protected static int Rsa_GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, bool useOaep)
-        {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
-            {
-                if (rsa != null)
-                {
-                    return rsa.KeySize / 8;
-                }
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// Returns the length of a RSA PKCS#1 v1.5 signature.
-        /// </summary>
-        private static int RsaPkcs15_GetSignatureLength(X509Certificate2 signingCertificate)
-        {
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
-            {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-                }
-                return rsa.KeySize / 8;
-            }
-        }
 
         /// <summary>
         /// Creates an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
@@ -83,9 +32,11 @@ namespace Opc.Ua.Bindings
             X509Certificate2 signingCertificate,
             HashAlgorithmName algorithm)
         {
-            // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
+            RSA rsa = null;
+            try
             {
+                // extract the private key.
+                rsa = signingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -94,22 +45,26 @@ namespace Opc.Ua.Bindings
                 // create the signature.
                 return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, RSASignaturePadding.Pkcs1);
             }
+            finally
+            {
+                RsaUtils.RSADispose(rsa);
+            }
         }
-
 
         /// <summary>
         /// Verifies an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
         /// </summary>
         private static bool RsaPkcs15_Verify(
             ArraySegment<byte> dataToVerify,
-            byte[]             signature,
-            X509Certificate2   signingCertificate,
+            byte[] signature,
+            X509Certificate2 signingCertificate,
             HashAlgorithmName algorithm)
         {
-            // extract the public key.
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            RSA rsa = null;
+            try
             {
-
+                // extract the public key.
+                rsa = signingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -131,8 +86,12 @@ namespace Opc.Ua.Bindings
 
                     return false;
                 }
+                return true;
             }
-            return true;
+            finally
+            {
+                RsaUtils.RSADispose(rsa);
+            }
         }
 
         /// <summary>
@@ -141,19 +100,21 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2   encryptingCertificate,
-            bool               useOaep)
+            X509Certificate2 encryptingCertificate,
+            bool useOaep)
         {
-            // get the encrypting key.
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
+            RSA rsa = null;
+            try
             {
+                // get the encrypting key.
+                rsa = encryptingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
 
-                int inputBlockSize = Rsa_GetPlainTextBlockSize(encryptingCertificate, useOaep);
-                int outputBlockSize = rsa.KeySize / 8;
+                int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, useOaep);
+                int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, useOaep);
 
                 // verify the input data is the correct block size.
                 if (dataToEncrypt.Count % inputBlockSize != 0)
@@ -191,6 +152,10 @@ namespace Opc.Ua.Bindings
                 // return buffer
                 return new ArraySegment<byte>(encryptedBuffer, 0, (dataToEncrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
             }
+            finally
+            {
+                RsaUtils.RSADispose(rsa);
+            }
         }
 
         /// <summary>
@@ -199,20 +164,21 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2   encryptingCertificate,
-            bool               useOaep)
+            X509Certificate2 encryptingCertificate,
+            bool useOaep)
         {
-            // get the encrypting key.
-            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
+            RSA rsa = null;
+            try
             {
-
+                // get the encrypting key.
+                rsa = encryptingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
                 }
 
-                int inputBlockSize = rsa.KeySize / 8;
-                int outputBlockSize = Rsa_GetPlainTextBlockSize(encryptingCertificate, useOaep);
+                int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, useOaep);
+                int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, useOaep);
 
                 // verify the input data is the correct block size.
                 if (dataToDecrypt.Count % inputBlockSize != 0)
@@ -250,6 +216,10 @@ namespace Opc.Ua.Bindings
 
                 // return buffers.
                 return new ArraySegment<byte>(decryptedBuffer, 0, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
+            }
+            finally
+            {
+                RsaUtils.RSADispose(rsa);
             }
         }
     }

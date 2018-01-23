@@ -709,12 +709,9 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "SHA1 signed certificates are not trusted");
             }
 
-            using (RSA rsa = certificate.GetRSAPublicKey())
+            if (certificate.GetRSAPublicKey().KeySize < m_minimumCertificateKeySize)
             {
-                if (rsa.KeySize < m_minimumCertificateKeySize)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Certificate doesn't meet minimum key length requirement");
-                }
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Certificate doesn't meet minimum key length requirement");
             }
 
             CertificateIdentifier trustedCertificate = await GetTrustedCertificate(certificate);
