@@ -76,9 +76,7 @@ namespace Opc.Ua.Sample
             }
 
             TrayIcon.Text = this.Text = application.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
         #endregion
 

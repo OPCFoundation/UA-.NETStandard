@@ -183,9 +183,9 @@ namespace Opc.Ua.Server.Controls
                 }
                 itemsLB.Text = Convert.ToString( itemTotal );
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                // ClientUtils.HandleException(this.Text, exception);
+                ServerUtils.HandleException(this.Text, exception);
             }
         }
         #endregion
