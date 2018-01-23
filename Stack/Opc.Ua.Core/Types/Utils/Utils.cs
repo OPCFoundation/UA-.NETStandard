@@ -2437,30 +2437,15 @@ namespace Opc.Ua
         /// </summary>
         public static DateTime GetAssemblyTimestamp()
         {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
-            const int PeHeaderOffset = 60;
-            const int LinkerTimestampOffset = 8;
-
-            byte[] bytes = new byte[2048];
-
-            using (Stream istrm = new FileStream(Assembly.GetCallingAssembly().Location, FileMode.Open, FileAccess.Read))
+            try
             {
-                istrm.Read(bytes, 0, bytes.Length);
-            }
-
-            // get the location of te PE header.
-            int index = BitConverter.ToInt32(bytes, PeHeaderOffset);
-
-            // get the timestamp from the linker.
-            int secondsSince1970 = BitConverter.ToInt32(bytes, index + LinkerTimestampOffset);
-
-            // convert to DateTime value.
-            DateTime timestamp = new DateTime(1970, 1, 1, 0, 0, 0);
-            timestamp = timestamp.AddSeconds(secondsSince1970);
-            return timestamp;
-#else
-            return DateTime.Now;
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
+                return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
 #endif
+            }
+            catch
+            { }
+            return new DateTime(1970, 1, 1, 0, 0, 0);
         }
 
         /// <summary>
