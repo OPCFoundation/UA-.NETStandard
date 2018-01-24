@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -91,7 +92,7 @@ namespace Opc.Ua
                 buffer.Append(m_uris[ii]);
             }
 
-            for (int ii = 0; ii <  m_domainNames.Count; ii++)
+            for (int ii = 0; ii < m_domainNames.Count; ii++)
             {
                 if (buffer.Length > 0)
                 {
@@ -208,7 +209,7 @@ namespace Opc.Ua
                         domainNames.Add(generalName.Name.ToString());
                         break;
                     case Org.BouncyCastle.Asn1.X509.GeneralName.IPAddress:
-                        ipAddresses.Add(generalName.Name.ToString());
+                        ipAddresses.Add(IPAddressToString(Org.BouncyCastle.Asn1.DerOctetString.GetInstance(generalName.Name).GetOctets()));
                         break;
                     default:
                         break;
@@ -219,6 +220,27 @@ namespace Opc.Ua
             m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
         }
 
+        /// <summary>
+        /// Create a normalized IPv4 or IPv6 address from a 4 byte or 16 byte array.
+        /// </summary>
+        private string IPAddressToString(byte[] encodedIPAddress)
+        {
+            try
+            {
+                IPAddress address = new IPAddress(encodedIPAddress);
+                return address.ToString();
+            }
+            catch
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate contains invalid IP address.");
+            }
+        }
+
+        /// <summary>
+        /// Parse certificate for alternate name extension.
+        /// </summary>
         private void Parse(byte[] data)
         {
             if (base.Oid.Value == SubjectAltNameOid ||
@@ -252,6 +274,6 @@ namespace Opc.Ua
         private ReadOnlyList<string> m_uris;
         private ReadOnlyList<string> m_domainNames;
         private ReadOnlyList<string> m_ipAddresses;
-#endregion
+        #endregion
     }
 }
