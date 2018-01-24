@@ -122,6 +122,7 @@ namespace Opc.Ua.Client
             m_handle = template.m_handle;
             m_identity = template.m_identity;
             m_keepAliveInterval = template.m_keepAliveInterval;
+            m_checkDomain = template.m_checkDomain;
 
             if (copyEventHandlers)
             {
@@ -137,7 +138,9 @@ namespace Opc.Ua.Client
                 this.AddSubscription(new Subscription(subscription, copyEventHandlers));
             }
         }
+        #endregion
 
+        #region Private Methods
         /// <summary>
         /// Initializes the channel.
         /// </summary>
@@ -269,6 +272,67 @@ namespace Opc.Ua.Client
             m_defaultSubscription.LifetimeCount = 1000;
             m_defaultSubscription.Priority = 255;
             m_defaultSubscription.PublishingEnabled = true;
+        }
+
+        private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
+        {
+            bool domainFound = false;
+
+            X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
+
+            // check the certificate domains.
+            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
+
+            if (domains != null)
+            {
+                string hostname;
+                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
+                bool isLocalHost = false;
+                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
+                {
+                    if (dnsHostName.ToLowerInvariant() == "localhost")
+                    {
+                        isLocalHost = true;
+                    }
+                    else
+                    {   // strip domain names from hostname
+                        hostname = dnsHostName.Split('.')[0];
+                    }
+                }
+                else
+                {   // dnsHostname is a IPv4 or IPv6 address
+                    // normalize ip addresses, cert parser returns normalized addresses
+                    hostname = Utils.NormalizedIPAddress(dnsHostName);
+                    if (hostname == "127.0.0.1" || hostname == "::1")
+                    {
+                        isLocalHost = true;
+                    }
+                }
+
+                if (isLocalHost)
+                {
+                    dnsHostName = Utils.GetFullQualifiedDomainName();
+                    hostname = Utils.GetHostName();
+                }
+
+                for (int ii = 0; ii < domains.Count; ii++)
+                {
+                    if (String.Compare(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) == 0 ||
+                        String.Compare(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        domainFound = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!domainFound)
+            {
+                string message = Utils.Format(
+                    "The domain '{0}' is not listed in the server certificate.",
+                    endpoint.EndpointUrl.DnsSafeHost);
+                throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid, message);
+            }
         }
         #endregion
 
@@ -694,8 +758,7 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Public Methods
-
+        #region Public Static Methods
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
@@ -813,49 +876,6 @@ namespace Opc.Ua.Client
             return session;
         }
 
-        private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
-        {
-            bool domainFound = false;
-
-            if (endpoint.EndpointUrl.HostNameType != UriHostNameType.Dns)
-            {
-                // ignore endpoints configured with IPv4 / IPv6 addresses
-                return;
-            }
-
-            X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
-
-            // check the certificate domains.
-            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
-
-            if (domains != null)
-            {
-                string [] hostnames = endpoint.EndpointUrl.DnsSafeHost.Split('.');
-
-                if (String.Compare(hostnames[0], "localhost", StringComparison.CurrentCultureIgnoreCase)==0)
-                {
-                    hostnames[0] = Utils.GetHostName();
-                }
-
-                for (int ii = 0; ii < domains.Count; ii++)
-                {
-                    foreach (string hostname in hostnames)
-                    {
-                        if (String.Compare(hostname, domains[ii], StringComparison.CurrentCultureIgnoreCase) == 0)
-                        {
-                            domainFound = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!domainFound)
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
-                }
-            }
-        }
-
 
         /// <summary>
         /// Recreates a session based on a specified template.
@@ -882,7 +902,8 @@ namespace Opc.Ua.Client
                     template.m_sessionName,
                     (uint)template.m_sessionTimeout,
                     template.m_identity,
-                    template.m_preferredLocales);
+                    template.m_preferredLocales,
+                    template.m_checkDomain);
 
                 // create the subscriptions.
                 foreach (Subscription subscription in session.Subscriptions)
@@ -898,7 +919,8 @@ namespace Opc.Ua.Client
 
             return session;
         }
-
+        #endregion
+        #region Delegates and Events
         /// <summary>
         /// Used to handle renews of user identity tokens before reconnect.
         /// </summary>
@@ -914,7 +936,8 @@ namespace Opc.Ua.Client
         }
 
         private event RenewUserIdentityEventHandler m_RenewUserIdentity;
-
+        #endregion
+        #region Public Methods
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -1938,11 +1961,11 @@ namespace Opc.Ua.Client
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public void Open(
-            string        sessionName,
-            uint          sessionTimeout,
+            string sessionName,
+            uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool          checkDomain)
+            bool checkDomain)
         {
             // check connection state.
             lock (SyncRoot)
@@ -1991,7 +2014,6 @@ namespace Opc.Ua.Client
             // validate the server certificate.
             X509Certificate2 serverCertificate = null;
             byte[] certificateData = m_endpoint.Description.ServerCertificate;
-
             if (certificateData != null && certificateData.Length > 0 && requireEncryption)
             {
                 serverCertificate = Utils.ParseCertificateBlob(certificateData);
@@ -2001,6 +2023,8 @@ namespace Opc.Ua.Client
                 {
                     CheckCertificateDomain(m_endpoint);
                 }
+                // save for reconnect
+                m_checkDomain = checkDomain;
 
                 //X509Certificate2Collection certificateChain = Utils.ParseCertificateChainBlob(certificateData);                
                 //if (certificateChain.Count > 0)
@@ -2291,7 +2315,7 @@ namespace Opc.Ua.Client
                 {
                     for (int i = 0; i < certificateResults.Count; i++)
                     {
-                        Utils.Trace("ActivateSession result[{0}] = {1}", i, certificateResults[i]);    
+                        Utils.Trace("ActivateSession result[{0}] = {1}", i, certificateResults[i]);
                     }
                 }
 
@@ -2719,7 +2743,8 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
+        #endregion
+        #region Close Methods
         /// <summary>
         /// Disconnects from the server and frees any network resources.
         /// </summary>
@@ -2805,7 +2830,9 @@ namespace Opc.Ua.Client
             Dispose();
             return result;
         }
+        #endregion
 
+        #region Subscription Methods
         /// <summary>
         /// Adds a subscription to the session.
         /// </summary>
@@ -2909,8 +2936,9 @@ namespace Opc.Ua.Client
 
             return true;
         }
+        #endregion
 
-#region Browse Methods
+        #region Browse Methods
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -3056,9 +3084,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-#endregion
+        #endregion
 
-#region BrowseNext Methods
+        #region BrowseNext Methods
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
@@ -3148,8 +3176,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-#endregion
+        #endregion
 
+        #region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
         /// </summary>
@@ -3204,9 +3233,9 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-#endregion
+        #endregion
 
-#region Protected Methods
+        #region Protected Methods
         /// <summary>
         /// Returns the software certificates assigned to the application.
         /// </summary>
@@ -3564,9 +3593,9 @@ namespace Opc.Ua.Client
 
             return true;
         }
-#endregion
+        #endregion
 
-#region Publish Methods
+        #region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -3675,7 +3704,7 @@ namespace Opc.Ua.Client
                         Utils.Trace("Error - Publish call finished. ResultCode={0}; SubscriptionId={1};", code.ToString(), subscriptionId);
                     }
                 }
-                
+
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
@@ -4041,9 +4070,9 @@ namespace Opc.Ua.Client
                 Utils.Trace(e, "Session: Unexpected rrror while raising Notification event.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
         private List<Subscription> m_subscriptions;
@@ -4061,6 +4090,7 @@ namespace Opc.Ua.Client
         private ConfiguredEndpoint m_endpoint;
         private X509Certificate2 m_instanceCertificate;
         private X509Certificate2Collection m_instanceCertificateChain;
+        private bool m_checkDomain;
         private List<IUserIdentity> m_identityHistory;
 
         private string m_sessionName;
@@ -4094,16 +4124,16 @@ namespace Opc.Ua.Client
         private event PublishErrorEventHandler m_PublishError;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
-#endregion
+        #endregion
     }
 
-#region KeepAliveEventArgs Class
+    #region KeepAliveEventArgs Class
     /// <summary>
     /// The event arguments provided when a keep alive response arrives.
     /// </summary>
     public class KeepAliveEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4116,9 +4146,9 @@ namespace Opc.Ua.Client
             m_currentState = currentState;
             m_currentTime = currentTime;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4151,29 +4181,29 @@ namespace Opc.Ua.Client
             get { return m_cancelKeepAlive; }
             set { m_cancelKeepAlive = value; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ServiceResult m_status;
         private ServerState m_currentState;
         private DateTime m_currentTime;
         private bool m_cancelKeepAlive;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive keep alive notifications.
     /// </summary>
     public delegate void KeepAliveEventHandler(Session session, KeepAliveEventArgs e);
-#endregion
+    #endregion
 
-#region NotificationEventArgs Class
+    #region NotificationEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a new notification message arrives.
     /// </summary>
     public class NotificationEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4186,9 +4216,9 @@ namespace Opc.Ua.Client
             m_notificationMessage = notificationMessage;
             m_stringTable = stringTable;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
@@ -4212,28 +4242,28 @@ namespace Opc.Ua.Client
         {
             get { return m_stringTable; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private Subscription m_subscription;
         private NotificationMessage m_notificationMessage;
         private IList<string> m_stringTable;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive publish notifications.
     /// </summary>
     public delegate void NotificationEventHandler(Session session, NotificationEventArgs e);
-#endregion
+    #endregion
 
-#region PublishErrorEventArgs Class
+    #region PublishErrorEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a publish error occurs.
     /// </summary>
     public class PublishErrorEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -4251,9 +4281,9 @@ namespace Opc.Ua.Client
             m_subscriptionId = subscriptionId;
             m_sequenceNumber = sequenceNumber;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -4277,18 +4307,18 @@ namespace Opc.Ua.Client
         {
             get { return m_sequenceNumber; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private uint m_subscriptionId;
         private uint m_sequenceNumber;
         private ServiceResult m_status;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive pubish error notifications.
     /// </summary>
     public delegate void PublishErrorEventHandler(Session session, PublishErrorEventArgs e);
-#endregion
+    #endregion
 }
