@@ -920,6 +920,41 @@ namespace Opc.Ua
             return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
         }
 
+        public static string GetFullQualifiedDomainName()
+        {
+            string domainName = null;
+            try
+            {
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
+                domainName = Dns.GetHostEntry("localhost").HostName;
+#endif
+            }
+            catch
+            {
+            }
+            if (String.IsNullOrEmpty(domainName))
+            {
+                return Dns.GetHostName();
+            }
+            return domainName;
+        }
+
+        /// <summary>
+        /// Normalize ipv4/ipv6 address for comparisons.
+        /// </summary>
+        public static string NormalizedIPAddress(string ipAddress)
+        {
+            try
+            {
+                IPAddress normalizedAddress = IPAddress.Parse(ipAddress);
+                return normalizedAddress.ToString();
+            }
+            catch
+            {
+                return ipAddress;
+            }
+        }
+
         /// <summary>
         /// Replaces the localhost domain with the current host name.
         /// </summary>
