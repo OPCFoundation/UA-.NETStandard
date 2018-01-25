@@ -92,7 +92,9 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <Content Include="App.config" />
-    <Content Include="App.ico" />
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Content Include="ModelDesign.csv" />
     <Content Include="ModelDesign.xml" />
     <Content Include="SimpleEventsServer.Config.xml">

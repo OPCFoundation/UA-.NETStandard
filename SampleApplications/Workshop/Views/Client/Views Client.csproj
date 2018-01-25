@@ -93,7 +93,9 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <Content Include="App.config" />
-    <Content Include="App.ico" />
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Content Include="Quickstarts.ViewsClient.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

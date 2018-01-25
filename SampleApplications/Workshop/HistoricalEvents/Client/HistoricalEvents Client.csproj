@@ -134,7 +134,9 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <Content Include="App.config" />
-    <Content Include="App.ico" />
+    <EmbeddedResource Include="App.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="ViewEventDetailsDlg.resx">
       <DependentUpon>ViewEventDetailsDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
