@@ -27,18 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using Opc.Ua;
-using Opc.Ua.Server;
+using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server;
+using System;
 using System.IO;
+using System.Reflection;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Sample
 {
@@ -76,7 +71,7 @@ namespace Opc.Ua.Sample
             }
 
             TrayIcon.Text = this.Text = application.ApplicationName;
-            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
+            this.Icon = TrayIcon.Icon = ClientUtils.GetAppIcon();
         }
         #endregion
 

@@ -105,7 +105,7 @@ namespace Opc.Ua
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadOnly);
-                return Task.FromResult(store.Certificates);
+                return Task.FromResult(new X509Certificate2Collection(store.Certificates));
             }
         }
 

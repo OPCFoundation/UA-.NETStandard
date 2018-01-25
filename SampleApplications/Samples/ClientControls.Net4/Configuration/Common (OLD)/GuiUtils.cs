@@ -54,18 +54,18 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public System.Windows.Forms.ImageList ImageList;
 
-		/// <summary>
-		/// Displays the details of an exception.
-		/// </summary>
-		public static void HandleException(string caption, MethodBase method, Exception e)
-		{
+        /// <summary>
+        /// Displays the details of an exception.
+        /// </summary>
+        public static void HandleException(string caption, MethodBase method, Exception e)
+        {
             if (String.IsNullOrEmpty(caption))
             {
                 caption = method.Name;
             }
 
-			MessageBox.Show("Exception: " + e.Message, caption);
-		}
+            ExceptionDlg.Show(caption, e);
+        }
         
         /// <summary>
         /// Defines names for the available 16x16 icons.
