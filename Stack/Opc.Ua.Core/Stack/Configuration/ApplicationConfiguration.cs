@@ -23,9 +23,9 @@ namespace Opc.Ua
     /// <summary>
 	/// Loads the configuration section for an application.
 	/// </summary>
-	public class ApplicationConfigurationSection	
-	{
-#region IConfigurationSectionHandler Members	
+	public class ApplicationConfigurationSection
+    {
+        #region IConfigurationSectionHandler Members	
         /// <summary>
         /// Creates the configuration object from the configuration section.
         /// </summary>
@@ -33,21 +33,21 @@ namespace Opc.Ua
         /// <param name="configContext">The configuration context object.</param>
         /// <param name="section">The section as XML node.</param>
         /// <returns>The created section handler object.</returns>
-		public object Create(object parent, object configContext, System.Xml.XmlNode section)
-		{
+        public object Create(object parent, object configContext, System.Xml.XmlNode section)
+        {
             if (section == null)
             {
                 throw new ArgumentNullException("section");
             }
 
-			XmlNode element = section.FirstChild;
+            XmlNode element = section.FirstChild;
 
-			while (element != null && typeof(XmlElement) != element.GetType())
-			{
-				element = element.NextSibling;
-			}
-            
-			XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
+            while (element != null && typeof(XmlElement) != element.GetType())
+            {
+                element = element.NextSibling;
+            }
+
+            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
 
             try
             {
@@ -59,54 +59,54 @@ namespace Opc.Ua
             {
                 reader.Dispose();
             }
-		}
-#endregion
-	}
+        }
+        #endregion
+    }
     /// <summary>
     /// Represents the location of a configuration file.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ConfigurationLocation
     {
-#region Persistent Properties
+        #region Persistent Properties
         /// <summary>
         /// Gets or sets the relative or absolute path to the configuration file.
         /// </summary>
         /// <value>The file path.</value>
-        [DataMember(IsRequired=true, Order=0)]
+        [DataMember(IsRequired = true, Order = 0)]
         public string FilePath
         {
             get { return m_filePath; }
             set { m_filePath = value; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private string m_filePath;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
     public partial class ApplicationConfiguration
-    {        
-#region Public Methods
+    {
+        #region Public Methods
         /// <summary>
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
         public string SourceFilePath
         {
-            get { return m_sourceFilePath;  }
+            get { return m_sourceFilePath; }
         }
-        
+
         public CertificateValidator CertificateValidator
         {
-            get { return m_certificateValidator;  }
+            get { return m_certificateValidator; }
             set { m_certificateValidator = value; }
         }
-        
+
         /// <summary>
         /// Returns the domain names which the server is configured to use.
         /// </summary>
@@ -154,9 +154,13 @@ namespace Opc.Ua
 
                 string domainName = url.DnsSafeHost;
 
-                if (String.Compare(domainName, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                if (url.HostNameType == UriHostNameType.Dns)
                 {
-                    domainName = Utils.GetHostName();
+                    domainName = Utils.ReplaceLocalhost(domainName);
+                }
+                else // IPv4/IPv6 address
+                {
+                    domainName = Utils.NormalizedIPAddress(domainName);
                 }
 
                 if (!Utils.FindStringIgnoreCase(domainNames, domainName))
@@ -167,7 +171,7 @@ namespace Opc.Ua
 
             return domainNames;
         }
-     
+
         /// <summary>
         /// Creates the message context from the configuration.
         /// </summary>
@@ -198,7 +202,7 @@ namespace Opc.Ua
         [Obsolete("Warning: Behavoir changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
         public ServiceMessageContext MessageContext
         {
-            get 
+            get
             {
                 if (m_messageContext == null)
                 {
@@ -230,7 +234,7 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
-            
+
             FileInfo file = new FileInfo(filePath);
 
             if (!file.Exists)
@@ -244,7 +248,7 @@ namespace Opc.Ua
 
             return await Load(file, applicationType, systemType);
         }
-        
+
         /// <summary>
         /// Loads but does not validate the application configuration from a configuration section.
         /// </summary>
@@ -376,7 +380,7 @@ namespace Opc.Ua
         /// <param name="filePath">The file path.</param>
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
-        {            
+        {
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
             XmlWriterSettings settings = new XmlWriterSettings();
@@ -504,7 +508,7 @@ namespace Opc.Ua
             if (filePath == null)
             {
                 filePath = m_clientConfiguration.EndpointCacheFilePath;
-                
+
                 if (!Utils.IsPathRooted(filePath))
                 {
                     FileInfo sourceFile = new FileInfo(this.SourceFilePath);
@@ -584,16 +588,16 @@ namespace Opc.Ua
         public void UpdateExtension(Type type, object value)
         {
         }
-#endregion
+        #endregion
     }
 
-#region TraceConfiguration Class
+    #region TraceConfiguration Class
     /// <summary>
     /// Specifies parameters used for tracing.
     /// </summary>
     public partial class TraceConfiguration
     {
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Applies the trace settings to the current process.
         /// </summary>
@@ -611,17 +615,17 @@ namespace Opc.Ua
                 Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 
-#region ServerBaseConfiguration Class
+    #region ServerBaseConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerBaseConfiguration
     {
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -632,17 +636,17 @@ namespace Opc.Ua
                 m_securityPolicies.Add(new ServerSecurityPolicy());
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 
-#region ServerConfiguration Class
+    #region ServerConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerConfiguration : ServerBaseConfiguration
     {
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -655,17 +659,17 @@ namespace Opc.Ua
                 m_userTokenPolicies.Add(new UserTokenPolicy());
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 
-#region ClientConfiguration Class
+    #region ClientConfiguration Class
     /// <summary>
     /// The configuration for a client application.
     /// </summary>
     public partial class ClientConfiguration
     {
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -676,7 +680,7 @@ namespace Opc.Ua
                 WellKnownDiscoveryUrls.AddRange(Utils.DiscoveryUrls);
             }
         }
-#endregion
+        #endregion
     }
-#endregion
+    #endregion
 }

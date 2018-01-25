@@ -28,10 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using Opc.Ua;
 
 namespace Opc.Ua.Client
 {
@@ -39,7 +36,7 @@ namespace Opc.Ua.Client
     /// Attempts to reconnect to the server.
     /// </summary>
     public class SessionReconnectHandler : IDisposable
-    {        
+    {
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -66,8 +63,8 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion       
-                
+        #endregion
+
         #region Public Methods
         /// <summary>
         /// Gets the session managed by the handler.
@@ -164,14 +161,16 @@ namespace Opc.Ua.Client
                     ServiceResultException sre = exception as ServiceResultException;
 
                     // check if the server endpoint could not be reached.
-                    if ((sre != null && (sre.StatusCode == StatusCodes.BadTcpInternalError || sre.StatusCode == StatusCodes.BadCommunicationError)) ||
+                    if ((sre != null &&
+                        (sre.StatusCode == StatusCodes.BadTcpInternalError ||
+                         sre.StatusCode == StatusCodes.BadCommunicationError ||
+                         sre.StatusCode == StatusCodes.BadNotConnected)) ||
                         exception is System.ServiceModel.EndpointNotFoundException)
                     {
                         // check if reconnecting is still an option.
                         if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
                         {
                             Utils.Trace("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
-
                             return false;
                         }
                     }
