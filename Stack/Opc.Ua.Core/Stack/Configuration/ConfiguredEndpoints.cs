@@ -569,7 +569,7 @@ namespace Opc.Ua
             }
 
             MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt;
-            string securityPolicyUri = SecurityPolicies.Basic128Rsa15;
+            string securityPolicyUri = SecurityPolicies.Basic256Sha256;
             bool useBinaryEncoding = true;
 
             if (!String.IsNullOrEmpty(parameters))
