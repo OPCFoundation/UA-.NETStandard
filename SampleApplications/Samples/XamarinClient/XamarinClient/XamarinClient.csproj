@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Xamarin.Forms" Version="2.5.0.122203" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Opc.Ua.Sample\Opc.Ua.Sample.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Condition=" '$(EnableDefaultCompileItems)' == 'true' " Update="App.xaml.cs">
+      <DependentUpon>*.xaml</DependentUpon>
+    </Compile>
+    <Compile Condition=" '$(EnableDefaultCompileItems)' == 'true' " Update="MainPage.xaml.cs">
+      <DependentUpon>*.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>
