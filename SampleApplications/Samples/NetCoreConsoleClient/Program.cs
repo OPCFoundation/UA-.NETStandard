@@ -10,17 +10,57 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NetCoreConsoleClient
 {
+
+    public class ApplicationMessageDlg : IApplicationMessageDlg
+    {
+        private string message = string.Empty;
+        private bool ask = false;
+
+        public override void Message(string text, bool ask)
+        {
+            this.message = text;
+            this.ask = ask;
+        }
+
+        public override async Task<bool> ShowAsync()
+        {
+            if (ask)
+            {
+                message += " (y/n, default y): ";
+                Console.Write(message);
+            }
+            else
+            {
+                Console.WriteLine(message);
+            }
+            if (ask)
+            {
+                try
+                {
+                    ConsoleKeyInfo result = Console.ReadKey();
+                    Console.WriteLine();
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                }
+                catch
+                {
+                    // intentionally fall through
+                }
+            }
+            return await Task.FromResult(true);
+        }
+    }
+
     public enum ExitCode : int
     {
         Ok = 0,
@@ -114,90 +154,27 @@ namespace NetCoreConsoleClient
 
         public static async Task ConsoleSampleClient(string endpointURL, int timeOut, bool autoAccept)
         {
+            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
+
             Console.WriteLine("1 - Create an Application Configuration.");
             exitCode = ExitCode.ErrorCreateApplication;
 
-            CertificateIdentifier applicationCert;
-            if (Utils.IsRunningOnMono())
-            {
-                applicationCert = new CertificateIdentifier
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/MachineDefault",
-                        SubjectName = "UA Core Sample Client"
-                    };
-            }
-            else
-            {
-                applicationCert = new CertificateIdentifier
-                    {
-                        StoreType = "X509Store",
-                        StorePath = "CurrentUser\\My",
-                        SubjectName = "UA Core Sample Client"
-                    };
-            }
-            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-            var config = new ApplicationConfiguration()
-            {
-                ApplicationName = "UA Core Sample Client",
-                ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:" + Utils.GetHostName() + ":OPCFoundation:CoreSampleClient",
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = applicationCert,
-                    TrustedPeerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/UA Applications",
-                    },
-                    TrustedIssuerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/UA Certificate Authorities",
-                    },
-                    RejectedCertificateStore = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/RejectedCertificates",
-                    },
-                    NonceLength = 32,
-                    AutoAcceptUntrustedCertificates = autoAccept
-                },
-                TransportConfigurations = new TransportConfigurationCollection(),
-                TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
-                ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
-            };
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance application = new ApplicationInstance();
 
-            await config.Validate(ApplicationType.Client);
+            application.ApplicationName = "UA Core Sample Client";
+            application.ApplicationType = ApplicationType.Client;
+            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Opc.Ua.MonoSampleClient" : "Opc.Ua.SampleClient";
 
-            bool haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
+            // load the application configuration.
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
 
+            // check the application certificate.
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
             if (!haveAppCertificate)
             {
-                Console.WriteLine("    INFO: Creating new application certificate: {0}", config.ApplicationName);
-
-                X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                    config.SecurityConfiguration.ApplicationCertificate.StoreType,
-                    config.SecurityConfiguration.ApplicationCertificate.StorePath,
-                    null,
-                    config.ApplicationUri,
-                    config.ApplicationName,
-                    config.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                    null,
-                    CertificateFactory.defaultKeySize,
-                    DateTime.UtcNow - TimeSpan.FromDays(1),
-                    CertificateFactory.defaultLifeTime,
-                    CertificateFactory.defaultHashSize,
-                    false,
-                    null,
-                    null
-                    );
-
-                config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
-
+                throw new Exception("Application instance certificate invalid!");
             }
-
-            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (haveAppCertificate)
             {
