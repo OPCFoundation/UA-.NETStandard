@@ -17,7 +17,7 @@ echo build client
 rm -r obj
 dotnet build NetCoreConsoleClient.csproj
 echo start client
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 &
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a &
 clientpid="$!"
 cd $workdir
 

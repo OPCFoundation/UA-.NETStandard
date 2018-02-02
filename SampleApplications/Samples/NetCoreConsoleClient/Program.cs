@@ -89,7 +89,7 @@ namespace NetCoreConsoleClient
             // command line options
             bool showHelp = false;
             int stopTimeout = Timeout.Infinite;
-            bool autoAccept = true;
+            bool autoAccept = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -180,7 +180,7 @@ namespace NetCoreConsoleClient
             {
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
 
-                if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates || autoAccept)
                 {
                     config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
                 }
