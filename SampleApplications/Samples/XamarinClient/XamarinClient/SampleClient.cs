@@ -1,4 +1,34 @@
-﻿using System;
+﻿/* ========================================================================
+ * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -50,23 +80,23 @@ namespace XamarinClient
                     ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = "Directory",
-                        StorePath = currentFolder + "UA_MachineDefault",
+                        StorePath = currentFolder + "own",
                         SubjectName = "UA Core Sample Client"
                     },
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = currentFolder + "UA Applications",
+                        StorePath = currentFolder + "trusted",
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = currentFolder + "UA Certificate Authorities",
+                        StorePath = currentFolder + "issuer",
                     },
                     RejectedCertificateStore = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = currentFolder + "RejectedCertificates",
+                        StorePath = currentFolder + "rejected",
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = true
@@ -79,13 +109,13 @@ namespace XamarinClient
             switch (Device.RuntimePlatform)
             {
                 case "Android":
-                    config.ApplicationName = "UA Core Sample Client Android";
+                    config.ApplicationName = "OPC UA Xamarin Sample Client Android";
                     break;
                 case "UWP":
-                    config.ApplicationName = "UA Core Sample Client UWP";
+                    config.ApplicationName = "OPC UA Xamarin Sample Client UWP";
                     break;
                 case "iOS":
-                    config.ApplicationName = "UA Core Sample Client IOS";
+                    config.ApplicationName = "OPC UA Xamarin Sample Client IOS";
                     break;
             }
       
@@ -134,8 +164,7 @@ namespace XamarinClient
             try
             {
                 Uri endpointURI = new Uri(endpointURL);
-                var endpointCollection = DiscoverEndpoints(config, endpointURI, 10);
-                var selectedEndpoint = SelectUaTcpEndpoint(endpointCollection, haveAppCertificate);
+                var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate, 15000);
 
                 info.LabelText = "    Selected endpoint uses: " + selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1);
 
@@ -149,13 +178,13 @@ namespace XamarinClient
                 switch (Device.RuntimePlatform)
                 {
                     case "Android":
-                        sessionName = ".Net Core OPC UA Xamarin Client Android";
+                        sessionName = "OPC UA Xamarin Client Android";
                         break;
                     case "UWP":
-                        sessionName = ".Net Core OPC UA Xamarin Client UWP";
+                        sessionName = "OPC UA Xamarin Client UWP";
                         break;
                     case "iOS":
-                        sessionName = ".Net Core OPC UA Xamarin Client IOS";
+                        sessionName = "OPC UA Xamarin Client IOS";
                         break;
                 }
                 session = await Session.Create(config, endpoint, true, sessionName, 60000, new UserIdentity(new AnonymousIdentityToken()), null);
@@ -409,61 +438,5 @@ namespace XamarinClient
             // This will just accept any certificate
             //e.Accept = true;
         }
-
-        private static EndpointDescriptionCollection DiscoverEndpoints(ApplicationConfiguration config, Uri discoveryUrl, int timeout)
-        {
-            // use a short timeout.
-            EndpointConfiguration configuration = EndpointConfiguration.Create(config);
-            configuration.OperationTimeout = timeout;
-
-            using (DiscoveryClient client = DiscoveryClient.Create(
-                discoveryUrl,
-                EndpointConfiguration.Create(config)))
-            {
-                try
-                {
-                    EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
-                    ReplaceLocalHostWithRemoteHost(endpoints, discoveryUrl);
-                    return endpoints;
-                }
-                catch (Exception e)
-                {
-                    throw e;
-                }
-            }
-        }
-
-        private static EndpointDescription SelectUaTcpEndpoint(EndpointDescriptionCollection endpointCollection, bool haveCert)
-        {
-            EndpointDescription bestEndpoint = null;
-            foreach (EndpointDescription endpoint in endpointCollection)
-            {
-                if (endpoint.TransportProfileUri == Profiles.UaTcpTransport)
-                {
-                    if (bestEndpoint == null ||
-                        haveCert && (endpoint.SecurityLevel > bestEndpoint.SecurityLevel) ||
-                        !haveCert && (endpoint.SecurityLevel < bestEndpoint.SecurityLevel))
-                    {
-                        bestEndpoint = endpoint;
-                    }
-                }
-            }
-            return bestEndpoint;
-        }
-
-        private static void ReplaceLocalHostWithRemoteHost(EndpointDescriptionCollection endpoints, Uri discoveryUrl)
-        {
-            foreach (EndpointDescription endpoint in endpoints)
-            {
-                endpoint.EndpointUrl = Utils.ReplaceLocalhost(endpoint.EndpointUrl, discoveryUrl.DnsSafeHost);
-                StringCollection updatedDiscoveryUrls = new StringCollection();
-                foreach (string url in endpoint.Server.DiscoveryUrls)
-                {
-                    updatedDiscoveryUrls.Add(Utils.ReplaceLocalhost(url, discoveryUrl.DnsSafeHost));
-                }
-                endpoint.Server.DiscoveryUrls = updatedDiscoveryUrls;
-            }
-        }
     }
-
 }
