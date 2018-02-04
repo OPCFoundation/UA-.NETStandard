@@ -30,7 +30,8 @@ namespace Opc.Ua.Bindings
         private static byte[] RsaPkcs15_Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm)
+            HashAlgorithmName algorithm,
+            RSASignaturePadding padding)
         {
             RSA rsa = null;
             try
@@ -43,7 +44,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // create the signature.
-                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, RSASignaturePadding.Pkcs1);
+                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
             }
             finally
             {
@@ -58,7 +59,8 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm)
+            HashAlgorithmName algorithm,
+            RSASignaturePadding padding)
         {
             RSA rsa = null;
             try
@@ -71,7 +73,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // verify signature.
-                if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm, RSASignaturePadding.Pkcs1))
+                if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm, padding))
                 {
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
@@ -101,7 +103,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
             X509Certificate2 encryptingCertificate,
-            bool useOaep)
+            RsaUtils.Padding padding)
         {
             RSA rsa = null;
             try
@@ -113,8 +115,8 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
 
-                int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, useOaep);
-                int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, useOaep);
+                int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
+                int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
 
                 // verify the input data is the correct block size.
                 if (dataToEncrypt.Count % inputBlockSize != 0)
@@ -124,6 +126,7 @@ namespace Opc.Ua.Bindings
 
                 byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
                 Array.Copy(headerToCopy.Array, headerToCopy.Offset, encryptedBuffer, 0, headerToCopy.Count);
+                RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
                 using (MemoryStream ostrm = new MemoryStream(
                     encryptedBuffer,
@@ -137,16 +140,8 @@ namespace Opc.Ua.Bindings
                     for (int ii = dataToEncrypt.Offset; ii < dataToEncrypt.Offset + dataToEncrypt.Count; ii += inputBlockSize)
                     {
                         Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
-                        if (useOaep == true)
-                        {
-                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.OaepSHA1);
-                            ostrm.Write(cipherText, 0, cipherText.Length);
-                        }
-                        else
-                        {
-                            byte[] cipherText = rsa.Encrypt(input, RSAEncryptionPadding.Pkcs1);
-                            ostrm.Write(cipherText, 0, cipherText.Length);
-                        }
+                        byte[] cipherText = rsa.Encrypt(input, rsaPadding);
+                        ostrm.Write(cipherText, 0, cipherText.Length);
                     }
                 }
                 // return buffer
@@ -165,7 +160,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
             X509Certificate2 encryptingCertificate,
-            bool useOaep)
+            RsaUtils.Padding padding)
         {
             RSA rsa = null;
             try
@@ -177,8 +172,8 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
                 }
 
-                int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, useOaep);
-                int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, useOaep);
+                int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
+                int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
 
                 // verify the input data is the correct block size.
                 if (dataToDecrypt.Count % inputBlockSize != 0)
@@ -188,29 +183,21 @@ namespace Opc.Ua.Bindings
 
                 byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");
                 Array.Copy(headerToCopy.Array, headerToCopy.Offset, decryptedBuffer, 0, headerToCopy.Count);
+                RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
                 using (MemoryStream ostrm = new MemoryStream(
                     decryptedBuffer,
                     headerToCopy.Count,
                     decryptedBuffer.Length - headerToCopy.Count))
                 {
-
                     // decrypt body.
                     byte[] input = new byte[inputBlockSize];
 
                     for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
                     {
                         Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
-                        if (useOaep == true)
-                        {
-                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.OaepSHA1);
-                            ostrm.Write(plainText, 0, plainText.Length);
-                        }
-                        else
-                        {
-                            byte[] plainText = rsa.Decrypt(input, RSAEncryptionPadding.Pkcs1);
-                            ostrm.Write(plainText, 0, plainText.Length);
-                        }
+                        byte[] plainText = rsa.Decrypt(input, rsaPadding);
+                        ostrm.Write(plainText, 0, plainText.Length);
                     }
                 }
 

@@ -77,7 +77,7 @@
   </ClientConfiguration>
   
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.SampleClient.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.CoreSampleClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
@@ -90,7 +90,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <TraceMasks>519</TraceMasks>
+    <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
 
   <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->
