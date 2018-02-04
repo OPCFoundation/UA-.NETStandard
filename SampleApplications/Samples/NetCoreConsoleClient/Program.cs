@@ -167,8 +167,6 @@ namespace NetCoreConsoleClient
 
         private async Task ConsoleSampleClient()
         {
-            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-
             Console.WriteLine("1 - Create an Application Configuration.");
             exitCode = ExitCode.ErrorCreateApplication;
 
