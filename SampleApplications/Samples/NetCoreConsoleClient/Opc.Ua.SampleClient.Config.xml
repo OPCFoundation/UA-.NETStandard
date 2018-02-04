@@ -4,7 +4,7 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
   schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
-  <ApplicationName>UA Core Sample Server</ApplicationName>
+  <ApplicationName>UA Core Sample Client</ApplicationName>
   <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleClient</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/CoreSampleClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
