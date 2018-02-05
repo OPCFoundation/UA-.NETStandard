@@ -25,9 +25,9 @@ namespace Opc.Ua.Bindings
     {
 
         /// <summary>
-        /// Creates an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
+        /// Creates an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
-        private static byte[] RsaPkcs15_Sign(
+        private static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
             HashAlgorithmName algorithm,
@@ -53,9 +53,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Verifies an RSA PKCS#1 v1.5 signature of a hash algorithm for the stream.
+        /// Verifies an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
-        private static bool RsaPkcs15_Verify(
+        private static bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
@@ -97,7 +97,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Encrypts the message using RSA PKCS#1 v1.5 encryption.
+        /// Encrypts the message using RSA encryption.
         /// </summary>
         private ArraySegment<byte> Rsa_Encrypt(
             ArraySegment<byte> dataToEncrypt,
@@ -154,7 +154,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Decrypts the message using RSA PKCS#1 v1.5 encryption.
+        /// Decrypts the message using RSA encryption.
         /// </summary>
         private ArraySegment<byte> Rsa_Decrypt(
             ArraySegment<byte> dataToDecrypt,

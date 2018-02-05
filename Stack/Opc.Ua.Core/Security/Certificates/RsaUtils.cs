@@ -185,7 +185,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encrypts the data using RSA PKCS#1 v1.5 encryption.
+        /// Encrypts the data using RSA encryption.
         /// </summary>
         internal static byte[] Encrypt(
             byte[] dataToEncrypt,
@@ -276,7 +276,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encrypts the data using RSA PKCS#1 v1.5 encryption.
+        /// Decrypts the data using RSA encryption.
         /// </summary>
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
@@ -319,7 +319,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Des the message using RSA OAEP encryption.
+        /// Decrypts the message using RSA encryption.
         /// </summary>
         private static ArraySegment<byte> Decrypt(
             ArraySegment<byte> dataToDecrypt,
@@ -357,6 +357,26 @@ namespace Opc.Ua
 
             // return buffers.
             return new ArraySegment<byte>(decryptedBuffer, outputBuffer.Offset, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize);
+        }
+
+        /// <summary>
+        /// Helper to test for RSASignaturePadding.Pss support, some platforms do not support it.
+        /// </summary>
+        internal static bool TryVerifyRSAPssSign(RSA publicKey, RSA privateKey)
+        {
+            try
+            {
+                Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+                int blockSize = 0x10;
+                byte[] testBlock = new byte[blockSize];
+                randomSource.NextBytes(testBlock, 0, blockSize);
+                byte[] signature = privateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pss);
+                return publicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pss);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>

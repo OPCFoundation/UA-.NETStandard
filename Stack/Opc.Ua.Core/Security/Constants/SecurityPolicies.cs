@@ -234,7 +234,6 @@ namespace Opc.Ua
                         break;
                     }
 
-
                 case SecurityPolicies.None:
                     {
                         if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))

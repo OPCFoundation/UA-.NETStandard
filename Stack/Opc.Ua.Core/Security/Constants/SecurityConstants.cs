@@ -98,8 +98,6 @@ namespace Opc.Ua
     /// </summary>
     public static class Profiles
     {
-       
-
         /// <summary>
         /// Communicates with UA TCP, UA Security and UA Binary.
         /// </summary>

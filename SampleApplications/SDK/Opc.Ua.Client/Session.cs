@@ -1978,7 +1978,15 @@ namespace Opc.Ua.Client
 
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
-            // get the identity token.            
+            // catch security policies which are not supported by core
+            if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The chosen security policy is not supported by the client to connect to the server.");
+            }
+
+            // get the identity token.
             if (identity == null)
             {
                 identity = new UserIdentity();
