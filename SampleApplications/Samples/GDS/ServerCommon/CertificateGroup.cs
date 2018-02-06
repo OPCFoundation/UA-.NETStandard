@@ -82,7 +82,6 @@ namespace Opc.Ua.Gds.Server
                             }
                         }
                         Certificate = certificate;
-                        break;
                     }
                 }
             }
