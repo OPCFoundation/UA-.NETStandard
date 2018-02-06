@@ -36,6 +36,8 @@ using Opc.Ua.Client;
 using System.Security.Cryptography.X509Certificates;
 using Xamarin.Forms;
 using System.Net;
+using Opc.Ua.Configuration;
+using System.IO;
 
 namespace XamarinClient
 {
@@ -52,6 +54,8 @@ namespace XamarinClient
         public ConnectionStatus connectionStatus;
         public bool haveAppCertificate;
         public Session session;
+        SessionReconnectHandler reconnectHandler;
+        const int ReconnectPeriod = 10;
 
         private LabelViewModel info;
         private ApplicationConfiguration config;
@@ -69,42 +73,29 @@ namespace XamarinClient
         {
             string currentFolder = DependencyService.Get<IPathService>().PublicExternalFolder.ToString();
 
-            config = new ApplicationConfiguration()
+            ApplicationInstance application = new ApplicationInstance
             {
-                ApplicationName = "UA Core Sample Client",
                 ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:" + Dns.GetHostName() + ":OPCFoundation:CoreSampleClient",
+                ConfigSectionName = "Opc.Ua.SampleClient"
+            };        
 
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = new CertificateIdentifier
-                    {
-                        StoreType = "Directory",
-                        StorePath = currentFolder + "own",
-                        SubjectName = "UA Core Sample Client"
-                    },
-                    TrustedPeerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = currentFolder + "trusted",
-                    },
-                    TrustedIssuerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = currentFolder + "issuer",
-                    },
-                    RejectedCertificateStore = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = currentFolder + "rejected",
-                    },
-                    NonceLength = 32,
-                    AutoAcceptUntrustedCertificates = true
-                },
-                TransportConfigurations = new TransportConfigurationCollection(),
-                TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
-                ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
-            };
+            if (Device.RuntimePlatform == "Android")
+            {
+                string filename = application.ConfigSectionName + ".Config.xml";
+                string content = DependencyService.Get<IAssetService>().LoadFile(filename);
+
+                File.WriteAllText(currentFolder + filename, content);
+                // load the application configuration.
+                config = await application.LoadApplicationConfiguration(currentFolder + filename, false);
+            }
+            else
+            {
+                // load the application configuration.
+                config = await application.LoadApplicationConfiguration(false);
+            }
+
+            // check the application certificate.
+            haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
 
             switch (Device.RuntimePlatform)
             {
@@ -118,10 +109,6 @@ namespace XamarinClient
                     config.ApplicationName = "OPC UA Xamarin Sample Client IOS";
                     break;
             }
-      
-            await config.Validate(ApplicationType.Client);
-
-            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (!haveAppCertificate)
             {
@@ -144,18 +131,14 @@ namespace XamarinClient
                     null);
 
                 config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
+                haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
             }
-
-            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (haveAppCertificate)
             {
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
-
-                if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
-                {
-                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
-                }
+         
+                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
         }
 
@@ -187,7 +170,7 @@ namespace XamarinClient
                         sessionName = "OPC UA Xamarin Client IOS";
                         break;
                 }
-                session = await Session.Create(config, endpoint, true, sessionName, 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+                session = await Session.Create(config, endpoint, false, sessionName, 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
 
                 if (session != null)
@@ -198,8 +181,10 @@ namespace XamarinClient
                 {
                     connectionStatus = ConnectionStatus.NotConnected;
                 }
+                // register keep alive handler
+                session.KeepAlive += Client_KeepAlive;
             }
-            catch
+            catch (Exception exception)
             {
                 connectionStatus = ConnectionStatus.Error;
             }
@@ -217,6 +202,36 @@ namespace XamarinClient
                 
                 session.Close();
             }
+        }
+
+        private void Client_KeepAlive(Session sender, KeepAliveEventArgs e)
+        {
+            if (e.Status != null && ServiceResult.IsNotGood(e.Status))
+            {
+                info.LabelText = e.Status.ToString() + sender.OutstandingRequestCount.ToString() + "/" + sender.DefunctRequestCount.ToString();
+
+                if (reconnectHandler == null)
+                {
+                    info.LabelText = "--- RECONNECTING ---";
+                    reconnectHandler = new SessionReconnectHandler();
+                    reconnectHandler.BeginReconnect(sender, ReconnectPeriod * 1000, Client_ReconnectComplete);
+                }
+            }
+        }
+
+        private void Client_ReconnectComplete(object sender, EventArgs e)
+        {
+            // ignore callbacks from discarded objects.
+            if (!Object.ReferenceEquals(sender, reconnectHandler))
+            {
+                return;
+            }
+
+            session = reconnectHandler.Session;
+            reconnectHandler.Dispose();
+            reconnectHandler = null;
+
+            info.LabelText = "--- RECONNECTING ---";
         }
 
         public Tree GetRootNode(LabelViewModel textInfo)
@@ -434,9 +449,18 @@ namespace XamarinClient
 
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
-            e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
-            // This will just accept any certificate
-            //e.Accept = true;
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            {
+                e.Accept = config.SecurityConfiguration.AutoAcceptUntrustedCertificates;
+                if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                {
+                    info.LabelText = "Accepted Certificate: " + e.Certificate.Subject.ToString();
+                }
+                else
+                {
+                    info.LabelText = "Rejected Certificate: " + e.Certificate.Subject.ToString();
+                }
+            }
         }
     }
 }

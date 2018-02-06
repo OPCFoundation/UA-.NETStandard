@@ -124,9 +124,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\XamarinClient\XamarinClient.csproj">
+    <ProjectReference Include="..\XamarinClient\UA Xamarin Client.csproj">
       <Project>{DB37E16B-B2AF-43CB-A7E9-753EDD4F77C5}</Project>
-      <Name>XamarinClient</Name>
+      <Name>UA Xamarin Client</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -134,5 +134,10 @@
   </ItemGroup>
   <ItemGroup>
     <BundleResource Include="Resources\folderOpen.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Opc.Ua.SampleClient.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

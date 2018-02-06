@@ -55,6 +55,7 @@
     <PackageReference Include="Xamarin.Android.Support.v7.MediaRouter" Version="25.4.0.2" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssetService.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="PathService.cs" />
     <Compile Include="Resources\Resource.Designer.cs" />
@@ -77,9 +78,9 @@
     </AndroidResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\XamarinClient\XamarinClient.csproj">
+    <ProjectReference Include="..\XamarinClient\UA Xamarin Client.csproj">
       <Project>{DB37E16B-B2AF-43CB-A7E9-753EDD4F77C5}</Project>
-      <Name>XamarinClient</Name>
+      <Name>UA Xamarin Client</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -89,7 +90,10 @@
     <AndroidResource Include="Resources\drawable\folderOpen.jpg" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Assets\" />
+    <AndroidAsset Include="Assets\Opc.Ua.SampleClient.Config.xml">
+      <SubType>Designer</SubType>
+    </AndroidAsset>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
 </Project>

@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27130.2027
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamarinClient", "SampleApplications\Samples\XamarinClient\XamarinClient\XamarinClient.csproj", "{DB37E16B-B2AF-43CB-A7E9-753EDD4F77C5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UA Xamarin Client", "SampleApplications\Samples\XamarinClient\XamarinClient\UA Xamarin Client.csproj", "{DB37E16B-B2AF-43CB-A7E9-753EDD4F77C5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinClient.iOS", "SampleApplications\Samples\XamarinClient\XamarinClient.iOS\XamarinClient.iOS.csproj", "{9910F67A-D3EC-41DC-B67B-1E16A5E1338F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Xamarin Client.iOS", "SampleApplications\Samples\XamarinClient\XamarinClient.iOS\UA Xamarin Client.iOS.csproj", "{9910F67A-D3EC-41DC-B67B-1E16A5E1338F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinClient.Android", "SampleApplications\Samples\XamarinClient\XamarinClient.Android\XamarinClient.Android.csproj", "{F7FE6E6A-A37D-48AF-84D5-60727679D973}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Xamarin Client.Android", "SampleApplications\Samples\XamarinClient\XamarinClient.Android\UA Xamarin Client.Android.csproj", "{F7FE6E6A-A37D-48AF-84D5-60727679D973}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinClient.UWP", "SampleApplications\Samples\XamarinClient\XamarinClient.UWP\XamarinClient.UWP.csproj", "{F71BCE6C-4071-42A8-894F-185AFD3427A4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Xamarin Client.UWP", "SampleApplications\Samples\XamarinClient\XamarinClient.UWP\UA Xamarin Client.UWP.csproj", "{F71BCE6C-4071-42A8-894F-185AFD3427A4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{1E3AB933-85E8-452A-81A5-9A61F77B3DEF}"
 EndProject
