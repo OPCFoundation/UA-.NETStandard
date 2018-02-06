@@ -33,6 +33,7 @@ using System.IO;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -133,7 +134,51 @@ namespace Opc.Ua.Gds.Client
 
         #region Public Methods
         /// <summary>
-        /// Selects the default GDS.
+        ///  Returns list of servers known to the LDS, excluding GDS servers.
+        /// </summary>
+        /// <param name="lds">The LDS to use.</param>
+        /// <returns>
+        /// TRUE if successful; FALSE otherwise.
+        /// </returns>
+        public List<string> GetDefaultServerUrls(LocalDiscoveryServerClient lds)
+        {
+            List<string> serverUrls = new List<string>();
+
+            try
+            {
+                DateTime lastResetTime;
+
+                if (lds == null)
+                {
+                    lds = new LocalDiscoveryServerClient(this.Application.ApplicationConfiguration);
+                }
+
+                var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
+
+                foreach (var server in servers)
+                {
+                    if (server.ServerCapabilities != null)
+                    {
+                        // ignore GDS and LDS servers
+                        if (server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer) ||
+                            server.ServerCapabilities.Contains(ServerCapability.LocalDiscoveryServer))
+                        {
+                            continue;
+                        }
+                    }
+                    serverUrls.Add(server.DiscoveryUrl);
+                }
+            }
+            catch (Exception exception)
+            {
+                Utils.Trace(exception, "Unexpected error connecting to LDS");
+            }
+
+            return serverUrls;
+        }
+
+        /// <summary>
+        /// Returns list of GDS servers known to the LDS.
         /// </summary>
         /// <param name="lds">The LDS to use.</param>
         /// <returns>
@@ -268,7 +313,7 @@ namespace Opc.Ua.Gds.Client
 
             if (m_session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
             {
-                m_session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).Assembly);
+                m_session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
             }
 
             m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
