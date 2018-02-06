@@ -19,7 +19,7 @@ rm -r obj
 msbuild /p:configuration=Debug /t:restore,build MonoConsoleClient.csproj
 echo start client
 cd bin/Debug/net46
-mono MonoConsoleClient.exe -t 20 &
+mono MonoConsoleClient.exe -t 20 -a &
 clientpid="$!"
 cd $workdir
 

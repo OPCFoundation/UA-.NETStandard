@@ -4,9 +4,9 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
   schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
-  <ApplicationName>UA Core Sample Server</ApplicationName>
-  <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UA/SampleServer</ProductUri>
+  <ApplicationName>UA Mono Sample Server</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:MonoSampleServer</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/MonoSampleServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
 
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>./OPC Foundation/PKI/own</StorePath>
-      <SubjectName>CN=UA Console Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=UA Mono Sample Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
