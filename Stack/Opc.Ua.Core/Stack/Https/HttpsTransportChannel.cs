@@ -64,7 +64,22 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                  m_client = new HttpClient();
+                // auto approve server cert
+                var handler = new HttpClientHandler();
+                handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                try
+                {
+                    handler.ServerCertificateCustomValidationCallback =
+                        (httpRequestMessage, cert, chain, policyErrors) =>
+                        {
+                            return true;
+                        };
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    handler.ServerCertificateCustomValidationCallback = null;
+                }
+                m_client = new HttpClient(handler);
             }
             catch (Exception ex)
             {
@@ -109,14 +124,24 @@ namespace Opc.Ua.Bindings
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-                Task<HttpResponseMessage> task = m_client.PostAsync(m_url, content);
-                task.Wait();
-                response = task.Result;
+                AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
+                Task.Run( async () =>
+                {
+                    try
+                    {
+                        response = await m_client.PostAsync(m_url, content);
+                        response.EnsureSuccessStatusCode();
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                        result.Exception = ex;
+                        response = null;
+                    }
+                    result.Response = response;
+                    result.OperationCompleted();
+                });
 
-                response.EnsureSuccessStatusCode();
-
-                AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, response);
-                result.OperationCompleted();
                 return result;
             }
             catch (Exception ex)
@@ -140,19 +165,18 @@ namespace Opc.Ua.Bindings
             try
             {
                 result2.WaitForComplete();
-
-                Task<Stream> task = result2.Response.Content.ReadAsStreamAsync();
-                task.Wait();
-                Stream responseContent = task.Result;
-
-                return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                if (result2.Response != null)
+                {
+                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync().Result;
+                    return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                }
             }
             catch (Exception ex)
             {
                 Utils.Trace("Exception reading HTTPS response: " + ex.Message);
                 result2.Exception = ex;
-                return result2 as IServiceResponse;
             }
+            return result2 as IServiceResponse;
         }
 
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)

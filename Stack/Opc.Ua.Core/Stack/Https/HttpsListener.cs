@@ -181,12 +181,17 @@ namespace Opc.Ua.Bindings
             Startup.Listener = this;
             m_host = new WebHostBuilder();
 #if NETSTANDARD2_0
+            HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
+            httpsOptions.CheckCertificateRevocation = false;
+            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
+            httpsOptions.ServerCertificate = m_serverCert;
+            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_host.UseKestrel(options =>
             {
-                options.Listen(IPAddress.Loopback, m_uri.Port, listenOptions =>
+                options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
                 {
                     listenOptions.NoDelay = true;
-                    listenOptions.UseHttps(m_serverCert);
+                    listenOptions.UseHttps(httpsOptions);
                 });
             });
 #else

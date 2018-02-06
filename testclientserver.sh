@@ -2,6 +2,8 @@
 echo Test the .Net Core console server and console client
 workdir=$(pwd)
 testresult=0
+testresulthttps=0
+serverresult=0
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
@@ -17,17 +19,32 @@ echo build client
 rm -r obj
 dotnet build NetCoreConsoleClient.csproj
 echo start client
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a &
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a &
 clientpid="$!"
 cd $workdir
 
-echo wait for client
+echo wait for opc.tcp client
 wait $clientpid
 if [ $? -eq 0 ]; then
 	echo "SUCCESS - Client test passed"
 else
 	testresult=$?
 	echo "FAILED - Client test failed with a status of $testresult"
+fi
+
+cd SampleApplications/Samples/NetCoreConsoleClient
+echo start client for https connection
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a https://localhost:51212 &
+clientpid="$!"
+cd $workdir
+
+echo wait for opc.tcp client
+wait $clientpid
+if [ $? -eq 0 ]; then
+	echo "SUCCESS - Client test passed"
+else
+	testresulthttps=$?
+	echo "FAILED - Client test failed with a status of $testresulthttps"
 fi
 
 echo wait for server
@@ -41,7 +58,8 @@ else
 	echo "FAILED - Server test failed with a status of $serverresult"
 fi
 
-exit $testresult
+echo "Test results: Client:$testresult Server:$serverresult ClientHttps:$testresulthttps"
+exit $((testresult + serverresult + testresulthttps))
 
 
 
