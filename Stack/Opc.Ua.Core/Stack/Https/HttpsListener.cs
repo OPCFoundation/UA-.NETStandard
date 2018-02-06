@@ -188,6 +188,11 @@ namespace Opc.Ua.Bindings
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_host.UseKestrel(options =>
             {
+                options.Listen(IPAddress.IPv6Any, m_uri.Port, listenOptions =>
+                {
+                    listenOptions.NoDelay = true;
+                    listenOptions.UseHttps(httpsOptions);
+                });
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
                 {
                     listenOptions.NoDelay = true;
@@ -218,9 +223,9 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
@@ -326,9 +331,9 @@ namespace Opc.Ua.Bindings
 
             Start();
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private object m_lock = new object();
 
         private string m_listenerId;
@@ -338,7 +343,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private WebHostBuilder m_host;
         private X509Certificate2 m_serverCert;
-        #endregion
+#endregion
     }
 }
 
