@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -64,21 +65,30 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                // auto approve server cert
+                // auto validate server cert, if supported
+                // if unsupported, the TLS server cert must be trusted by a root CA
                 var handler = new HttpClientHandler();
                 handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-                try
+
+                // OSX platform cannot auto validate certs and throws
+                // on PostAsync, do not set validation handler
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    handler.ServerCertificateCustomValidationCallback =
-                        (httpRequestMessage, cert, chain, policyErrors) =>
-                        {
-                            return true;
-                        };
+                    try
+                    {
+                        handler.ServerCertificateCustomValidationCallback =
+                            (httpRequestMessage, cert, chain, policyErrors) =>
+                            {
+                                return true;
+                            };
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        // client may throw if not supported (e.g. UWP)
+                        handler.ServerCertificateCustomValidationCallback = null;
+                    }
                 }
-                catch (PlatformNotSupportedException)
-                {
-                    handler.ServerCertificateCustomValidationCallback = null;
-                }
+
                 m_client = new HttpClient(handler);
             }
             catch (Exception ex)
@@ -125,6 +135,7 @@ namespace Opc.Ua.Bindings
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
+                m_client.Timeout = TimeSpan.FromMilliseconds(m_operationTimeout);
                 Task.Run( async () =>
                 {
                     try
