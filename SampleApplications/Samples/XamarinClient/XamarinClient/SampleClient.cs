@@ -1,5 +1,5 @@
 ﻿/* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -71,8 +71,6 @@ namespace XamarinClient
 
         public async void CreateCertificate()
         {
-            string currentFolder = DependencyService.Get<IPathService>().PublicExternalFolder.ToString();
-
             ApplicationInstance application = new ApplicationInstance
             {
                 ApplicationType = ApplicationType.Client,
@@ -81,6 +79,7 @@ namespace XamarinClient
 
             if (Device.RuntimePlatform == "Android")
             {
+                string currentFolder = DependencyService.Get<IPathService>().PublicExternalFolder.ToString();
                 string filename = application.ConfigSectionName + ".Config.xml";
                 string content = DependencyService.Get<IAssetService>().LoadFile(filename);
 
@@ -110,30 +109,6 @@ namespace XamarinClient
                     break;
             }
 
-            if (!haveAppCertificate)
-            {
-                info.LabelText = "    INFO: Creating new application certificate: " + config.ApplicationName;
-
-                X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                    config.SecurityConfiguration.ApplicationCertificate.StoreType,
-                    config.SecurityConfiguration.ApplicationCertificate.StorePath,
-                    null,
-                    config.ApplicationUri,
-                    config.ApplicationName,
-                    config.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                    null,
-                    CertificateFactory.defaultKeySize,
-                    DateTime.UtcNow - TimeSpan.FromDays(1),
-                    CertificateFactory.defaultLifeTime,
-                    CertificateFactory.defaultHashSize,
-                    false,
-                    null,
-                    null);
-
-                config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
-                haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
-            }
-
             if (haveAppCertificate)
             {
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
@@ -149,7 +124,7 @@ namespace XamarinClient
                 Uri endpointURI = new Uri(endpointURL);
                 var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate, 15000);
 
-                info.LabelText = "    Selected endpoint uses: " + selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1);
+                info.LabelText = "Selected endpoint uses: " + selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1);
 
                 var endpointConfiguration = EndpointConfiguration.Create(config);
                 var endpoint = new ConfiguredEndpoint(selectedEndpoint.Server, endpointConfiguration);

@@ -8,11 +8,14 @@
             <ListView x:Name="treeView" 
               SelectedItem="Mode=Twoway"
               ItemSelected="OnSelection">
+                <ListView.SeparatorVisibility>
+                    <OnPlatform x:TypeArguments="SeparatorVisibility">
+                        <On Platform="iOS">None</On>
+                    </OnPlatform>
+                </ListView.SeparatorVisibility>
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <ViewCell BindingContextChanged="OnBindingContextChanged">
-                            <ViewCell.ContextActions>
-                            </ViewCell.ContextActions>
                             <StackLayout Orientation = "Horizontal" Margin = "10,10,10,10">
                                 <Image Source = "{Binding ImageUrl}">
                                     <Image.Aspect>
