@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{761E1EB7-59FB-4D77-8AB3-986B623535C8}"
 EndProject
@@ -15,13 +15,31 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleAppl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{72D92985-2B09-409C-8573-35DB1BEA370C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryLibrary", "SampleApplications\Samples\GDS\Common\GlobalDiscoveryLibrary.csproj", "{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClientControls", "SampleApplications\Samples\GDS\ClientControls\GlobalDiscoveryClientControls.csproj", "{228EC503-2E77-45C9-87AC-3BB312E43196}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryServer", "SampleApplications\Samples\GDS\Server\GlobalDiscoveryServer.csproj", "{2E23571F-9987-4EBD-A9FD-5D5DD639E071}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClient", "SampleApplications\Samples\GDS\Client\GlobalDiscoveryClient.csproj", "{2ADA8796-AC1F-4031-9162-D4ED79D828AF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreGlobalDiscoveryServer", "SampleApplications\Samples\GDS\ConsoleServer\NetCoreGlobalDiscoveryServer.csproj", "{F7547B35-0B81-4789-88C3-B575D31B197D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{77860818-3989-4D5D-95FF-437925891383}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTest", "SampleApplications\Samples\GDS\ClientTest\GlobalDiscoveryClientTest.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DD2EE434-7ACE-49EF-B776-5D6BF307C9F1}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		.travis.yml = .travis.yml
+		appveyor.yml = appveyor.yml
+		NuGet.Config = NuGet.Config
+		nuget\Opc.Ua.nuspec = nuget\Opc.Ua.nuspec
+		nuget\Opc.Ua.Symbols.nuspec = nuget\Opc.Ua.Symbols.nuspec
+		SampleApplications\Samples\GDS\README.md = SampleApplications\Samples\GDS\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,10 +71,6 @@ Global
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{72D92985-2B09-409C-8573-35DB1BEA370C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -69,8 +83,27 @@ Global
 		{2ADA8796-AC1F-4031-9162-D4ED79D828AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2ADA8796-AC1F-4031-9162-D4ED79D828AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2ADA8796-AC1F-4031-9162-D4ED79D828AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F7547B35-0B81-4789-88C3-B575D31B197D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7547B35-0B81-4789-88C3-B575D31B197D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7547B35-0B81-4789-88C3-B575D31B197D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7547B35-0B81-4789-88C3-B575D31B197D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77860818-3989-4D5D-95FF-437925891383}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C825CDC-3CDD-4650-9801-48B755AF5ADB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DE62BD21-9127-40A3-88D6-357E316BBFE9}
 	EndGlobalSection
 EndGlobal

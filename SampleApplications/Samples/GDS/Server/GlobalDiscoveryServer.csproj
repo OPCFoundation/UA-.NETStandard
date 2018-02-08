@@ -10,9 +10,9 @@
     <ProjectGuid>{2E23571F-9987-4EBD-A9FD-5D5DD639E071}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Opc.Ua.GdsServer</RootNamespace>
-    <AssemblyName>Opc.Ua.GdsServer</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
+    <AssemblyName>Opc.Ua.Gds.Server</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>App.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -62,6 +62,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -81,7 +82,7 @@
     <Compile Include="ApplicationName.cs">
       <DependentUpon>gdsdb.tt</DependentUpon>
     </Compile>
-    <Compile Include="ApplicationsDatabase.cs" />
+    <Compile Include="SqlApplicationsDatabase.cs" />
     <Compile Include="CertificateRequest.cs">
       <DependentUpon>gdsdb.tt</DependentUpon>
     </Compile>
@@ -103,11 +104,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>gdsdb.edmx</DependentUpon>
     </Compile>
-    <Compile Include="GlobalDiscoveryServer.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
-    <Compile Include="RoleBasedIdentity.cs" />
-    <Compile Include="GlobalDiscoveryServerConfiguration.cs" />
-    <Compile Include="ApplicationsNodeManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServerEndpoint.cs">
@@ -178,18 +175,14 @@
       <Project>{5f871952-f62d-424c-b8ad-964931460b3e}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
-      <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
-      <Name>UA Client Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryLibrary.csproj">
-      <Project>{5a647cc0-5fd8-476b-8c14-8a9ced9cf5be}</Project>
-      <Name>GlobalDiscoveryLibrary</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44E7-4EF4-9F59-50BCF215CB03}</Project>
       <Name>UA Server Controls</Name>
       <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\ServerCommon\GlobalDiscoveryServerLibrary.csproj">
+      <Project>{77860818-3989-4d5d-95ff-437925891383}</Project>
+      <Name>GlobalDiscoveryServerLibrary</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

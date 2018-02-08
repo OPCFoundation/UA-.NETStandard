@@ -11,12 +11,12 @@
 */
 
 using System;
-using System.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
-using System.Security.Cryptography;
 
 namespace Opc.Ua
 {
@@ -34,7 +34,7 @@ namespace Opc.Ua
             m_certificates = new Dictionary<string, Entry>();
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// May be called by the application to clean up resources.
@@ -106,7 +106,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                IDictionary<string,Entry> certificatesInStore = Load(null);
+                IDictionary<string, Entry> certificatesInStore = Load(null);
                 X509Certificate2Collection certificates = new X509Certificate2Collection();
 
                 foreach (Entry entry in certificatesInStore.Values)
@@ -129,7 +129,7 @@ namespace Opc.Ua
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException("certificate");
-         
+
             lock (m_lock)
             {
                 byte[] data = null;
@@ -144,7 +144,7 @@ namespace Opc.Ua
 
                 if (certificate.HasPrivateKey)
                 {
-                    string passcode = (password == null) ? String.Empty : password;
+                    string passcode = password ?? String.Empty;
                     data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
@@ -295,10 +295,16 @@ namespace Opc.Ua
                     {
                         if (!Utils.CompareDistinguishedName(subjectName, certificate.Subject))
                         {
-                            if (subjectName.Contains("=") || !certificate.Subject.Contains("CN=" + subjectName))
+                            if (subjectName.Contains("="))
                             {
                                 continue;
                             }
+
+                            if (!Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+
                         }
                     }
 
@@ -310,32 +316,26 @@ namespace Opc.Ua
                     filePath.Append(fileRoot);
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
-                    RSA rsa = null;
-
+                    password = password ?? String.Empty;
                     try
                     {
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
-                            (password == null) ? String.Empty : password,
+                            password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
-                        rsa = certificate.GetRSAPrivateKey();
+                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        {
+                            return certificate;
+                        }
                     }
                     catch (Exception)
                     {
                         certificate = new X509Certificate2(
                             privateKeyFile.FullName,
-                            (password == null) ? String.Empty : password,
+                            password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
-                        rsa = certificate.GetRSAPrivateKey();
-                    }
-                    if (rsa != null)
-                    {
-                        int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, true);
-                        byte[] bytes1 = rsa.Encrypt(new byte[inputBlockSize], RSAEncryptionPadding.OaepSHA1);
-                        byte[] bytes2 = rsa.Decrypt(bytes1, RSAEncryptionPadding.OaepSHA1);
-                        if (bytes2 != null)
+                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
                         {
-                            // Utils.Trace(1, "RSA: {0}", certificate.Thumbprint);
                             return certificate;
                         }
                     }
@@ -593,7 +593,7 @@ namespace Opc.Ua
                 }
 
                 // check if cache is still good.
-                if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) && 
+                if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
                     (NoPrivateKeys || !m_privateKeySubdir.Exists || m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
                 {
                     return m_certificates;
@@ -799,9 +799,9 @@ namespace Opc.Ua
             m_certificateSubdir.Refresh();
             m_privateKeySubdir.Refresh();
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Class
         private class Entry
         {
             public FileInfo CertificateFile;
@@ -809,15 +809,15 @@ namespace Opc.Ua
             public FileInfo PrivateKeyFile;
             public X509Certificate2 CertificateWithPrivateKey;
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_privateKeySubdir;
         private Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-#endregion
+        #endregion
     }
 }

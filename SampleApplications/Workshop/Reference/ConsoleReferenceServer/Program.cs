@@ -1,15 +1,33 @@
-﻿/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+﻿/* ========================================================================
+ * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
+using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
@@ -17,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace Quickstarts.ReferenceServer
 {
@@ -59,12 +78,59 @@ namespace Quickstarts.ReferenceServer
         }
     }
 
+    public enum ExitCode : int
+    {
+        Ok = 0,
+        ErrorServerNotStarted = 0x80,
+        ErrorServerRunning = 0x81,
+        ErrorServerException = 0x82,
+        ErrorInvalidCommandLine = 0x100
+    };
+
     public class Program
     {
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
-            MyRefServer server = new MyRefServer();
-            server.Start();
+            Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".Net Core");
+
+            // command line options
+            bool showHelp = false;
+            bool autoAccept = false;
+
+            Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                { "h|help", "show this message and exit", h => showHelp = h != null },
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null }
+            };
+
+            try
+            {
+                IList<string> extraArgs = options.Parse(args);
+                foreach (string extraArg in extraArgs)
+                {
+                    Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                    showHelp = true;
+                }
+            }
+            catch (OptionException e)
+            {
+                Console.WriteLine(e.Message);
+                showHelp = true;
+            }
+
+            if (showHelp)
+            {
+                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoReferenceServer.exe [OPTIONS]" : "Usage: dotnet ConsoleReferenceServer.dll [OPTIONS]");
+                Console.WriteLine();
+
+                Console.WriteLine("Options:");
+                options.WriteOptionDescriptions(Console.Out);
+                return (int)ExitCode.ErrorInvalidCommandLine;
+            }
+
+            MyRefServer server = new MyRefServer(autoAccept);
+            server.Run();
+
+            return (int)MyRefServer.ExitCode;
         }
     }
 
@@ -73,49 +139,80 @@ namespace Quickstarts.ReferenceServer
         ReferenceServer server;
         Task status;
         DateTime lastEventTime;
+        static bool autoAccept = false;
+        static ExitCode exitCode;
 
-        public void Start()
+        public MyRefServer(bool _autoAccept)
+        {
+            autoAccept = _autoAccept;
+        }
+
+        public void Run()
         {
 
             try
             {
-                Task t = ConsoleSampleServer();
-                t.Wait();
-                Console.WriteLine("Server started. Press any key to exit...");
+                exitCode = ExitCode.ErrorServerNotStarted;
+                ConsoleSampleServer().Wait();
+                Console.WriteLine("Server started. Press Ctrl-C to exit...");
+                exitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
+                exitCode = ExitCode.ErrorServerException;
+                return;
             }
 
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.ReadKey(true);
+                Console.CancelKeyPress += (sender, eArgs) =>
+                {
+                    quitEvent.Set();
+                    eArgs.Cancel = true;
+                };
             }
             catch
             {
-                // wait forever if there is no console
-                Thread.Sleep(Timeout.Infinite);
             }
+
+            // wait for timeout or Ctrl-C
+            quitEvent.WaitOne();
 
             if (server != null)
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                server.Stop();
-                server.Dispose();
-                server = null;
-
-                status.Wait();
+                using (ReferenceServer _server = server)
+                {
+                    // Stop status thread
+                    server = null;
+                    status.Wait();
+                    // Stop server and dispose
+                    _server.Stop();
+                }
             }
+
+            exitCode = ExitCode.Ok;
         }
+
+        public static ExitCode ExitCode { get => exitCode; }
+
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = false;
-                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                e.Accept = autoAccept;
+                if (autoAccept)
+                {
+                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                }
+                else
+                {
+                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                }
             }
         }
 
@@ -126,7 +223,7 @@ namespace Quickstarts.ReferenceServer
 
             application.ApplicationName = "Quickstart Reference Server";
             application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Quickstarts.ReferenceServer";
+            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
@@ -154,7 +251,6 @@ namespace Quickstarts.ReferenceServer
             server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
             server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
             server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
-
         }
 
         private void EventStatus(Session session, SessionEventReason reason)
@@ -170,7 +266,7 @@ namespace Quickstarts.ReferenceServer
                 string item = String.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
-                    item += String.Format(":{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item += String.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
                 }
                 else
                 {
@@ -184,7 +280,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private void StatusThread()
+        private async void StatusThread()
         {
             while (server != null)
             {
@@ -198,7 +294,7 @@ namespace Quickstarts.ReferenceServer
                     }
                     lastEventTime = DateTime.UtcNow;
                 }
-                Thread.Sleep(1000);
+                await Task.Delay(1000);
             }
         }
     }

@@ -27,15 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using System.ServiceProcess;
-
-using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server.Controls;
+using System;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Com.Client
 {
@@ -58,7 +54,7 @@ namespace Opc.Ua.Com.Client
         /// </summary>
         static async Task AsyncMain()
         {
-
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationName = "UA COM Server Wrapper";
             application.ApplicationType = ApplicationType.Server;
@@ -81,8 +77,7 @@ namespace Opc.Ua.Com.Client
             }
             catch (Exception e)
             {
-                Utils.Trace("App {0} failed to start with exception {1}.", application.ApplicationName, e.Message);
-                return;
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

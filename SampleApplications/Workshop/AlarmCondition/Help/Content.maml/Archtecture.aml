@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<topic id="d009fd64-94ba-4559-aaf5-bf61876cc988" revisionNumber="1">
+  <developerConceptualDocument xmlns="http://ddue.schemas.microsoft.com/authoring/2003/5" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!--
+    <summary>
+      <para>Optional summary abstract</para>
+    </summary>
+    -->
+    <introduction>
+      <autoOutline />
+    </introduction>
+    <!-- Add one or more top-level section elements.  These are collapsible.
+         If using <autoOutline />, add an address attribute to identify it
+         and specify a title so that it can be jumped to with a hyperlink. -->
+    <section address="Section1">
+      <title>Server</title>
+      <content>
+        <para>
+        The AlarmConditionServer provides a front end to an alarm simulator (called the " UnderlyingSystem") 
+        which exposes several alarm sources. Each source has several individual alarms which change state
+        based on the logic within the simulator or in response to commands issued by the UA client. For 
+        each Alarm the UnderlyingSystem maintains its current state and an archive of previous states that
+        may be of interest to the client.
+        </para>
+        <para>
+        The UnderlyingSystem has its own alarm information model which is similar to the model used by the
+        COM AE specification. The AlarmConditionServer must map this model to the UA information model. The
+        logic to do this mapping is implemented by the SourceState class.
+        </para>
+        <para>
+		The mapping process requires that the SourceState copy the information provided by the UnderlyingSystem
+		into Condition objects that implement the UA information model. The UA SDK provides classes that implement 
+		all of the standard Condition/Alarm types defined by Part 9. Vendors can extend these classes to provide
+		their own Condition/Alarm types, however, that process is not covered by this Quickstart.
+        </para>
+        <para>
+		The AlarmConditionServer organizes the sources provided by the UnderlyingSystem into a hierarchy of Areas
+		since the UnderlyingSystem has no concept of Areas. These areas are specified in the ApplicationConfuration 
+		file. When the AlarmConditionServerNodeManager creates its address space it reads the configuration and creates
+		a hierarchy of AreaState objects.
+        </para>
+        <para>
+		The AlarmConditionServer and the AlarmConditionServerNodeManager are the interface between the application 
+		and the UA SDK. The AlarmConditionServer defines the server instance, and the AlarmConditionServerNodeManager 
+		managers access to the Areas and Conditions. It loads the Areas from the ApplicationConfiguration and 
+		creates the SourceState object for each of the Sources in the underlying system.
+        </para>
+        <para>
+        The classes used in the AlarmConditionServer implementation are shown in Figure 1.
+        </para>
+        <mediaLink>
+          <caption placement="after" lead="Figure">1 – Classes in the AlarmConditionServer</caption>
+          <image placement="center" xlink:href="AlarmConditionServerClasses.jpg" />
+        </mediaLink>
+      </content>
+    </section>
+    <section address="Section1">
+      <title>Client</title>
+      <content>
+        <para>
+		The AlarmConditionClient provides simple UI which allows a user to connect to a Server and monitor the 
+		Conditions known to the Server. The available conditions are displayed in a list within the MainForm
+		and the user is able to control what is displayed in this list by setting different filter options.
+        </para>
+        <para>
+		The MainForm is the primary window for the AlarmConditionClient and includes an address bar at the top.
+		The addresses displayed in the drop down are retrieved automatically from the Local Discovery Server (LDS).
+		If an address is not displayed it can be typed in manually. Clicking the connect button will fetch the
+		available endpoints from the Server and choose the best one.
+        </para>
+        <para>
+		After connecting the client issues a ConditionRefresh command and displays the events in the list. The Conditions
+		menu allows the use to limit the events to a single area and its children. The Conditions menu also allows users
+		the restrict the Severity and the ConditionType. The FilterDefinition class contains the logic which constructs the
+		different filters based on the current settings.
+        </para>
+        <para>
+        Each event reported by the Server is reported to the client via the MonitoredItem.Notification event. This MainForm
+        provides a handler for this method that parses the EventNotification and constructs instances of a ConditionState
+        class. These classes provide a programmatic API to events that conform to the UA Alarms and Condition information 
+        model. 
+        </para>
+        <para>
+        The Conditions menu lists the commands that can be applied to a Condition. When invoked the client calls the 
+        appropriate UA method for each of the selected Conditions. Any errors are reported in the Comment column.
+        </para>
+        <para>
+        The classes used in the AlarmConditionServer implementation are shown in Figure 2.
+        </para>
+        <mediaLink>
+          <caption placement="after" lead="Figure">2 – Classes in the AlarmConditionClient</caption>
+          <image placement="center" xlink:href="AlarmConditionClientClasses.jpg" />
+        </mediaLink>
+      </content>
+    </section>
+    <relatedTopics>
+    </relatedTopics>
+  </developerConceptualDocument>
+</topic>

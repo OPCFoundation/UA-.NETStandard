@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static void HandleException(string caption, Exception e)
         {
-            MessageBox.Show("Exception: " + e.Message, caption);
+            ExceptionDlg.Show(caption, e);
         }
 
         /// <summary>

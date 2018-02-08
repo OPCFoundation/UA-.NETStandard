@@ -703,8 +703,20 @@ namespace Opc.Ua.Test
         {
             return CreateString(GetRandomLocale(), false);
         }
+        public string GetRandomString(string locale)
+        {
+            return CreateString(locale, false);
+        }
+        public string GetRandomSymbol()
+        {
+            return CreateString(GetRandomLocale(), true);
+        }
+        public string GetRandomSymbol(string locale)
+        {
+            return CreateString(locale, false);
+        }
         #endregion
-        
+
         #region DateTime
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]

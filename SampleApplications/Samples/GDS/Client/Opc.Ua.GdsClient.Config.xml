@@ -69,7 +69,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Opc.Ua.GdsClient.log.txt</OutputFilePath>
+    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Opc.Ua.Gds.Client.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

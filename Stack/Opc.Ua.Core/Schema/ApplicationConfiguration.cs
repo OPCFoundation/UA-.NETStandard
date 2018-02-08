@@ -795,6 +795,7 @@ namespace Opc.Ua
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_addAppCertToTrustedStore = true;
         }
 
         /// <summary>
@@ -942,7 +943,18 @@ namespace Opc.Ua
             get { return m_minCertificateKeySize; }
             set { m_minCertificateKeySize = value; }
         }
-
+        /// <summary>
+        /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
+        /// </summary>
+        /// <remarks>
+        /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public bool AddAppCertToTrustedStore
+        {
+            get { return m_addAppCertToTrustedStore; }
+            set { m_addAppCertToTrustedStore = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -955,6 +967,7 @@ namespace Opc.Ua
         private string m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
         private ushort m_minCertificateKeySize;
+        private bool m_addAppCertToTrustedStore;
         #endregion
     }
     #endregion
@@ -1302,6 +1315,11 @@ namespace Opc.Ua
             m_maxEventQueueSize = 10000;
             // see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
             m_serverProfileArray = new string[] { "Standard UA Server Profile" };
+            m_shutdownDelay = 5;
+            m_serverCapabilities = new string[] { "DA" };
+            m_supportedPrivateKeyFormats = new string[] { };
+            m_maxTrustListSize = 0;
+            m_multicastDnsEnabled = false;
         }
 
         /// <summary>
@@ -1620,6 +1638,76 @@ namespace Opc.Ua
                 }
         }
 
+        /// <summary>
+        /// Gets or sets the server shutdown delay.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 29)]
+        public int ShutdownDelay
+        {
+            get { return m_shutdownDelay; }
+            set
+            {
+                m_shutdownDelay = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the server capabilities.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 30)]
+        public StringCollection ServerCapabilities
+        {
+            get { return m_serverCapabilities; }
+            set
+            {
+                m_serverCapabilities = value;
+                if (m_serverCapabilities == null)
+                {
+                    m_serverCapabilities = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the supported private key format.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 31)]
+        public StringCollection SupportedPrivateKeyFormats
+        {
+            get { return m_supportedPrivateKeyFormats; }
+            set
+            {
+                m_supportedPrivateKeyFormats = value;
+                if (m_supportedPrivateKeyFormats == null)
+                {
+                    m_supportedPrivateKeyFormats = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the max size of the trust list.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 32)]
+        public int MaxTrustListSize
+        {
+            get { return m_maxTrustListSize; }
+            set { m_maxTrustListSize = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets if multicast DNS is enabled.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 33)]
+        public bool MultiCastDnsEnabled
+        {
+            get { return m_multicastDnsEnabled; }
+            set { m_multicastDnsEnabled = value; }
+        }
+
         #endregion
 
         #region Private Members
@@ -1649,6 +1737,11 @@ namespace Opc.Ua
         private int m_maxSubscriptionCount;
         private int m_maxEventQueueSize;
         private StringCollection m_serverProfileArray;
+        private int m_shutdownDelay;
+        private StringCollection m_serverCapabilities;
+        private StringCollection m_supportedPrivateKeyFormats;
+        private int m_maxTrustListSize;
+        private bool m_multicastDnsEnabled;
         #endregion
     }
     #endregion

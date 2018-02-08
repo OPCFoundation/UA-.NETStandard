@@ -10,17 +10,18 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NetCoreConsoleClient
 {
+
     public enum ExitCode : int
     {
         Ok = 0,
@@ -38,21 +39,21 @@ namespace NetCoreConsoleClient
 
     public class Program
     {
-        static ExitCode exitCode;
-
         public static int Main(string[] args)
         {
-            Console.WriteLine(".Net Core OPC UA Console Client sample");
+            Console.WriteLine(
+                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") +
+                " OPC UA Console Client sample");
 
             // command line options
             bool showHelp = false;
             int stopTimeout = Timeout.Infinite;
-            bool autoAccept = true;
+            bool autoAccept = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t * 1000 }
+                { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t }
             };
 
             IList<string> extraArgs = null;
@@ -77,7 +78,9 @@ namespace NetCoreConsoleClient
             if (showHelp)
             {
                 // show some app description message
-                Console.WriteLine("Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
+                Console.WriteLine(Utils.IsRunningOnMono() ?
+                    "Usage: mono MonoConsoleClient.exe [OPTIONS] [ENDPOINTURL]" :
+                    "Usage: dotnet NetCoreConsoleClient.dll [OPTIONS] [ENDPOINTURL]");
                 Console.WriteLine();
 
                 // output the options
@@ -96,99 +99,102 @@ namespace NetCoreConsoleClient
             {
                 endpointURL = extraArgs[0];
             }
-            try
-            {
-                ConsoleSampleClient(endpointURL, stopTimeout, autoAccept).Wait();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Exit due to Exception: {0}", e.Message);
-            }
 
-            return (int)exitCode;
+            MySampleClient client = new MySampleClient(endpointURL, autoAccept, stopTimeout);
+            client.Run();
+
+            return (int)MySampleClient.ExitCode;
+        }
+    }
+
+    public class MySampleClient
+    {
+        const int ReconnectPeriod = 10;
+        Session session;
+        SessionReconnectHandler reconnectHandler;
+        string endpointURL;
+        int clientRunTime = Timeout.Infinite;
+        static bool autoAccept = false;
+        static ExitCode exitCode;
+
+        public MySampleClient(string _endpointURL, bool _autoAccept, int _stopTimeout)
+        {
+            endpointURL = _endpointURL;
+            autoAccept = _autoAccept;
+            clientRunTime = _stopTimeout <= 0 ? Timeout.Infinite : _stopTimeout * 1000;
         }
 
-        public static async Task ConsoleSampleClient(string endpointURL, int timeOut, bool autoAccept)
+        public void Run()
+        {
+            try
+            {
+                ConsoleSampleClient().Wait();
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace("ServiceResultException:" + ex.Message);
+                Console.WriteLine("Exception: {0}", ex.Message);
+                return;
+            }
+
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
+            try
+            {
+                Console.CancelKeyPress += (sender, eArgs) =>
+                {
+                    quitEvent.Set();
+                    eArgs.Cancel = true;
+                };
+            }
+            catch
+            {
+            }
+
+            // wait for timeout or Ctrl-C
+            quitEvent.WaitOne(clientRunTime);
+
+            // return error conditions
+            if (session.KeepAliveStopped)
+            {
+                exitCode = ExitCode.ErrorNoKeepAlive;
+                return;
+            }
+
+            exitCode = ExitCode.Ok;
+        }
+
+        public static ExitCode ExitCode { get => exitCode; }
+
+        private async Task ConsoleSampleClient()
         {
             Console.WriteLine("1 - Create an Application Configuration.");
             exitCode = ExitCode.ErrorCreateApplication;
 
-            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
-            var config = new ApplicationConfiguration()
+            ApplicationInstance application = new ApplicationInstance
             {
                 ApplicationName = "UA Core Sample Client",
                 ApplicationType = ApplicationType.Client,
-                ApplicationUri = "urn:" + Utils.GetHostName() + ":OPCFoundation:CoreSampleClient",
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = new CertificateIdentifier
-                    {
-                        StoreType = "X509Store",
-                        StorePath = "CurrentUser\\My",
-                        SubjectName = "UA Core Sample Client"
-                    },
-                    TrustedPeerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/UA Applications",
-                    },
-                    TrustedIssuerCertificates = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/UA Certificate Authorities",
-                    },
-                    RejectedCertificateStore = new CertificateTrustList
-                    {
-                        StoreType = "Directory",
-                        StorePath = "OPC Foundation/CertificateStores/RejectedCertificates",
-                    },
-                    NonceLength = 32,
-                    AutoAcceptUntrustedCertificates = autoAccept
-                },
-                TransportConfigurations = new TransportConfigurationCollection(),
-                TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
-                ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
+                ConfigSectionName = Utils.IsRunningOnMono() ? "Opc.Ua.MonoSampleClient" : "Opc.Ua.SampleClient"
             };
 
-            await config.Validate(ApplicationType.Client);
+            // load the application configuration.
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
 
-            bool haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
-
+            // check the application certificate.
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
             if (!haveAppCertificate)
             {
-                Console.WriteLine("    INFO: Creating new application certificate: {0}", config.ApplicationName);
-
-                X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                    config.SecurityConfiguration.ApplicationCertificate.StoreType,
-                    config.SecurityConfiguration.ApplicationCertificate.StorePath,
-                    null,
-                    config.ApplicationUri,
-                    config.ApplicationName,
-                    config.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                    null,
-                    CertificateFactory.defaultKeySize,
-                    DateTime.UtcNow - TimeSpan.FromDays(1),
-                    CertificateFactory.defaultLifeTime,
-                    CertificateFactory.defaultHashSize,
-                    false,
-                    null,
-                    null
-                    );
-
-                config.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
-
+                throw new Exception("Application instance certificate invalid!");
             }
-
-            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (haveAppCertificate)
             {
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
-
                 if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                    autoAccept = true;
                 }
+                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
             else
             {
@@ -205,7 +211,10 @@ namespace NetCoreConsoleClient
             exitCode = ExitCode.ErrorCreateSession;
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            var session = await Session.Create(config, endpoint, false, ".Net Core OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+            session = await Session.Create(config, endpoint, false, "OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+
+            // register keep alive handler
+            session.KeepAlive += Client_KeepAlive;
 
             Console.WriteLine("4 - Browse the OPC UA server namespace.");
             exitCode = ExitCode.ErrorBrowseNamespace;
@@ -272,30 +281,36 @@ namespace NetCoreConsoleClient
 
             Console.WriteLine("8 - Running...Press Ctrl-C to exit...");
             exitCode = ExitCode.ErrorRunning;
+        }
 
-            ManualResetEvent quitEvent = new ManualResetEvent(false);
-            try
+        private void Client_KeepAlive(Session sender, KeepAliveEventArgs e)
+        {
+            if (e.Status != null && ServiceResult.IsNotGood(e.Status))
             {
-                Console.CancelKeyPress += (sender, eArgs) =>
+                Console.WriteLine("{0} {1}/{2}", e.Status, sender.OutstandingRequestCount, sender.DefunctRequestCount);
+
+                if (reconnectHandler == null)
                 {
-                    quitEvent.Set();
-                    eArgs.Cancel = true;
-                };
+                    Console.WriteLine("--- RECONNECTING ---");
+                    reconnectHandler = new SessionReconnectHandler();
+                    reconnectHandler.BeginReconnect(sender, ReconnectPeriod * 1000, Client_ReconnectComplete);
+                }
             }
-            catch
-            {
-            }
+        }
 
-            // wait for timeout or Ctrl-C
-            quitEvent.WaitOne(timeOut);
-
-            // return error conditions
-            if (session.KeepAliveStopped)
+        private void Client_ReconnectComplete(object sender, EventArgs e)
+        {
+            // ignore callbacks from discarded objects.
+            if (!Object.ReferenceEquals(sender, reconnectHandler))
             {
-                exitCode = ExitCode.ErrorNoKeepAlive;
                 return;
             }
-            exitCode = ExitCode.Ok;
+
+            session = reconnectHandler.Session;
+            reconnectHandler.Dispose();
+            reconnectHandler = null;
+
+            Console.WriteLine("--- RECONNECTED ---");
         }
 
         private static void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
@@ -308,8 +323,18 @@ namespace NetCoreConsoleClient
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
-            Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-            e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted);
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            {
+                e.Accept = autoAccept;
+                if (autoAccept)
+                {
+                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                }
+                else
+                {
+                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                }
+            }
         }
 
     }

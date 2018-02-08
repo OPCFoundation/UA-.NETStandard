@@ -186,15 +186,18 @@
       <ua:String>Method Server Facet</ua:String>
     </ServerProfileArray>
 
-  </ServerConfiguration>
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>DA</ua:String>
+    </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
 
-  <Extensions>
-    <ua:XmlElement>
-      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceApplications">
-        <ShutdownDelay>5</ShutdownDelay>
-      </ReferenceServerConfiguration>
-    </ua:XmlElement>
-  </Extensions>
+  </ServerConfiguration>
 
   <TraceConfiguration>
     <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>

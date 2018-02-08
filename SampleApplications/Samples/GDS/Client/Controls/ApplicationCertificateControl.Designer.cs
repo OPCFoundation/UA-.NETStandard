@@ -1,4 +1,4 @@
-﻿namespace Opc.Ua.GdsClient
+﻿namespace Opc.Ua.Gds.Client
 {
     partial class ApplicationCertificateControl
     {

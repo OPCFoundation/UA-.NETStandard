@@ -1,0 +1,63 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
+  <PropertyGroup>
+    <!-- The configuration and platform will be used to determine which
+         assemblies to include from solution and project documentation
+         sources -->
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{2725be90-1a38-4122-857b-5e4e34a2b96e}</ProjectGuid>
+    <SHFBSchemaVersion>1.8.0.0</SHFBSchemaVersion>
+    <!-- AssemblyName, Name, and RootNamespace are not used by SHFB but Visual
+         Studio adds them anyway -->
+    <AssemblyName>Documentation</AssemblyName>
+    <RootNamespace>Documentation</RootNamespace>
+    <Name>Documentation</Name>
+    <!-- SHFB properties -->
+    <OutputPath>.\Help\</OutputPath>
+    <HtmlHelpName>OPC UA Alarms and Conditions Quickstart</HtmlHelpName>
+    <DocumentationSources>
+      <DocumentationSource sourceFile="..\Client\bin\Release\AlarmConditionClient.exe" />
+      <DocumentationSource sourceFile="..\Client\bin\Release\AlarmConditionClient.xml" />
+      <DocumentationSource sourceFile="..\Server\bin\Release\AlarmConditionServer.exe" />
+      <DocumentationSource sourceFile="..\Server\bin\Release\AlarmConditionServer.xml" />
+    </DocumentationSources>
+    <FrameworkVersion>3.0</FrameworkVersion>
+    <CopyrightHref>http://www.opcfoundation.org/Default.aspx</CopyrightHref>
+    <CopyrightText>Copyright \xA9 2009, OPC Foundation, All rights reserved</CopyrightText>
+    <FeedbackEMailAddress>Send comments on this topic</FeedbackEMailAddress>
+    <FeedbackEMailLinkText>UAcomments%40opcfoundation.org</FeedbackEMailLinkText>
+    <HeaderText>Rel. 1.00.250.0</HeaderText>
+    <HelpTitle>OPC UA Alarms and Conditions Quickstart</HelpTitle>
+    <NamingMethod>MemberName</NamingMethod>
+    <Preliminary>False</Preliminary>
+    <ProjectSummary>&amp;lt%3bH1&amp;gt%3b&amp;lt%3bstrong&amp;gt%3bUA SDK Quickstart Applications&amp;lt%3b/strong&amp;gt%3b&amp;lt%3b/H1&amp;gt%3b</ProjectSummary>
+  </PropertyGroup>
+  <!-- There are no properties for these two groups but they need to appear in
+       order for Visual Studio to perform the build. -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  </PropertyGroup>
+  <ItemGroup>
+    <ContentLayout Include="AlarmConditionContentLayout.content" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Content.maml\Overview.aml" />
+    <None Include="Content.maml\Archtecture.aml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Graphics\" />
+    <Folder Include="Content.maml\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Graphics\AlarmConditionClientClasses.jpg">
+      <ImageId>AlarmConditionClientClasses.jpg</ImageId>
+    </Image>
+    <Image Include="Graphics\AlarmConditionServerClasses.jpg">
+      <ImageId>AlarmConditionServerClasses.jpg</ImageId>
+    </Image>
+  </ItemGroup>
+  <!-- Import the SHFB build targets -->
+  <Import Project="$(SHFBROOT)\SandcastleHelpFileBuilder.targets" />
+</Project>

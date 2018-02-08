@@ -93,6 +93,11 @@ public class CertificateFactoryX509Name : X509Name
     {
     }
 
+    public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
+        base(reverse, ConvertToX509Name(distinguishedName))
+    {
+    }
+
     private static string ConvertToX509Name(string distinguishedName)
     {
         // convert from X509Certificate to bouncy castle DN entries
@@ -136,8 +141,9 @@ public class CertificateFactory
     /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
     /// <returns>The cached certificate.</returns>
     /// <remarks>
-    /// This function is necessary because all private keys used for cryptography operations must be in a key conatiner. 
-    /// Private keys stored in a PFX file have no key conatiner by default.
+    /// This function is necessary because all private keys used for cryptography 
+    /// operations must be in a key container. 
+    /// Private keys stored in a PFX file have no key container by default.
     /// </remarks>
     public static X509Certificate2 Load(X509Certificate2 certificate, bool ensurePrivateKeyAccessible)
     {
@@ -323,19 +329,7 @@ public class CertificateFactory
                 // subject alternate name
                 List<GeneralName> generalNames = new List<GeneralName>();
                 generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
-                for (int i = 0; i < domainNames.Count; i++)
-                {
-                    int domainType = GeneralName.OtherName;
-                    switch (Uri.CheckHostName(domainNames[i]))
-                    {
-                        case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
-                        case UriHostNameType.IPv4:
-                        case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
-                        default: continue;
-                    }
-                    generalNames.Add(new GeneralName(domainType, domainNames[i]));
-                }
-
+                generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
                 cg.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(generalNames.ToArray()));
             }
             else
@@ -387,7 +381,7 @@ public class CertificateFactory
                     }
 
                     store.Open(storePath);
-                    store.Add(certificate, password);
+                    store.Add(certificate, password).Wait();
                     store.Close();
                 }
             }
@@ -426,14 +420,18 @@ public class CertificateFactory
                 // merge first cert with private key into X509Certificate2
                 certificate = new X509Certificate2(
                     rawData,
-                    (password == null) ? String.Empty : password,
+                    password ?? String.Empty,
                     storageFlags[flagsRetryCounter]);
                 // can we really access the private key?
-                using (RSA rsa = certificate.GetRSAPrivateKey()) { }
+                if (VerifyRSAKeyPair(certificate, certificate, true))
+                {
+                    return certificate;
+                }
             }
             catch (Exception e)
             {
                 ex = e;
+                certificate?.Dispose();
                 certificate = null;
             }
             flagsRetryCounter++;
@@ -452,12 +450,13 @@ public class CertificateFactory
     /// The issuer CA public key, the private key and the crl reside in the storepath.
     /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
     /// </summary>
-    public static async Task RevokeCertificateAsync(
+    public static async Task<X509CRL> RevokeCertificateAsync(
         string storePath,
         X509Certificate2 certificate,
         string issuerKeyFilePassword = null
         )
     {
+        X509CRL updatedCRL = null;
         try
         {
             string subjectName = certificate.IssuerName.Name;
@@ -572,10 +571,10 @@ public class CertificateFactory
                                        new CrlNumber(crlSerialNumber));
 
                     // generate updated CRL
-                    Org.BouncyCastle.X509.X509Crl updatedCrl = crlGen.Generate(signatureFactory);
+                    X509Crl updatedCrl = crlGen.Generate(signatureFactory);
 
                     // add updated CRL to store
-                    X509CRL updatedCRL = new X509CRL(updatedCrl.GetEncoded());
+                    updatedCRL = new X509CRL(updatedCrl.GetEncoded());
                     store.AddCRL(updatedCRL);
 
                     // delete outdated CRLs from store
@@ -591,6 +590,7 @@ public class CertificateFactory
         {
             throw e;
         }
+        return updatedCRL;
     }
 
     /// <summary>
@@ -612,11 +612,59 @@ public class CertificateFactory
             ISignatureFactory signatureFactory =
                 new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
 
+            Asn1Set attributes = null;
+            X509SubjectAltNameExtension alternateName = null;
+            foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            domainNames = domainNames ?? new List<String>();
+            if (alternateName != null)
+            {
+                foreach (var name in alternateName.DomainNames)
+                {
+                    if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        domainNames.Add(name);
+                    }
+                }
+                foreach (var ipAddress in alternateName.IPAddresses)
+                {
+                    if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        domainNames.Add(ipAddress);
+                    }
+                }
+            }
+
+            if (domainNames.Count > 0)
+            {
+                List<GeneralName> generalNames = CreateSubjectAlternateNameDomains(domainNames);
+                if (generalNames.Count > 0)
+                {
+                    IList oids = new ArrayList();
+                    IList values = new ArrayList();
+                    oids.Add(X509Extensions.SubjectAlternativeName);
+                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
+                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+
+                    AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                        new DerSet(new X509Extensions(oids, values)));
+
+                    attributes = new DerSet(attribute);
+                }
+            }
+
             Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
                 signatureFactory,
-                new CertificateFactoryX509Name(certificate.Subject),
+                new CertificateFactoryX509Name(false, certificate.Subject),
                 publicKey,
-                null,
+                attributes,
                 signingKey);
 
             return pkcs10CertificationRequest.GetEncoded();
@@ -655,7 +703,7 @@ public class CertificateFactory
     /// </summary>
     public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
         X509Certificate2 certificate,
-        byte [] pemDataBlob,
+        byte[] pemDataBlob,
         string password = null)
     {
         AsymmetricKeyParameter privateKey = null;
@@ -685,7 +733,7 @@ public class CertificateFactory
 
                     AsymmetricCipherKeyPair keypair = pemObject as AsymmetricCipherKeyPair;
                     if (keypair != null)
-                    { 
+                    {
                         privateKey = keypair.Private;
                         break;
                     }
@@ -731,20 +779,21 @@ public class CertificateFactory
             }
         }
     }
-    private class Password
-        : IPasswordFinder
+    /// <summary>
+    /// returns a byte array containing the private key in PEM format.
+    /// </summary>
+
+    public static byte[] ExportPrivateKeyAsPEM(
+        X509Certificate2 certificate
+        )
     {
-        private readonly char[] password;
-
-        public Password(
-            char[] word)
+        RsaPrivateCrtKeyParameters keyParameter = GetPrivateKeyParameter(certificate);
+        using (TextWriter textWriter = new StringWriter())
         {
-            this.password = (char[])word.Clone();
-        }
-
-        public char[] GetPassword()
-        {
-            return (char[])password.Clone();
+            PemWriter pemWriter = new PemWriter(textWriter);
+            pemWriter.WriteObject(keyParameter);
+            pemWriter.Writer.Flush();
+            return Encoding.ASCII.GetBytes(textWriter.ToString());
         }
     }
 
@@ -764,9 +813,68 @@ public class CertificateFactory
         }
         return true;
     }
-#endregion
 
-#region Private Methods
+    public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+    {
+        X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
+        foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
+        {
+            allFlags |= ext.KeyUsages;
+        }
+        return allFlags;
+    }
+
+    /// <summary>
+    /// Verify RSA key pair of two certificates.
+    /// </summary>
+    public static bool VerifyRSAKeyPair(
+        X509Certificate2 certWithPublicKey,
+        X509Certificate2 certWithPrivateKey,
+        bool throwOnError = false)
+    {
+        bool result = false;
+        RSA rsaPrivateKey = null;
+        RSA rsaPublicKey = null;
+        try
+        {
+            // verify the public and private key match
+            rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+            rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+            X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+            if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+            {
+                result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+            }
+            else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+            {
+                result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+            }
+            else
+            {
+                throw new CryptographicException("Don't know how to verify the public/private key pair.");
+            }
+        }
+        catch (Exception e)
+        {
+            if (throwOnError)
+            {
+                throw e;
+            }
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsaPrivateKey);
+            RsaUtils.RSADispose(rsaPublicKey);
+            if (!result && throwOnError)
+            {
+                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+            }
+        }
+        return result;
+    }
+    #endregion
+
+    #region Private Methods
     /// <summary>
     /// Sets the parameters to suitable defaults.
     /// </summary>
@@ -898,6 +1006,28 @@ public class CertificateFactory
     }
 
     /// <summary>
+    /// helper to build alternate name domains list for certs.
+    /// </summary>
+    private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
+    {
+        // subject alternate name
+        List<GeneralName> generalNames = new List<GeneralName>();
+        for (int i = 0; i < domainNames.Count; i++)
+        {
+            int domainType = GeneralName.OtherName;
+            switch (Uri.CheckHostName(domainNames[i]))
+            {
+                case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
+                case UriHostNameType.IPv4:
+                case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
+                default: continue;
+            }
+            generalNames.Add(new GeneralName(domainType, domainNames[i]));
+        }
+        return generalNames;
+    }
+
+    /// <summary>
     /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
     /// </summary>
     /// <param name="hashSizeInBits"></param>
@@ -920,13 +1050,19 @@ public class CertificateFactory
     /// </summary>
     private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
-        using (RSA rsa = certificate.GetRSAPublicKey())
+        RSA rsa = null;
+        try
         {
+            rsa = certificate.GetRSAPublicKey();
             RSAParameters rsaParams = rsa.ExportParameters(false);
             return new RsaKeyParameters(
-                                false,
-                                new BigInteger(1, rsaParams.Modulus),
-                                new BigInteger(1, rsaParams.Exponent));
+                false,
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent));
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
         }
     }
 
@@ -936,9 +1072,11 @@ public class CertificateFactory
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
-        // try to get signing/private key from certificate passed in
-        using (RSA rsa = certificate.GetRSAPrivateKey())
+        RSA rsa = null;
+        try
         {
+            // try to get signing/private key from certificate passed in
+            rsa = certificate.GetRSAPrivateKey();
             RSAParameters rsaParams = rsa.ExportParameters(true);
             RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
                 new BigInteger(1, rsaParams.Modulus),
@@ -950,6 +1088,10 @@ public class CertificateFactory
                 new BigInteger(1, rsaParams.DQ),
                 new BigInteger(1, rsaParams.InverseQ));
             return keyParams;
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsa);
         }
     }
 
@@ -1020,8 +1162,8 @@ public class CertificateFactory
     /// Get the certificate by issuer and serial number.
     /// </summary>
     private static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
-        ICertificateStore store, 
-        string issuer, 
+        ICertificateStore store,
+        string issuer,
         string serialnumber)
     {
         X509Certificate2Collection certificates = await store.Enumerate();
@@ -1073,7 +1215,9 @@ public class CertificateFactory
         // create pkcs12 store for cert and private key
         using (MemoryStream pfxData = new MemoryStream())
         {
-            Pkcs12Store pkcsStore = new Pkcs12StoreBuilder().Build();
+            Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
+            builder.SetUseDerEncoding(true);
+            Pkcs12Store pkcsStore = builder.Build();
             X509CertificateEntry[] chain = new X509CertificateEntry[1];
             string passcode = Guid.NewGuid().ToString();
             chain[0] = new X509CertificateEntry(certificate);
@@ -1102,52 +1246,55 @@ public class CertificateFactory
         return string.Empty;
     }
 
-    /// <summary>
-    /// Verify RSA key pair of two certificates.
-    /// </summary>
-    private static bool VerifyRSAKeyPair(
-        X509Certificate2 certWithPublicKey, 
-        X509Certificate2 certWithPrivateKey, 
-        bool throwOnError = false)
+
+    private static bool VerifyRSAKeyPairCrypt(
+        RSA rsaPublicKey,
+        RSA rsaPrivateKey)
     {
-        bool result = false;
-        try
+        Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        byte[] testBlock = new byte[blockSize];
+        randomSource.NextBytes(testBlock, 0, blockSize);
+        byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
+        byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
+        if (decryptedBlock != null)
         {
-            // verify the public and private key match
-            using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
-            {
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
-                {
-                    Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-                    int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
-                    byte[] testBlock = new byte[blockSize];
-                    randomSource.NextBytes(testBlock, 0, blockSize);
-                    byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-                    byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
-                    if (decryptedBlock != null)
-                    {
-                        result = Utils.IsEqual(testBlock, decryptedBlock);
-                    }
-                }
-            }
+            return Utils.IsEqual(testBlock, decryptedBlock);
         }
-        catch (Exception e)
-        {
-            if (throwOnError)
-            {
-                throw e;
-            }
-        }
-        finally
-        { 
-            if (!result && throwOnError)
-            {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
-            }
-        }
-        return result;
+        return false;
     }
-#endregion
+
+    private static bool VerifyRSAKeyPairSign(
+        RSA rsaPublicKey,
+        RSA rsaPrivateKey)
+    {
+        Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        byte[] testBlock = new byte[blockSize];
+        randomSource.NextBytes(testBlock, 0, blockSize);
+        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+    }
+
+
+    private class Password
+        : IPasswordFinder
+    {
+        private readonly char[] password;
+
+        public Password(
+            char[] word)
+        {
+            this.password = (char[])word.Clone();
+        }
+
+        public char[] GetPassword()
+        {
+            return (char[])password.Clone();
+        }
+    }
+
+    #endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
     private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

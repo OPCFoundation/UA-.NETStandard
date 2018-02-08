@@ -67,9 +67,7 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
 
 
@@ -86,9 +84,7 @@ namespace Opc.Ua.Server.Controls
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
         #endregion
 
@@ -147,7 +143,7 @@ namespace Opc.Ua.Server.Controls
         }
         #endregion
 
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Quit the application", "OPC UA", MessageBoxButtons.YesNoCancel) == DialogResult.Yes)
             {
@@ -155,7 +151,7 @@ namespace Opc.Ua.Server.Controls
             }
         }
 
-        private void contentsToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ContentsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {

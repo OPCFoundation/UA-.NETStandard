@@ -32,7 +32,7 @@ using System.Windows.Forms;
 using Opc.Ua.Configuration;
 using Opc.Ua.Client.Controls;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     static class Program
     {
@@ -64,7 +64,7 @@ namespace Opc.Ua.GdsClient
             }
             catch (Exception e)
             {
-                Opc.Ua.Client.Controls.ExceptionDlg.Show(application.ApplicationName, e);
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

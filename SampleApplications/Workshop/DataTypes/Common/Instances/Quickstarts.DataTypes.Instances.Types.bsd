@@ -1,0 +1,19 @@
+<opc:TypeDictionary
+  xmlns:s1="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  xmlns:opc="http://opcfoundation.org/BinarySchema/"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.bsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances"
+  DefaultByteOrder="LittleEndian"
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances"  
+>
+  <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
+  <opc:Import Namespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" Location="Quickstarts.DataTypes.Types.BinarySchema.bsd"/>
+  
+  <opc:StructuredType Name="BicycleType">
+    <opc:Field Name="Make" TypeName="opc:String" />
+    <opc:Field Name="Model" TypeName="opc:String" />
+    <opc:Field Name="NoOfGears" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+  
+</opc:TypeDictionary>

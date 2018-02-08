@@ -29,15 +29,13 @@
 
 using Opc.Ua.Gds;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Opc.Ua.GdsClient
+namespace Opc.Ua.Gds.Client
 {
     public partial class ApplicationCertificateControl : UserControl
     {
@@ -47,16 +45,16 @@ namespace Opc.Ua.GdsClient
         }
 
         private GlobalDiscoveryClientConfiguration m_configuration;
-        private GlobalDiscoveryServerMethods m_gds;
-        private ServerPushConfigurationMethods m_server;
+        private GlobalDiscoveryServerClient m_gds;
+        private ServerPushConfigurationClient m_server;
         private RegisteredApplication m_application;
         private X509Certificate2 m_certificate;
         private string m_certificatePassword;
 
         public async Task Initialize(
             GlobalDiscoveryClientConfiguration configuration,
-            GlobalDiscoveryServerMethods gds,
-            ServerPushConfigurationMethods server,
+            GlobalDiscoveryServerClient gds,
+            ServerPushConfigurationClient server,
             RegisteredApplication application,
             bool isHttps)
         {
@@ -168,134 +166,47 @@ namespace Opc.Ua.GdsClient
             }
         }
 
-        private string GetPrivateKeyFormat()
+        private async void RequestNewButton_Click(object sender, EventArgs e)
         {
-            string privateKeyFormat = "PFX";
-
-            if (m_application.RegistrationType != RegistrationType.ServerPush)
+            if (m_application.RegistrationType == RegistrationType.ServerPush)
             {
-                if (!String.IsNullOrEmpty(m_application.CertificatePrivateKeyPath))
-                {
-                    if (m_application.CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        privateKeyFormat = "PEM";
-                    }
-                }
+                RequestNewCertificatePushMode(sender, e);
             }
             else
             {
-                string[] privateKeyFormats = m_server.GetSupportedKeyFormats();
-
-                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
-                {
-                    privateKeyFormat = "PEM";
-                }
+                await RequestNewCertificatePullMode(sender, e);
             }
-
-            return privateKeyFormat;
         }
 
-        private string[] GetDomainNames()
+        private void RequestNewCertificatePushMode(object sender, EventArgs e)
         {
-            List<string> domainNames = new List<string>();
-
-            if (!String.IsNullOrEmpty(m_application.Domains))
+            try
             {
-                var domains = m_application.Domains.Split(',');
+                byte[] certificateRequest = m_server.CreateSigningRequest(
+                    null,
+                    m_server.ApplicationCertificateType,
+                    null,
+                    false,
+                    null);
+                var domainNames = m_application.GetDomainNames(m_certificate);
+                NodeId requestId = m_gds.StartSigningRequest(
+                    m_application.ApplicationId,
+                    null,
+                    null,
+                    certificateRequest);
 
-                List<string> trimmedDomains = new List<string>();
-
-                foreach (var domain in domains)
-                {
-                    var d = domain.Trim();
-
-                    if (d.Length > 0)
-                    {
-                        trimmedDomains.Add(d);
-                    }
-                }
-
-                if (trimmedDomains.Count > 0)
-                {
-                    return trimmedDomains.ToArray();
-                }
+                m_application.CertificateRequestId = requestId.ToString();
+                CertificateRequestTimer.Enabled = true;
+                RequestProgressLabel.Visible = true;
+                WarningLabel.Visible = false;
+            }
+            catch (Exception ex)
+            {
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, ex);
             }
 
-            if (m_application.DiscoveryUrl != null)
-            {
-                foreach (var discoveryUrl in m_application.DiscoveryUrl)
-                {
-                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
-                    {
-                        string name = new Uri(discoveryUrl).DnsSafeHost;
-
-                        if (name == "localhost")
-                        {
-                            name = Utils.GetHostName();
-                        }
-
-                        bool found = false;
-
-                        foreach (var domainName in domainNames)
-                        {
-                            if (String.Compare(domainName, name, StringComparison.OrdinalIgnoreCase) == 0)
-                            {
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        if (!found)
-                        {
-                            domainNames.Add(name);
-                        }
-                    }
-                }
-            }
-
-            if (domainNames != null && domainNames.Count > 0)
-            {
-                return domainNames.ToArray();
-            }
-
-            if (m_certificate != null)
-            {
-                var names = Utils.GetDomainsFromCertficate(m_certificate);
-
-                if (names != null && names.Count > 0)
-                {
-                    domainNames.AddRange(names);
-                    return domainNames.ToArray();
-                }
-
-                var fields = Utils.ParseDistinguishedName(m_certificate.Subject);
-
-                string name = null;
-
-                foreach (var field in fields)
-                {
-                    if (field.StartsWith("DC=", StringComparison.Ordinal))
-                    {
-                        if (name != null)
-                        {
-                            name += ".";
-                        }
-
-                        name += field.Substring(3);
-                    }
-                }
-
-                if (names != null)
-                {
-                    domainNames.AddRange(names);
-                    return domainNames.ToArray();
-                }
-            }
-
-            return new string[] { Utils.GetHostName() };
         }
-
-        private async void RequestNewButton_Click(object sender, EventArgs e)
+        private async Task RequestNewCertificatePullMode(object sender, EventArgs e)
         {
             try
             {
@@ -303,15 +214,17 @@ namespace Opc.Ua.GdsClient
                 NodeId requestId = null;
                 if (!string.IsNullOrEmpty(m_application.CertificateStorePath))
                 {
-                    CertificateIdentifier id = new CertificateIdentifier();
-                    id.StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath);
-                    id.StorePath = m_application.CertificateStorePath;
-                    id.SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName());
+                    CertificateIdentifier id = new CertificateIdentifier
+                    {
+                        StoreType = CertificateStoreIdentifier.DetermineStoreType(m_application.CertificateStorePath),
+                        StorePath = m_application.CertificateStorePath,
+                        SubjectName = m_application.CertificateSubjectName.Replace("localhost", Utils.GetHostName())
+                    };
                     m_certificate = await id.Find(true);
                     if (m_certificate != null &&
                         m_certificate.HasPrivateKey)
                     {
-                        m_certificate = await id.LoadPrivateKey(string.Empty);
+                        m_certificate = await id.LoadPrivateKey(m_certificatePassword);
                     }
                 }
 
@@ -322,7 +235,7 @@ namespace Opc.Ua.GdsClient
                     hasPrivateKeyFile = file.Exists;
                 }
 
-                var domainNames = GetDomainNames();
+                var domainNames = m_application.GetDomainNames(m_certificate);
                 if (m_certificate == null)
                 {
                     // no private key
@@ -345,8 +258,8 @@ namespace Opc.Ua.GdsClient
                     else
                     {
                         string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false);
-                        byte [] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
-                        if (GetPrivateKeyFormat() == "PFX")
+                        byte[] pkcsData = File.ReadAllBytes(absoluteCertificatePrivateKeyPath);
+                        if (m_application.GetPrivateKeyFormat(m_server?.GetSupportedKeyFormats()) == "PFX")
                         {
                             csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(pkcsData, m_certificatePassword);
                         }
@@ -390,7 +303,7 @@ namespace Opc.Ua.GdsClient
                     // request not done yet, try again in a few seconds
                     return;
                 }
-                
+
                 CertificateRequestTimer.Enabled = false;
                 RequestProgressLabel.Visible = false;
 
@@ -468,7 +381,7 @@ namespace Opc.Ua.GdsClient
                         }
 
                         // if we provided a PFX or P12 with the private key, we need to merge the new cert with the private key
-                        if (GetPrivateKeyFormat() == "PFX")
+                        if (m_application.GetPrivateKeyFormat(m_server?.GetSupportedKeyFormats()) == "PFX")
                         {
                             string absoluteCertificatePrivateKeyPath = Utils.GetAbsoluteFilePath(m_application.CertificatePrivateKeyPath, true, false, false) ?? m_application.CertificatePrivateKeyPath;
                             file = new FileInfo(absoluteCertificatePrivateKeyPath);
@@ -529,14 +442,18 @@ namespace Opc.Ua.GdsClient
                 }
                 else
                 {
-#if TODO_SERVERPUSH
                     if (privateKeyPFX != null && privateKeyPFX.Length > 0)
                     {
                         var x509 = new X509Certificate2(privateKeyPFX, m_certificatePassword, X509KeyStorageFlags.Exportable);
                         privateKeyPFX = x509.Export(X509ContentType.Pfx);
                     }
-                    bool applyChanges = m_server.UpdateCertificate(null, null, certificate, GetPrivateKeyFormat(), privateKeyPFX, issuerCertificates);
-                    
+                    bool applyChanges = m_server.UpdateCertificate(
+                        null,
+                        m_server.ApplicationCertificateType,
+                        certificate,
+                        (privateKeyPFX != null) ? "PFX" : null,
+                        privateKeyPFX,
+                        issuerCertificates);
                     if (applyChanges)
                     {
                         MessageBox.Show(
@@ -548,29 +465,27 @@ namespace Opc.Ua.GdsClient
 
                         ApplyChangesButton.Enabled = true;
                     }
-#else
-                    throw new ServiceResultException("Server Push is not yet implemented.");
-#endif
                 }
 
                 CertificateControl.ShowValue(null, "Application Certificate", new CertificateWrapper() { Certificate = m_certificate }, true);
             }
             catch (Exception exception)
             {
-                var sre = exception as ServiceResultException;
 
-                if (sre != null && sre.StatusCode == StatusCodes.BadNothingToDo)
+                if (exception is ServiceResultException sre && sre.StatusCode == StatusCodes.BadNothingToDo)
                 {
                     return;
                 }
 
-                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, exception);
+                RequestProgressLabel.Visible = false;
                 CertificateRequestTimer.Enabled = false;
+                Opc.Ua.Client.Controls.ExceptionDlg.Show(Text, exception);
             }
         }
-               
+
         private void ApplyChangesButton_Click(object sender, EventArgs e)
         {
+            ApplyChangesButton.Enabled = false;
             try
             {
                 m_server.ApplyChanges();

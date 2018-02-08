@@ -10,9 +10,9 @@
     <ProjectGuid>{2ADA8796-AC1F-4031-9162-D4ED79D828AF}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Opc.Ua.GdsClient</RootNamespace>
-    <AssemblyName>Opc.Ua.GdsClient</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
+    <AssemblyName>Opc.Ua.Gds.Client</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -140,13 +140,13 @@
       <Name>UA Client Controls</Name>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+      <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
+      <Name>GlobalDiscoveryClientLibrary</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ClientControls\GlobalDiscoveryClientControls.csproj">
       <Project>{228ec503-2e77-45c9-87ac-3bb312e43196}</Project>
       <Name>GlobalDiscoveryClientControls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Common\GlobalDiscoveryLibrary.csproj">
-      <Project>{5A647CC0-5FD8-476B-8C14-8A9CED9CF5BE}</Project>
-      <Name>GlobalDiscoveryLibrary</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

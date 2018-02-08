@@ -65,8 +65,8 @@ namespace Opc.Ua.Gds.Client.Controls
             EndpointsGridView.DataSource = m_dataset.Tables[1].DefaultView;
         }
 
-        private LocalDiscoveryServerMethods m_lds;
-        private GlobalDiscoveryServerMethods m_gds;
+        private LocalDiscoveryServerClient m_lds;
+        private GlobalDiscoveryServerClient m_gds;
         private ConfiguredEndpointCollection m_endpoints;
         private QueryServersFilter m_filters;
         private DataSet m_dataset;
@@ -86,7 +86,7 @@ namespace Opc.Ua.Gds.Client.Controls
         private class ExpandNodeData
         {
             public TreeNode Parent;
-            public LocalDiscoveryServerMethods Lds;
+            public LocalDiscoveryServerClient Lds;
         }
 
         [DefaultValue(300)]
@@ -123,8 +123,10 @@ namespace Opc.Ua.Gds.Client.Controls
 
                                 if (server != null)
                                 {
-                                    var endpoint = new EndpointDescription(server.DiscoveryUrl);
-                                    endpoint.Server = GetApplicationDescription(server);
+                                    var endpoint = new EndpointDescription(server.DiscoveryUrl)
+                                    {
+                                        Server = GetApplicationDescription(server)
+                                    };
                                     return endpoint;
                                 }
                             }
@@ -135,8 +137,10 @@ namespace Opc.Ua.Gds.Client.Controls
 
                                 if (application != null)
                                 {
-                                    var endpoint = new EndpointDescription(SelectDiscoveryUrl(application));
-                                    endpoint.Server = application;
+                                    var endpoint = new EndpointDescription(SelectDiscoveryUrl(application))
+                                    {
+                                        Server = application
+                                    };
                                     return endpoint;
                                 }
                             }
@@ -171,8 +175,10 @@ namespace Opc.Ua.Gds.Client.Controls
                         if (endpoint == null)
                         {
                             ApplicationDescription application = (ApplicationDescription)node.Tag;
-                            endpoint = new EndpointDescription(SelectDiscoveryUrl(application));
-                            endpoint.Server = application;
+                            endpoint = new EndpointDescription(SelectDiscoveryUrl(application))
+                            {
+                                Server = application
+                            };
                         }
 
                         return endpoint;
@@ -185,8 +191,10 @@ namespace Opc.Ua.Gds.Client.Controls
                         if (endpoint == null)
                         {
                             ServerOnNetwork server = (ServerOnNetwork)node.Tag;
-                            endpoint = new EndpointDescription(server.DiscoveryUrl);
-                            endpoint.Server = GetApplicationDescription(server);
+                            endpoint = new EndpointDescription(server.DiscoveryUrl)
+                            {
+                                Server = GetApplicationDescription(server)
+                            };
                         }
 
                         return endpoint;
@@ -248,8 +256,8 @@ namespace Opc.Ua.Gds.Client.Controls
 
         public void Initialize(
             ConfiguredEndpointCollection endpoints, 
-            LocalDiscoveryServerMethods lds, 
-            GlobalDiscoveryServerMethods gds, 
+            LocalDiscoveryServerClient lds, 
+            GlobalDiscoveryServerClient gds, 
             QueryServersFilter filters)
         {
             m_lds = lds;
@@ -596,7 +604,7 @@ namespace Opc.Ua.Gds.Client.Controls
         private class GetEndpointsData
         {
             public TreeNode Parent;
-            public LocalDiscoveryServerMethods Lds;
+            public LocalDiscoveryServerClient Lds;
         }
 
         private void OnGetEndpointsComplete(IAsyncResult result)

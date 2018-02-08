@@ -92,6 +92,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <param name="operationTimeout">Optional. Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
         public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity, int operationTimeout = -1)
         {
@@ -132,6 +133,12 @@ namespace Opc.Ua.Client
                         if (useSecurity)
                         {
                             if (endpoint.SecurityMode == MessageSecurityMode.None)
+                            {
+                                continue;
+                            }
+
+                            // skip unsupported security policies
+                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
                             {
                                 continue;
                             }

@@ -144,6 +144,12 @@
           <xs:element name="MaxPublishRequestCount" type="xs:int" minOccurs="0" />
           <xs:element name="MaxSubscriptionCount" type="xs:int" minOccurs="0" />
           <xs:element name="MaxEventQueueSize" type="xs:int" minOccurs="0" />
+          <xs:element name="ServerProfileArray" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="ShutdownDelay" type="xs:int" minOccurs="0" />
+          <xs:element name="ServerCapabilities" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="SupportedPrivateKeyFormats" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="MaxTrustListSize" type="xs:int" minOccurs="0" />
+          <xs:element name="MultiCastDnsEnabled" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>

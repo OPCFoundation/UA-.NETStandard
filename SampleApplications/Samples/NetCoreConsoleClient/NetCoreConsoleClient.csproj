@@ -5,11 +5,20 @@
     <AssemblyName>NetCoreConsoleClient</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>NetCoreConsoleClient</PackageId>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>.Net Core Console Client</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Opc.Ua.MonoSampleClient.Config.xml" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +27,12 @@
 
   <ItemGroup>
     <PackageReference Include="Mono.Options" Version="5.3.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Opc.Ua.SampleClient.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

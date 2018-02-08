@@ -114,12 +114,23 @@
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
     
-    <MaxRegistrationInterval>0</MaxRegistrationInterval>
+    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Global Discovery Server Profile</ua:String>
+      <ua:String>Global Discovery and Certificate Management Server</ua:String>
     </ServerProfileArray>
+
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>GDS</ua:String>
+    </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
 
   </ServerConfiguration>
   <Extensions>
@@ -139,7 +150,6 @@
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>
-        <ShutdownDelay>5</ShutdownDelay>
     </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
