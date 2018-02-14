@@ -21,6 +21,9 @@ dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -
 serverpid="$!"
 cd $workdir
 
+echo wait for server started
+sleep 10
+
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo start client
 dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a &
