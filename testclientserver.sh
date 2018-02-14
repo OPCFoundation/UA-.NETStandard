@@ -20,7 +20,7 @@ echo start server
 dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a >log.txt &
 serverpid="$!"
 echo wait for server started
-tail -f --pid $serverpid | grep -qe "started"
+tail -f log.txt --pid $serverpid | grep -qe "started"
 cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
