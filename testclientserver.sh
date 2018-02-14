@@ -17,12 +17,11 @@ cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo start server
-dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a &
+dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a >log.txt &
 serverpid="$!"
-cd $workdir
-
 echo wait for server started
-sleep 10
+tail -f --pid $serverpid | grep -qe "started"
+cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo start client

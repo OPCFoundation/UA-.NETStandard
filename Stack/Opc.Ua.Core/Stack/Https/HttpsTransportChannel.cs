@@ -72,7 +72,7 @@ namespace Opc.Ua.Bindings
 
                 // OSX platform cannot auto validate certs and throws
                 // on PostAsync, do not set validation handler
-                //if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
                     try
                     {
