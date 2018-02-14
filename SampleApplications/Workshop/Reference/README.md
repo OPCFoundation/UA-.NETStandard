@@ -3,7 +3,7 @@
 ## Introduction
 This OPC Server is designed to be default OPC UA Server when opening the [OPC UA Compliance Test Tool](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/) and uses an address-space that matches the design of the UACTT. 
 
-It is built with the Quickstart application template (OPC Server) and uses the OPC Foundation UA .NET Standard Library SDK. Therefore it supports the opc.tcp and http transports. There is a .Net 4.6.1 based server with UI and a console version of the server which runs on any OS supporting [.NET Standard Library](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
+It is built with the Quickstart application template (OPC Server) and uses the OPC Foundation UA .NET Standard Library SDK. Therefore it supports the opc.tcp and https transports. There is a .Net 4.6 based server with UI and a .Net Standard 2.0 console version of the server which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
 
 ## How to build and run the Windows OPC UA Reference Server with UACTT
 1. Open the solution **UA Reference.sln** with VisualStudio.
@@ -18,11 +18,10 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## Start the server 
 1. Open a command prompt.
 2. Now navigate to the folder **SampleApplications/Workshop/Reference/ConsoleReferenceServer**.
-3. Execute `dotnet restore`. This command calls into NuGet to restore the tree of dependencies.
-4. To run the server sample type `dotnet run`. The server is now running and waiting for the connection of the UACTT. 
+3. To run the server sample type `dotnet run --project ConsoleReferenceServer.csproj`. The server is now running and waiting for the connection of the UACTT. 
 
 ## UACTT test certificates
-The reference server always rejects new client certificates and requires a few UACTT certificates in approbriate folders. The console server certificates are stored in **OPC Foundation/CertificateStores** while the Windows .Net 4.6 server stores the certificates in **%CommonApplicationData%\OPC Foundation\CertificateStores**. **%CommonApplicationData%** maps to the path set by the environment variable **ProgramData** on Windows.
+The reference server always rejects new client certificates and requires a few UACTT certificates in approbriate folders. The console server certificates are stored in **%LocalApplicationData%/OPC Foundation/CertificateStores** while the Windows .Net 4.6 server stores the certificates in **%CommonApplicationData%\OPC Foundation\CertificateStores**. **%CommonApplicationData%** maps to the path set by the environment variable **ProgramData** on Windows. **%LocalApplicationData%** maps to a hidden location in the user home folder and depends on the target platform.
 
 ### Certificate stores
 Under **CertificateStores**, the following stores contain certificates under **certs**, CRLs under **crl** or private keys under **private**.
