@@ -9,15 +9,19 @@ cd SampleApplications/Samples/NetCoreConsoleServer
 echo build server
 rm -r obj
 dotnet build NetCoreConsoleServer.csproj
+cd ../NetCoreConsoleClient
+echo build client
+rm -r obj
+dotnet build NetCoreConsoleClient.csproj
+cd $workdir
+
+cd SampleApplications/Samples/NetCoreConsoleServer
 echo start server
 dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a &
 serverpid="$!"
 cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
-echo build client
-rm -r obj
-dotnet build NetCoreConsoleClient.csproj
 echo start client
 dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a &
 clientpid="$!"
@@ -38,7 +42,7 @@ dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -
 clientpid="$!"
 cd $workdir
 
-echo wait for opc.tcp client
+echo wait for https client
 wait $clientpid
 if [ $? -eq 0 ]; then
 	echo "SUCCESS - Client test passed"
