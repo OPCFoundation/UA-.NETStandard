@@ -90,6 +90,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_client = new HttpClient(handler);
+                m_client.Timeout = TimeSpan.FromMilliseconds(m_operationTimeout);
             }
             catch (Exception ex)
             {
@@ -135,7 +136,6 @@ namespace Opc.Ua.Bindings
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                m_client.Timeout = TimeSpan.FromMilliseconds(m_operationTimeout);
                 Task.Run( async () =>
                 {
                     try
