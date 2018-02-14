@@ -1,7 +1,9 @@
 # OPC UA .Net Standard Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) and is certified for compliance through the OPC Foundation's Compliance Test Tool (CTT) V1.03. .Net Standard allows you develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. 
+This OPC UA reference implementation is targeting the [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) where one of the reference implementations inside this project has been certified for compliance through an OPC Foundation Certification Test Lab to prove its high quality. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) V1.03.
+
+.Net Standard allows you develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. 
 
 Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
@@ -21,7 +23,7 @@ Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websit
 13. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS/README.md).
 14. OPC UA [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md).
 15. OPC UA [Quickstart Samples](SampleApplications/Workshop/README.md).
-16. OPC UA Compliance Test Tool Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/) certified. The UA [Reference Server](SampleApplications/Workshop/Reference/README.md) is certified for compliance by the OPC Foundation.
+16. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/). 
 16. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .Net projects.
 
 ## Getting Started
