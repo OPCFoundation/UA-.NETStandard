@@ -1,7 +1,7 @@
 # OPC UA .Net Standard Stack and Samples
 
 ## Overview
-This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) and is certified for compliance through the OPC Foundation's Compliance Test Tool (CTT) V1.03. .Net Standard allows developing apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. 
+This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) and is certified for compliance through the OPC Foundation's Compliance Test Tool (CTT) V1.03. .Net Standard allows you develop apps that run on all common platforms available today, including Linux, iOS, Android (via Xamarin) and Windows 7/8/8.1/10 (including embedded/IoT editions) without requiring platform-specific modifications. 
 
 Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported. For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
@@ -49,7 +49,7 @@ The self signed certificates are stored in a folder called **OPC Foundation/Cert
 The *trusted*, *issuer* and *rejected* stores remain in a shared folder called **OPC Foundation\CertificateStores** with a root folder specified by the `SpecialFolder` variable **%LocalApplicationData%**. Depending on the target platform, this folder maps to a hidden locations under the user home directory.
 
 ## Local Discovery Server
-By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded from [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
+By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
 
 ## How to build and run the samples in Visual Studio on Windows
 
@@ -66,14 +66,18 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore UA-NetStandard.sln`. This command calls into NuGet to restore the tree of dependencies.
  
 ### Start the server 
-1. Open a command prompt 
-2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
-3. To run the server sample type `dotnet run --project NetCoreConsoleServer.csproj -a`. The server is now running and waiting for connections. The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing.
+1. Open a command prompt. 
+2. Navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
+3. To run the server sample type `dotnet run --project NetCoreConsoleServer.csproj -a`. 
+    - The server is now running and waiting for connections. 
+    - The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing.
  
 ### Start the client 
 1. Open a command prompt 
-2. Now navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
-3. To execute the sample type `dotnet run --project NetCoreConsoleClient.csproj -a` to connect to the OPC UA console sample server running on the same host. The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing. To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run --project NetCoreConsoleClient.csproj -a opc.tcp://myserver:51210/UA/SampleServer`. 
+2. Navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 
+3. To run the sample type `dotnet run --project NetCoreConsoleClient.csproj -a` to connect to the OPC UA console sample server running on the same host. 
+    - The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing. 
+    - To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run --project NetCoreConsoleClient.csproj -a opc.tcp://myserver:51210/UA/SampleServer`. 
 4. If not using the `-a` auto accept option, on first connection, or after certificates were renewed, the server may have refused the client certificate. Check the server and client folder **%LocalApplicationData%/OPC Foundation/CertificateStores/RejectedCertificates** for rejected certificates. To approve a certificate copy it to the **%LocalApplicationData%/OPC Foundation/CertificateStores/UA Applications** folder.
 5. Retry step 3 to connect using a secure connection.
 
