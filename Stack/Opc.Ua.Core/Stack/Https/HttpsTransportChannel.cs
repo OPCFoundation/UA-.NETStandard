@@ -90,7 +90,6 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_client = new HttpClient(handler);
-                m_client.Timeout = TimeSpan.FromMilliseconds(m_operationTimeout);
             }
             catch (Exception ex)
             {
