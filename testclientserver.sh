@@ -29,7 +29,7 @@ echo start client for tcp connection
 dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a &
 clientpid="$!"
 echo start client for https connection
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 15 -a https://localhost:51212 &
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a https://localhost:51212 &
 httpsclientpid="$!"
 cd $workdir
 
@@ -51,8 +51,12 @@ if [ $? -eq 0 ]; then
 	echo "SUCCESS - Client test passed"
 else
 	testresulthttps=$?
-	echo "WARN - Client test failed with a status of $testresulthttps"
-	echo "WARN - Client may require to use trusted TLS server cert to pass this test"
+	echo "FAILED - Client test failed with a status of $testresulthttps"
+	echo "FAILED - Client may require to use trusted TLS server cert to pass this test"
+	if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
+		testresulthttps=0 
+		echo "IGNORED - test requires trusted TLS cert on OSX"
+	fi
 fi
 
 echo send Ctrl-C to server

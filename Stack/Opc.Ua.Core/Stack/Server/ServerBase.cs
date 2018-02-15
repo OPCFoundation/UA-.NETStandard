@@ -828,25 +828,25 @@ namespace Opc.Ua
 
                 if (uri.Scheme == Utils.UriSchemeHttps)
                 {
-                    // can only support one policy with HTTPS so pick the best one.
+                    // Can only support one policy with HTTPS so pick the 
+                    // first secure policy with sign and encrypt in the list 
                     ServerSecurityPolicy bestPolicy = null;
-                    byte bestLevel = 0;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        if (bestPolicy == null)
+                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                         {
-                            bestPolicy = policy;
                             continue;
                         }
 
-                        byte securityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
-                        if (bestLevel < securityLevel)
-                        {
-                            bestPolicy = policy;
-                            bestLevel = securityLevel;
-                        }
+                        bestPolicy = policy;
+                        break;
                     }
-                
+
+                    if (bestPolicy == null)
+                    {
+                        throw new ServiceResultException("HTTPS transport requires policy with sign and encrypt.");
+                    }
+
                     EndpointDescription description = new EndpointDescription();
 
                     description.EndpointUrl = uri.ToString();
