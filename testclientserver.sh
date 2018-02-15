@@ -55,6 +55,9 @@ else
 	echo "WARN - Client may require to use trusted TLS server cert to pass this test"
 fi
 
+echo send Ctrl-C to server
+kill -s SIGINT $serverpid
+
 echo wait for server
 wait $serverpid
 serverresult=$?
