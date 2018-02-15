@@ -187,12 +187,7 @@ namespace Opc.Ua.Bindings
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_host.UseKestrel(options =>
-            {
-                options.Listen(IPAddress.IPv6Any, m_uri.Port, listenOptions =>
-                {
-                    listenOptions.NoDelay = true;
-                    listenOptions.UseHttps(httpsOptions);
-                });
+            {              
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
                 {
                     listenOptions.NoDelay = true;
