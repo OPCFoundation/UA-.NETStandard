@@ -25,9 +25,12 @@ tail -f ./server.log --pid=$serverpid &
 cd $workdir
 
 cd SampleApplications/Samples/NetCoreConsoleClient
-echo start client
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a &
+echo start client for tcp connection
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a &
 clientpid="$!"
+echo start client for https connection
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 15 -a https://localhost:51212 &
+httpsclientpid="$!"
 cd $workdir
 
 echo wait for opc.tcp client
@@ -40,13 +43,10 @@ else
 fi
 
 cd SampleApplications/Samples/NetCoreConsoleClient
-echo start client for https connection
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 10 -a https://localhost:51212 &
-clientpid="$!"
 cd $workdir
 
 echo wait for https client
-wait $clientpid
+wait $httpsclientpid
 if [ $? -eq 0 ]; then
 	echo "SUCCESS - Client test passed"
 else
@@ -67,7 +67,7 @@ else
 fi
 
 echo "Test results: Client:$testresult Server:$serverresult ClientHttps:$testresulthttps"
-exit $((testresult + serverresult))
+exit $((testresult + serverresult + testresulthttps))
 
 
 
