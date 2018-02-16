@@ -2270,7 +2270,8 @@ namespace Opc.Ua.Client
                 ValidateSoftwareCertificates(softwareCertificates);
 
                 // create the client signature.
-                dataToSign = Utils.Append(serverCertificateData, serverNonce);
+                X509Certificate2 serverCertificateFromResponse = CertificateFactory.Create(serverCertificateData, false);
+                dataToSign = Utils.Append(serverCertificateFromResponse.RawData, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
