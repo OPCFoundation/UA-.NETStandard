@@ -21,6 +21,11 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.ServiceModel" />
+  </ItemGroup>
+
   <Target Name="GetPackagingOutputs" />
 
 </Project>
