@@ -25,7 +25,7 @@ namespace Opc.Ua.Bindings
     public class HttpsTransportChannel : ITransportChannel
     {
         public void Dispose()
-        {   
+        {
         }
 
         public TransportChannelFeatures SupportedFeatures
@@ -50,7 +50,7 @@ namespace Opc.Ua.Bindings
 
         public int OperationTimeout
         {
-            get { return m_operationTimeout;  }
+            get { return m_operationTimeout; }
             set { m_operationTimeout = value; }
         }
 
@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings
         {
             SaveSettings(url, settings);
         }
-        
+
         public void Open()
         {
             try
@@ -79,7 +79,17 @@ namespace Opc.Ua.Bindings
                         handler.ServerCertificateCustomValidationCallback =
                             (httpRequestMessage, cert, chain, policyErrors) =>
                             {
-                                return true;
+                                try
+                                {
+                                    m_quotas.CertificateValidator?.Validate(cert);
+                                    return true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Utils.Trace("HTTPS: Failed to validate server cert: " + cert.Subject);
+                                    Utils.Trace("HTTPS: Exception:" + ex.Message);
+                                }
+                                return false;
                             };
                     }
                     catch (PlatformNotSupportedException)
@@ -135,22 +145,22 @@ namespace Opc.Ua.Bindings
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run( async () =>
-                {
-                    try
-                    {
-                        response = await m_client.PostAsync(m_url, content);
-                        response.EnsureSuccessStatusCode();
-                    }
-                    catch (Exception ex)
-                    {
-                        Utils.Trace("Exception sending HTTPS request: " + ex.Message);
-                        result.Exception = ex;
-                        response = null;
-                    }
-                    result.Response = response;
-                    result.OperationCompleted();
-                });
+                Task.Run(async () =>
+               {
+                   try
+                   {
+                       response = await m_client.PostAsync(m_url, content);
+                       response.EnsureSuccessStatusCode();
+                   }
+                   catch (Exception ex)
+                   {
+                       Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                       result.Exception = ex;
+                       response = null;
+                   }
+                   result.Response = response;
+                   result.OperationCompleted();
+               });
 
                 return result;
             }
@@ -213,7 +223,7 @@ namespace Opc.Ua.Bindings
         {
             throw new NotImplementedException();
         }
-        
+
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
@@ -229,7 +239,7 @@ namespace Opc.Ua.Bindings
             IAsyncResult result = BeginSendRequest(request, null, null);
             return EndSendRequest(result);
         }
-        
+
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             m_url = new Uri(url.ToString());
