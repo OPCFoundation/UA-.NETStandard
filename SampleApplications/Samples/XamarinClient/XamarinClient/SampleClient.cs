@@ -159,7 +159,7 @@ namespace XamarinClient
                 // register keep alive handler
                 session.KeepAlive += Client_KeepAlive;
             }
-            catch (Exception exception)
+            catch 
             {
                 connectionStatus = ConnectionStatus.Error;
             }
@@ -233,7 +233,7 @@ namespace XamarinClient
 
                 return browserTree;
             }
-            catch (Exception exception)
+            catch 
             {
                 Disconnect(session);
                 return null;
@@ -387,7 +387,7 @@ namespace XamarinClient
                 }
                 return browserTree;
             }
-            catch (Exception exception)
+            catch
             {
                 Disconnect(session);
                 return null;
@@ -416,7 +416,7 @@ namespace XamarinClient
                 }
                 return value;
             }
-            catch (Exception exception)
+            catch
             {
                 return null;
             }

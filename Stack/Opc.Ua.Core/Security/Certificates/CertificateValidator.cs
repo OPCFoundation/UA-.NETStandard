@@ -236,7 +236,7 @@ namespace Opc.Ua
                     InternalValidate(chain).Wait();
 
                     // add to list of validated certificates.
-                    m_validatedCertificates[certificate.Thumbprint] = certificate;
+                    m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
             catch (AggregateException ae)

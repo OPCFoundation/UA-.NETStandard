@@ -54,7 +54,7 @@ namespace XamarinClient
             
             // Read the contents of our asset
             string content;
-            AssetManager assets = Forms.Context.Assets;
+            AssetManager assets = Android.App.Application.Context.Assets;
             using (StreamReader sr = new StreamReader(assets.Open(fileName)))
             {
                 content = sr.ReadToEnd();
