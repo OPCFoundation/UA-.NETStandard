@@ -49162,31 +49162,6 @@ namespace Opc.Ua
             {
                 FinalResultData.Initialize(context, FinalResultData_InitializationString);
             }
-
-            if (Start != null)
-            {
-                Start.Initialize(context, Start_InitializationString);
-            }
-
-            if (Suspend != null)
-            {
-                Suspend.Initialize(context, Suspend_InitializationString);
-            }
-
-            if (Resume != null)
-            {
-                Resume.Initialize(context, Resume_InitializationString);
-            }
-
-            if (Halt != null)
-            {
-                Halt.Initialize(context, Halt_InitializationString);
-            }
-
-            if (Reset != null)
-            {
-                Reset.Initialize(context, Reset_InitializationString);
-            }
         }
 
         #region Initialization String
@@ -49208,31 +49183,6 @@ namespace Opc.Ua
 
         private const string FinalResultData_InitializationString =
            "//////////8EYIAKAQAAAAAADwAAAEZpbmFsUmVzdWx0RGF0YQEACg8ALwA6Cg8AAP////8AAAAA";
-
-        private const string Start_InitializationString =
-           "//////////8kYYIKBAAAAAAABQAAAFN0YXJ0AQB6CQMAAAAASwAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0" +
-           "byB0cmFuc2l0aW9uIGZyb20gdGhlIFJlYWR5IHN0YXRlIHRvIHRoZSBSdW5uaW5nIHN0YXRlLgAvAQB6" +
-           "CXoJAAABAQEAAAAANQEBAGoJAAAAAA==";
-
-        private const string Suspend_InitializationString =
-           "//////////8kYYIKBAAAAAAABwAAAFN1c3BlbmQBAHsJAwAAAABPAAAAQ2F1c2VzIHRoZSBQcm9ncmFt" +
-           "IHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUnVubmluZyBzdGF0ZSB0byB0aGUgU3VzcGVuZGVkIHN0YXRl" +
-           "LgAvAQB7CXsJAAABAQEAAAAANQEBAHAJAAAAAA==";
-
-        private const string Resume_InitializationString =
-           "//////////8kYYIKBAAAAAAABgAAAFJlc3VtZQEAfAkDAAAAAE8AAABDYXVzZXMgdGhlIFByb2dyYW0g" +
-           "dG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBTdXNwZW5kZWQgc3RhdGUgdG8gdGhlIFJ1bm5pbmcgc3RhdGUu" +
-           "AC8BAHwJfAkAAAEBAQAAAAA1AQEAcgkAAAAA";
-
-        private const string Halt_InitializationString =
-           "//////////8kYYIKBAAAAAAABAAAAEhhbHQBAH0JAwAAAABgAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRv" +
-           "IHRyYW5zaXRpb24gZnJvbSB0aGUgUmVhZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0YXRlIHRvIHRo" +
-           "ZSBIYWx0ZWQgc3RhdGUuAC8BAH0JfQkAAAEBAwAAAAA1AQEAbAkANQEBAHQJADUBAQB4CQAAAAA=";
-
-        private const string Reset_InitializationString =
-           "//////////8kYYIKBAAAAAAABQAAAFJlc2V0AQB+CQMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0" +
-           "byB0cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8BAH4J" +
-           "fgkAAAEBAQAAAAA1AQEAaAkAAAAA";
 
         private const string InitializationString =
            "//////////8EYIAAAQAAAAAAHwAAAFByb2dyYW1TdGF0ZU1hY2hpbmVUeXBlSW5zdGFuY2UBAFcJAQBX" +
@@ -49369,111 +49319,6 @@ namespace Opc.Ua
                 m_finalResultData = value;
             }
         }
-
-        /// <summary>
-        /// Causes the Program to transition from the Ready state to the Running state.
-        /// </summary>
-        public MethodState Start
-        {
-            get
-            {
-                return m_startMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_startMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_startMethod = value;
-            }
-        }
-
-        /// <summary>
-        /// Causes the Program to transition from the Running state to the Suspended state.
-        /// </summary>
-        public MethodState Suspend
-        {
-            get
-            {
-                return m_suspendMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_suspendMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_suspendMethod = value;
-            }
-        }
-
-        /// <summary>
-        /// Causes the Program to transition from the Suspended state to the Running state.
-        /// </summary>
-        public MethodState Resume
-        {
-            get
-            {
-                return m_resumeMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_resumeMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_resumeMethod = value;
-            }
-        }
-
-        /// <summary>
-        /// Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.
-        /// </summary>
-        public MethodState Halt
-        {
-            get
-            {
-                return m_haltMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_haltMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_haltMethod = value;
-            }
-        }
-
-        /// <summary>
-        /// Causes the Program to transition from the Halted state to the Ready state.
-        /// </summary>
-        public MethodState Reset
-        {
-            get
-            {
-                return m_resetMethod;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_resetMethod, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_resetMethod = value;
-            }
-        }
         #endregion
 
         #region Overridden Methods
@@ -49509,31 +49354,6 @@ namespace Opc.Ua
             if (m_finalResultData != null)
             {
                 children.Add(m_finalResultData);
-            }
-
-            if (m_startMethod != null)
-            {
-                children.Add(m_startMethod);
-            }
-
-            if (m_suspendMethod != null)
-            {
-                children.Add(m_suspendMethod);
-            }
-
-            if (m_resumeMethod != null)
-            {
-                children.Add(m_resumeMethod);
-            }
-
-            if (m_haltMethod != null)
-            {
-                children.Add(m_haltMethod);
-            }
-
-            if (m_resetMethod != null)
-            {
-                children.Add(m_resetMethod);
             }
 
             base.GetChildren(context, children);
@@ -49678,11 +49498,6 @@ namespace Opc.Ua
         private PropertyState<int> m_recycleCount;
         private ProgramDiagnostic2State m_programDiagnostics;
         private BaseObjectState m_finalResultData;
-        private MethodState m_startMethod;
-        private MethodState m_suspendMethod;
-        private MethodState m_resumeMethod;
-        private MethodState m_haltMethod;
-        private MethodState m_resetMethod;
         #endregion
     }
     #endif
