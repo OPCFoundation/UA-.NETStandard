@@ -1,4 +1,33 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
 <xs:schema
     targetNamespace="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
     elementFormDefault="qualified"
@@ -27,7 +56,7 @@
       <xs:attribute name="LastModified" type="xs:dateTime" use="optional"></xs:attribute>
     </xs:complexType>
   </xs:element>
-  
+
   <xs:element name="UANodeSetChanges">
     <xs:complexType>
       <xs:sequence>
@@ -58,7 +87,7 @@
       <xs:attribute name="TransactionId" type="xs:string" use="required"></xs:attribute>
     </xs:complexType>
   </xs:element>
-  
+
   <xs:complexType name="NodesToAdd">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="UAObject" type="UAObject"></xs:element>
@@ -77,7 +106,7 @@
       <xs:element name="Node" type="NodeToDelete" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="NodeToDelete">
     <xs:simpleContent>
       <xs:extension base="NodeId">
@@ -91,7 +120,7 @@
       <xs:element name="Reference" type="ReferenceChange" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ReferenceChange">
     <xs:simpleContent>
       <xs:extension base="NodeId">
@@ -115,7 +144,7 @@
       <xs:element name="Status" type="NodeSetStatus" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="UriTable">
     <xs:sequence>
       <xs:element name="Uri" type="xs:string" minOccurs="0" maxOccurs="unbounded"></xs:element>
@@ -124,11 +153,14 @@
 
   <xs:complexType name="ModelTableEntry">
     <xs:sequence>
+      <xs:element name="RolePermissions" type="ListOfRolePermissions" minOccurs="0"></xs:element>
       <xs:element name="RequiredModel" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
     <xs:attribute name="ModelUri" type="xs:string" use="optional"></xs:attribute>
     <xs:attribute name="Version" type="xs:string" use="optional"></xs:attribute>
     <xs:attribute name="PublicationDate" type="xs:dateTime" use="optional"></xs:attribute>
+    <xs:attribute name="SymbolicName" type="SymbolicName" use="optional"></xs:attribute>
+    <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0"></xs:attribute>
   </xs:complexType>
 
   <xs:complexType name="ModelTable">
@@ -183,6 +215,10 @@
     <xs:restriction base="xs:int"></xs:restriction>
   </xs:simpleType>
 
+  <xs:simpleType name="AccessRestriction">
+    <xs:restriction base="xs:unsignedByte"></xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="ArrayDimensions">
     <xs:list>
       <xs:simpleType>
@@ -218,7 +254,7 @@
   </xs:simpleType>
 
   <xs:simpleType name="AccessLevel">
-    <xs:restriction base="xs:unsignedByte"></xs:restriction>
+    <xs:restriction base="xs:unsignedInt"></xs:restriction>
   </xs:simpleType>
 
   <xs:complexType name="Reference">
@@ -233,6 +269,20 @@
   <xs:complexType name="ListOfReferences">
     <xs:sequence>
       <xs:element name="Reference" type="Reference" minOccurs="0" maxOccurs="unbounded"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="RolePermission">
+    <xs:simpleContent>
+      <xs:extension base="NodeId">
+        <xs:attribute name="Permissions" type="xs:unsignedInt" default="0"></xs:attribute>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfRolePermissions">
+    <xs:sequence>
+      <xs:element name="RolePermission" type="RolePermission" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
   </xs:complexType>
 
@@ -255,12 +305,14 @@
       <xs:element name="Category" type="xs:string" minOccurs="0" maxOccurs="unbounded"></xs:element>
       <xs:element name="Documentation" type="xs:string" minOccurs="0" maxOccurs="1"></xs:element>
       <xs:element name="References" type="ListOfReferences" minOccurs="0"></xs:element>
+      <xs:element name="RolePermissions" type="ListOfRolePermissions" minOccurs="0"></xs:element>
       <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0"></xs:element>
     </xs:sequence>
     <xs:attribute name="NodeId" type="NodeId" use="required"></xs:attribute>
     <xs:attribute name="BrowseName" type="QualifiedName" use="required"></xs:attribute>
     <xs:attribute name="WriteMask" type="WriteMask" default="0"></xs:attribute>
     <xs:attribute name="UserWriteMask" type="WriteMask" default="0"></xs:attribute>
+    <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0"></xs:attribute>
     <xs:attribute name="SymbolicName" type="SymbolicName" use="optional"></xs:attribute>
   </xs:complexType>
 
@@ -310,7 +362,7 @@
       <xs:element name="Description" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="UAMethod">
     <xs:complexContent>
       <xs:extension base="UAInstance">
@@ -395,16 +447,18 @@
       <xs:element name="Field" type="DataTypeField" minOccurs="0" maxOccurs="unbounded"></xs:element>
     </xs:sequence>
     <xs:attribute name="Name" type="QualifiedName" use="required"></xs:attribute>
-    <xs:attribute name="BaseType" type="QualifiedName" use="optional" default=""></xs:attribute>
     <xs:attribute name="SymbolicName" type="SymbolicName" use="optional" default=""></xs:attribute>
     <xs:attribute name="IsUnion" type="xs:boolean" use="optional" default="false"></xs:attribute>
+    <xs:attribute name="IsOptionSet" type="xs:boolean" use="optional" default="false"></xs:attribute>
+    
+    <!-- BaseType is obsolete and no longer used. Left in for backwards compatibility. -->
+    <xs:attribute name="BaseType" type="QualifiedName" use="optional" default=""></xs:attribute>
   </xs:complexType>
 
   <xs:complexType name="DataTypeField">
     <xs:sequence>
       <xs:element name="DisplayName" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
       <xs:element name="Description" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
-      <xs:element name="Definition" type="DataTypeDefinition" minOccurs="0"></xs:element>
     </xs:sequence>
     <xs:attribute name="Name" type="xs:string" use="required"></xs:attribute>
     <xs:attribute name="SymbolicName" type="SymbolicName" use="optional"></xs:attribute>
@@ -426,4 +480,3 @@
   </xs:complexType>
 
 </xs:schema>
-
