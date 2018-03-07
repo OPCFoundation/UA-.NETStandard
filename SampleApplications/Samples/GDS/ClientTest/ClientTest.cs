@@ -38,6 +38,7 @@ using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
 using Opc.Ua.Test;
+using System.IO;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -523,7 +524,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
-        [Test, Order(521)]
+        [Test, Order(530)]
         public void FinishGoodSigningRequests()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -567,6 +568,26 @@ namespace NUnit.Opc.Ua.Gds.Test
             } while (requestBusy);
 
         }
+
+        [Test, Order(550)]
+        public void StartGoodSigningRequestWithInvalidAppURI()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(true);
+            var application = _goodApplicationTestSet[0];
+            Assert.Null(application.CertificateRequestId);
+            // load csr with invalid app URI
+            byte[] certificateRequest = File.ReadAllBytes("test.csr");
+            Assert.That(() =>
+            {
+                NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
+                application.ApplicationRecord.ApplicationId,
+                application.CertificateGroupId,
+                application.CertificateTypeId,
+                certificateRequest);
+            }, Throws.Exception);
+        }
+
 
         [Test, Order(600)]
         public void GetGoodCertificateGroupsNullTests()

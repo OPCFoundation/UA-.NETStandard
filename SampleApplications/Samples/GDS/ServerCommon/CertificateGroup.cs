@@ -27,9 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Org.BouncyCastle.Asn1.Pkcs;
-using Org.BouncyCastle.Pkcs;
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -145,24 +144,63 @@ namespace Opc.Ua.Gds.Server
             string[] domainNames,
             byte[] certificateRequest)
         {
-            Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
-            CertificationRequestInfo info = pkcs10CertificationRequest.GetCertificationRequestInfo();
-            DateTime yesterday = DateTime.UtcNow.AddDays(-1);
-            return CertificateFactory.CreateCertificate(
-                null,
-                null,
-                null,
-                application.ApplicationUri ?? "urn:ApplicationURI",
-                application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                info.Subject.ToString(),
-                domainNames,
-                Configuration.DefaultCertificateKeySize,
-                yesterday,
-                Configuration.DefaultCertificateLifetime,
-                Configuration.DefaultCertificateHashSize,
-                false,
-                await LoadSigningKeyAsync(Certificate, string.Empty),
-                info.SubjectPublicKeyInfo.GetEncoded());
+            try
+            {
+                var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(certificateRequest);
+
+                if (!pkcs10CertificationRequest.Verify())
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR signature invalid.");
+                }
+
+                var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
+                var altNameExtension = GetAltNameExtensionFromCSRInfo(info);
+                if (altNameExtension != null)
+                {
+                    if (altNameExtension.Uris.Count > 0)
+                    {
+                        if (!altNameExtension.Uris.Contains(application.ApplicationUri))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid, 
+                                "CSR AltNameExtension does not match "+ application.ApplicationUri);
+                        }
+                    }
+
+                    if (altNameExtension.IPAddresses.Count > 0 || altNameExtension.DomainNames.Count > 0)
+                    {
+                        var domainNameList = new List<string>();
+                        domainNameList.AddRange(altNameExtension.DomainNames);
+                        domainNameList.AddRange(altNameExtension.IPAddresses);
+                        domainNames = domainNameList.ToArray();
+                    }
+                }
+
+                DateTime yesterday = DateTime.UtcNow.AddDays(-1);
+                return CertificateFactory.CreateCertificate(
+                    null,
+                    null,
+                    null,
+                    application.ApplicationUri ?? "urn:ApplicationURI",
+                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                    info.Subject.ToString(),
+                    domainNames,
+                    Configuration.DefaultCertificateKeySize,
+                    yesterday,
+                    Configuration.DefaultCertificateLifetime,
+                    Configuration.DefaultCertificateHashSize,
+                    false,
+                    await LoadSigningKeyAsync(Certificate, string.Empty),
+                    info.SubjectPublicKeyInfo.GetEncoded());
+            }
+            catch (Exception ex)
+            {
+                if (ex is ServiceResultException)
+                {
+                    throw ex as ServiceResultException;
+                }
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
+            }
+
         }
 
         public virtual async Task<X509Certificate2> CreateCACertificateAsync(
@@ -247,6 +285,33 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
             }
+        }
+
+        private X509SubjectAltNameExtension GetAltNameExtensionFromCSRInfo(Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info)
+        {
+            try
+            {
+                for (int i = 0; i < info.Attributes.Count; i++)
+                {
+                    var sequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(info.Attributes[i].ToAsn1Object());
+                    var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier.GetInstance(sequence[0].ToAsn1Object());
+                    if (oid.Equals(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
+                    {
+                        var extensionInstance = Org.BouncyCastle.Asn1.DerSet.GetInstance(sequence[1]);
+                        var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(extensionInstance[0]);
+                        var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions.GetInstance(extensionSequence);
+                        Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions.GetExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
+                        var asnEncodedAltNameExtension = new System.Security.Cryptography.AsnEncodedData(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.ToString(), extension.Value.GetOctets());
+                        var altNameExtension = new X509SubjectAltNameExtension(asnEncodedAltNameExtension, extension.IsCritical);
+                        return altNameExtension;
+                    }
+                }
+            }
+            catch
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR altNameExtension invalid.");
+            }
+            return null;
         }
         #endregion
 
