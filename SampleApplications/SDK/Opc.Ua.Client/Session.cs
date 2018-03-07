@@ -199,7 +199,7 @@ namespace Opc.Ua.Client
                         m_instanceCertificate.Thumbprint);
                 }
 
-                // load certificate chain
+                // load certificate chain.
                 m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
                 configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers).Wait();
@@ -835,6 +835,7 @@ namespace Opc.Ua.Client
             }
 
             X509Certificate2 clientCertificate = null;
+            X509Certificate2Collection clientCertificateChain = null;
 
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
@@ -849,6 +850,16 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
                 }
+
+                // load certificate chain.
+                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+                configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).Wait();
+
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    clientCertificateChain.Add(issuers[i].Certificate);
+                }
             }
 
             // initialize the channel which will be created with the server.
@@ -857,6 +868,7 @@ namespace Opc.Ua.Client
                  endpointDescription,
                  endpointConfiguration,
                  clientCertificate,
+                 configuration.SecurityConfiguration.SendCertificateChain? clientCertificateChain : null,
                  messageContext);
 
             // create the session object.
@@ -890,6 +902,7 @@ namespace Opc.Ua.Client
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ? template.m_instanceCertificateChain : null,
                 template.m_configuration.CreateMessageContext());
 
             // create the session object.
@@ -968,10 +981,9 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                EndpointDescription endpoint = m_endpoint.Description;
-
                 // create the client signature.
-                byte[] dataToSign = Utils.Append(endpoint.ServerCertificate, m_serverNonce);
+                byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
+                EndpointDescription endpoint = m_endpoint.Description;
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
 
                 // check that the user identity is supported by the endpoint.
@@ -1026,6 +1038,7 @@ namespace Opc.Ua.Client
                         m_endpoint.Description,
                         m_endpoint.Configuration,
                         m_instanceCertificate,
+                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
                         MessageContext);
 
                     // disposes the existing channel.
@@ -1978,7 +1991,7 @@ namespace Opc.Ua.Client
 
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
-            // get the identity token.            
+            // get the identity token.
             if (identity == null)
             {
                 identity = new UserIdentity();
@@ -2011,13 +2024,20 @@ namespace Opc.Ua.Client
                 requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None;
             }
 
-            // validate the server certificate.
+            // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
             byte[] certificateData = m_endpoint.Description.ServerCertificate;
+
             if (certificateData != null && certificateData.Length > 0 && requireEncryption)
             {
-                serverCertificate = Utils.ParseCertificateBlob(certificateData);
-                m_configuration.CertificateValidator.Validate(serverCertificate);
+                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
+
+                if (serverCertificateChain.Count > 0)
+                {
+                    serverCertificate = serverCertificateChain[0];
+                }
+
+                m_configuration.CertificateValidator.Validate(serverCertificateChain);
 
                 if (checkDomain)
                 {
@@ -2025,11 +2045,6 @@ namespace Opc.Ua.Client
                 }
                 // save for reconnect
                 m_checkDomain = checkDomain;
-
-                //X509Certificate2Collection certificateChain = Utils.ParseCertificateChainBlob(certificateData);                
-                //if (certificateChain.Count > 0)
-                //    serverCertificate = certificateChain[0];
-                //m_configuration.CertificateValidator.Validate(certificateChain);
             }
 
             // create a nonce.
@@ -2045,6 +2060,19 @@ namespace Opc.Ua.Client
 
             // send the application instance certificate for the client.
             byte[] clientCertificateData = m_instanceCertificate != null ? m_instanceCertificate.RawData : null;
+            byte[] clientCertificateChainData = null;
+
+            if (m_instanceCertificateChain != null && m_instanceCertificateChain.Count > 0 && m_configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                List<byte> clientCertificateChain = new List<byte>();
+
+                for (int i = 0; i < m_instanceCertificateChain.Count; i++)
+                {
+                    clientCertificateChain.AddRange(m_instanceCertificateChain[i].RawData);
+                }
+
+                clientCertificateChainData = clientCertificateChain.ToArray();
+            }
 
             ApplicationDescription clientDescription = new ApplicationDescription();
 
@@ -2103,7 +2131,7 @@ namespace Opc.Ua.Client
                         m_endpoint.EndpointUrl.ToString(),
                         sessionName,
                         clientNonce,
-                        clientCertificateData,
+                        clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
                         sessionTimeout,
                         (uint)MessageContext.MaxMessageSize,
                         out sessionId,
@@ -2129,13 +2157,27 @@ namespace Opc.Ua.Client
             //we need to call CloseSession if CreateSession was successful but some other exception is thrown
             try
             {
-
                 // verify that the server returned the same instance certificate.
                 if (serverCertificateData != null && !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateInvalid,
-                        "Server did not return the certificate used to create the secure channel.");
+                    try
+                    {
+                        // verify for certificate chain in endpoint.
+                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.Description.ServerCertificate);
+
+                        if (serverCertificateChain.Count > 0 && !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
+                        {
+                            throw ServiceResultException.Create(
+                                        StatusCodes.BadCertificateInvalid,
+                                        "Server did not return the certificate used to create the secure channel.");
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        throw ServiceResultException.Create(
+                                StatusCodes.BadCertificateInvalid,
+                                "Server did not return the certificate used to create the secure channel.");
+                    }
                 }
 
                 if (serverSignature == null || serverSignature.Signature == null)
@@ -2191,7 +2233,6 @@ namespace Opc.Ua.Client
                     }
                 }
 
-
                 // find the matching description (TBD - check domains against certificate).
                 bool found = false;
                 Uri expectedUrl = Utils.ParseUri(m_endpoint.Description.EndpointUrl);
@@ -2238,9 +2279,24 @@ namespace Opc.Ua.Client
 
                 if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadApplicationSignatureInvalid,
-                        "Server did not provide a correct signature for the nonce data provided by the client.");
+                    // validate the signature with complete chain if the check with leaf certificate failed.
+                    if (clientCertificateChainData != null)
+                    {
+                        dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
+
+                        if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadApplicationSignatureInvalid,
+                                "Server did not provide a correct signature for the nonce data provided by the client.");
+                        }
+                    }
+                    else
+                    {
+                        throw ServiceResultException.Create(
+                           StatusCodes.BadApplicationSignatureInvalid,
+                           "Server did not provide a correct signature for the nonce data provided by the client.");
+                    }
                 }
 
                 // get a validator to check certificates provided by server.
@@ -2270,7 +2326,7 @@ namespace Opc.Ua.Client
                 ValidateSoftwareCertificates(softwareCertificates);
 
                 // create the client signature.
-                dataToSign = Utils.Append(serverCertificateData, serverNonce);
+                dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
@@ -2406,13 +2462,7 @@ namespace Opc.Ua.Client
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
-            byte[] serverCertificateData = null;
-            if (m_serverCertificate != null)
-            {
-                serverCertificateData = m_serverCertificate.RawData;
-            }
-            // create the client signature.
-            byte[] dataToSign = Utils.Append(serverCertificateData, serverNonce);
+            byte[]  dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
             // choose a default token.            

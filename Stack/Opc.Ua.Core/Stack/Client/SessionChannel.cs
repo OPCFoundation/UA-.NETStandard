@@ -10,19 +10,13 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Security.Cryptography.X509Certificates;
-using System.ServiceModel;
-using System.ServiceModel.Channels;
-using System.ServiceModel.Description;
-using System.ServiceModel.Security;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
     /// <summary>
-	///  A channel object used by clients to access a UA service.
-	/// </summary>
+    ///  A channel object used by clients to access a UA service.
+    /// </summary>
     public partial class SessionChannel 
     {
         #region Constructors
@@ -42,14 +36,36 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             ServiceMessageContext messageContext)
         {
+            return Create(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+        }
+
+        /// <summary>
+        /// Creates a new transport channel that supports the ISessionChannel service contract.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="description">The description for the endpoint.</param>
+        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certificate chain.</param>
+        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <returns></returns>
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            ServiceMessageContext messageContext)
+        {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
+                clientCertificateChain,
                 messageContext);
-            
+
             return channel;
         }
 
