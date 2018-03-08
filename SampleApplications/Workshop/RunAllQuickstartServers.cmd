@@ -1,4 +1,3 @@
-msbuild /p:configuration=Debug /t:clean,restore,build "..\..\UA Quickstart Applications.sln"
 cd ..\bin\Debug
 start Quickstarts.AlarmConditionServer.exe
 start Quickstarts.BoilerServer.exe
