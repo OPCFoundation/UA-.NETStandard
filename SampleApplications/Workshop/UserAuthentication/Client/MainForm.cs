@@ -69,7 +69,7 @@ namespace Quickstarts.UserAuthenticationClient
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/UserAuthenticationServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62565/Quickstarts/UserAuthenticationServer";
             this.Text = m_configuration.ApplicationName;
 
             UserNameTB.Text = "Operator";

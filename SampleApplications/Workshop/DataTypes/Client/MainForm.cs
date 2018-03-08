@@ -64,7 +64,7 @@ namespace Quickstarts.DataTypes
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/DataTypesServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62555/DataTypesServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion
