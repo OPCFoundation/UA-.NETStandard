@@ -64,7 +64,7 @@ namespace Quickstarts.SimpleEvents.Client
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/SimpleEventsServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62563/Quickstarts/SimpleEventsServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion

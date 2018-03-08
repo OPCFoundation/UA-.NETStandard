@@ -14,7 +14,6 @@
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <ApplicationIcon>App.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <UpgradeBackupLocation>
@@ -90,7 +89,6 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <Content Include="App.config" />
-    <None Include="app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -145,6 +143,7 @@
     <EmbeddedResource Include="Data\Sample\UInt64.txt" />
     <Content Include="HistoricalAccessServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -201,6 +200,10 @@
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
   </ItemGroup>
+  <PropertyGroup>
+    <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
+    <BaseNuGetRuntimeIdentifier>win7-x64</BaseNuGetRuntimeIdentifier>
+  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
