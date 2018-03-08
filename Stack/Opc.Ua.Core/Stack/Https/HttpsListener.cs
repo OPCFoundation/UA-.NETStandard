@@ -179,14 +179,14 @@ namespace Opc.Ua.Bindings
         public void Start()
         {
             Startup.Listener = this;
-            m_host = new WebHostBuilder();
+            m_hostBuilder = new WebHostBuilder();
 #if NETSTANDARD2_0
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            m_host.UseKestrel(options =>
+            m_hostBuilder.UseKestrel(options =>
             {              
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
                 {
@@ -200,15 +200,15 @@ namespace Opc.Ua.Bindings
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            m_host.UseKestrel(options =>
+            m_hostBuilder.UseKestrel(options =>
             {
                 options.NoDelay = true;
                 options.UseHttps(httpsOptions);
             });
 #endif
-            m_host.UseContentRoot(Directory.GetCurrentDirectory());
-            m_host.UseStartup<Startup>();
-            m_host.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
+            m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            m_hostBuilder.UseStartup<Startup>();
+            m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
         }
 
         /// <summary>
@@ -218,9 +218,9 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
@@ -326,9 +326,9 @@ namespace Opc.Ua.Bindings
 
             Start();
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
 
         private string m_listenerId;
@@ -336,9 +336,10 @@ namespace Opc.Ua.Bindings
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
-        private WebHostBuilder m_host;
+        private IWebHostBuilder m_hostBuilder;
+        private IWebHost m_host;
         private X509Certificate2 m_serverCert;
-#endregion
+        #endregion
     }
 }
 
