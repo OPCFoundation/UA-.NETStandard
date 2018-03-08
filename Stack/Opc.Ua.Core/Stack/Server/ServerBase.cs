@@ -529,6 +529,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the instance certificate chain.
+        /// </summary>
+        protected X509Certificate2Collection InstanceCertificateChain
+        {
+            get
+            {
+                return m_instanceCertificateChain;
+            }
+
+            private set
+            {
+                m_instanceCertificateChain = value;
+            }
+        }
+
+        /// <summary>
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
@@ -737,6 +753,19 @@ namespace Opc.Ua
                     if (requireEncryption)
                     {
                         description.ServerCertificate = InstanceCertificate.RawData;
+
+                        // check if complete chain should be sent.
+                        if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count >0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            description.ServerCertificate = serverCertificateChain.ToArray();
+                        }
                     }
 
                     endpoints.Add( description );
@@ -749,10 +778,15 @@ namespace Opc.Ua
 
                     settings.Descriptions = endpoints;
                     settings.Configuration = endpointConfiguration;
-                    settings.ServerCertificate = this.InstanceCertificate;
                     settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
                     settings.NamespaceUris = this.MessageContext.NamespaceUris;
                     settings.Factory = this.MessageContext.Factory;
+                    settings.ServerCertificate = this.InstanceCertificate;
+
+                    if (configuration.SecurityConfiguration.SendCertificateChain)
+                    {
+                        settings.ServerCertificateChain = this.InstanceCertificateChain;
+                    }
 
                     ITransportListener listener = new Opc.Ua.Bindings.UaTcpChannelListener();
 
@@ -855,6 +889,19 @@ namespace Opc.Ua
                     if (InstanceCertificate != null)
                     {
                         description.ServerCertificate = InstanceCertificate.RawData;
+
+                        // check if complete chain should be sent.
+                        if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count > 0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            description.ServerCertificate = serverCertificateChain.ToArray();
+                        }
                     }
 
                     description.SecurityMode = bestPolicy.SecurityMode;
@@ -1324,6 +1371,16 @@ namespace Opc.Ua
                     "Server does not have access to the private key for the instance certificate.");
             }
 
+            // load certificate chain.
+            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+            configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).Wait();
+
+            for (int i = 0; i < issuers.Count; i++)
+            {
+                InstanceCertificateChain.Add(issuers[i].Certificate);
+            }
+
             // use the message context from the configuration to ensure the channels are using the same one.
             MessageContext = configuration.CreateMessageContext();
 
@@ -1487,6 +1544,7 @@ namespace Opc.Ua
         private object m_serverError;
         private object m_certificateValidator;
         private object m_instanceCertificate;
+        private X509Certificate2Collection m_instanceCertificateChain;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

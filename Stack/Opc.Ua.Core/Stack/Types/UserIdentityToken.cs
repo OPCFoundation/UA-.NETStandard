@@ -213,7 +213,7 @@ namespace Opc.Ua
             if (certificate == null)
             {   
                 certificate = CertificateFactory.Create(m_certificateData, true);
-            }          
+            }
             
             bool valid = SecurityPolicies.Verify(
                 certificate, 

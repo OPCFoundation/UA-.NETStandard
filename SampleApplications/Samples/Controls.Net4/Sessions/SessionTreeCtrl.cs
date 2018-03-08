@@ -227,6 +227,7 @@ namespace Opc.Ua.Sample.Controls
                 endpoint.Description,
                 endpoint.Configuration,
                 clientCertificate,
+                m_configuration.SecurityConfiguration.SendCertificateChain ? clientCertificateChain : null,
                 m_messageContext);
 
             // create the session.

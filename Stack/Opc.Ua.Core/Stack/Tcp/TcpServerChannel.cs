@@ -26,7 +26,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpServerChannel : UaSCUaBinaryChannel
     {
-        #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -38,7 +37,24 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints)
         :
-            base(contextId, bufferManager, quotas, serverCertificate, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
+        {
+        }
+
+        #region Constructors
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public TcpServerChannel(
+            string contextId,
+            UaTcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
+            EndpointDescriptionCollection endpoints)
+        :
+            base(contextId, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
             m_listener = listener;
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
@@ -135,7 +151,7 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.TokenId = GetNewTokenId();
 
-                    // put channel back in open state.                    
+                    // put channel back in open state.
                     ActivateToken(token);
                     State = TcpChannelState.Open;
 
@@ -735,7 +751,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected OpenSecureChannel message.");
@@ -984,6 +1000,7 @@ namespace Opc.Ua.Bindings
                 TcpMessageType.Open,
                 requestId,
                 ServerCertificate,
+                ServerCertificateChain,
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length));
 

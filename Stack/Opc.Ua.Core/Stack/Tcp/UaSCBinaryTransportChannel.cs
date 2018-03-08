@@ -144,6 +144,7 @@ namespace Opc.Ua.Bindings
                     m_messageSocketFactory,
                     m_quotas,
                     m_settings.ClientCertificate,
+                    m_settings.ClientCertificateChain,
                     m_settings.ServerCertificate,
                     m_settings.Description);
 
@@ -389,6 +390,7 @@ namespace Opc.Ua.Bindings
                 m_messageSocketFactory,
                 m_quotas,
                 m_settings.ClientCertificate,
+                m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
                 m_settings.Description);
         }

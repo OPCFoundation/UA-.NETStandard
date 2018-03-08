@@ -83,6 +83,9 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
+
+    <!-- Specifies whether the complete certificate chain should be sent for CA signed certificates. -->
+    <SendCertificateChain>false</SendCertificateChain>
   
 </SecurityConfiguration>
 
