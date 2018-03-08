@@ -852,13 +852,16 @@ namespace Opc.Ua.Client
                 }
 
                 // load certificate chain.
-                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).Wait();
-
-                for (int i = 0; i < issuers.Count; i++)
+                if (configuration.SecurityConfiguration.SendCertificateChain)
                 {
-                    clientCertificateChain.Add(issuers[i].Certificate);
+                    clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                    List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+                    await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
+
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        clientCertificateChain.Add(issuers[i].Certificate);
+                    }
                 }
             }
 
@@ -868,7 +871,7 @@ namespace Opc.Ua.Client
                  endpointDescription,
                  endpointConfiguration,
                  clientCertificate,
-                 configuration.SecurityConfiguration.SendCertificateChain? clientCertificateChain : null,
+                 clientCertificateChain,
                  messageContext);
 
             // create the session object.
