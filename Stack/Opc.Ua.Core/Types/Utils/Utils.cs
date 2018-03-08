@@ -2585,7 +2585,6 @@ namespace Opc.Ua
                 certificatesBytes.RemoveRange(0, certificate.RawData.Length);
             }
 
-
             return certificateChain;
         }
 

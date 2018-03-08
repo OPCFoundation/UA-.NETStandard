@@ -64,7 +64,7 @@ namespace Quickstarts.MethodsClient
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/MethodsServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62557/Quickstarts/MethodsServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion

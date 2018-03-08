@@ -69,9 +69,9 @@ namespace Opc.Ua.Server
             byte[]                  clientNonce,
             byte[]                  serverNonce,
             string                  sessionName, 
-            ApplicationDescription  clientDescription,    
-            string                  endpointUrl,      
-            X509Certificate2        clientCertificate,  
+            ApplicationDescription  clientDescription,
+            string                  endpointUrl,
+            X509Certificate2        clientCertificate,
             double                  sessionTimeout,
             uint                    maxResponseMessageSize,
             double                  maxRequestAge,
@@ -547,10 +547,34 @@ namespace Opc.Ua.Server
                     
                     if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                     {
-                        throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                        // verify for certificate chain in endpoint.
+                        // validate the signature with complete chain if the check with leaf certificate failed.
+                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.ServerCertificate);
+
+                        if (serverCertificateChain.Count > 1)
+                        {
+                            List<byte> serverCertificateChainList = new List<byte>();
+
+                            for (int i = 0; i < serverCertificateChain.Count; i++)
+                            {
+                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                            }
+
+                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+
+                            if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                            }
+                        }
+                        else
+                        {
+                            throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                        }
                     }
                 }
-                   
+
                 if (!m_activated)
                 {
                     // must active the session on the channel that was used to create it.
@@ -565,7 +589,7 @@ namespace Opc.Ua.Server
                     if (clientSoftwareCertificates != null && clientSoftwareCertificates.Count > 0)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
-                    }    
+                    }
                 }
 
                 // validate the user identity token.
@@ -1024,11 +1048,35 @@ namespace Opc.Ua.Server
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
-                        throw new ServiceResultException(StatusCodes.BadUserSignatureInvalid, "Invalid user signature!");
+                        // verify for certificate chain in endpoint.
+                        // validate the signature with complete chain if the check with leaf certificate failed.
+                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.ServerCertificate);
+
+                        if (serverCertificateChain.Count > 1)
+                        {
+                            List<byte> serverCertificateChainList = new List<byte>();
+
+                            for (int i = 0; i < serverCertificateChain.Count; i++)
+                            {
+                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                            }
+
+                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+
+                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadUserSignatureInvalid, "Invalid user signature!");
+                            }
+                        }
+                        else
+                        {
+                            throw new ServiceResultException(StatusCodes.BadUserSignatureInvalid, "Invalid user signature!");
+                        }
                     }
                 }
             }
-				
+
             // validate user identity token.
             return token;
         }
@@ -1043,7 +1091,7 @@ namespace Opc.Ua.Server
             IUserIdentity     effectiveIdentity)
         {
             if (identityToken == null) throw new ArgumentNullException("identityToken");
-                        
+
             lock (m_lock)
             {
                 bool changed = m_effectiveIdentity == null && effectiveIdentity != null;
@@ -1057,7 +1105,7 @@ namespace Opc.Ua.Server
                 m_identityToken = identityToken;
                 m_identity = identity;
                 m_effectiveIdentity = effectiveIdentity;
-                                                                
+
                 // update diagnostics.
                 lock (DiagnosticsLock)
                 {
@@ -1097,39 +1145,39 @@ namespace Opc.Ua.Server
                 }
 
                 ServiceCounterDataType counter = null;
-                
+
                 switch (requestType)
-                {            
-		            case RequestType.Read:                          { counter = m_diagnostics.ReadCount; break; }
-		            case RequestType.HistoryRead:                   { counter = m_diagnostics.HistoryReadCount; break; }
-		            case RequestType.Write:                         { counter = m_diagnostics.WriteCount; break; }
-		            case RequestType.HistoryUpdate:                 { counter = m_diagnostics.HistoryUpdateCount; break; }
-		            case RequestType.Call:                          { counter = m_diagnostics.CallCount; break; }
-		            case RequestType.CreateMonitoredItems:          { counter = m_diagnostics.CreateMonitoredItemsCount; break; }
-		            case RequestType.ModifyMonitoredItems:          { counter = m_diagnostics.ModifyMonitoredItemsCount; break; }
-		            case RequestType.SetMonitoringMode:             { counter = m_diagnostics.SetMonitoringModeCount; break; }
-		            case RequestType.SetTriggering:                 { counter = m_diagnostics.SetTriggeringCount; break; }
-		            case RequestType.DeleteMonitoredItems:          { counter = m_diagnostics.DeleteMonitoredItemsCount; break; }
-		            case RequestType.CreateSubscription:            { counter = m_diagnostics.CreateSubscriptionCount; break; }
-		            case RequestType.ModifySubscription:            { counter = m_diagnostics.ModifySubscriptionCount; break; }
-		            case RequestType.SetPublishingMode:             { counter = m_diagnostics.SetPublishingModeCount; break; }
-		            case RequestType.Publish:                       { counter = m_diagnostics.PublishCount; break; }
-		            case RequestType.Republish:                     { counter = m_diagnostics.RepublishCount; break; }
-		            case RequestType.TransferSubscriptions:         { counter = m_diagnostics.TransferSubscriptionsCount; break; }
-		            case RequestType.DeleteSubscriptions:           { counter = m_diagnostics.DeleteSubscriptionsCount; break; }
-		            case RequestType.AddNodes:                      { counter = m_diagnostics.AddNodesCount; break; }
-		            case RequestType.AddReferences:                 { counter = m_diagnostics.AddReferencesCount; break; }
-		            case RequestType.DeleteNodes:                   { counter = m_diagnostics.DeleteNodesCount; break; }
-		            case RequestType.DeleteReferences:              { counter = m_diagnostics.DeleteReferencesCount; break; }
-		            case RequestType.Browse:                        { counter = m_diagnostics.BrowseCount; break; }
-		            case RequestType.BrowseNext:                    { counter = m_diagnostics.BrowseNextCount; break; }
-		            case RequestType.TranslateBrowsePathsToNodeIds: { counter = m_diagnostics.TranslateBrowsePathsToNodeIdsCount; break; }
-		            case RequestType.QueryFirst:                    { counter = m_diagnostics.QueryFirstCount; break; }
-		            case RequestType.QueryNext:                     { counter = m_diagnostics.QueryNextCount; break; }
-		            case RequestType.RegisterNodes:                 { counter = m_diagnostics.RegisterNodesCount; break; }
-		            case RequestType.UnregisterNodes:               { counter = m_diagnostics.UnregisterNodesCount; break; }
+                {
+                    case RequestType.Read:                          { counter = m_diagnostics.ReadCount; break; }
+                    case RequestType.HistoryRead:                   { counter = m_diagnostics.HistoryReadCount; break; }
+                    case RequestType.Write:                         { counter = m_diagnostics.WriteCount; break; }
+                    case RequestType.HistoryUpdate:                 { counter = m_diagnostics.HistoryUpdateCount; break; }
+                    case RequestType.Call:                          { counter = m_diagnostics.CallCount; break; }
+                    case RequestType.CreateMonitoredItems:          { counter = m_diagnostics.CreateMonitoredItemsCount; break; }
+                    case RequestType.ModifyMonitoredItems:          { counter = m_diagnostics.ModifyMonitoredItemsCount; break; }
+                    case RequestType.SetMonitoringMode:             { counter = m_diagnostics.SetMonitoringModeCount; break; }
+                    case RequestType.SetTriggering:                 { counter = m_diagnostics.SetTriggeringCount; break; }
+                    case RequestType.DeleteMonitoredItems:          { counter = m_diagnostics.DeleteMonitoredItemsCount; break; }
+                    case RequestType.CreateSubscription:            { counter = m_diagnostics.CreateSubscriptionCount; break; }
+                    case RequestType.ModifySubscription:            { counter = m_diagnostics.ModifySubscriptionCount; break; }
+                    case RequestType.SetPublishingMode:             { counter = m_diagnostics.SetPublishingModeCount; break; }
+                    case RequestType.Publish:                       { counter = m_diagnostics.PublishCount; break; }
+                    case RequestType.Republish:                     { counter = m_diagnostics.RepublishCount; break; }
+                    case RequestType.TransferSubscriptions:         { counter = m_diagnostics.TransferSubscriptionsCount; break; }
+                    case RequestType.DeleteSubscriptions:           { counter = m_diagnostics.DeleteSubscriptionsCount; break; }
+                    case RequestType.AddNodes:                      { counter = m_diagnostics.AddNodesCount; break; }
+                    case RequestType.AddReferences:                 { counter = m_diagnostics.AddReferencesCount; break; }
+                    case RequestType.DeleteNodes:                   { counter = m_diagnostics.DeleteNodesCount; break; }
+                    case RequestType.DeleteReferences:              { counter = m_diagnostics.DeleteReferencesCount; break; }
+                    case RequestType.Browse:                        { counter = m_diagnostics.BrowseCount; break; }
+                    case RequestType.BrowseNext:                    { counter = m_diagnostics.BrowseNextCount; break; }
+                    case RequestType.TranslateBrowsePathsToNodeIds: { counter = m_diagnostics.TranslateBrowsePathsToNodeIdsCount; break; }
+                    case RequestType.QueryFirst:                    { counter = m_diagnostics.QueryFirstCount; break; }
+                    case RequestType.QueryNext:                     { counter = m_diagnostics.QueryNextCount; break; }
+                    case RequestType.RegisterNodes:                 { counter = m_diagnostics.RegisterNodesCount; break; }
+                    case RequestType.UnregisterNodes:               { counter = m_diagnostics.UnregisterNodesCount; break; }
                 }
-                                
+
                 if (counter != null)
                 {
                     counter.TotalCount = counter.TotalCount + 1;

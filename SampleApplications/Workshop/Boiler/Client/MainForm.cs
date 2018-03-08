@@ -64,7 +64,7 @@ namespace Quickstarts.Boiler.Client
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/BoilerServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62567/Quickstarts/BoilerServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion
