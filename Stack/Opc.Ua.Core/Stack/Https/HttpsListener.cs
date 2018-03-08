@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
     {
         public static UaHttpsChannelListener Listener { get; set; }
 
-        public void Configure(IApplicationBuilder appBuilder, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder appBuilder)
         {
             appBuilder.Run(async context =>
             {
@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Listener.SendAsync(context);
+                    await Listener.SendAsync(context);
                 }
             });
         }
@@ -97,11 +97,8 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                lock (m_lock)
-                {
-                    Utils.SilentDispose(m_host);
-                    m_host = null;
-                }
+                Utils.SilentDispose(m_host);
+                m_host = null;
             }
         }
         #endregion
@@ -224,7 +221,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        public async void SendAsync(HttpContext context)
+        public async Task SendAsync(HttpContext context)
         {
             IAsyncResult result = null;
 
@@ -239,11 +236,25 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                byte[] buffer = new byte[(int)context.Request.ContentLength];
-                lock (m_lock)
+                if (context.Request.ContentType != "application/octet-stream")
                 {
-                    Task<int> task = context.Request.Body.ReadAsync(buffer, 0, (int)context.Request.ContentLength);
-                    task.Wait();
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.");
+                    return;
+                }
+
+                int length = (int) context.Request.ContentLength;
+                byte[] buffer = await ReadBodyAsync(context.Request);
+
+                if (buffer.Length != length)
+                {
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.");
+                    return;
                 }
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
@@ -326,11 +337,19 @@ namespace Opc.Ua.Bindings
 
             Start();
         }
+
+        private async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        {
+            using (var memory = new MemoryStream())
+            using (var reader = new StreamReader(req.Body))
+            {
+                await reader.BaseStream.CopyToAsync(memory);
+                return memory.ToArray();
+            }
+        }
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
-
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
@@ -339,7 +358,7 @@ namespace Opc.Ua.Bindings
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
         private X509Certificate2 m_serverCert;
-        #endregion
+#endregion
     }
 }
 
