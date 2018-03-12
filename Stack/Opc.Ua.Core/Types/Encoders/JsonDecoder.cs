@@ -942,17 +942,16 @@ namespace Opc.Ua
                 return null;
             }
 
-            try
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels) 
             {
-                // check the nesting level for avoiding a stack overflow.
-                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "Maximum nesting level of {0} was exceeded",
-                        m_context.MaxEncodingNestingLevels);
-                }
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
 
+            try {
                 m_nestingLevel++;
                 m_stack.Push(value);
 
@@ -1161,17 +1160,15 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-            try
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels) 
             {
-                // check the nesting level for avoiding a stack overflow.
-                if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "Maximum nesting level of {0} was exceeded",
-                        m_context.MaxEncodingNestingLevels);
-                }
-
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            try {
                 m_nestingLevel++;
                 m_stack.Push(value);
 
