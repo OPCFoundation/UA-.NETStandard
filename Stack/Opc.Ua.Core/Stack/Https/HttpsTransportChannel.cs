@@ -10,15 +10,19 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+
+#if !NO_HTTPS
+
 using System;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace Opc.Ua.Bindings
 {
+
     /// <summary>
     /// Wraps the HttpsTransportChannel and provides an ITransportChannel implementation.
     /// </summary>
@@ -275,3 +279,4 @@ namespace Opc.Ua.Bindings
         private HttpClient m_client;
     }
 }
+#endif

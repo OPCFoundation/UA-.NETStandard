@@ -711,7 +711,11 @@ namespace Opc.Ua
             }
 
             // note: WCF channels are not supported
-            if (!useUaTcp && !useHttps)
+            if (!useUaTcp
+#if !NO_HTTPS
+                && !useHttps
+#endif
+                )
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
@@ -755,7 +759,9 @@ namespace Opc.Ua
             }
             else if (useHttps)
             {
+#if !NO_HTTPS
                 channel = new HttpsTransportChannel();
+#endif
             }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);
