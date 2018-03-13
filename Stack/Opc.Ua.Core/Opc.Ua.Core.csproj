@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
-    <!--<DefineConstants>$(DefineConstants);NO_HTTPS</DefineConstants>-->
+    <DefineConstants>$(DefineConstants);NO_HTTPS</DefineConstants>
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
