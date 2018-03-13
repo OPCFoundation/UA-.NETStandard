@@ -133,15 +133,11 @@ namespace Boiler
             AddPredefinedNode(context, boiler);
 
             // Autostart boiler simulation state machine
-            MethodState start = (MethodState)boiler.Simulation.FindChild(context, Opc.Ua.BrowseNames.Start);
-
-            if (start != null)
-            {
-                IList<Variant> inputArguments = new List<Variant>();
-                IList<Variant> outputArguments = new List<Variant>();
-                List<ServiceResult> errors = new List<ServiceResult>();
-                start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
-            }
+            MethodState start = boiler.Simulation.Start;
+            IList<Variant> inputArguments = new List<Variant>();
+            IList<Variant> outputArguments = new List<Variant>();
+            List<ServiceResult> errors = new List<ServiceResult>();
+            start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
 
         /// <summary>
@@ -217,15 +213,11 @@ namespace Boiler
                     }
 
                     // Autostart boiler simulation state machine
-                    MethodState start = (MethodState)activeNode.Simulation.FindChild(context, Opc.Ua.BrowseNames.Start);
-
-                    if (start != null)
-                    {
-                        IList<Variant> inputArguments = new List<Variant>();
-                        IList<Variant> outputArguments = new List<Variant>();
-                        List<ServiceResult> errors = new List<ServiceResult>();
-                        start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
-                    }
+                    MethodState start = activeNode.Simulation.Start;
+                    IList<Variant> inputArguments = new List<Variant>();
+                    IList<Variant> outputArguments = new List<Variant>();
+                    List<ServiceResult> errors = new List<ServiceResult>();
+                    start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
                 }

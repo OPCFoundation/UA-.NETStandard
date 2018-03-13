@@ -547,6 +547,136 @@
     <uax:SuperTypeId>
       <uax:Identifier>i=2391</uax:Identifier>
     </uax:SuperTypeId>
+    <Start>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1095</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>Start</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=2426</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=78</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>1095</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+    </Start>
+    <Suspend>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1096</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>Suspend</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=2427</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=78</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>1096</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+    </Suspend>
+    <Resume>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1097</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>Resume</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=2428</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=78</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>1097</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+    </Resume>
+    <Halt>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1098</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>Halt</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=2429</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=78</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>1098</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+    </Halt>
+    <Reset>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1099</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>Reset</uax:Name>
+      </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
+      </uax:Description>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=2430</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=78</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>1099</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+    </Reset>
     <UpdateRate>
       <uax:NodeClass>Variable_2</uax:NodeClass>
       <uax:NodeId>
@@ -2160,6 +2290,32 @@
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </Deletable>
+      <AutoDelete xmlns="http://opcfoundation.org/UA/">
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1191</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>AutoDelete</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>1191</uax:NumericId>
+        <uax:DataType>
+          <uax:Identifier>i=1</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>-1</uax:ValueRank>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </AutoDelete>
       <RecycleCount xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -2186,136 +2342,6 @@
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </RecycleCount>
-      <Start xmlns="http://opcfoundation.org/UA/">
-        <uax:NodeClass>Method_4</uax:NodeClass>
-        <uax:NodeId>
-          <uax:Identifier>ns=1;i=1234</uax:Identifier>
-        </uax:NodeId>
-        <uax:BrowseName>
-          <uax:NamespaceIndex>0</uax:NamespaceIndex>
-          <uax:Name>Start</uax:Name>
-        </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
-        </uax:Description>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TypeDefinitionId>
-          <uax:Identifier>i=2426</uax:Identifier>
-        </uax:TypeDefinitionId>
-        <uax:ModellingRuleId>
-          <uax:Identifier>i=78</uax:Identifier>
-        </uax:ModellingRuleId>
-        <uax:NumericId>1234</uax:NumericId>
-        <uax:Executable>true</uax:Executable>
-        <uax:UserExecutable>true</uax:UserExecutable>
-      </Start>
-      <Suspend xmlns="http://opcfoundation.org/UA/">
-        <uax:NodeClass>Method_4</uax:NodeClass>
-        <uax:NodeId>
-          <uax:Identifier>ns=1;i=1235</uax:Identifier>
-        </uax:NodeId>
-        <uax:BrowseName>
-          <uax:NamespaceIndex>0</uax:NamespaceIndex>
-          <uax:Name>Suspend</uax:Name>
-        </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
-        </uax:Description>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TypeDefinitionId>
-          <uax:Identifier>i=2427</uax:Identifier>
-        </uax:TypeDefinitionId>
-        <uax:ModellingRuleId>
-          <uax:Identifier>i=78</uax:Identifier>
-        </uax:ModellingRuleId>
-        <uax:NumericId>1235</uax:NumericId>
-        <uax:Executable>true</uax:Executable>
-        <uax:UserExecutable>true</uax:UserExecutable>
-      </Suspend>
-      <Resume xmlns="http://opcfoundation.org/UA/">
-        <uax:NodeClass>Method_4</uax:NodeClass>
-        <uax:NodeId>
-          <uax:Identifier>ns=1;i=1236</uax:Identifier>
-        </uax:NodeId>
-        <uax:BrowseName>
-          <uax:NamespaceIndex>0</uax:NamespaceIndex>
-          <uax:Name>Resume</uax:Name>
-        </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
-        </uax:Description>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TypeDefinitionId>
-          <uax:Identifier>i=2428</uax:Identifier>
-        </uax:TypeDefinitionId>
-        <uax:ModellingRuleId>
-          <uax:Identifier>i=78</uax:Identifier>
-        </uax:ModellingRuleId>
-        <uax:NumericId>1236</uax:NumericId>
-        <uax:Executable>true</uax:Executable>
-        <uax:UserExecutable>true</uax:UserExecutable>
-      </Resume>
-      <Halt xmlns="http://opcfoundation.org/UA/">
-        <uax:NodeClass>Method_4</uax:NodeClass>
-        <uax:NodeId>
-          <uax:Identifier>ns=1;i=1237</uax:Identifier>
-        </uax:NodeId>
-        <uax:BrowseName>
-          <uax:NamespaceIndex>0</uax:NamespaceIndex>
-          <uax:Name>Halt</uax:Name>
-        </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
-        </uax:Description>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TypeDefinitionId>
-          <uax:Identifier>i=2429</uax:Identifier>
-        </uax:TypeDefinitionId>
-        <uax:ModellingRuleId>
-          <uax:Identifier>i=78</uax:Identifier>
-        </uax:ModellingRuleId>
-        <uax:NumericId>1237</uax:NumericId>
-        <uax:Executable>true</uax:Executable>
-        <uax:UserExecutable>true</uax:UserExecutable>
-      </Halt>
-      <Reset xmlns="http://opcfoundation.org/UA/">
-        <uax:NodeClass>Method_4</uax:NodeClass>
-        <uax:NodeId>
-          <uax:Identifier>ns=1;i=1238</uax:Identifier>
-        </uax:NodeId>
-        <uax:BrowseName>
-          <uax:NamespaceIndex>0</uax:NamespaceIndex>
-          <uax:Name>Reset</uax:Name>
-        </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
-        </uax:Description>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TypeDefinitionId>
-          <uax:Identifier>i=2430</uax:Identifier>
-        </uax:TypeDefinitionId>
-        <uax:ModellingRuleId>
-          <uax:Identifier>i=78</uax:Identifier>
-        </uax:ModellingRuleId>
-        <uax:NumericId>1238</uax:NumericId>
-        <uax:Executable>true</uax:Executable>
-        <uax:UserExecutable>true</uax:UserExecutable>
-      </Reset>
       <UpdateRate>
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -2346,6 +2372,136 @@
         <uax:AccessLevel>3</uax:AccessLevel>
         <uax:UserAccessLevel>3</uax:UserAccessLevel>
       </UpdateRate>
+      <Start>
+        <uax:NodeClass>Method_4</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=15013</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:Name>Start</uax:Name>
+        </uax:BrowseName>
+        <uax:Description>
+          <uax:Locale></uax:Locale>
+          <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
+        </uax:Description>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>ns=1;i=1095</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>15013</uax:NumericId>
+        <uax:Executable>true</uax:Executable>
+        <uax:UserExecutable>true</uax:UserExecutable>
+      </Start>
+      <Suspend>
+        <uax:NodeClass>Method_4</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=15014</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:Name>Suspend</uax:Name>
+        </uax:BrowseName>
+        <uax:Description>
+          <uax:Locale></uax:Locale>
+          <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
+        </uax:Description>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>ns=1;i=1096</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>15014</uax:NumericId>
+        <uax:Executable>true</uax:Executable>
+        <uax:UserExecutable>true</uax:UserExecutable>
+      </Suspend>
+      <Resume>
+        <uax:NodeClass>Method_4</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=15015</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:Name>Resume</uax:Name>
+        </uax:BrowseName>
+        <uax:Description>
+          <uax:Locale></uax:Locale>
+          <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
+        </uax:Description>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>ns=1;i=1097</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>15015</uax:NumericId>
+        <uax:Executable>true</uax:Executable>
+        <uax:UserExecutable>true</uax:UserExecutable>
+      </Resume>
+      <Halt>
+        <uax:NodeClass>Method_4</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=15016</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:Name>Halt</uax:Name>
+        </uax:BrowseName>
+        <uax:Description>
+          <uax:Locale></uax:Locale>
+          <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
+        </uax:Description>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>ns=1;i=1098</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>15016</uax:NumericId>
+        <uax:Executable>true</uax:Executable>
+        <uax:UserExecutable>true</uax:UserExecutable>
+      </Halt>
+      <Reset>
+        <uax:NodeClass>Method_4</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=15017</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>1</uax:NamespaceIndex>
+          <uax:Name>Reset</uax:Name>
+        </uax:BrowseName>
+        <uax:Description>
+          <uax:Locale></uax:Locale>
+          <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
+        </uax:Description>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>ns=1;i=1099</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>15017</uax:NumericId>
+        <uax:Executable>true</uax:Executable>
+        <uax:UserExecutable>true</uax:UserExecutable>
+      </Reset>
     </Simulation>
   </BoilerType>
   <Boilers xmlns="http://opcfoundation.org/UA/Boiler/">
@@ -3571,6 +3727,29 @@
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </Deletable>
+        <AutoDelete xmlns="http://opcfoundation.org/UA/">
+          <uax:NodeClass>Variable_2</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=1300</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>0</uax:NamespaceIndex>
+            <uax:Name>AutoDelete</uax:Name>
+          </uax:BrowseName>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=46</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>i=68</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>1300</uax:NumericId>
+          <uax:DataType>
+            <uax:Identifier>i=1</uax:Identifier>
+          </uax:DataType>
+          <uax:ValueRank>-1</uax:ValueRank>
+          <uax:AccessLevel>1</uax:AccessLevel>
+          <uax:UserAccessLevel>1</uax:UserAccessLevel>
+        </AutoDelete>
         <RecycleCount xmlns="http://opcfoundation.org/UA/">
           <uax:NodeClass>Variable_2</uax:NodeClass>
           <uax:NodeId>
@@ -3594,121 +3773,6 @@
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </RecycleCount>
-        <Start xmlns="http://opcfoundation.org/UA/">
-          <uax:NodeClass>Method_4</uax:NodeClass>
-          <uax:NodeId>
-            <uax:Identifier>ns=1;i=1343</uax:Identifier>
-          </uax:NodeId>
-          <uax:BrowseName>
-            <uax:NamespaceIndex>0</uax:NamespaceIndex>
-            <uax:Name>Start</uax:Name>
-          </uax:BrowseName>
-          <uax:Description>
-            <uax:Locale></uax:Locale>
-            <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
-          </uax:Description>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=47</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:TypeDefinitionId>
-            <uax:Identifier>i=2426</uax:Identifier>
-          </uax:TypeDefinitionId>
-          <uax:NumericId>1343</uax:NumericId>
-          <uax:Executable>true</uax:Executable>
-          <uax:UserExecutable>true</uax:UserExecutable>
-        </Start>
-        <Suspend xmlns="http://opcfoundation.org/UA/">
-          <uax:NodeClass>Method_4</uax:NodeClass>
-          <uax:NodeId>
-            <uax:Identifier>ns=1;i=1344</uax:Identifier>
-          </uax:NodeId>
-          <uax:BrowseName>
-            <uax:NamespaceIndex>0</uax:NamespaceIndex>
-            <uax:Name>Suspend</uax:Name>
-          </uax:BrowseName>
-          <uax:Description>
-            <uax:Locale></uax:Locale>
-            <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
-          </uax:Description>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=47</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:TypeDefinitionId>
-            <uax:Identifier>i=2427</uax:Identifier>
-          </uax:TypeDefinitionId>
-          <uax:NumericId>1344</uax:NumericId>
-          <uax:Executable>true</uax:Executable>
-          <uax:UserExecutable>true</uax:UserExecutable>
-        </Suspend>
-        <Resume xmlns="http://opcfoundation.org/UA/">
-          <uax:NodeClass>Method_4</uax:NodeClass>
-          <uax:NodeId>
-            <uax:Identifier>ns=1;i=1345</uax:Identifier>
-          </uax:NodeId>
-          <uax:BrowseName>
-            <uax:NamespaceIndex>0</uax:NamespaceIndex>
-            <uax:Name>Resume</uax:Name>
-          </uax:BrowseName>
-          <uax:Description>
-            <uax:Locale></uax:Locale>
-            <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
-          </uax:Description>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=47</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:TypeDefinitionId>
-            <uax:Identifier>i=2428</uax:Identifier>
-          </uax:TypeDefinitionId>
-          <uax:NumericId>1345</uax:NumericId>
-          <uax:Executable>true</uax:Executable>
-          <uax:UserExecutable>true</uax:UserExecutable>
-        </Resume>
-        <Halt xmlns="http://opcfoundation.org/UA/">
-          <uax:NodeClass>Method_4</uax:NodeClass>
-          <uax:NodeId>
-            <uax:Identifier>ns=1;i=1346</uax:Identifier>
-          </uax:NodeId>
-          <uax:BrowseName>
-            <uax:NamespaceIndex>0</uax:NamespaceIndex>
-            <uax:Name>Halt</uax:Name>
-          </uax:BrowseName>
-          <uax:Description>
-            <uax:Locale></uax:Locale>
-            <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
-          </uax:Description>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=47</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:TypeDefinitionId>
-            <uax:Identifier>i=2429</uax:Identifier>
-          </uax:TypeDefinitionId>
-          <uax:NumericId>1346</uax:NumericId>
-          <uax:Executable>true</uax:Executable>
-          <uax:UserExecutable>true</uax:UserExecutable>
-        </Halt>
-        <Reset xmlns="http://opcfoundation.org/UA/">
-          <uax:NodeClass>Method_4</uax:NodeClass>
-          <uax:NodeId>
-            <uax:Identifier>ns=1;i=1347</uax:Identifier>
-          </uax:NodeId>
-          <uax:BrowseName>
-            <uax:NamespaceIndex>0</uax:NamespaceIndex>
-            <uax:Name>Reset</uax:Name>
-          </uax:BrowseName>
-          <uax:Description>
-            <uax:Locale></uax:Locale>
-            <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
-          </uax:Description>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=47</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:TypeDefinitionId>
-            <uax:Identifier>i=2430</uax:Identifier>
-          </uax:TypeDefinitionId>
-          <uax:NumericId>1347</uax:NumericId>
-          <uax:Executable>true</uax:Executable>
-          <uax:UserExecutable>true</uax:UserExecutable>
-        </Reset>
         <UpdateRate>
           <uax:NodeClass>Variable_2</uax:NodeClass>
           <uax:NodeId>
@@ -3736,6 +3800,121 @@
           <uax:AccessLevel>3</uax:AccessLevel>
           <uax:UserAccessLevel>3</uax:UserAccessLevel>
         </UpdateRate>
+        <Start>
+          <uax:NodeClass>Method_4</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=15018</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>Start</uax:Name>
+          </uax:BrowseName>
+          <uax:Description>
+            <uax:Locale></uax:Locale>
+            <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
+          </uax:Description>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=47</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>ns=1;i=1095</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>15018</uax:NumericId>
+          <uax:Executable>true</uax:Executable>
+          <uax:UserExecutable>true</uax:UserExecutable>
+        </Start>
+        <Suspend>
+          <uax:NodeClass>Method_4</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=15019</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>Suspend</uax:Name>
+          </uax:BrowseName>
+          <uax:Description>
+            <uax:Locale></uax:Locale>
+            <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
+          </uax:Description>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=47</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>ns=1;i=1096</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>15019</uax:NumericId>
+          <uax:Executable>true</uax:Executable>
+          <uax:UserExecutable>true</uax:UserExecutable>
+        </Suspend>
+        <Resume>
+          <uax:NodeClass>Method_4</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=15020</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>Resume</uax:Name>
+          </uax:BrowseName>
+          <uax:Description>
+            <uax:Locale></uax:Locale>
+            <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
+          </uax:Description>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=47</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>ns=1;i=1097</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>15020</uax:NumericId>
+          <uax:Executable>true</uax:Executable>
+          <uax:UserExecutable>true</uax:UserExecutable>
+        </Resume>
+        <Halt>
+          <uax:NodeClass>Method_4</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=15021</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>Halt</uax:Name>
+          </uax:BrowseName>
+          <uax:Description>
+            <uax:Locale></uax:Locale>
+            <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
+          </uax:Description>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=47</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>ns=1;i=1098</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>15021</uax:NumericId>
+          <uax:Executable>true</uax:Executable>
+          <uax:UserExecutable>true</uax:UserExecutable>
+        </Halt>
+        <Reset>
+          <uax:NodeClass>Method_4</uax:NodeClass>
+          <uax:NodeId>
+            <uax:Identifier>ns=1;i=15022</uax:Identifier>
+          </uax:NodeId>
+          <uax:BrowseName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>Reset</uax:Name>
+          </uax:BrowseName>
+          <uax:Description>
+            <uax:Locale></uax:Locale>
+            <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
+          </uax:Description>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=47</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TypeDefinitionId>
+            <uax:Identifier>ns=1;i=1099</uax:Identifier>
+          </uax:TypeDefinitionId>
+          <uax:NumericId>15022</uax:NumericId>
+          <uax:Executable>true</uax:Executable>
+          <uax:UserExecutable>true</uax:UserExecutable>
+        </Reset>
       </Simulation>
     </Boiler1>
   </Boilers>

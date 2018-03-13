@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -46,29 +46,79 @@ namespace Boiler
     public static partial class Methods
     {
         /// <summary>
+        /// The identifier for the BoilerStateMachineType_Start Method.
+        /// </summary>
+        public const uint BoilerStateMachineType_Start = 1095;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Suspend Method.
+        /// </summary>
+        public const uint BoilerStateMachineType_Suspend = 1096;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Resume Method.
+        /// </summary>
+        public const uint BoilerStateMachineType_Resume = 1097;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Halt Method.
+        /// </summary>
+        public const uint BoilerStateMachineType_Halt = 1098;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Reset Method.
+        /// </summary>
+        public const uint BoilerStateMachineType_Reset = 1099;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Start Method.
+        /// </summary>
+        public const uint BoilerType_Simulation_Start = 15013;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Suspend Method.
+        /// </summary>
+        public const uint BoilerType_Simulation_Suspend = 15014;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Resume Method.
+        /// </summary>
+        public const uint BoilerType_Simulation_Resume = 15015;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Halt Method.
+        /// </summary>
+        public const uint BoilerType_Simulation_Halt = 15016;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Reset Method.
+        /// </summary>
+        public const uint BoilerType_Simulation_Reset = 15017;
+
+        /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Start Method.
         /// </summary>
-        public const uint Boilers_Boiler1_Simulation_Start = 1343;
+        public const uint Boilers_Boiler1_Simulation_Start = 15018;
 
         /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Suspend Method.
         /// </summary>
-        public const uint Boilers_Boiler1_Simulation_Suspend = 1344;
+        public const uint Boilers_Boiler1_Simulation_Suspend = 15019;
 
         /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Resume Method.
         /// </summary>
-        public const uint Boilers_Boiler1_Simulation_Resume = 1345;
+        public const uint Boilers_Boiler1_Simulation_Resume = 15020;
 
         /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Halt Method.
         /// </summary>
-        public const uint Boilers_Boiler1_Simulation_Halt = 1346;
+        public const uint Boilers_Boiler1_Simulation_Halt = 15021;
 
         /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Reset Method.
         /// </summary>
-        public const uint Boilers_Boiler1_Simulation_Reset = 1347;
+        public const uint Boilers_Boiler1_Simulation_Reset = 15022;
     }
     #endregion
 
@@ -396,9 +446,214 @@ namespace Boiler
         public const uint CustomControllerType_DescriptionX = 1009;
 
         /// <summary>
+        /// The identifier for the ValveType_Input_EURange Variable.
+        /// </summary>
+        public const uint ValveType_Input_EURange = 1014;
+
+        /// <summary>
+        /// The identifier for the LevelIndicatorType_Output_EURange Variable.
+        /// </summary>
+        public const uint LevelIndicatorType_Output_EURange = 1029;
+
+        /// <summary>
+        /// The identifier for the FlowTransmitterType_Output_EURange Variable.
+        /// </summary>
+        public const uint FlowTransmitterType_Output_EURange = 1036;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_CurrentState_Id Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_CurrentState_Id = 1041;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_CurrentState_Number Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_CurrentState_Number = 1043;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_Id Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_LastTransition_Id = 1046;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_Number Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_LastTransition_Number = 1048;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_TransitionTime Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_LastTransition_TransitionTime = 1049;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_CreateSessionId Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_CreateSessionId = 1058;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_CreateClientName Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_CreateClientName = 1059;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_InvocationCreationTime Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_InvocationCreationTime = 1060;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastTransitionTime Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastTransitionTime = 1061;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodCall Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodCall = 1062;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodSessionId Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodSessionId = 1063;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodInputArguments Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodInputArguments = 1064;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputArguments Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputArguments = 1065;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodInputValues = 15003;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputValues = 15004;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodCallTime Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodCallTime = 1066;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodReturnStatus Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ProgramDiagnostics_LastMethodReturnStatus = 1067;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Halted_StateNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_Halted_StateNumber = 1076;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Ready_StateNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_Ready_StateNumber = 1070;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Running_StateNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_Running_StateNumber = 1072;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Suspended_StateNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_Suspended_StateNumber = 1074;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_HaltedToReady_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_HaltedToReady_TransitionNumber = 1078;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ReadyToRunning_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ReadyToRunning_TransitionNumber = 1080;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToHalted_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_RunningToHalted_TransitionNumber = 1082;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToReady_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_RunningToReady_TransitionNumber = 1084;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToSuspended_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_RunningToSuspended_TransitionNumber = 1086;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToRunning_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_SuspendedToRunning_TransitionNumber = 1088;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToHalted_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_SuspendedToHalted_TransitionNumber = 1090;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToReady_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_SuspendedToReady_TransitionNumber = 1092;
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ReadyToHalted_TransitionNumber Variable.
+        /// </summary>
+        public const uint BoilerStateMachineType_ReadyToHalted_TransitionNumber = 1094;
+
+        /// <summary>
         /// The identifier for the BoilerStateMachineType_UpdateRate Variable.
         /// </summary>
         public const uint BoilerStateMachineType_UpdateRate = 1100;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output = 1103;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output_EURange = 1106;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_Valve_Input = 1110;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input_EURange Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_Valve_Input_EURange = 1113;
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output Variable.
+        /// </summary>
+        public const uint BoilerDrumType_LevelIndicator_Output = 1118;
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerDrumType_LevelIndicator_Output_EURange = 1121;
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output Variable.
+        /// </summary>
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output = 1126;
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output_EURange = 1129;
 
         /// <summary>
         /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output Variable.
@@ -406,9 +661,19 @@ namespace Boiler
         public const uint BoilerType_InputPipe_FlowTransmitter1_Output = 1135;
 
         /// <summary>
+        /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_InputPipe_FlowTransmitter1_Output_EURange = 1138;
+
+        /// <summary>
         /// The identifier for the BoilerType_InputPipe_Valve_Input Variable.
         /// </summary>
         public const uint BoilerType_InputPipe_Valve_Input = 1142;
+
+        /// <summary>
+        /// The identifier for the BoilerType_InputPipe_Valve_Input_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_InputPipe_Valve_Input_EURange = 1145;
 
         /// <summary>
         /// The identifier for the BoilerType_Drum_LevelIndicator_Output Variable.
@@ -416,9 +681,19 @@ namespace Boiler
         public const uint BoilerType_Drum_LevelIndicator_Output = 1150;
 
         /// <summary>
+        /// The identifier for the BoilerType_Drum_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_Drum_LevelIndicator_Output_EURange = 1153;
+
+        /// <summary>
         /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output Variable.
         /// </summary>
         public const uint BoilerType_OutputPipe_FlowTransmitter2_Output = 1158;
+
+        /// <summary>
+        /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = 1161;
 
         /// <summary>
         /// The identifier for the BoilerType_FlowController_Measurement Variable.
@@ -474,6 +749,116 @@ namespace Boiler
         /// The identifier for the BoilerType_CustomController_DescriptionX Variable.
         /// </summary>
         public const uint BoilerType_CustomController_DescriptionX = 1177;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_CurrentState = 1179;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState_Id Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_CurrentState_Id = 1180;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState_Number Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_CurrentState_Number = 1182;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_LastTransition = 1184;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_Id Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_LastTransition_Id = 1185;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_Number Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_LastTransition_Number = 1187;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_TransitionTime Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_LastTransition_TransitionTime = 1188;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Deletable Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_Deletable = 1190;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_AutoDelete Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_AutoDelete = 1191;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_RecycleCount Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_RecycleCount = 1192;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_CreateSessionId Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_CreateSessionId = 1197;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_CreateClientName Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_CreateClientName = 1198;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_InvocationCreationTime Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_InvocationCreationTime = 1199;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastTransitionTime Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastTransitionTime = 1200;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodCall Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodCall = 1201;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodSessionId Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodSessionId = 1202;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodInputArguments Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodInputArguments = 1203;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputArguments Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputArguments = 1204;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodInputValues = 15007;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputValues = 15008;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodCallTime Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodCallTime = 1205;
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodReturnStatus Variable.
+        /// </summary>
+        public const uint BoilerType_Simulation_ProgramDiagnostics_LastMethodReturnStatus = 1206;
 
         /// <summary>
         /// The identifier for the BoilerType_Simulation_UpdateRate Variable.
@@ -616,6 +1001,11 @@ namespace Boiler
         public const uint Boilers_Boiler1_Simulation_Deletable = 1299;
 
         /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_AutoDelete Variable.
+        /// </summary>
+        public const uint Boilers_Boiler1_Simulation_AutoDelete = 1300;
+
+        /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_RecycleCount Variable.
         /// </summary>
         public const uint Boilers_Boiler1_Simulation_RecycleCount = 1301;
@@ -661,6 +1051,16 @@ namespace Boiler
         public const uint Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputArguments = 1313;
 
         /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodInputValues = 15011;
+
+        /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public const uint Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputValues = 15012;
+
+        /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodCallTime Variable.
         /// </summary>
         public const uint Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodCallTime = 1314;
@@ -685,6 +1085,56 @@ namespace Boiler
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class MethodIds
     {
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Start Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Start = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Start, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Suspend Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Suspend = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Suspend, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Resume Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Resume = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Resume, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Halt Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Halt = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Halt, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Reset Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Reset = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Reset, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Start Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Start = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Start, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Suspend Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Suspend = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Suspend, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Resume Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Resume = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Resume, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Halt Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Halt = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Halt, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Reset Method.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Reset = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Reset, Boiler.Namespaces.Boiler);
+
         /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_Start Method.
         /// </summary>
@@ -1036,9 +1486,214 @@ namespace Boiler
         public static readonly ExpandedNodeId CustomControllerType_DescriptionX = new ExpandedNodeId(Boiler.Variables.CustomControllerType_DescriptionX, Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the ValveType_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ValveType_Input_EURange = new ExpandedNodeId(Boiler.Variables.ValveType_Input_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the LevelIndicatorType_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId LevelIndicatorType_Output_EURange = new ExpandedNodeId(Boiler.Variables.LevelIndicatorType_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the FlowTransmitterType_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId FlowTransmitterType_Output_EURange = new ExpandedNodeId(Boiler.Variables.FlowTransmitterType_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Id = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_CurrentState_Id, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_CurrentState_Number Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Number = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_CurrentState_Number, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Id = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_Id, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_Number Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Number = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_Number, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_LastTransition_TransitionTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_TransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_TransitionTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_CreateSessionId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_CreateSessionId = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_CreateSessionId, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_CreateClientName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_CreateClientName = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_CreateClientName, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_InvocationCreationTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_InvocationCreationTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_InvocationCreationTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastTransitionTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastTransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastTransitionTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodCall Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodCall = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodCall, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodSessionId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodSessionId = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodSessionId, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodInputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodInputArguments = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodInputArguments, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodInputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodOutputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodCallTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodCallTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ProgramDiagnostics_LastMethodReturnStatus Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostics_LastMethodReturnStatus = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostics_LastMethodReturnStatus, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Halted_StateNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Halted_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Halted_StateNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Ready_StateNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Ready_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Ready_StateNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Running_StateNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Running_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Running_StateNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_Suspended_StateNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_Suspended_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Suspended_StateNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_HaltedToReady_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_HaltedToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_HaltedToReady_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ReadyToRunning_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToRunning_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ReadyToRunning_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToHalted_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToReady_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToReady_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_RunningToSuspended_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToSuspended_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToSuspended_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToRunning_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToRunning_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToRunning_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToHalted_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_SuspendedToReady_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToReady_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerStateMachineType_ReadyToHalted_TransitionNumber Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ReadyToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerStateMachineType_UpdateRate Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerStateMachineType_UpdateRate = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_UpdateRate, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_Valve_Input, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input_EURange = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_Valve_Input_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output = new ExpandedNodeId(Boiler.Variables.BoilerDrumType_LevelIndicator_Output, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerDrumType_LevelIndicator_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output = new ExpandedNodeId(Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output Variable.
@@ -1046,9 +1701,19 @@ namespace Boiler
         public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output, Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerType_InputPipe_Valve_Input Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_Valve_Input, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_InputPipe_Valve_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_Valve_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_Drum_LevelIndicator_Output Variable.
@@ -1056,9 +1721,19 @@ namespace Boiler
         public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_Drum_LevelIndicator_Output, Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the BoilerType_Drum_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_Drum_LevelIndicator_Output_EURange, Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_FlowController_Measurement Variable.
@@ -1114,6 +1789,116 @@ namespace Boiler
         /// The identifier for the BoilerType_CustomController_DescriptionX Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_CustomController_DescriptionX = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_DescriptionX, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Id = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState_Id, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_CurrentState_Number Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Number = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState_Number, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Id = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_Id, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_Number Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Number = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_Number, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_LastTransition_TransitionTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_TransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_TransitionTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_Deletable Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_Deletable = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_Deletable, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_AutoDelete Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_AutoDelete = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_AutoDelete, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_RecycleCount Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_RecycleCount = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_RecycleCount, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_CreateSessionId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_CreateSessionId = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_CreateSessionId, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_CreateClientName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_CreateClientName = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_CreateClientName, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_InvocationCreationTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_InvocationCreationTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_InvocationCreationTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastTransitionTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastTransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastTransitionTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodCall Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodCall = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodCall, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodSessionId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodSessionId = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodSessionId, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodInputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodInputArguments = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodInputArguments, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodInputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodOutputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodCallTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodCallTime, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_Simulation_ProgramDiagnostics_LastMethodReturnStatus Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostics_LastMethodReturnStatus = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostics_LastMethodReturnStatus, Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_Simulation_UpdateRate Variable.
@@ -1256,6 +2041,11 @@ namespace Boiler
         public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Deletable = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_Deletable, Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_AutoDelete Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_AutoDelete = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_AutoDelete, Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_RecycleCount Variable.
         /// </summary>
         public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_RecycleCount = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_RecycleCount, Boiler.Namespaces.Boiler);
@@ -1301,6 +2091,16 @@ namespace Boiler
         public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodInputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodInputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputValues Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodOutputValues, Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodCallTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostics_LastMethodCallTime, Boiler.Namespaces.Boiler);
@@ -1321,6 +2121,7 @@ namespace Boiler
     /// <summary>
     /// Declares all of the BrowseNames used in the Model Design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
         /// <summary>
@@ -1429,6 +2230,11 @@ namespace Boiler
         public const string GenericSensorType = "GenericSensorType";
 
         /// <summary>
+        /// The BrowseName for the Halt component.
+        /// </summary>
+        public const string Halt = "Halt";
+
+        /// <summary>
         /// The BrowseName for the HotFlowTo component.
         /// </summary>
         public const string HotFlowTo = "HotFlowTo";
@@ -1494,6 +2300,16 @@ namespace Boiler
         public const string OutputPipe = "PipeX002";
 
         /// <summary>
+        /// The BrowseName for the Reset component.
+        /// </summary>
+        public const string Reset = "Reset";
+
+        /// <summary>
+        /// The BrowseName for the Resume component.
+        /// </summary>
+        public const string Resume = "Resume";
+
+        /// <summary>
         /// The BrowseName for the SetPoint component.
         /// </summary>
         public const string SetPoint = "SetPoint";
@@ -1507,6 +2323,16 @@ namespace Boiler
         /// The BrowseName for the Simulation component.
         /// </summary>
         public const string Simulation = "Simulation";
+
+        /// <summary>
+        /// The BrowseName for the Start component.
+        /// </summary>
+        public const string Start = "Start";
+
+        /// <summary>
+        /// The BrowseName for the Suspend component.
+        /// </summary>
+        public const string Suspend = "Suspend";
 
         /// <summary>
         /// The BrowseName for the UpdateRate component.
@@ -1529,6 +2355,7 @@ namespace Boiler
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Namespaces
     {
         /// <summary>
