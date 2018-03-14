@@ -1,4 +1,4 @@
-
+ 
 # OPC UA .Net Standard Stack and Samples
 
 ## Overview
@@ -10,7 +10,7 @@ One of the reference implementations inside this project has been certified for 
 
 Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
-##For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
+## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
