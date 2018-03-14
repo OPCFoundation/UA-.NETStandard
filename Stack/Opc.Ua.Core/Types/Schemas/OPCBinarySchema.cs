@@ -51,7 +51,6 @@ namespace Opc.Ua.Schema.Binary
         }
         
         /// <remarks/>
-        [System.Xml.Serialization.XmlAnyAttributeAttribute()]
         public string[] AnyAttr {
             get {
                 return this.anyAttrField;
@@ -246,7 +245,6 @@ namespace Opc.Ua.Schema.Binary
         }
         
         /// <remarks/>
-        [System.Xml.Serialization.XmlAnyAttributeAttribute()]
         public string[] AnyAttr {
             get {
                 return this.anyAttrField;
@@ -439,7 +437,6 @@ namespace Opc.Ua.Schema.Binary
         }
         
         /// <remarks/>
-        [System.Xml.Serialization.XmlAnyAttributeAttribute()]
         public string[] AnyAttr {
             get {
                 return this.anyAttrField;
