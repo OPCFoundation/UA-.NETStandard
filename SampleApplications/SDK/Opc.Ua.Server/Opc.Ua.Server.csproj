@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
-    <DefineConstants>$(DefineConstants);NO_HTTPS</DefineConstants>
     <AssemblyName>Opc.Ua.Server</AssemblyName>
     <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Server</PackageId>
@@ -15,6 +14,10 @@
     <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
+  </PropertyGroup>  
+  
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
