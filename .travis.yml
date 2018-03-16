@@ -21,6 +21,8 @@ script:
   - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - echo "========== build all .Net Core samples ============"
+  - dotnet build -c Debug /p:NoHttps=true SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
+  - dotnet build -c Release /p:NoHttps=true SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Server</AssemblyName>
+    <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Server</PackageId>
     <Version>1.03.351</Version>
     <AssemblyVersion>1.03.351</AssemblyVersion>
@@ -13,6 +14,10 @@
     <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
+  </PropertyGroup>  
+  
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
@@ -23,6 +28,10 @@
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
     <Reference Include="System.IdentityModel" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.3'">
+    <PackageReference Include="System.Threading.Thread" Version="4.3.0" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
