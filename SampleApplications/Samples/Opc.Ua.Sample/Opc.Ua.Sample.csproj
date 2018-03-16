@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Sample</AssemblyName>
+    <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Sample</PackageId>
     <Version>1.03.351</Version>
     <AssemblyVersion>1.03.351</AssemblyVersion>

@@ -665,12 +665,14 @@ namespace Opc.Ua
                     tcpListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
                     continue;
                 }
+#if !NO_HTTPS
                 UaHttpsChannelListener httpsListener = listener as UaHttpsChannelListener;
                 if (httpsListener != null)
                 {
                     httpsListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
                     continue;
                 }
+#endif
             }
         }
 
