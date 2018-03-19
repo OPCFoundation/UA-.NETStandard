@@ -148,6 +148,7 @@ BadSequenceNumberUnknown,0x807A0000,The sequence number is unknown to the server
 BadMessageNotAvailable,0x807B0000,The requested notification message is no longer available.
 BadInsufficientClientProfile,0x807C0000,The client of the current session does not support one or more Profiles that are necessary for the subscription.
 BadStateNotActive,0x80BF0000,The sub-state machine is not currently active.
+BadAlreadyExists,0x81150000,An equivalent rule already exists.
 BadTcpServerTooBusy,0x807D0000,The server cannot process the request because it is too busy.
 BadTcpMessageTypeInvalid,0x807E0000,The type of the message specified in the header invalid.
 BadTcpSecureChannelUnknown,0x807F0000,The SecureChannelId and/or TokenId are not currently in use.
