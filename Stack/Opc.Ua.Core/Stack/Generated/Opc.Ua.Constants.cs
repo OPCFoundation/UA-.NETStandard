@@ -10210,6 +10210,11 @@ namespace Opc.Ua
         public const uint HttpsCertificateType = 12558;
 
         /// <summary>
+        /// The identifier for the UserCredentialCertificateType ObjectType.
+        /// </summary>
+        public const uint UserCredentialCertificateType = 15181;
+
+        /// <summary>
         /// The identifier for the RsaMinApplicationCertificateType ObjectType.
         /// </summary>
         public const uint RsaMinApplicationCertificateType = 12559;
@@ -40005,6 +40010,11 @@ namespace Opc.Ua
         public static readonly NodeId HttpsCertificateType = new NodeId(Opc.Ua.ObjectTypes.HttpsCertificateType);
 
         /// <summary>
+        /// The identifier for the UserCredentialCertificateType ObjectType.
+        /// </summary>
+        public static readonly NodeId UserCredentialCertificateType = new NodeId(Opc.Ua.ObjectTypes.UserCredentialCertificateType);
+
+        /// <summary>
         /// The identifier for the RsaMinApplicationCertificateType ObjectType.
         /// </summary>
         public static readonly NodeId RsaMinApplicationCertificateType = new NodeId(Opc.Ua.ObjectTypes.RsaMinApplicationCertificateType);
@@ -66197,6 +66207,11 @@ namespace Opc.Ua
         /// The BrowseName for the Url component.
         /// </summary>
         public const string Url = "Url";
+
+        /// <summary>
+        /// The BrowseName for the UserCredentialCertificateType component.
+        /// </summary>
+        public const string UserCredentialCertificateType = "UserCredentialCertificateType";
 
         /// <summary>
         /// The BrowseName for the UserIdentityToken component.

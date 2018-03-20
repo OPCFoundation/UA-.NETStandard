@@ -790,6 +790,11 @@ namespace Opc.Ua
         public const uint BadStateNotActive = 0x80BF0000;
 
         /// <summary>
+        /// An equivalent rule already exists.
+        /// </summary>
+        public const uint BadAlreadyExists = 0x81150000;
+
+        /// <summary>
         /// The server cannot process the request because it is too busy.
         /// </summary>
         public const uint BadTcpServerTooBusy = 0x807D0000;
