@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
         xmlns:converter="clr-namespace:PubSubConfigurationUI.ViewModels"
         mc:Ignorable="d"
-        Title="Add Published DataSet" Width="853" Height="600" WindowStartupLocation="CenterScreen">
+        Title="Add Published DataSet" SizeToContent="Width" Height="600" WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <converter:TreeViewLineConverter x:Key="TreeViewLineConverter" />
         <Style x:Key="ExpandCollapseToggleStyle" TargetType="ToggleButton">
@@ -112,7 +112,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <TextBlock Text="Browsed Nodes" FontWeight="Bold" Grid.Row="0" Height="20" Margin="5,0" />
-            <TreeView x:Name="BrowsedItems" Grid.Row="1" Margin="0,2" Foreground="Black"
+            <TreeView x:Name="BrowsedItems" Grid.Row="1" MinWidth="200" Margin="0,2" Foreground="Black"
                       ItemsSource="{Binding ServerItems,UpdateSourceTrigger=PropertyChanged}"
                       SelectedItemChanged="BrowsedItems_SelectedItemChanged"
                       ItemContainerStyle="{StaticResource TreeviewItemStyle}">
@@ -124,7 +124,7 @@
                 <TreeView.ItemTemplate>
                     <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                         <StackPanel Orientation="Horizontal" Height="20">
-                            
+
                             <TextBlock Text="{Binding Header}" Margin="3,0" VerticalAlignment="Center"
                                        HorizontalAlignment="Left" Foreground="Black" FontFamily="Arial" FontSize="12" />
                         </StackPanel>
@@ -148,15 +148,14 @@
                 </TreeView.Style>
             </TreeView>
         </Grid>
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="30" />
-                </Grid.RowDefinitions>
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="30" />
+            </Grid.RowDefinitions>
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
                 <Grid>
-
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -215,13 +214,14 @@
                         </ScrollViewer>
                     </Border>
                 </Grid>
-                <StackPanel VerticalAlignment="Bottom" Margin="0,-25" HorizontalAlignment="Right"
+            </ScrollViewer>
+            <StackPanel VerticalAlignment="Bottom"  Margin="0,-25" HorizontalAlignment="Right"
                             Orientation="Horizontal">
-                    <Button Width="100" Content="Apply" Height="22" VerticalAlignment="Center" Click="OnAdd_Click" />
-                    <Button Width="100" Margin="5,5" Content="Cancel" Height="22" VerticalAlignment="Center"
+                <Button Width="100" Content="Apply" Height="22" VerticalAlignment="Center" Click="OnAdd_Click" />
+                <Button Width="100" Margin="5,5" Content="Cancel" Height="22" VerticalAlignment="Center"
                             Click="OnCancel_Click" />
-                </StackPanel>
-            </Grid>
-        </ScrollViewer>
+            </StackPanel>
+        </Grid>
+
     </Grid>
 </Window>

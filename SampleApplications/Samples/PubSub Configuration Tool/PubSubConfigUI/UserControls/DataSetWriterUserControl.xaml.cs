@@ -26,30 +26,38 @@ namespace PubSubConfigurationUI.UserControls
     {
         #region Private Member 
 
-        private readonly Dictionary< string, int > DicControlBitPositionmappping = new Dictionary< string, int >( );
-
+        private readonly Dictionary<string, int> DicControlBitPositionmappping = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _uadpdicControlBitPositionmappping = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _jsondicControlBitPositionmappping = new Dictionary<string, int>();
         #endregion
 
         #region Constructors
 
-        public DataSetWriterUserControl( )
+        public DataSetWriterUserControl()
         {
-            InitializeComponent( );
-            DataSetWriterEditViewModel = new DataSetWriterEditViewModel( );
+            InitializeComponent();
+            DataSetWriterEditViewModel = new DataSetWriterEditViewModel();
             DataContext = DataSetWriterEditViewModel;
 
-            DicControlBitPositionmappping[ "Chk_box1" ] = 0;
-            DicControlBitPositionmappping[ "Chk_box2" ] = 1;
-            DicControlBitPositionmappping[ "Chk_box3" ] = 2;
-            DicControlBitPositionmappping[ "Chk_box4" ] = 3;
-            DicControlBitPositionmappping[ "Chk_box5" ] = 4;
-            DicControlBitPositionmappping[ "Chk_box6" ] = 5;
-            DicControlBitPositionmappping[ "Chk_box7" ] = 16;
-            DicControlBitPositionmappping[ "Chk_box8" ] = 17;
-            DicControlBitPositionmappping[ "Chk_box9" ] = 18;
-            DicControlBitPositionmappping[ "Chk_box10" ] = 19;
-            DicControlBitPositionmappping[ "Chk_box11" ] = 20;
-            DicControlBitPositionmappping[ "Chk_box12" ] = 21;
+            DicControlBitPositionmappping["Chk_box1"] = 1;
+            DicControlBitPositionmappping["Chk_box2"] = 2;
+            DicControlBitPositionmappping["Chk_box3"] = 4;
+            DicControlBitPositionmappping["Chk_box4"] = 8;
+            DicControlBitPositionmappping["Chk_box5"] = 16;
+            DicControlBitPositionmappping["Chk_box6"] = 32;
+
+            _uadpdicControlBitPositionmappping["UadpChk_box1"] = 1;
+            _uadpdicControlBitPositionmappping["UadpChk_box2"] = 2;
+            _uadpdicControlBitPositionmappping["UadpChk_box3"] = 4;
+            _uadpdicControlBitPositionmappping["UadpChk_box4"] = 8;
+            _uadpdicControlBitPositionmappping["UadpChk_box5"] = 16;
+            _uadpdicControlBitPositionmappping["UadpChk_box6"] = 32;
+
+            _jsondicControlBitPositionmappping["JsonChk_box1"] = 1;
+            _jsondicControlBitPositionmappping["JsonChk_box2"] = 2;
+            _jsondicControlBitPositionmappping["JsonChk_box3"] = 4;
+            _jsondicControlBitPositionmappping["JsonChk_box4"] = 8;
+            _jsondicControlBitPositionmappping["JsonChk_box5"] = 16;
         }
 
         #endregion
@@ -58,21 +66,18 @@ namespace PubSubConfigurationUI.UserControls
         /// <summary>
         /// Get the DataSet content mask
         /// </summary>
-        public int GetDataSetContentMask( )
+        public int GetDataSetContentMask()
         {
             var DataSetContentMask = 0;
-            foreach ( var checkbox in new[ ]
+            foreach (var checkbox in new[]
                                       {
-                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6, Chk_box7,
-                                          Chk_box8, Chk_box9, Chk_box10, Chk_box11, Chk_box12
-                                      } )
+                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6
+                                      })
             {
-                var shiftNumber = 1;
-                if ( checkbox.IsChecked == true )
+                if (checkbox.IsChecked == true)
                 {
-                    var bitposition = DicControlBitPositionmappping[ checkbox.Name ];
-                    shiftNumber = 1 << bitposition;
-                    DataSetContentMask = DataSetContentMask | shiftNumber;
+                    var enumValue = DicControlBitPositionmappping[checkbox.Name];
+                    DataSetContentMask = DataSetContentMask | enumValue;
                 }
             }
             return DataSetContentMask;
@@ -80,26 +85,59 @@ namespace PubSubConfigurationUI.UserControls
         /// <summary>
         /// Initialize the DataSet content Mask controls
         /// </summary>
-        public void InitializeContentmask( )
+        public void InitializeContentmask()
         {
-            foreach ( var checkbox in new[ ]
+            foreach (var checkbox in new[]
                                       {
-                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6, Chk_box7,
-                                          Chk_box8, Chk_box9, Chk_box10, Chk_box11, Chk_box12
-                                      } )
+                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6
+                                      })
             {
-                var shiftNumber = 1;
-                var bitposition = DicControlBitPositionmappping[ checkbox.Name ];
-                shiftNumber = 1 << bitposition;
-                checkbox.IsChecked = (DataSetWriterEditViewModel.DataSetContentMask & shiftNumber) == shiftNumber ? true
+                var enumValue = DicControlBitPositionmappping[checkbox.Name];
+                checkbox.IsChecked = (DataSetWriterEditViewModel.DataSetContentMask & enumValue) == enumValue ? true
                     : false;
 
-                // checkbox.IsEnabled = false;
+            }
+
+            if (DataSetWriterEditViewModel.MessageSetting == 0)
+            {
+                foreach (var checkbox in new[]
+                                                     {
+                                          UadpChk_box1, UadpChk_box2, UadpChk_box3, UadpChk_box4, UadpChk_box5, UadpChk_box6
+                                      })
+                {
+                    var enumValue = _uadpdicControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetWriterEditViewModel.UadpDataSetMessageContentMask & enumValue) == enumValue ? true
+                        : false;
+
+                }
+            }
+            else
+            {
+                foreach (var checkbox in new[]
+                                     {
+                                          JsonChk_box1, JsonChk_box2, JsonChk_box3, JsonChk_box4, JsonChk_box5
+                                      })
+                {
+                    var enumValue = _jsondicControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetWriterEditViewModel.JsonDataSetMessageContentMask & enumValue) == enumValue ? true
+                        : false;
+
+                }
             }
         }
 
         #endregion
 
         public DataSetWriterEditViewModel DataSetWriterEditViewModel;
+
+        private void TransportSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void MessageSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }

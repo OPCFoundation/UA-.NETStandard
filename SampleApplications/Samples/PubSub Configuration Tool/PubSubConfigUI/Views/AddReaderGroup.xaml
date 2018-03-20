@@ -38,7 +38,7 @@
         <Label Grid.Row="3" Grid.Column="0" Content="Max Network Message Size" Width="170" />
         <TextBox Text="{Binding MaxNetworkMessageSize}" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200"
                  Height="23" />
-
+        
         <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0" Orientation="Horizontal" VerticalAlignment="Bottom"
                     HorizontalAlignment="Right">
             <Button Width="100" Content="Apply" Height="22" VerticalAlignment="Center" Click="OnApplyClick" />

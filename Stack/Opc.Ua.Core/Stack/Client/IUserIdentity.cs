@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System.IdentityModel.Tokens;
 using System.Xml;
 
 namespace Opc.Ua
@@ -46,7 +47,7 @@ namespace Opc.Ua
         /// Whether the object can create signatures to prove possession of the user's credentials.
         /// </summary>
         /// <value><c>true</c> if signatures are supported; otherwise, <c>false</c>.</value>
-        bool SupportsSignatures { get; }
+        bool SupportsSignatures { get; } 
 
         /// <summary>
         /// Returns a UA user identity token containing the user information.

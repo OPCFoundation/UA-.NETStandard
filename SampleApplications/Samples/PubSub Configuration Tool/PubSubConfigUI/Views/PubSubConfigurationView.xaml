@@ -101,157 +101,151 @@
             </Setter>
         </Style>
     </UserControl.Resources>
-
-
     <Grid>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="400" />
-                <ColumnDefinition Width="10" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <TreeView x:Name="PubSubTreeView" ItemsSource="{Binding PubSubCollectionItems}" Margin="0,5,0,0"
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400" />
+            <ColumnDefinition Width="10" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TreeView x:Name="PubSubTreeView" ItemsSource="{Binding PubSubCollectionItems}" Margin="0,5,0,0"
                       MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
                       SelectedItemChanged="PubSubTreeView_OnSelectedItemChanged"
                       ItemContainerStyle="{StaticResource TreeviewItemStyle}">
-                <TreeView.Resources>
-                    <HierarchicalDataTemplate DataType="{x:Type local:PubSubConfiguationBase}"
+            <TreeView.Resources>
+                <HierarchicalDataTemplate DataType="{x:Type local:PubSubConfiguationBase}"
                                               ItemsSource="{Binding PubSubCollectionItems}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Name}" />
-                        </StackPanel>
-                    </HierarchicalDataTemplate>
-                </TreeView.Resources>
-                <TreeView.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Width="235" Header="Add Connection"
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" />
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+            </TreeView.Resources>
+            <TreeView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Width="235" Header="Add Connection"
                                   Visibility="{ Binding IsConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnAddConnectionClick" />
-                        <MenuItem Width="235" Header="Refresh"
+                    <MenuItem Width="235" Header="Refresh"
                                   Visibility="{ Binding IsConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRefreshClick" />
-                        <MenuItem Width="235" Header="Add DataSet Writer Group"
+                    <MenuItem Width="235" Header="Add DataSet Writer Group"
                                   Visibility="{ Binding IsWriterGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnWriterGroupClick" />
-                        <MenuItem Width="235" Header="Add DataSet Writer"
+                    <MenuItem Width="235" Header="Add DataSet Writer"
                                   Visibility="{ Binding IsDataSetWriterVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnDataSetWriterClick" />
-                        <MenuItem Width="235" Header="Add DataSet Reader Group"
+                    <MenuItem Width="235" Header="Add DataSet Reader Group"
                                   Visibility="{ Binding IsReaderGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnReaderGroupClick" />
-                        <MenuItem Width="235" Header="Add DataSet Reader"
+                    <MenuItem Width="235" Header="Add DataSet Reader"
                                   Visibility="{ Binding IsDataSetReaderVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnDataSetReaderClick" />
-                        <MenuItem Width="235" Header="Remove Writer Group"
+                    <MenuItem Width="235" Header="Remove Writer Group"
                                   Visibility="{ Binding IsRemoveWriterGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveWriterGroupClick" />
-                        <MenuItem Width="235" Header="Remove DataSet Writer"
+                    <MenuItem Width="235" Header="Remove DataSet Writer"
                                   Visibility="{ Binding IsRemoveDataSetWriterVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveDataSetWriterClick" />
-                        <MenuItem Width="235" Header="Remove Reader Group"
+                    <MenuItem Width="235" Header="Remove Reader Group"
                                   Visibility="{ Binding IsRemoveReaderGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveReaderGroupClick" />
-                        <MenuItem Width="235" Header="Remove DataSet Reader"
+                    <MenuItem Width="235" Header="Remove DataSet Reader"
                                   Visibility="{ Binding IsRemoveDataSetReaderVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveDataSetReaderClick" />
-                        <MenuItem Width="235" Header="Remove Connection"
+                    <MenuItem Width="235" Header="Remove Connection"
                                   Visibility="{ Binding IsRemoveConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveConnectionClick" />
-                        <MenuItem Width="235" Header="Add Target Variables"
+                    <MenuItem Width="235" Header="Add Target Variables"
                                   Visibility="{ Binding IsAddTargetVariablesVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnAddVariablesClick" />
-                        <MenuItem Width="235" Header="Add DataSet Mirror"
+                    <MenuItem Width="235" Header="Add DataSet Mirror"
                                   Visibility="{ Binding IsDataSetMirrorVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnCreateDataSetMirrorClick" />
-                        <MenuItem Width="235" Header="Remove Target Variable"
+                    <MenuItem Width="235" Header="Remove Target Variable"
                                   Visibility="{ Binding IsRemoveTargetVariableVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                   Click="OnRemoveTargetVariableClick" />
 
-                    </ContextMenu>
-                </TreeView.ContextMenu>
-                <TreeView.ItemTemplate>
-                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                        <StackPanel Orientation="Horizontal" Height="20">
-                             
-                            <TextBlock Text="{Binding Name}" Margin="3,0" VerticalAlignment="Center" FontFamily="Arial"
-                                       FontSize="12" />
-                        </StackPanel>
-                    </HierarchicalDataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
-            <GridSplitter Grid.Column="1" Width=".1" HorizontalAlignment="Stretch" Background="#FF2A3F54" />
+                </ContextMenu>
+            </TreeView.ContextMenu>
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                    <StackPanel Orientation="Horizontal" Height="20">
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="100" />
-                </Grid.RowDefinitions>
-                <ContentControl x:Name="PubSubContentControl" />
-                <DockPanel Dock="Bottom" Grid.Row="1">
-                    <Border Grid.Row="2" Margin="5,5,0,0" BorderBrush="Black" Grid.Column="2" BorderThickness=".5">
-                        <StackPanel Margin="5,7">
-                            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
-                                <Button Width="100" Content="Update" Height="22" VerticalAlignment="Center"
+                        <TextBlock Text="{Binding Name}" Margin="3,0" VerticalAlignment="Center" FontFamily="Arial"
+                                       FontSize="12" />
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+        <GridSplitter Grid.Column="1" Width=".1" HorizontalAlignment="Stretch" Background="#FF2A3F54" />
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="100" />
+            </Grid.RowDefinitions>
+            <ContentControl x:Name="PubSubContentControl" />
+            <DockPanel Dock="Bottom" Grid.Row="1">
+                <Border Grid.Row="2" Margin="5,5,0,0" BorderBrush="Black" Grid.Column="2" BorderThickness=".5">
+                    <StackPanel Margin="5,7">
+                        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button Width="100" Content="Update" IsEnabled="False"  Height="22" VerticalAlignment="Center"
                                         Visibility="{Binding IsUpdateVisible}" Click="Update_Click" />
-                                <Button Width="100" Margin="5,5" Content="Cancel" Height="22"
-                                        VerticalAlignment="Center" Visibility="{Binding  IsCancelVisible}"
+                            <Button Width="100" Margin="5,5" Content="Cancel" Height="22"
+                                        VerticalAlignment="Center" IsEnabled="False" Visibility="{Binding  IsCancelVisible}"
                                         Click="OnCancel_Click" />
-                            </StackPanel>
-                            <StackPanel Margin="0,8" VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                        </StackPanel>
+                        <StackPanel Margin="0,8" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                         Orientation="Horizontal">
-                                <Button MinWidth="130" Content="Add Connection"
+                            <Button MinWidth="130" Content="Add Connection"
                                         Visibility="{ Binding IsConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Click="OnAddConnectionClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Refresh"
+                            <Button MinWidth="130" Margin="5,0" Content="Refresh"
                                         Visibility="{ Binding IsConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Click="OnRefreshClick" />
-
-                                <Button MinWidth="130" Margin="5,0" Content="Add DataSet Writer Group"
+                            <Button MinWidth="130" Margin="5,0" Content="Add DataSet Writer Group"
                                         Visibility="{ Binding IsWriterGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Click="OnWriterGroupClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Add DataSet Writer"
+                            <Button MinWidth="130" Margin="5,0" Content="Add DataSet Writer"
                                         Visibility="{ Binding IsDataSetWriterVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnDataSetWriterClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Add DataSet Reader Group"
+                            <Button MinWidth="130" Margin="5,0" Content="Add DataSet Reader Group"
                                         Visibility="{ Binding IsReaderGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnReaderGroupClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Add DataSet Reader"
+                            <Button MinWidth="130" Margin="5,0" Content="Add DataSet Reader"
                                         Visibility="{ Binding IsDataSetReaderVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnDataSetReaderClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove Writer Group"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove Writer Group"
                                         Visibility="{ Binding IsRemoveWriterGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveWriterGroupClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove DataSet Writer"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove DataSet Writer"
                                         Visibility="{ Binding IsRemoveDataSetWriterVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveDataSetWriterClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove Reader Group"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove Reader Group"
                                         Visibility="{ Binding IsRemoveReaderGroupVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveReaderGroupClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove DataSet Reader"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove DataSet Reader"
                                         Visibility="{ Binding IsRemoveDataSetReaderVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveDataSetReaderClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove Connection"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove Connection"
                                         Visibility="{ Binding IsRemoveConnectionVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveConnectionClick" />
-
-                                <Button MinWidth="130" Margin="5,0" Content="Add Target Variables"
+                            <Button MinWidth="130" Margin="5,0" Content="Add Target Variables"
                                         Visibility="{ Binding IsAddTargetVariablesVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnAddVariablesClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Add DataSet Mirror"
+                            <Button MinWidth="130" Margin="5,0" Content="Add DataSet Mirror"
                                         Visibility="{ Binding IsDataSetMirrorVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnCreateDataSetMirrorClick" />
-                                <Button MinWidth="130" Margin="5,0" Content="Remove Target Variable"
+                            <Button MinWidth="130" Margin="5,0" Content="Remove Target Variable"
                                         Visibility="{ Binding IsRemoveTargetVariableVisible, UpdateSourceTrigger=PropertyChanged,Mode=TwoWay}"
                                         Height="23" Click="OnRemoveTargetVariableClick" />
 
-                            </StackPanel>
                         </StackPanel>
-                    </Border>
-                </DockPanel>
-            </Grid>
+                    </StackPanel>
+                </Border>
+            </DockPanel>
         </Grid>
     </Grid>
 </UserControl>

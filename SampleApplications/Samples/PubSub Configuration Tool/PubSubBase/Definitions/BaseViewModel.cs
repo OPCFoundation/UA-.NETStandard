@@ -15,6 +15,7 @@
 */
 
 using System.ComponentModel;
+using System.Windows;
 
 namespace PubSubBase.Definitions
 {
@@ -43,5 +44,7 @@ namespace PubSubBase.Definitions
         }
 
         #endregion
+
+        public Window OwnerWindow { get; set; }
     }
 }

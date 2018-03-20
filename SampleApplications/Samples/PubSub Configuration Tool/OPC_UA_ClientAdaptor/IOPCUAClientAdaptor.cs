@@ -19,76 +19,47 @@ using PubSubBase.Definitions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ClientAdaptor
 {
-  public  interface IOPCUAClientAdaptor
-  { 
+    public interface IOPCUAClientAdaptor
+    {
         ApplicationDescriptionCollection FindServers(string hostName);
         Session Connect(string endpointUrl, out string errorMessage, out TreeViewNode node);
         bool Disconnect();
-
-        string AddUADPConnection(Connection connection, out NodeId connectionId);
-        string AddAMQPConnection(Connection connection, out NodeId connectionId);
-
+        string AddConnection(Connection connection, out NodeId connectionId);
         string AddWriterGroup(DataSetWriterGroup dataSetWriterGroup, out NodeId groupId);
-
         string AddReaderGroup(ReaderGroupDefinition readerGroupDefinition, out NodeId groupId);
-
-        string AddUADPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition,out NodeId writerNodeId,out int revisedKeyFrameCount);
-        string AddAMQPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId, out int revisedKeyFrameCount);
-
+        string AddDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId, out int revisedKeyFrameCount);
         string RemoveDataSetWriter(DataSetWriterGroup dataSetWriterGroup, NodeId writerNodeId);
         string RemoveDataSetReader(ReaderGroupDefinition readerGroupDefinition, NodeId readerNodeId);
-
         string RemoveConnection(NodeId connectionId);
-
-       string AddNewSecurityGroup(string name, out SecurityGroup securityGroup);
-
-       string RemoveSecurityGroup(NodeId securityGroupId);
-
-       string RemoveGroup(Connection connection,NodeId GroupId);
-    
-       ObservableCollection<SecurityGroup> GetSecurityGroups();
-         
-
-       string GetSecurityKeys(string securityGroupId, uint featureKeyCount, out SecurityKeys securityKeys);
-       string SetSecurityKeys(SecurityKeys securityKeys);
-       Subscription CreateSubscription(string subscriptionName, int subscriptionInterval);
-
-       string EnablePubSubState(MonitorNode monitorNode);
-       string DisablePubSubState(MonitorNode monitorNode);
-       
-       ReferenceDescriptionCollection Browse(NodeId nodeId);
+        string AddNewSecurityGroup(string name, out SecurityGroup securityGroup);
+        string RemoveSecurityGroup(NodeId securityGroupId);
+        string RemoveGroup(Connection connection, NodeId GroupId);
+        ObservableCollection<SecurityGroup> GetSecurityGroups();
+        string GetSecurityKeys(string securityGroupId, uint featureKeyCount, out SecurityKeys securityKeys);
+        string SetSecurityKeys(SecurityKeys securityKeys);
+        Subscription CreateSubscription(string subscriptionName, int subscriptionInterval);
+        string EnablePubSubState(MonitorNode monitorNode);
+        string DisablePubSubState(MonitorNode monitorNode);
+        ReferenceDescriptionCollection Browse(NodeId nodeId);
         void Rebrowse(ref TreeViewNode node);
-      ObservableCollection<PubSubConfiguationBase> GetPubSubConfiguation();
- 
-       ObservableCollection<PublishedDataSetBase>  GetPublishedDataSets();
-        PublishedDataSetBase AddPublishedDataSet(string PublisherName,ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection);
-
+        ObservableCollection<PubSubConfiguationBase> GetPubSubConfiguation();
+        ObservableCollection<PublishedDataSetBase> GetPublishedDataSets();
+        PublishedDataSetBase AddPublishedDataSet(string PublisherName, ObservableCollection<PublishedDataSetItemDefinition> VariableListDefinitionCollection);
         string RemovePublishedDataSet(NodeId publishedDataSetNodeId);
-        string RemovePublishedDataSetVariables(string PublisherName, NodeId publisherNodeId, ConfigurationVersionDataType configurationVersionDataType, List<UInt32> variableIndexs,out ConfigurationVersionDataType newConfigurationVersion);
-
-        string AddVariableToPublisher(string publisherName, NodeId publisherNodeId,ConfigurationVersionDataType configurationVersionDataType, ObservableCollection<PublishedDataSetItemDefinition> variableListDefinitionCollection, out ConfigurationVersionDataType newConfigurationVersion);
-
+        string RemovePublishedDataSetVariables(string PublisherName, NodeId publisherNodeId, ConfigurationVersionDataType configurationVersionDataType, List<UInt32> variableIndexs, out ConfigurationVersionDataType newConfigurationVersion);
+        string AddVariableToPublisher(string publisherName, NodeId publisherNodeId, ConfigurationVersionDataType configurationVersionDataType, ObservableCollection<PublishedDataSetItemDefinition> variableListDefinitionCollection, out ConfigurationVersionDataType newConfigurationVersion);
         ReferenceDescriptionCollection Browse(NodeId nodeId, BrowseDirection direction);
-
-        string AddDataSetReader(NodeId dataSetReaderGroupNodeId,DataSetReaderDefinition dataSetReaderDefinition);
+        string AddDataSetReader(NodeId dataSetReaderGroupNodeId, DataSetReaderDefinition dataSetReaderDefinition);
         Subscription GetPubSubStateSubscription(string subscriptionName);
-
         string AddTargetVariables(NodeId dataSetReaderNodeId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection);
         string AddAdditionalTargetVariables(NodeId objectId, UInt16 minorVersion, UInt16 majorVersion, ObservableCollection<FieldTargetVariableDefinition> variableListDefinitionCollection);
-
         string RemoveTargetVariable(NodeId objectId, ConfigurationVersionDataType versionType, List<UInt32> targetsToremove);
-
         string AddDataSetMirror(DataSetReaderDefinition dataSetReaderDefinition, string parentName);
-
         StatusCodeCollection WriteValue(WriteValueCollection writeValueCollection);
-
         object ReadValue(NodeId nodeId);
     }
- 
+
 }

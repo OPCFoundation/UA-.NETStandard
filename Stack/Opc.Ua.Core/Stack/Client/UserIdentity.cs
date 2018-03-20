@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IdentityModel.Tokens;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -224,6 +225,7 @@ namespace Opc.Ua
             token.Certificate = certificate;
             Initialize(token);
         }
+         
         #endregion
 
         #region Private Fields

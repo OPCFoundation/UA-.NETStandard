@@ -27,8 +27,8 @@ namespace PubSubBase.Definitions
         private string m_dataSetWriterName;
         private NodeId m_publisherDataSetNodeId = new NodeId("0", 1);
         private string m_publisherDataSetId;
-        private int m_keyFrameCount;
-        private int m_dataSetWriterId;
+        private uint m_keyFrameCount;
+        private ushort m_dataSetWriterId;
         private string m_queueName;
         private string m_metadataQueueName;
         private int m_metadataUpdateTime;
@@ -37,10 +37,70 @@ namespace PubSubBase.Definitions
         private int m_revisedKeyFrameCount;
         private int m_revisedMaxMessageSize;
         private int m_dataSetContentMask;
-
+        private int m_uadpdataSetMessageContentMask;
+        private int m_jsondataSetMessageContentMask;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+        private int m_requestedDeliveryGuarantee;
+        private ushort m_configuredSize;
+        private int m_transportSetting;
+        private int m_messageSetting;
+        private string m_datasetName;
+        private ushort m_dataSetOffset;
+        private ushort m_networkMessageNumber;
         #endregion
 
         #region Public Properties
+
+        public string DataSetName
+        {
+            get
+            {
+                return m_datasetName;
+            }
+            set
+            {
+                m_datasetName = value;
+                OnPropertyChanged("DataSetName");
+            }
+        }
+
+        public ushort ConfiguredSize
+        {
+            get { return m_configuredSize; }
+            set { m_configuredSize = value; OnPropertyChanged("ConfiguredSize"); }
+        }
+
+        public ushort DataSetOffset
+        {
+            get { return m_dataSetOffset; }
+            set { m_dataSetOffset = value; OnPropertyChanged("DataSetOffset"); }
+        }
+
+        public ushort NetworkMessageNumber
+        {
+            get { return m_networkMessageNumber; }
+            set { m_networkMessageNumber = value; OnPropertyChanged("NetworkMessageNumber"); }
+        }
+
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set { m_resourceUri = value; OnPropertyChanged("ResourceUri"); }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set { m_authenticationProfileUri = value; OnPropertyChanged("AuthenticationProfileUri"); }
+        }
+
+        public int RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee; }
+            set { m_requestedDeliveryGuarantee = value; OnPropertyChanged("RequestedDeliveryGuarantee"); }
+        }
+
         /// <summary>
         /// defines name of DataSetWriter Name
         /// </summary>
@@ -92,7 +152,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// Defines the KeyFrame Count of DataSet Writer
         /// </summary>
-        public int KeyFrameCount
+        public uint KeyFrameCount
         {
             get
             {
@@ -108,7 +168,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// Defines the DataSet Writer ID
         /// </summary>
-        public int DataSetWriterId
+        public ushort DataSetWriterId
         {
             get
             {
@@ -243,6 +303,58 @@ namespace PubSubBase.Definitions
             {
                 m_dataSetContentMask = value;
                 OnPropertyChanged("DataSetContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines the DataSet Message Content Mask
+        /// </summary>
+        public int UadpDataSetMessageContentMask
+        {
+            get { return m_uadpdataSetMessageContentMask; }
+            set
+            {
+                m_uadpdataSetMessageContentMask = value;
+                OnPropertyChanged("UadpDataSetMessageContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines the DataSet Message Content Mask
+        /// </summary>
+        public int JsonDataSetMessageContentMask
+        {
+            get { return m_jsondataSetMessageContentMask; }
+            set
+            {
+                m_jsondataSetMessageContentMask = value;
+                OnPropertyChanged("BrokerDataSetMessageContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
+        public int TransportSetting
+        {
+            get { return m_transportSetting; }
+            set
+            {
+                m_transportSetting = value;
+                OnPropertyChanged("TransportSetting");
+            }
+        }
+
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
+        public int MessageSetting
+        {
+            get { return m_messageSetting; }
+            set
+            {
+                m_messageSetting = value;
+                OnPropertyChanged("MessageSetting");
             }
         }
 

@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>

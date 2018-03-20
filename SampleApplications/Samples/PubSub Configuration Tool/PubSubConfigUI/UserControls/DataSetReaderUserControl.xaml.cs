@@ -28,68 +28,91 @@ namespace PubSubConfigurationUI.UserControls
     {
         #region Private Member 
 
-        private readonly Dictionary< string, int > DicControlBitPositionmappping = new Dictionary< string, int >( );
+        private readonly Dictionary<string, int> DicControlBitPositionmappping = new Dictionary<string, int>();
 
-        private readonly Dictionary< string, int > DicNetworkMessageControlBitPositionmappping =
-        new Dictionary< string, int >( );
+        private readonly Dictionary<string, int> DicNetworkMessageControlBitPositionmappping =
+        new Dictionary<string, int>();
+        private readonly Dictionary<string, int> m_uadpDataSetdicControlBitPositionmappping = new Dictionary<string, int>();
+
+        private readonly Dictionary<string, int> m_jsonDataSetdicControlBitPositionmappping = new Dictionary<string, int>();
+
+        private readonly Dictionary<string, int> m_jsonNetworkdicControlBitPositionmappping = new Dictionary<string, int>();
+
 
         #endregion
 
         #region Private Methods
 
-        private void ViewDataSetMeta_Click( object sender, RoutedEventArgs e )
+        private void ViewDataSetMeta_Click(object sender, RoutedEventArgs e)
         {
-            if ( DataSetReaderEditViewModel.DataSetMetaDataType == null )
+            if (DataSetReaderEditViewModel.DataSetMetaDataType == null)
             {
-                MessageBox.Show( "DataSet Metadata is not configured yet.", "View DataSet MetaData" );
+                MessageBox.Show("DataSet Metadata is not configured yet.", "View DataSet MetaData");
                 return;
             }
 
-            var _DataSetMetaDataUserControl = new DataSetMetaDataUserControl( );
+            var _DataSetMetaDataUserControl = new DataSetMetaDataUserControl();
             _DataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Definition.DataSetMetaDataType =
             DataSetReaderEditViewModel.DataSetMetaDataType;
-            _DataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Initialize( );
+            _DataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Initialize();
 
-            var _ViewDataSetMetaData = new ViewDataSetMetaData( );
+            var _ViewDataSetMetaData = new ViewDataSetMetaData();
 
             _ViewDataSetMetaData.ContentControl.Content = _DataSetMetaDataUserControl;
             _ViewDataSetMetaData.ShowInTaskbar = false;
-            _ViewDataSetMetaData.ShowDialog( );
+            _ViewDataSetMetaData.ShowDialog();
         }
 
         #endregion
 
         #region Constructors
 
-        public DataSetReaderUserControl( )
+        public DataSetReaderUserControl()
         {
-            InitializeComponent( );
-            DataSetReaderEditViewModel = new DataSetReaderEditViewModel( );
+            DataSetReaderEditViewModel = new DataSetReaderEditViewModel();
             DataContext = DataSetReaderEditViewModel;
-            DicControlBitPositionmappping[ "Chk_box1" ] = 0;
-            DicControlBitPositionmappping[ "Chk_box2" ] = 1;
-            DicControlBitPositionmappping[ "Chk_box3" ] = 2;
-            DicControlBitPositionmappping[ "Chk_box4" ] = 3;
-            DicControlBitPositionmappping[ "Chk_box5" ] = 4;
-            DicControlBitPositionmappping[ "Chk_box6" ] = 5;
-            DicControlBitPositionmappping[ "Chk_box7" ] = 16;
-            DicControlBitPositionmappping[ "Chk_box8" ] = 17;
-            DicControlBitPositionmappping[ "Chk_box9" ] = 18;
-            DicControlBitPositionmappping[ "Chk_box10" ] = 19;
-            DicControlBitPositionmappping[ "Chk_box11" ] = 20;
-            DicControlBitPositionmappping[ "Chk_box12" ] = 21;
+            InitializeComponent();
 
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box1" ] = 0;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box2" ] = 1;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box3" ] = 2;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box4" ] = 3;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box5" ] = 4;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box6" ] = 5;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box7" ] = 6;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box8" ] = 7;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box9" ] = 8;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box10" ] = 9;
-            DicNetworkMessageControlBitPositionmappping[ "NM_Chk_box11" ] = 10;
+
+            DicControlBitPositionmappping["Chk_box1"] = 1;
+            DicControlBitPositionmappping["Chk_box2"] = 2;
+            DicControlBitPositionmappping["Chk_box3"] = 4;
+            DicControlBitPositionmappping["Chk_box4"] = 8;
+            DicControlBitPositionmappping["Chk_box5"] = 16;
+            DicControlBitPositionmappping["Chk_box6"] = 32;
+
+
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box1"] = 1;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box2"] = 2;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box3"] = 4;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box4"] = 8;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box5"] = 16;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box6"] = 32;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box7"] = 64;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box8"] = 128;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box9"] = 256;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box10"] = 512;
+            DicNetworkMessageControlBitPositionmappping["NM_Chk_box11"] = 1024;
+
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box1"] = 1;
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box2"] = 2;
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box3"] = 4;
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box4"] = 8;
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box5"] = 16;
+            m_uadpDataSetdicControlBitPositionmappping["UDChk_box6"] = 32;
+
+            m_jsonDataSetdicControlBitPositionmappping["JNChk_box1"] = 1;
+            m_jsonDataSetdicControlBitPositionmappping["JNChk_box2"] = 2;
+            m_jsonDataSetdicControlBitPositionmappping["JNChk_box3"] = 4;
+            m_jsonDataSetdicControlBitPositionmappping["JNChk_box4"] = 8;
+            m_jsonDataSetdicControlBitPositionmappping["JNChk_box5"] = 16;
+
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box1"] = 1;
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box2"] = 2;
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box3"] = 4;
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box4"] = 8;
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box5"] = 16;
+            m_jsonNetworkdicControlBitPositionmappping["JN_Chk_box6"] = 32;
         }
 
         #endregion
@@ -98,21 +121,18 @@ namespace PubSubConfigurationUI.UserControls
         /// <summary>
         /// Get the dataSet content Mask
         /// </summary>
-        public int GetDataSetContentMask( )
+        public int GetDataSetContentMask()
         {
             var DataSetContentMask = 0;
-            foreach ( var checkbox in new[ ]
+            foreach (var checkbox in new[]
                                       {
-                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6, Chk_box7,
-                                          Chk_box8, Chk_box9, Chk_box10, Chk_box11, Chk_box12
-                                      } )
+                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6
+                                      })
             {
-                var shiftNumber = 1;
-                if ( checkbox.IsChecked == true )
+                if (checkbox.IsChecked == true)
                 {
-                    var bitposition = DicControlBitPositionmappping[ checkbox.Name ];
-                    shiftNumber = 1 << bitposition;
-                    DataSetContentMask = DataSetContentMask | shiftNumber;
+                    var enumvalue = DicControlBitPositionmappping[checkbox.Name];
+                    DataSetContentMask = DataSetContentMask | enumvalue;
                 }
             }
             return DataSetContentMask;
@@ -120,64 +140,115 @@ namespace PubSubConfigurationUI.UserControls
         /// <summary>
         /// Get the Network content mask
         /// </summary>
-         
-        public int GetNetworkContentMask( )
+
+        public int GetNetworkContentMask()
         {
             var NetworkMessageContentMask = 0;
-            foreach ( var checkbox in new[ ]
-                                      {
-                                          NM_Chk_box1, NM_Chk_box2, NM_Chk_box3, NM_Chk_box4, NM_Chk_box5,
-                                          NM_Chk_box6, NM_Chk_box7, NM_Chk_box8, NM_Chk_box9, NM_Chk_box10,
-                                          NM_Chk_box11
-                                      } )
-            {
-                var shiftNumber = 1;
-                if ( checkbox.IsChecked == true )
-                {
-                    var bitposition = DicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
-                    shiftNumber = 1 << bitposition;
-                    NetworkMessageContentMask = NetworkMessageContentMask | shiftNumber;
-                }
-            }
+            //foreach (var checkbox in new[]
+            //                          {
+            //                              NM_Chk_box1, NM_Chk_box2, NM_Chk_box3, NM_Chk_box4, NM_Chk_box5,
+            //                              NM_Chk_box6, NM_Chk_box7, NM_Chk_box8, NM_Chk_box9, NM_Chk_box10,
+            //                              NM_Chk_box11
+            //                          })
+            //{
+            //    var shiftNumber = 1;
+            //    if (checkbox.IsChecked == true)
+            //    {
+            //        var bitposition = DicNetworkMessageControlBitPositionmappping[checkbox.Name];
+            //        shiftNumber = 1 << bitposition;
+            //        NetworkMessageContentMask = NetworkMessageContentMask | shiftNumber;
+            //    }
+            //}
             return NetworkMessageContentMask;
         }
         /// <summary>
         /// Initialize the DataSet Content Mask and Network content Mask controls
         /// </summary>
-        public void InitializeContentmask( )
+        public void InitializeContentmask()
         {
-            foreach ( var checkbox in new[ ]
+            foreach (var checkbox in new[]
                                       {
-                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6, Chk_box7,
-                                          Chk_box8, Chk_box9, Chk_box10, Chk_box11, Chk_box12
-                                      } )
+                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6
+                                      })
             {
-                var shiftNumber = 1;
-                var bitposition = DicControlBitPositionmappping[ checkbox.Name ];
-                shiftNumber = 1 << bitposition;
-                checkbox.IsChecked = (DataSetReaderEditViewModel.DataSetContentMask & shiftNumber) == shiftNumber ? true
+                var enumvalue = DicControlBitPositionmappping[checkbox.Name];
+                checkbox.IsChecked = (DataSetReaderEditViewModel.DataSetContentMask & enumvalue) == enumvalue ? true
                     : false;
-                            
-            }
-            foreach ( var checkbox in new[ ]
-                                      {
-                                          NM_Chk_box1, NM_Chk_box2, NM_Chk_box3, NM_Chk_box4, NM_Chk_box5,
-                                          NM_Chk_box6, NM_Chk_box7, NM_Chk_box8, NM_Chk_box9, NM_Chk_box10,
-                                          NM_Chk_box11
-                                      } )
-            {
-                var shiftNumber = 1;
-                var bitposition = DicNetworkMessageControlBitPositionmappping[ checkbox.Name ];
-                shiftNumber = 1 << bitposition;
-                checkbox.IsChecked = (DataSetReaderEditViewModel.NetworkMessageContentMask & shiftNumber) == shiftNumber
-                    ? true : false;
 
-                // checkbox.IsEnabled = false;
             }
+
+
+            if (DataSetReaderEditViewModel.MessageSetting == 0)
+            {
+                foreach (var checkbox in new[]
+                                     {
+                                          UDChk_box1, UDChk_box2, UDChk_box3, UDChk_box4, UDChk_box5,
+                                          UDChk_box6
+                                      })
+                {
+                    var enumvalue = m_uadpDataSetdicControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetReaderEditViewModel.UadpDataSetMessageContentMask & enumvalue) == enumvalue
+                        ? true : false;
+
+                    // checkbox.IsEnabled = false;
+                }
+
+                foreach (var checkbox in new[]
+                                     {
+                                          NM_Chk_box1, NM_Chk_box2, NM_Chk_box3, NM_Chk_box4, NM_Chk_box5,
+                                          NM_Chk_box6,NM_Chk_box7,NM_Chk_box8,NM_Chk_box9,NM_Chk_box10,NM_Chk_box11
+                                      })
+                {
+                    var enumvalue = DicNetworkMessageControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetReaderEditViewModel.UadpNetworkMessageContentMask & enumvalue) == enumvalue
+                        ? true : false;
+
+                    // checkbox.IsEnabled = false;
+                }
+
+            }
+            else
+            {
+                foreach (var checkbox in new[]
+                                     {
+                                          JNChk_box1, JNChk_box2, JNChk_box3, JNChk_box4, JNChk_box5
+                                      })
+                {
+                    var enumvalue = m_jsonDataSetdicControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetReaderEditViewModel.JsonDataSetMessageContentMask & enumvalue) == enumvalue
+                        ? true : false;
+
+                    // checkbox.IsEnabled = false;
+                }
+
+                foreach (var checkbox in new[]
+                                     {
+                                          JN_Chk_box1, JN_Chk_box2, JN_Chk_box3, JN_Chk_box4, JN_Chk_box5,
+                                          JN_Chk_box6
+                                      })
+                {
+                    var enumvalue = m_jsonNetworkdicControlBitPositionmappping[checkbox.Name];
+                    checkbox.IsChecked = (DataSetReaderEditViewModel.JsonNetworkMessageContentMask & enumvalue) == enumvalue
+                        ? true : false;
+
+                    // checkbox.IsEnabled = false;
+                }
+            }
+
         }
 
         #endregion
 
         public DataSetReaderEditViewModel DataSetReaderEditViewModel;
+
+        private void TransportSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void MessageSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }

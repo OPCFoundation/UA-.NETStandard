@@ -1,7 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2017-11-22T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2017-11-22T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -158,6 +187,12 @@
         <Description>The URLs for the server's discovery endpoints.</Description>
       </Field>
     </Definition>
+  </UADataType>
+  <UADataType NodeId="i=20998" BrowseName="VersionTime">
+    <DisplayName>VersionTime</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
+    </References>
   </UADataType>
   <UADataType NodeId="i=12189" BrowseName="ServerOnNetwork">
     <DisplayName>ServerOnNetwork</DisplayName>
@@ -389,7 +424,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12890</Reference>
     </References>
-    <Definition Name="MdnsDiscoveryConfiguration" BaseType="MdnsDiscoveryConfiguration">
+    <Definition Name="MdnsDiscoveryConfiguration">
       <Field Name="MdnsServerName" DataType="i=12">
         <Description>The name for server that is broadcast via mDNS.</Description>
       </Field>
@@ -458,7 +493,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17</Reference>
     </References>
   </UADataType>
-  <UADataType NodeId="i=316" BrowseName="UserIdentityToken">
+  <UADataType NodeId="i=316" BrowseName="UserIdentityToken" IsAbstract="true">
     <DisplayName>UserIdentityToken</DisplayName>
     <Description>A base type for a user identity token.</Description>
     <References>
@@ -483,7 +518,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
-    <Definition Name="UserNameIdentityToken" BaseType="UserNameIdentityToken">
+    <Definition Name="UserNameIdentityToken">
       <Field Name="UserName" DataType="i=12">
         <Description>The user name.</Description>
       </Field>
@@ -501,7 +536,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
-    <Definition Name="X509IdentityToken" BaseType="X509IdentityToken">
+    <Definition Name="X509IdentityToken">
       <Field Name="CertificateData" DataType="i=15">
         <Description>The certificate.</Description>
       </Field>
@@ -513,7 +548,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
-    <Definition Name="IssuedIdentityToken" BaseType="IssuedIdentityToken">
+    <Definition Name="IssuedIdentityToken">
       <Field Name="TokenData" DataType="i=15">
         <Description>The XML token encrypted with the server certificate.</Description>
       </Field>
@@ -599,31 +634,40 @@
       <Field Name="Value" Value="2097152">
         <Description>The value attribute is specified.</Description>
       </Field>
-      <Field Name="All" Value="4194303">
+      <Field Name="DataTypeDefinition" Value="4194304">
+        <Description>The write mask attribute is specified.</Description>
+      </Field>
+      <Field Name="RolePermissions" Value="8388608">
+        <Description>The write mask attribute is specified.</Description>
+      </Field>
+      <Field Name="AccessRestrictions" Value="16777216">
+        <Description>The write mask attribute is specified.</Description>
+      </Field>
+      <Field Name="All" Value="33554431">
         <Description>All attributes are specified.</Description>
       </Field>
-      <Field Name="BaseNode" Value="1335396">
+      <Field Name="BaseNode" Value="26501220">
         <Description>All base attributes are specified.</Description>
       </Field>
-      <Field Name="Object" Value="1335524">
+      <Field Name="Object" Value="26501348">
         <Description>All object attributes are specified.</Description>
       </Field>
-      <Field Name="ObjectTypeOrDataType" Value="1337444">
-        <Description>All object type or data type attributes are specified.</Description>
+      <Field Name="ObjectType" Value="26503268">
+        <Description>All object type attributes are specified.</Description>
       </Field>
-      <Field Name="Variable" Value="4026999">
+      <Field Name="Variable" Value="26571383">
         <Description>All variable attributes are specified.</Description>
       </Field>
-      <Field Name="VariableType" Value="3958902">
+      <Field Name="VariableType" Value="28600438">
         <Description>All variable type attributes are specified.</Description>
       </Field>
-      <Field Name="Method" Value="1466724">
+      <Field Name="Method" Value="26632548">
         <Description>All method attributes are specified.</Description>
       </Field>
-      <Field Name="ReferenceType" Value="1371236">
+      <Field Name="ReferenceType" Value="26537060">
         <Description>All reference type attributes are specified.</Description>
       </Field>
-      <Field Name="View" Value="1335532">
+      <Field Name="View" Value="26501356">
         <Description>All view attributes are specified.</Description>
       </Field>
     </Definition>
@@ -1103,7 +1147,67 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>4194303</Value>
+              <Value>4194304</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>DataTypeDefinition</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The write mask attribute is specified.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>8388608</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>RolePermissions</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The write mask attribute is specified.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>16777216</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>AccessRestrictions</Text>
+              </DisplayName>
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The write mask attribute is specified.</Text>
+              </Description>
+            </EnumValueType>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=7616</Identifier>
+          </TypeId>
+          <Body>
+            <EnumValueType>
+              <Value>33554431</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1123,7 +1227,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1335396</Value>
+              <Value>26501220</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1143,7 +1247,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1335524</Value>
+              <Value>26501348</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1163,16 +1267,16 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1337444</Value>
+              <Value>26503268</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
-                <Text>ObjectTypeOrDataType</Text>
+                <Text>ObjectType</Text>
               </DisplayName>
               <Description>
                 <Locale>
                 </Locale>
-                <Text>All object type or data type attributes are specified.</Text>
+                <Text>All object type attributes are specified.</Text>
               </Description>
             </EnumValueType>
           </Body>
@@ -1183,7 +1287,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>4026999</Value>
+              <Value>26571383</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1203,7 +1307,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>3958902</Value>
+              <Value>28600438</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1223,7 +1327,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1466724</Value>
+              <Value>26632548</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1243,7 +1347,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1371236</Value>
+              <Value>26537060</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1263,7 +1367,7 @@
           </TypeId>
           <Body>
             <EnumValueType>
-              <Value>1335532</Value>
+              <Value>26501356</Value>
               <DisplayName>
                 <Locale>
                 </Locale>
@@ -1380,10 +1484,10 @@
     <DisplayName>AttributeWriteMask</DisplayName>
     <Description>Define bits used to indicate which attributes are writable.</Description>
     <References>
-      <Reference ReferenceType="HasProperty">i=11882</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=15036</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
-    <Definition Name="AttributeWriteMask">
+    <Definition Name="AttributeWriteMask" IsOptionSet="true">
       <Field Name="None" Value="0">
         <Description>No attributes are writable.</Description>
       </Field>
@@ -1453,478 +1557,160 @@
       <Field Name="ValueForVariableType" Value="2097152">
         <Description>The value attribute is writable.</Description>
       </Field>
+      <Field Name="DataTypeDefinition" Value="4194304">
+        <Description>The DataTypeDefinition attribute is writable.</Description>
+      </Field>
+      <Field Name="RolePermissions" Value="8388608">
+        <Description>The RolePermissions attribute is writable.</Description>
+      </Field>
+      <Field Name="AccessRestrictions" Value="16777216">
+        <Description>The AccessRestrictions attribute is writable.</Description>
+      </Field>
+      <Field Name="AccessLevelEx" Value="33554432">
+        <Description>The AccessLevelEx attribute is writable.</Description>
+      </Field>
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11882" BrowseName="EnumValues" ParentNodeId="i=347" DataType="i=7594" ValueRank="1">
-    <DisplayName>EnumValues</DisplayName>
+  <UAVariable NodeId="i=15036" BrowseName="OptionSetValues" ParentNodeId="i=347" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=347</Reference>
     </References>
     <Value>
-      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>0</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>None</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>No attributes are writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>1</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>AccessLevel</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The access level attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>2</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>ArrayDimensions</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The array dimensions attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>4</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>BrowseName</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The browse name attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>8</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>ContainsNoLoops</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The contains no loops attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>16</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>DataType</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The data type attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>32</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>Description</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The description attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>64</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>DisplayName</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The display name attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>128</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>EventNotifier</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The event notifier attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>256</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>Executable</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The executable attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>512</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>Historizing</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The historizing attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>1024</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>InverseName</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The inverse name attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>2048</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>IsAbstract</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The is abstract attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>4096</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>MinimumSamplingInterval</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The minimum sampling interval attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>8192</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>NodeClass</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node class attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>16384</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>NodeId</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node id attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>32768</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>Symmetric</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The symmetric attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>65536</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>UserAccessLevel</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user access level attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>131072</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>UserExecutable</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user executable attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>262144</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>UserWriteMask</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user write mask attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>524288</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>ValueRank</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The value rank attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>1048576</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>WriteMask</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The write mask attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-        <ExtensionObject>
-          <TypeId>
-            <Identifier>i=7616</Identifier>
-          </TypeId>
-          <Body>
-            <EnumValueType>
-              <Value>2097152</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>ValueForVariableType</Text>
-              </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The value attribute is writable.</Text>
-              </Description>
-            </EnumValueType>
-          </Body>
-        </ExtensionObject>
-      </ListOfExtensionObject>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>AccessLevel</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>ArrayDimensions</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>BrowseName</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>ContainsNoLoops</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>DataType</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Description</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>DisplayName</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>EventNotifier</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Executable</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Historizing</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>InverseName</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>IsAbstract</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>MinimumSamplingInterval</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>NodeClass</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>NodeId</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Symmetric</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>UserAccessLevel</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>UserExecutable</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>UserWriteMask</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>ValueRank</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>WriteMask</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>ValueForVariableType</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>DataTypeDefinition</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>RolePermissions</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>AccessRestrictions</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>AccessLevelEx</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
     </Value>
   </UAVariable>
   <UADataType NodeId="i=521" BrowseName="ContinuationPoint">
@@ -2171,7 +1957,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=589</Reference>
     </References>
-    <Definition Name="ElementOperand" BaseType="ElementOperand">
+    <Definition Name="ElementOperand">
       <Field Name="Index" DataType="i=7" />
     </Definition>
   </UADataType>
@@ -2180,7 +1966,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=589</Reference>
     </References>
-    <Definition Name="LiteralOperand" BaseType="LiteralOperand">
+    <Definition Name="LiteralOperand">
       <Field Name="Value" />
     </Definition>
   </UADataType>
@@ -2189,7 +1975,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=589</Reference>
     </References>
-    <Definition Name="AttributeOperand" BaseType="AttributeOperand">
+    <Definition Name="AttributeOperand">
       <Field Name="NodeId" DataType="i=17" />
       <Field Name="Alias" DataType="i=12" />
       <Field Name="BrowsePath" DataType="i=540" />
@@ -2202,7 +1988,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=589</Reference>
     </References>
-    <Definition Name="SimpleAttributeOperand" BaseType="SimpleAttributeOperand">
+    <Definition Name="SimpleAttributeOperand">
       <Field Name="TypeDefinitionId" DataType="i=17" />
       <Field Name="BrowsePath" DataType="i=20" ValueRank="1" />
       <Field Name="AttributeId" DataType="i=288" />
@@ -2407,7 +2193,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=719</Reference>
     </References>
-    <Definition Name="EventFilter" BaseType="EventFilter">
+    <Definition Name="EventFilter">
       <Field Name="SelectClauses" DataType="i=601" ValueRank="1" />
       <Field Name="WhereClause" DataType="i=586" />
     </Definition>
@@ -2434,6 +2220,262 @@
       <Field Name="EventFields" ValueRank="1" />
     </Definition>
   </UADataType>
+  <UAObject NodeId="i=310" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=308</Reference>
+      <Reference ReferenceType="HasDescription">i=7665</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12207" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12189</Reference>
+      <Reference ReferenceType="HasDescription">i=12213</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=306" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=304</Reference>
+      <Reference ReferenceType="HasDescription">i=7662</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=314" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=312</Reference>
+      <Reference ReferenceType="HasDescription">i=7668</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=434" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=432</Reference>
+      <Reference ReferenceType="HasDescription">i=7782</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12900" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12890</Reference>
+      <Reference ReferenceType="HasDescription">i=12902</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12901" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12891</Reference>
+      <Reference ReferenceType="HasDescription">i=12905</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=346" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=344</Reference>
+      <Reference ReferenceType="HasDescription">i=7698</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=318" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=316</Reference>
+      <Reference ReferenceType="HasDescription">i=7671</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=321" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=319</Reference>
+      <Reference ReferenceType="HasDescription">i=7674</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=324" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=322</Reference>
+      <Reference ReferenceType="HasDescription">i=7677</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=327" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=325</Reference>
+      <Reference ReferenceType="HasDescription">i=7680</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=940" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=938</Reference>
+      <Reference ReferenceType="HasDescription">i=7683</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=378" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=376</Reference>
+      <Reference ReferenceType="HasDescription">i=7728</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=381" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=379</Reference>
+      <Reference ReferenceType="HasDescription">i=7731</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=384" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=382</Reference>
+      <Reference ReferenceType="HasDescription">i=7734</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=387" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=385</Reference>
+      <Reference ReferenceType="HasDescription">i=7737</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=539" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=537</Reference>
+      <Reference ReferenceType="HasDescription">i=12718</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=542" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=540</Reference>
+      <Reference ReferenceType="HasDescription">i=12721</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=333" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=331</Reference>
+      <Reference ReferenceType="HasDescription">i=7686</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=585" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=583</Reference>
+      <Reference ReferenceType="HasDescription">i=7929</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=588" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=586</Reference>
+      <Reference ReferenceType="HasDescription">i=7932</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=591" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=589</Reference>
+      <Reference ReferenceType="HasDescription">i=7935</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=594" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=592</Reference>
+      <Reference ReferenceType="HasDescription">i=7938</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=597" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=595</Reference>
+      <Reference ReferenceType="HasDescription">i=7941</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=600" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=598</Reference>
+      <Reference ReferenceType="HasDescription">i=7944</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=603" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=601</Reference>
+      <Reference ReferenceType="HasDescription">i=7947</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=661" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=659</Reference>
+      <Reference ReferenceType="HasDescription">i=8004</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=721" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=719</Reference>
+      <Reference ReferenceType="HasDescription">i=8067</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=727" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=725</Reference>
+      <Reference ReferenceType="HasDescription">i=8073</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=950" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=948</Reference>
+      <Reference ReferenceType="HasDescription">i=8076</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=922" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=920</Reference>
+      <Reference ReferenceType="HasDescription">i=8172</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=309" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
     <References>
@@ -2690,259 +2732,227 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=310" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15087" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=308</Reference>
-      <Reference ReferenceType="HasDescription">i=7665</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12207" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15095" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12189</Reference>
-      <Reference ReferenceType="HasDescription">i=12213</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=306" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15098" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=304</Reference>
-      <Reference ReferenceType="HasDescription">i=7662</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=314" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15099" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=312</Reference>
-      <Reference ReferenceType="HasDescription">i=7668</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=434" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15102" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=432</Reference>
-      <Reference ReferenceType="HasDescription">i=7782</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12900" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15105" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12890</Reference>
-      <Reference ReferenceType="HasDescription">i=12902</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12901" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15106" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12891</Reference>
-      <Reference ReferenceType="HasDescription">i=12905</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=346" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15136" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=344</Reference>
-      <Reference ReferenceType="HasDescription">i=7698</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=318" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15140" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=316</Reference>
-      <Reference ReferenceType="HasDescription">i=7671</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=321" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15141" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=319</Reference>
-      <Reference ReferenceType="HasDescription">i=7674</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=324" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15142" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=322</Reference>
-      <Reference ReferenceType="HasDescription">i=7677</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=327" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15143" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=325</Reference>
-      <Reference ReferenceType="HasDescription">i=7680</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=940" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15144" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=938</Reference>
-      <Reference ReferenceType="HasDescription">i=7683</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=378" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15165" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=376</Reference>
-      <Reference ReferenceType="HasDescription">i=7728</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=381" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15169" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=379</Reference>
-      <Reference ReferenceType="HasDescription">i=7731</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=384" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15172" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=382</Reference>
-      <Reference ReferenceType="HasDescription">i=7734</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=387" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15175" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=385</Reference>
-      <Reference ReferenceType="HasDescription">i=7737</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=539" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15188" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=537</Reference>
-      <Reference ReferenceType="HasDescription">i=12718</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=542" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15189" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=540</Reference>
-      <Reference ReferenceType="HasDescription">i=12721</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=333" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15199" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=331</Reference>
-      <Reference ReferenceType="HasDescription">i=7686</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=585" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15204" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=583</Reference>
-      <Reference ReferenceType="HasDescription">i=7929</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=588" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15205" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=586</Reference>
-      <Reference ReferenceType="HasDescription">i=7932</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=591" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15206" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=589</Reference>
-      <Reference ReferenceType="HasDescription">i=7935</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=594" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15207" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=592</Reference>
-      <Reference ReferenceType="HasDescription">i=7938</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=597" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15208" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=595</Reference>
-      <Reference ReferenceType="HasDescription">i=7941</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=600" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15209" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=598</Reference>
-      <Reference ReferenceType="HasDescription">i=7944</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=603" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15210" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=601</Reference>
-      <Reference ReferenceType="HasDescription">i=7947</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=661" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15273" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=659</Reference>
-      <Reference ReferenceType="HasDescription">i=8004</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=721" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15293" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=719</Reference>
-      <Reference ReferenceType="HasDescription">i=8067</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=727" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15295" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=725</Reference>
-      <Reference ReferenceType="HasDescription">i=8073</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=950" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15304" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=948</Reference>
-      <Reference ReferenceType="HasDescription">i=8076</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=922" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15349" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=920</Reference>
-      <Reference ReferenceType="HasDescription">i=8172</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>

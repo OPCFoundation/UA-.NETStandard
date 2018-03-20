@@ -32,8 +32,8 @@ namespace PubSubConfigurationUI.ViewModels
         private int m_minorVersion;
         private readonly IOPCUAClientAdaptor m_OPCUAClientAdaptor;
         private readonly TreeViewNode m_rootNode;
-        private ObservableCollection< TreeViewNode > m_serverItems = new ObservableCollection< TreeViewNode >( );
 
+        private ObservableCollection< TreeViewNode > m_serverItems = new ObservableCollection< TreeViewNode >( );
         private ObservableCollection< FieldTargetVariableDefinition > m_variableListDefinitionCollection =
         new ObservableCollection< FieldTargetVariableDefinition >( );
 

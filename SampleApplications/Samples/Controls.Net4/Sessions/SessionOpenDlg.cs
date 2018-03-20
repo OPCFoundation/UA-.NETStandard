@@ -58,8 +58,9 @@ namespace Opc.Ua.Sample.Controls
         private const string m_BrowseCertificates = "<Browse...>";
         private static long m_Counter = 0;
         private IList<string> m_preferredLocales;
+        private X509Certificate2 m_clientCertificate;
         #endregion
-        
+
         #region Public Interface
         /// <summary>
         /// Displays the dialog.
@@ -67,7 +68,7 @@ namespace Opc.Ua.Sample.Controls
         public bool ShowDialog(Session session, IList<string> preferredLocales)
         {
             if (session == null) throw new ArgumentNullException("session");
-
+            
             m_session = session;
             m_preferredLocales = preferredLocales;
             
@@ -104,9 +105,14 @@ namespace Opc.Ua.Sample.Controls
             
             return true;
         }
-        #endregion
+        public bool ShowDialog(Session session, IList<string> preferredLocales, X509Certificate2 clientCertificate)
+        {
+            m_clientCertificate = clientCertificate;
+            return ShowDialog(session, preferredLocales);
+        }
+            #endregion
 
-        private void UserIdentityTypeCB_SelectedIndexChanged(object sender, EventArgs e)
+            private void UserIdentityTypeCB_SelectedIndexChanged(object sender, EventArgs e)
         {            
             try
             {
@@ -160,7 +166,10 @@ namespace Opc.Ua.Sample.Controls
                         identity = new UserIdentity(username, PasswordTB.Text);
                     }
                 }
-
+               else if((UserTokenType)UserIdentityTypeCB.SelectedItem == UserTokenType.Certificate)
+                {
+                    identity = new UserIdentity(m_clientCertificate);
+                }
                 Cursor = Cursors.WaitCursor;
 
                 ThreadPool.QueueUserWorkItem(Open, new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales });
@@ -231,7 +240,7 @@ namespace Opc.Ua.Sample.Controls
 
                 // open the session.
                 session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales);
-
+                 
                 OpenComplete(null);
             }
             catch (Exception exception)

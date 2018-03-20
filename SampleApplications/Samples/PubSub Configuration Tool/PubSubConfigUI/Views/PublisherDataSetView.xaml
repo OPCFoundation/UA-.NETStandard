@@ -185,7 +185,7 @@
                                         Visibility="{Binding IsUpdateVisible}" Click="OnUpdate_Click" />
                                 <Button Width="100" Margin="5,5" Content="Cancel" Height="22"
                                         VerticalAlignment="Center" Visibility="{Binding IsCancelVisible}"
-                                        Click="OnCancel_Click" />
+                                        Click="OnCancel_Click" IsEnabled="False" />
                             </StackPanel>
                             <StackPanel Margin="0,8" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                         Orientation="Horizontal">

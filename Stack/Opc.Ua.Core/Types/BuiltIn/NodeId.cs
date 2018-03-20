@@ -1288,6 +1288,7 @@ namespace Opc.Ua
         }
 
         #endregion                
+
         #region public ushort NamespaceIndex
         /// <summary>
         /// The index of the namespace URI in the server's namespace array.
@@ -1321,6 +1322,7 @@ namespace Opc.Ua
         }
 
         #endregion
+
         #region public object Identifier
         /// <summary>
         /// The node identifier.
@@ -1346,6 +1348,7 @@ namespace Opc.Ua
         }
 
         #endregion             
+
         #region public bool IsNull
         /// <summary>
         /// Whether the object represents a Null NodeId.

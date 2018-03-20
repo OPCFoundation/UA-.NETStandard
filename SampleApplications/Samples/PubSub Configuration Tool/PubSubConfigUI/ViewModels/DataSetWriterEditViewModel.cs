@@ -30,19 +30,138 @@ namespace PubSubConfigurationUI.ViewModels
         private int m_dataSetContentMask;
         private int m_dataSetWriterId;
         private string m_dataSetWriterName;
-        private Visibility m_isAMQP = Visibility.Collapsed;
-        private Visibility m_isUADP = Visibility.Visible;
-        private int m_keyFrameCount;
+        private uint m_keyFrameCount;
         private int m_maxMessageSize;
         private string m_metadataQueueName;
         private int m_metadataUpdateTime;
         private string m_publisherDataSetId;
         private NodeId m_publisherDataSetNodeId;
         private string m_queueName;
+        private int m_transportSetting = 0;
+        private int m_messageSetting = 0;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+        private int m_requestedDeliveryGuarantee;
+        private int m_configuredSize;
+        private int m_dataSetOffset;
+        private ushort m_networkMessageNumber;
+        private int m_uadpdataSetMessageContentMask;
+        private int m_jsondataSetMessageContentMask;
+        private string m_datasetName;
 
+        private Visibility m_isDatagramTransport = Visibility.Visible;
+        private Visibility m_isBrokerTransport = Visibility.Collapsed;
+        private Visibility m_isDatagramMessage = Visibility.Visible;
+        private Visibility m_isBrokerMessage = Visibility.Collapsed;
+        
         #endregion
 
         #region Public Properties
+
+
+        public int ConfiguredSize
+        {
+            get { return m_configuredSize; }
+            set { m_configuredSize = value; OnPropertyChanged("ConfiguredSize"); }
+        }
+        public int DataSetOffset
+        {
+            get { return m_dataSetOffset; }
+            set { m_dataSetOffset = value; OnPropertyChanged("DataSetOffset"); }
+        }
+        public ushort NetworkMessageNumber
+        {
+            get { return m_networkMessageNumber; }
+            set { m_networkMessageNumber = value; OnPropertyChanged("NetworkMessageNumber"); }
+        }
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set { m_resourceUri = value; OnPropertyChanged("ResourceUri"); }
+        }
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set { m_authenticationProfileUri = value; OnPropertyChanged("AuthenticationProfileUri"); }
+        }
+        public int RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee; }
+            set { m_requestedDeliveryGuarantee = value; OnPropertyChanged("RequestedDeliveryGuarantee"); }
+        }
+        public Visibility IsDatagramTransport
+        {
+            get
+            {
+                return m_isDatagramTransport;
+            }
+            set
+            {
+                m_isDatagramTransport = value;
+                OnPropertyChanged("IsDatagramTransport");
+            }
+        }
+        public Visibility IsBrokerTransport
+        {
+            get
+            {
+                return m_isBrokerTransport;
+            }
+            set
+            {
+                m_isBrokerTransport = value;
+                OnPropertyChanged("IsBrokerTransport");
+            }
+        }
+        public Visibility IsDatagramMessage
+        {
+            get
+            {
+                return m_isDatagramMessage;
+            }
+            set
+            {
+                m_isDatagramMessage = value;
+                OnPropertyChanged("IsDatagramMessage");
+            }
+        }
+        public Visibility IsBrokerMessage
+        {
+            get
+            {
+                return m_isBrokerMessage;
+            }
+            set
+            {
+                m_isBrokerMessage = value;
+                OnPropertyChanged("IsBrokerMessage");
+            }
+        }
+        
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
+        public int TransportSetting
+        {
+            get { return m_transportSetting; }
+            set
+            {
+                m_transportSetting = value;
+                OnPropertyChanged("TransportSetting");
+            }
+        }
+        /// <summary>
+        /// defines visibility for context menu
+        /// </summary>
+        public int MessageSetting
+        {
+            get { return m_messageSetting; }
+            set
+            {
+                m_messageSetting = value;
+                OnPropertyChanged("MessageSetting");
+            }
+        }
         /// <summary>
         /// defines data set writer name
         /// </summary>
@@ -55,7 +174,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("DataSetWriterName");
             }
         }
-
         /// <summary>
         /// defines publisher data set ID
         /// </summary>
@@ -72,7 +190,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("PublisherDataSetId");
             }
         }
-
         /// <summary>
         /// defines publisher data set node ID
         /// </summary>
@@ -85,11 +202,10 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("PublisherDataSetNodeId");
             }
         }
-
         /// <summary>
         /// defines key frame count for target definition
         /// </summary>
-        public int KeyFrameCount
+        public uint KeyFrameCount
         {
             get { return m_keyFrameCount; }
             set
@@ -98,7 +214,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("KeyFrameCount");
             }
         }
-
         /// <summary>
         /// defines data set writer ID
         /// </summary>
@@ -111,7 +226,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("DataSetWriterId");
             }
         }
-
         /// <summary>
         /// defines queue name foe data set writer
         /// </summary>
@@ -124,7 +238,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("QueueName");
             }
         }
-
         /// <summary>
         /// defines metadata queue name of data set writer
         /// </summary>
@@ -137,7 +250,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("MetadataQueueName");
             }
         }
-
         /// <summary>
         /// defines metadata updata time of target definition
         /// </summary>
@@ -150,7 +262,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("MetadataUpdataTime");
             }
         }
-
         /// <summary>
         /// defines maximum message size of target definition
         /// </summary>
@@ -163,33 +274,6 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("MaxMessageSize");
             }
         }
-
-        /// <summary>
-        /// defines visibility for connection type menu
-        /// </summary>
-        public Visibility IsUADP
-        {
-            get { return m_isUADP; }
-            set
-            {
-                m_isUADP = value;
-                OnPropertyChanged("IsUADP");
-            }
-        }
-
-        /// <summary>
-        /// defines visibility for connection type menu
-        /// </summary>
-        public Visibility IsAMQP
-        {
-            get { return m_isAMQP; }
-            set
-            {
-                m_isAMQP = value;
-                OnPropertyChanged("IsAMQP");
-            }
-        }
-
         /// <summary>
         /// defines Dataset cotent mask of target defnition
         /// </summary>
@@ -200,6 +284,42 @@ namespace PubSubConfigurationUI.ViewModels
             {
                 m_dataSetContentMask = value;
                 OnPropertyChanged("DataSetContentMask");
+            }
+        }
+        /// <summary>
+        /// defines the DataSet Message Content Mask
+        /// </summary>
+        public int UadpDataSetMessageContentMask
+        {
+            get { return m_uadpdataSetMessageContentMask; }
+            set
+            {
+                m_uadpdataSetMessageContentMask = value;
+                OnPropertyChanged("UadpDataSetMessageContentMask");
+            }
+        }
+        /// <summary>
+        /// defines the DataSet Message Content Mask
+        /// </summary>
+        public int JsonDataSetMessageContentMask
+        {
+            get { return m_jsondataSetMessageContentMask; }
+            set
+            {
+                m_jsondataSetMessageContentMask = value;
+                OnPropertyChanged("BrokerDataSetMessageContentMask");
+            }
+        }
+        public string DataSetName
+        {
+            get
+            {
+                return m_datasetName;
+            }
+            set
+            {
+                m_datasetName = value;
+                OnPropertyChanged("DataSetName");
             }
         }
 
@@ -215,13 +335,40 @@ namespace PubSubConfigurationUI.ViewModels
             DataSetWriterName = DataSetWriterDefinition.DataSetWriterName;
             PublisherDataSetNodeId = DataSetWriterDefinition.PublisherDataSetNodeId;
             PublisherDataSetId = PublisherDataSetNodeId.Identifier.ToString();
+            DataSetName = DataSetWriterDefinition.DataSetName;
+
             KeyFrameCount = DataSetWriterDefinition.KeyFrameCount;
             DataSetWriterId = DataSetWriterDefinition.DataSetWriterId;
             DataSetContentMask = DataSetWriterDefinition.DataSetContentMask;
             QueueName = DataSetWriterDefinition.QueueName;
-            MetadataQueueName = DataSetWriterDefinition.MetadataQueueName;
-            MetadataUpdataTime = DataSetWriterDefinition.MetadataUpdataTime;
-            MaxMessageSize = DataSetWriterDefinition.MaxMessageSize;
+
+            //  MaxMessageSize = DataSetWriterDefinition.MaxMessageSize;
+
+            TransportSetting = DataSetWriterDefinition.TransportSetting;
+            MessageSetting = DataSetWriterDefinition.MessageSetting;
+
+            if (TransportSetting == 1)
+            {
+                QueueName = DataSetWriterDefinition.QueueName;
+                MetadataQueueName = DataSetWriterDefinition.MetadataQueueName;
+                MetadataUpdataTime = DataSetWriterDefinition.MetadataUpdataTime;
+                ResourceUri = DataSetWriterDefinition.ResourceUri;
+                RequestedDeliveryGuarantee = DataSetWriterDefinition.RequestedDeliveryGuarantee;
+                AuthenticationProfileUri = DataSetWriterDefinition.AuthenticationProfileUri;
+            }
+            if (MessageSetting == 0)
+            {
+                ConfiguredSize = DataSetWriterDefinition.ConfiguredSize;
+                NetworkMessageNumber = DataSetWriterDefinition.NetworkMessageNumber;
+                DataSetOffset = DataSetWriterDefinition.DataSetOffset;
+                UadpDataSetMessageContentMask = DataSetWriterDefinition.UadpDataSetMessageContentMask;
+            }
+            else
+            {
+                JsonDataSetMessageContentMask = DataSetWriterDefinition.JsonDataSetMessageContentMask;
+            }
+
+
         }
 
         #endregion

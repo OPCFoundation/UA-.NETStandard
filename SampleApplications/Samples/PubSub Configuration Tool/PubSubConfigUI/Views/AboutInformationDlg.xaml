@@ -27,7 +27,7 @@
             <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,10">
                 <TextBlock TextWrapping="Wrap" Margin="2" FontFamily="Arial" FontSize="12">
                     Version 1.0 <LineBreak />
-                    Build #1 Revison 2 <LineBreak />
+                    Build #1 Revision 2 <LineBreak />
                     Copyright © 2017 <LineBreak />
                     OPC Foundation.<LineBreak />
                     All rights reserved.

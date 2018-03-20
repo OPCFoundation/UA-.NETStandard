@@ -32,19 +32,92 @@ namespace PubSubConfigurationUI.ViewModels
         private Visibility m_isAMQP = Visibility.Collapsed;
         private Visibility m_isUADP = Visibility.Visible;
         private double m_keepAliveTime;
-        private int m_maxNetworkMessageSize = 1500;
+        private uint m_maxNetworkMessageSize = 1500;
         private int m_messageSecurityMode = 1;
-        private int m_netWorkMessageContentMask;
         private int m_priority;
         private double m_publishingInterval;
         private double m_publishingOffset;
+        private int m_samplingOffset;
         private string m_QueueName = string.Empty;
         private string m_securityGroupId;
         private int m_writerGroupId;
+        private Visibility m_isDatagramTransport = Visibility.Visible;
+        private Visibility m_isBrokerTransport = Visibility.Collapsed;
+        private Visibility m_isDatagramMessage = Visibility.Visible;
+        private Visibility m_isBrokerMessage = Visibility.Collapsed;
+
+        private byte m_messageRepeatCount;
+        private double m_messsageRepeatDelay;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+        private int m_requestedDeliveryGuarantee;
+        private int m_transportSetting;
+        private int m_messgaeSetting;
+        private int m_dataSetOrdering = 0;
+        private uint m_groupVersion;
+        private int m_uadpNetworkMessageContentMask;
+        private int m_jsonNetworkMessageContentMask;
+
 
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int UadpNetworkMessageContentMask
+        {
+            get { return m_uadpNetworkMessageContentMask; }
+            set
+            {
+                m_uadpNetworkMessageContentMask = value;
+                OnPropertyChanged("NetworkMessageContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int JsonNetworkMessageContentMask
+        {
+            get { return m_jsonNetworkMessageContentMask; }
+            set
+            {
+                m_jsonNetworkMessageContentMask = value; OnPropertyChanged("JsonNetworkMessageContentMask");
+            }
+        }
+
+        public int DataSetOrdering
+        {
+            get { return m_dataSetOrdering; }
+            set { m_dataSetOrdering = value; OnPropertyChanged("DataSetOrdering"); }
+        }
+
+        public int TransportSetting
+        {
+            get { return m_transportSetting; }
+            set { m_transportSetting = value; OnPropertyChanged("TransportSetting"); }
+        }
+
+        public int MessageSetting
+        {
+            get { return m_messgaeSetting; }
+            set { m_messgaeSetting = value; OnPropertyChanged("MessageSetting"); }
+        }
+
+        public uint GroupVersion
+        {
+            get
+            {
+                return m_groupVersion;
+            }
+            set
+            {
+                m_groupVersion = value;
+                OnPropertyChanged("GroupVersion");
+            }
+        }
+
         /// <summary>
         /// defines group name for target definition
         /// </summary>
@@ -70,7 +143,7 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("QueueName");
             }
         }
-        
+
         /// <summary>
         /// defines encoding mime type for target definition
         /// </summary>
@@ -107,6 +180,16 @@ namespace PubSubConfigurationUI.ViewModels
             {
                 m_publishingOffset = value;
                 OnPropertyChanged("PublishingOffset");
+            }
+        }
+
+        public int SamplingOffset
+        {
+            get { return m_samplingOffset; }
+            set
+            {
+                m_samplingOffset = value;
+                OnPropertyChanged("SamplingOffset");
             }
         }
 
@@ -152,7 +235,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// defines maximum network message size of target definition
         /// </summary>
-        public int MaxNetworkMessageSize
+        public uint MaxNetworkMessageSize
         {
             get { return m_maxNetworkMessageSize; }
             set
@@ -175,18 +258,6 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
-        /// <summary>
-        /// defines network message content mask
-        /// </summary>
-        public int NetworkMessageContentMask
-        {
-            get { return m_netWorkMessageContentMask; }
-            set
-            {
-                m_netWorkMessageContentMask = value;
-                OnPropertyChanged("NetworkMessageContentMask");
-            }
-        }
 
         /// <summary>
         /// defines message security mode of target definition
@@ -227,6 +298,88 @@ namespace PubSubConfigurationUI.ViewModels
             }
         }
 
+        public Visibility IsDatagramTransport
+        {
+            get
+            {
+                return m_isDatagramTransport;
+            }
+            set
+            {
+                m_isDatagramTransport = value;
+                OnPropertyChanged("IsDatagramTransport");
+            }
+        }
+
+        public Visibility IsBrokerTransport
+        {
+            get
+            {
+                return m_isBrokerTransport;
+            }
+            set
+            {
+                m_isBrokerTransport = value;
+                OnPropertyChanged("IsBrokerTransport");
+            }
+        }
+
+
+        public Visibility IsDatagramMessage
+        {
+            get
+            {
+                return m_isDatagramMessage;
+            }
+            set
+            {
+                m_isDatagramMessage = value;
+                OnPropertyChanged("IsDatagramMessage");
+            }
+        }
+
+        public Visibility IsBrokerMessage
+        {
+            get
+            {
+                return m_isBrokerMessage;
+            }
+            set
+            {
+                m_isBrokerMessage = value;
+                OnPropertyChanged("IsBrokerMessage");
+            }
+        }
+
+        public byte MessageRepeatCount
+        {
+            get { return m_messageRepeatCount; }
+            set { m_messageRepeatCount = value; OnPropertyChanged("MessageRepeatCount"); }
+        }
+
+        public double MessageRepeatDelay
+        {
+            get { return m_messsageRepeatDelay; }
+            set { m_messsageRepeatDelay = value; OnPropertyChanged("MessageRepeatDelay"); }
+        }
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set { m_resourceUri = value; OnPropertyChanged("ResourceUri"); }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set { m_authenticationProfileUri = value; OnPropertyChanged("AuthenticationProfileUri"); }
+        }
+
+        public int RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee; }
+            set { m_requestedDeliveryGuarantee = value; OnPropertyChanged("RequestedDeliveryGuarantee"); }
+        }
+
         #endregion
 
         #region Public Methods
@@ -245,9 +398,46 @@ namespace PubSubConfigurationUI.ViewModels
             SecurityGroupId = DataSetWriterGroup.SecurityGroupId;
             MaxNetworkMessageSize = DataSetWriterGroup.MaxNetworkMessageSize;
             WriterGroupId = DataSetWriterGroup.WriterGroupId;
-            QueueName = DataSetWriterGroup.QueueName;
-            EncodingMimeType = DataSetWriterGroup.EncodingMimeType;
-            NetworkMessageContentMask = DataSetWriterGroup.NetworkMessageContentMask;
+
+            TransportSetting = DataSetWriterGroup.TransportSetting;
+            if (TransportSetting == 0)
+            {
+                IsDatagramTransport = Visibility.Visible;
+                IsBrokerTransport = Visibility.Collapsed;
+
+                MessageRepeatCount = DataSetWriterGroup.MessageRepeatCount;
+                MessageRepeatDelay = DataSetWriterGroup.MessageRepeatDelay;
+            }
+            else
+            {
+                IsDatagramTransport = Visibility.Collapsed;
+                IsBrokerTransport = Visibility.Visible;
+
+                QueueName = DataSetWriterGroup.QueueName;
+                ResourceUri = DataSetWriterGroup.ResourceUri;
+                AuthenticationProfileUri = DataSetWriterGroup.AuthenticationProfileUri;
+                RequestedDeliveryGuarantee = DataSetWriterGroup.RequestedDeliveryGuarantee;
+
+            }
+            if (MessageSetting == 0)
+            {
+                IsDatagramMessage = Visibility.Visible;
+                IsBrokerMessage = Visibility.Collapsed;
+
+                GroupVersion = DataSetWriterGroup.GroupVersion;
+                DataSetOrdering = DataSetWriterGroup.DataSetOrdering;
+                UadpNetworkMessageContentMask = DataSetWriterGroup.UadpNetworkMessageContentMask;
+                SamplingOffset = DataSetWriterGroup.SamplingOffset;
+                PublishingOffset = DataSetWriterGroup.PublishingOffset;
+            }
+            else
+            {
+                IsDatagramMessage = Visibility.Collapsed;
+                IsBrokerMessage = Visibility.Visible;
+                JsonNetworkMessageContentMask = DataSetWriterGroup.JsonNetworkMessageContentMask;
+            }
+
+
             MessageSecurityMode = DataSetWriterGroup.MessageSecurityMode;
         }
 

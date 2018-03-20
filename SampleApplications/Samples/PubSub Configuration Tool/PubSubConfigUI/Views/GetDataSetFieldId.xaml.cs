@@ -43,7 +43,6 @@ namespace PubSubConfigurationUI.Views
                 {
                     Utils.Trace(ex, "GetDataSetFieldIdDialog:GetPublisherIdDialog_Loaded", ex );
                 }
-
                 FieldIdGrid.Items.Add( fieldMetaDataDefinition );
             }
         }

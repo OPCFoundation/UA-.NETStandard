@@ -14,7 +14,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using PubSubBase.Definitions;
+using System.Windows;
 
 namespace PubSubConfigurationUI.ViewModels
 {
@@ -27,12 +29,79 @@ namespace PubSubConfigurationUI.ViewModels
 
         private string m_address = string.Empty;
         private string m_connectionName = string.Empty;
-        private int m_connectionType;
+        private int m_connectionType = 0;
         private object m_publisherId;
+        private int m_transportType;
+        public string m_networkInterface;
+        public string m_resourceUri;
+        public string m_authenticationProfileUri;
+        public Visibility m_TransportBrokerVisibility = Visibility.Collapsed;
+        public Visibility m_TransportDatagramVisibility = Visibility.Visible;
 
+        private string m_discoveryNetworkInterface;
+        private string m_discoveryAddress;
         #endregion
 
         #region Public Properties
+
+        /// <summary>
+        /// Defines the coonnection address 
+        /// </summary>
+        public string DiscoveryAddress
+        {
+            get
+            {
+                return m_discoveryAddress;
+            }
+            set
+            {
+                m_discoveryAddress = value;
+                OnPropertyChanged("DiscoveryAddress");
+            }
+        }
+
+        /// <summary>
+        /// Defines the coonnection address 
+        /// </summary>
+        public string DiscoveryNetworkInterface
+        {
+            get
+            {
+                return m_discoveryNetworkInterface;
+            }
+            set
+            {
+                m_discoveryNetworkInterface = value;
+                OnPropertyChanged("DiscoveryNetworkInterface");
+            }
+        }
+
+        public Visibility TransportBrokerVisibility
+        {
+            get
+            {
+                return m_TransportBrokerVisibility;
+            }
+            set
+            {
+                m_TransportBrokerVisibility = value;
+                OnPropertyChanged("TransportBrokerVisibility");
+            }
+        }
+
+        public Visibility TransportDatagramVisibility
+        {
+            get
+            {
+                return m_TransportDatagramVisibility;
+            }
+            set
+            {
+                m_TransportDatagramVisibility = value;
+                OnPropertyChanged("TransportDatagramVisibility");
+            }
+        }
+
         /// <summary>
         /// defines connection name 
         /// </summary>
@@ -42,7 +111,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_connectionName = value;
-                OnPropertyChanged( "ConnectionName" );
+                OnPropertyChanged("ConnectionName");
             }
         }
         /// <summary>
@@ -54,10 +123,10 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_address = value;
-                OnPropertyChanged( "Address" );
+                OnPropertyChanged("Address");
             }
         }
-        
+
         /// <summary>
         /// defines publisher ID for connection
         /// </summary>
@@ -67,7 +136,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_publisherId = value;
-                OnPropertyChanged( "PublisherId" );
+                OnPropertyChanged("PublisherId");
             }
         }
 
@@ -80,7 +149,48 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_connectionType = value;
-                OnPropertyChanged( "ConnectionType" );
+                OnPropertyChanged("ConnectionType");
+            }
+        }
+
+
+        public int TransportType
+        {
+            get { return m_transportType; }
+            set
+            {
+                m_transportType = value;
+                OnPropertyChanged("TransportType");
+            }
+        }
+
+        public string NetworkInterface
+        {
+            get { return m_networkInterface; }
+            set
+            {
+                m_networkInterface = value;
+                OnPropertyChanged("NetworkInterface");
+            }
+        }
+
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set
+            {
+                m_resourceUri = value;
+                OnPropertyChanged("ResourceUri");
+            }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set
+            {
+                m_authenticationProfileUri = value;
+                OnPropertyChanged("AuthenticationProfileUri");
             }
         }
 
@@ -90,12 +200,57 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// initialise view model with new connection
         /// </summary>
-        public void Initialize( )
+        public void Initialize()
         {
             ConnectionName = Connection.Name;
             Address = Connection.Address;
             PublisherId = Connection.PublisherId;
-            ConnectionType = Connection.ConnectionType;
+            ConnectionType = Convert.ToInt16(Connection.ConnectionType);
+
+            if (ConnectionType == 0)
+            {
+                TransportDatagramVisibility = Visibility.Visible;
+                TransportBrokerVisibility = Visibility.Collapsed;
+
+                DiscoveryAddress = Connection.DiscoveryAddress;
+                DiscoveryNetworkInterface = Connection.DiscoveryNetworkInterface;
+            }
+            else
+            {
+                ResourceUri = Connection.ResourceUri;
+                AuthenticationProfileUri = Connection.AuthenticationProfileUri;
+
+                TransportDatagramVisibility = Visibility.Collapsed;
+                TransportBrokerVisibility = Visibility.Visible;
+            }
+            SetTransportType(Connection.TransportProfile);
+            NetworkInterface = Connection.NetworkInterface;
+
+        }
+
+        private void SetTransportType(string transportProfile)
+        {
+            switch (transportProfile)
+            {
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp":
+                    TransportType = 0;
+                    break;
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp":
+                    TransportType = 1;
+                    break;
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp":
+                    TransportType = 2;
+                    break;
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json":
+                    TransportType = 3;
+                    break;
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-amqp-uadp":
+                    TransportType = 4;
+                    break;
+                case "http://opcfoundation.org/UA-Profile/Transport/pubsub-amqp-json":
+                    TransportType = 5;
+                    break;
+            }
         }
 
         #endregion

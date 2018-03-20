@@ -26,7 +26,7 @@ namespace PubSubConfigurationUI.ViewModels
         #region Private Fields
 
         private string m_groupName;
-        private int m_maxNetworkMessageSize = 1500;
+        private uint m_maxNetworkMessageSize = 1500;
         private string m_queueName;
         private string m_securityGroupId;
         private int m_securityMode = 1;
@@ -63,7 +63,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// defines Maximum network message size
         /// </summary>
-        public int MaxNetworkMessageSize
+        public uint MaxNetworkMessageSize
         {
             get { return m_maxNetworkMessageSize; }
             set

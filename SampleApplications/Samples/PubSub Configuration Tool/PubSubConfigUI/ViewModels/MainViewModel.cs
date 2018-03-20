@@ -23,6 +23,7 @@ using Opc.Ua.Client;
 using PubSubBase.Definitions;
 using PubSubConfigurationUI.Definitions;
 using PubSubConfigurationUI.Views;
+using System.Windows;
 
 namespace PubSubConfigurationUI.ViewModels
 {
@@ -75,6 +76,7 @@ namespace PubSubConfigurationUI.ViewModels
                 {
                     if (item.Content is SecurityGroupConfigurationView)
                         (item.Content as SecurityGroupConfigurationView).ViewModel.Initialize();
+
                     if (item.Content is PubSubStatusView) (item.Content as PubSubStatusView).ViewModel.Initialize();
 
                     if (item.Content is PublishedDataSetView)
@@ -92,14 +94,15 @@ namespace PubSubConfigurationUI.ViewModels
 
         #region Constructors
 
-        public MainViewModel()
+        public MainViewModel( Window owner)
         {
+            OwnerWindow = owner;
             OPCUAClientAdaptor = new OPCUAClientAdaptor();
             OPCUAClientAdaptor.PropertyChanged += OPCUAClientAdaptor_PropertyChanged;
-            _SecurityGroupConfigurationView = new SecurityGroupConfigurationView(OPCUAClientAdaptor);
-            _PubSubConfigurationView = new PubSubConfigurationView(OPCUAClientAdaptor);
-            _PublisherDataSetView = new PublishedDataSetView(OPCUAClientAdaptor);
-            _PubSubStatusView = new PubSubStatusView(OPCUAClientAdaptor);
+            _SecurityGroupConfigurationView = new SecurityGroupConfigurationView(OPCUAClientAdaptor, OwnerWindow);
+            _PubSubConfigurationView = new PubSubConfigurationView(OPCUAClientAdaptor, OwnerWindow);
+            _PublisherDataSetView = new PublishedDataSetView(OPCUAClientAdaptor, OwnerWindow);
+            _PubSubStatusView = new PubSubStatusView(OPCUAClientAdaptor, OwnerWindow);
             TabItems.Add(new TabItem
             {
                 Header = "Security Group Configuration",

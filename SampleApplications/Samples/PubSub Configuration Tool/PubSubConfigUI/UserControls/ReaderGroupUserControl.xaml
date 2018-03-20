@@ -34,7 +34,7 @@
                          Width="200" Height="23" />
 
                 <Label Grid.Row="2" Grid.Column="0" Content="Security Mode" Width="170" />
-                <ComboBox Grid.Row="2" Grid.Column="1" SelectedIndex="{Binding SecurityMode}" Margin="0,5" Width="200"
+                <ComboBox Grid.Row="2" Grid.Column="1" IsEnabled="False" SelectedIndex="{Binding SecurityMode}" Margin="0,5" Width="200"
                           Height="23">
                     <ComboBoxItem>Invalid</ComboBoxItem>
                     <ComboBoxItem>None</ComboBoxItem>
@@ -43,11 +43,11 @@
                 </ComboBox>
 
                 <Label Grid.Row="3" Grid.Column="0" Content="Security Group Id" Width="170" />
-                <TextBox Text="{Binding SecurityGroupId}" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200"
+                <TextBox Text="{Binding SecurityGroupId}"  IsEnabled="False" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200"
                          Height="23" />
 
                 <Label Grid.Row="4" Grid.Column="0" Content="Max Network Message Size" Width="170" />
-                <TextBox Text="{Binding MaxNetworkMessageSize}" Grid.Row="4" Grid.Column="1" Margin="0,5" Width="200"
+                <TextBox Text="{Binding MaxNetworkMessageSize}"  IsEnabled="False" Grid.Row="4" Grid.Column="1" Margin="0,5" Width="200"
                          Height="23" />
             </Grid>
         </GroupBox>

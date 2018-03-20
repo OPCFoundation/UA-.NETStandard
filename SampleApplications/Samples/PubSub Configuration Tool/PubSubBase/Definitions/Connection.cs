@@ -28,8 +28,15 @@ namespace PubSubBase.Definitions
         private string m_address = String.Empty;
         private object m_publisherId;
         int m_publisherDataType = 0;
-        private int m_connectionType;
+        private string m_connectionType;
+        private string m_transportProfile;
         private NodeId m_connectionNodeId;
+        private string m_networkInterface = string.Empty;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+
+        private string m_discoveryNetworkInterface;
+        private string m_discoveryAddress;
         #endregion
 
         #region Public Propertiess 
@@ -48,6 +55,39 @@ namespace PubSubBase.Definitions
                 OnPropertyChanged("Address");
             }
         }
+
+        /// <summary>
+        /// Defines the coonnection address 
+        /// </summary>
+        public string DiscoveryAddress
+        {
+            get
+            {
+                return m_discoveryAddress;
+            }
+            set
+            {
+                m_discoveryAddress = value;
+                OnPropertyChanged("DiscoveryAddress");
+            }
+        }
+
+        /// <summary>
+        /// Defines the coonnection address 
+        /// </summary>
+        public string DiscoveryNetworkInterface
+        {
+            get
+            {
+                return m_discoveryNetworkInterface;
+            }
+            set
+            {
+                m_discoveryNetworkInterface = value;
+                OnPropertyChanged("DiscoveryNetworkInterface");
+            }
+        }
+
         /// <summary>
         /// defines the connection publisher ID
         /// </summary>
@@ -81,7 +121,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// defines the connection type of the current connection
         /// </summary>
-        public int ConnectionType
+        public string ConnectionType
         {
             get
             {
@@ -93,6 +133,23 @@ namespace PubSubBase.Definitions
                 OnPropertyChanged("ConnectionType");
             }
         }
+
+        /// <summary>
+        /// defines the connection type of the current connection
+        /// </summary>
+        public string TransportProfile
+        {
+            get
+            {
+                return m_transportProfile;
+            }
+            set
+            {
+                m_transportProfile = value;
+                OnPropertyChanged("TransportProfile");
+            }
+        }
+
         /// <summary>
         /// defines the connection ID
         /// </summary>
@@ -106,6 +163,45 @@ namespace PubSubBase.Definitions
             {
                 m_connectionNodeId = value;
                 OnPropertyChanged("ConnectionNodeId");
+            }
+        }
+
+        public string  NetworkInterface
+        {
+            get
+            {
+                return m_networkInterface;
+            }
+            set
+            {
+                m_networkInterface = value;
+                OnPropertyChanged("NetworkInterface");
+            }
+        }
+
+        public string ResourceUri
+        {
+            get
+            {
+                return m_resourceUri;
+            }
+            set
+            {
+                m_resourceUri = value;
+                OnPropertyChanged("ResourceUri");
+            }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get
+            {
+                return m_authenticationProfileUri;
+            }
+            set
+            {
+                m_authenticationProfileUri = value;
+                OnPropertyChanged("AuthenticationProfileUri");
             }
         }
         #endregion

@@ -14,8 +14,9 @@
             <TextBlock x:Name="ConnectHeaderText" Grid.Column="0" HorizontalAlignment="Left" Margin="2,4,5,5"
                        FontWeight="Bold" FontSize="16" Width="170" />
         </Border>
-
-        <GroupBox Grid.Row="1" Header="General">
+        <ScrollViewer Margin="0,2" Grid.Row="1" HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollBarVisibility="Auto">
+            <GroupBox Grid.Row="1" Header="General">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -23,21 +24,26 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Margin="5,0" Content="Connection Name" Width="120" />
+                <Label Grid.Column="0" HorizontalContentAlignment="Left" Margin="5,0" Content="Connection Name" Width="200" />
                 <TextBox Text="{Binding ConnectionName}" Grid.Row="0" Grid.Column="1" Margin="0,5" Width="200"
                          Height="23" IsEnabled="False" />
 
-                <Label Grid.Row="1" Margin="5,0" Grid.Column="0" Content="Address" Width="120" />
-                <TextBox Text="{Binding Address}" Grid.Row="1" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+                <Label Grid.Row="1" HorizontalContentAlignment="Left" Margin="5,0" Grid.Column="0" Content="Url" Width="200" />
+                <TextBox Text="{Binding Address}" IsEnabled="False" Grid.Row="1" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
 
-                <Label Grid.Row="2" Grid.Column="0" Content="Publisher DataType" Width="120" />
-                <ComboBox x:Name="PublisherDataType" SelectedIndex="0" Grid.Row="2" Grid.Column="1" Margin="0,5"
+                <Label Grid.Row="2" HorizontalContentAlignment="Left" Grid.Column="0" Content="Publisher DataType" Width="200" />
+                <ComboBox x:Name="PublisherDataType" IsEnabled="False" SelectedIndex="0" Grid.Row="2" Grid.Column="1" Margin="0,5"
                           Width="200" Height="23">
                     <ComboBoxItem>String</ComboBoxItem>
                     <ComboBoxItem>Byte</ComboBoxItem>
@@ -47,17 +53,45 @@
                     <ComboBoxItem>Guid</ComboBoxItem>
                 </ComboBox>
 
-                <Label Grid.Row="3" Margin="5,0" Grid.Column="0" Content="Publisher Id" Width="120" />
-                <TextBox Text="{Binding PublisherId}" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+                <Label Grid.Row="3" HorizontalContentAlignment="Left" Margin="5,0" Grid.Column="0" Content="Publisher Id" Width="200" />
+                <TextBox Text="{Binding PublisherId}"  IsEnabled="False" Grid.Row="3" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
 
-                <Label Grid.Row="4" Margin="5,0" Grid.Column="0" Content="Connection Type" Width="120" />
+                <Label Grid.Row="4" HorizontalContentAlignment="Left" Margin="5,0" Grid.Column="0" Content="Transport Settings" Width="200" />
                 <ComboBox Grid.Row="4" SelectedIndex="{Binding ConnectionType}" Grid.Column="1" Margin="0,5"
                           Width="200" Height="23" IsEnabled="False">
-                    <ComboBoxItem>UADP</ComboBoxItem>
-                    <ComboBoxItem>AMQP</ComboBoxItem>
+                    <ComboBoxItem>Datagram</ComboBoxItem>
+                    <ComboBoxItem>Broker</ComboBoxItem>
                 </ComboBox>
+
+                <Label Grid.Row="8" Grid.Column="0" HorizontalContentAlignment="Left" Content="Transport Profile Uri" Width="200" />
+                <ComboBox x:Name="TransportTypeCmb" SelectedIndex="{Binding TransportType}" Grid.Row="8" Grid.Column="1"  Margin="0,5" Width="200"
+                  Height="23" IsEnabled="False">
+                    <ComboBoxItem>pubsub-udp-uadp</ComboBoxItem>
+                    <ComboBoxItem>pubsub-eth-uadp</ComboBoxItem>
+                    <ComboBoxItem>pubsub-mqtt-uadp</ComboBoxItem>
+                    <ComboBoxItem>pubsub-mqtt-json</ComboBoxItem>
+                    <ComboBoxItem>pubsub-amqp-uadp</ComboBoxItem>
+                    <ComboBoxItem>pubsub-amqp-json</ComboBoxItem>
+                </ComboBox>
+
+                <Label Grid.Row="5" HorizontalContentAlignment="Left" Grid.Column="0"  Content="Network Interface" Width="200" />
+                <TextBox x:Name="NetworkInterfaceText" Text="{Binding NetworkInterface}" IsEnabled="False" Grid.Row="5" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+                <Label x:Name="ResourceUriLabel" HorizontalContentAlignment="Left" Visibility="{Binding TransportBrokerVisibility}" Grid.Row="6"  Grid.Column="0" Content="Resource Uri" Width="200" />
+                <TextBox x:Name="ResourceUritext" Visibility="{Binding TransportBrokerVisibility}" IsEnabled="False" Text="{Binding ResourceUri}" Grid.Row="6" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+                <Label x:Name="authenticationProfileUrilabel" HorizontalContentAlignment="Left" Visibility="{Binding TransportBrokerVisibility}" Grid.Row="7" Grid.Column="0" Content="Authentication Profile Uri" Width="200" />
+                <TextBox x:Name="authenticationProfileUriText" Visibility="{Binding TransportBrokerVisibility}" IsEnabled="False" Text="{Binding AuthenticationProfileUri}" Grid.Row="7" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+                <Label Grid.Row="9" Grid.Column="0" Visibility="{Binding TransportDatagramVisibility}" Content="Discovery Url" Width="200" HorizontalContentAlignment="Left" />
+                <TextBox x:Name="DiscoveryAddressTxt" Grid.Row="9" Text="{Binding DiscoveryAddress}"  Visibility="{Binding TransportDatagramVisibility}" IsEnabled="False" Grid.Column="1" Margin="0,5" Width="200" Height="23" />
+
+                <Label Grid.Row="10" Grid.Column="0"  Content="Discovery Network Interface" Visibility="{Binding TransportDatagramVisibility}"  Width="200" HorizontalContentAlignment="Left" Height="33" Margin="0,0,1,0" VerticalAlignment="Bottom" />
+                <TextBox x:Name="DiscoveryNetworkInterfaceText"   Text="{Binding DiscoveryNetworkInterface }"  Grid.Row="10" Grid.Column="1" Visibility="{Binding TransportDatagramVisibility}" IsEnabled="False"  Margin="0,5" Width="200" Height="23" />
+
 
             </Grid>
         </GroupBox>
+        </ScrollViewer>
     </Grid>
 </UserControl>
