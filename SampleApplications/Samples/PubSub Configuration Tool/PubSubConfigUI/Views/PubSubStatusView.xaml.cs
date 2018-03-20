@@ -21,44 +21,45 @@ namespace PubSubConfigurationUI.Views
 
         #region Private Methods
 
-        private void ViewModel_PropertyChanged( object sender, PropertyChangedEventArgs e )
+        private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if ( e.PropertyName == "StatusMonitoredItems" )
-                if ( SubscriptionGrid.SelectedItem == null ) SubscriptionGrid.SelectedIndex = 0;
+            if (e.PropertyName == "StatusMonitoredItems")
+                if (SubscriptionGrid.SelectedItem == null) SubscriptionGrid.SelectedIndex = 0;
         }
 
-        private void OnEnableMethodClick( object sender, MouseButtonEventArgs e )
+        private void OnEnableMethodClick(object sender, MouseButtonEventArgs e)
         {
-            if ( IsinAction ) return;
+            if (IsinAction) return;
             IsinAction = true;
             var _MonitorNode = (sender as Button).DataContext as MonitorNode;
-            ViewModel.EnablePubSubState( _MonitorNode );
+            ViewModel.EnablePubSubState(_MonitorNode);
             IsinAction = false;
         }
 
-        private void OnDisableMethodClick( object sender, MouseButtonEventArgs e )
+        private void OnDisableMethodClick(object sender, MouseButtonEventArgs e)
         {
-            if ( IsinAction ) return;
+            if (IsinAction) return;
             IsinAction = true;
             var _MonitorNode = (sender as Button).DataContext as MonitorNode;
-            ViewModel.DisablePubSubState( _MonitorNode );
+            ViewModel.DisablePubSubState(_MonitorNode);
             IsinAction = false;
         }
 
-        private void Refresh_Click( object sender, RoutedEventArgs e )
+        private void Refresh_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.Initialize( );
+            ViewModel.Initialize();
         }
 
         #endregion
 
         #region Constructors
 
-        public PubSubStatusView( IOPCUAClientAdaptor _OPCUAClientAdaptor )
+        public PubSubStatusView(IOPCUAClientAdaptor _OPCUAClientAdaptor, Window owner)
         {
-            InitializeComponent( );
-            ViewModel = new PubSubStatusViewModel( _OPCUAClientAdaptor );
+            InitializeComponent();
+            ViewModel = new PubSubStatusViewModel(_OPCUAClientAdaptor);
             DataContext = ViewModel;
+            ViewModel.OwnerWindow = owner;
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
 

@@ -29,19 +29,116 @@ namespace PubSubBase.Definitions
         private string m_queueName = string.Empty;
         private string m_encodingMimeType = string.Empty;
         private double m_publishingInterval;
-        private double m_publishingOffset;
+        private int m_publishingOffset;
         private double m_keepAliveTime;
-        private int m_priority;
+        private byte m_priority;
         private string m_securityGroupId;
-        private int m_maxNetworkMessageSize = 1500;
+        private uint m_maxNetworkMessageSize = 1500;
         private int m_writerGroupId;
         private NodeId m_groupId;
-        private int m_messageSecurityMode;
-        private int m_netWorkMessageContentMask;
-
+        private int m_messageSecurityMode = 0;
+        private byte m_messageRepeatCount;
+        private double m_messsageRepeatDelay;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+        private int m_requestedDeliveryGuarantee=0;
+        private int m_transportSetting;
+        private int m_samplingOffset;
+        private int m_messgaeSetting;
+        private int m_dataSetOrdering = 0;
+        private uint m_groupVersion;
+        private int m_networkMessageContentMask;
+        private int m_jsonNetworkMessageContentMask;
         #endregion
 
         #region Public Properties
+
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int UadpNetworkMessageContentMask
+        {
+            get { return m_networkMessageContentMask; }
+            set
+            {
+                m_networkMessageContentMask = value;
+                OnPropertyChanged("NetworkMessageContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int JsonNetworkMessageContentMask
+        {
+            get { return m_jsonNetworkMessageContentMask; }
+            set
+            {
+                m_jsonNetworkMessageContentMask = value;
+                OnPropertyChanged("JsonNetworkMessageContentMask");
+            }
+        }
+
+        public uint GroupVersion
+        {
+            get
+            {
+                return m_groupVersion;
+            }
+            set
+            {
+                m_groupVersion = value;
+                OnPropertyChanged("GroupVersion");
+            }
+        }
+
+        public int DataSetOrdering
+        {
+            get { return m_dataSetOrdering; }
+            set { m_dataSetOrdering = value; OnPropertyChanged("DataSetOrdering"); }
+        }
+
+        public int TransportSetting
+        {
+            get { return m_transportSetting; }
+            set { m_transportSetting = value; OnPropertyChanged("TransportSetting"); }
+        }
+
+        public int MessageSetting
+        {
+            get { return m_messgaeSetting; }
+            set { m_messgaeSetting = value; OnPropertyChanged("MessageSetting"); }
+        }
+
+        public byte MessageRepeatCount
+        {
+            get { return m_messageRepeatCount; }
+            set { m_messageRepeatCount = value; OnPropertyChanged("MessageRepeatCount"); }
+        }
+
+        public double MessageRepeatDelay
+        {
+            get { return m_messsageRepeatDelay; }
+            set { m_messsageRepeatDelay = value; OnPropertyChanged("MessageRepeatDelay"); }
+        }
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set { m_resourceUri = value; OnPropertyChanged("ResourceUri"); }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set { m_authenticationProfileUri = value; OnPropertyChanged("AuthenticationProfileUri"); }
+        }
+
+        public int RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee; }
+            set { m_requestedDeliveryGuarantee = value; OnPropertyChanged("RequestedDeliveryGuarantee"); }
+        }
+
         /// <summary>
         /// defines Group Name
         /// </summary>
@@ -105,7 +202,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// defines publishing offset
         /// </summary>
-        public double PublishingOffset
+        public int PublishingOffset
         {
             get
             {
@@ -117,6 +214,17 @@ namespace PubSubBase.Definitions
                 OnPropertyChanged("PublishingOffset");
             }
         }
+
+        public int SamplingOffset
+        {
+            get { return m_samplingOffset; }
+            set
+            {
+                m_samplingOffset = value;
+                OnPropertyChanged("SamplingOffset");
+            }
+        }
+
         /// <summary>
         /// defines keepAliveTime
         /// </summary>
@@ -135,7 +243,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// defines priority of the target group
         /// </summary>
-        public int Priority
+        public byte Priority
         {
             get
             {
@@ -165,7 +273,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// defines maximum network message size node 
         /// </summary>
-        public int MaxNetworkMessageSize
+        public uint MaxNetworkMessageSize
         {
             get
             {
@@ -218,18 +326,6 @@ namespace PubSubBase.Definitions
             {
                 m_messageSecurityMode = value;
                 OnPropertyChanged("MessageSecurityMode");
-            }
-        }
-        /// <summary>
-        /// defines network message content mask
-        /// </summary>
-        public int NetworkMessageContentMask
-        {
-            get { return m_netWorkMessageContentMask; }
-            set
-            {
-                m_netWorkMessageContentMask = value;
-                OnPropertyChanged("NetworkMessageContentMask");
             }
         }
 

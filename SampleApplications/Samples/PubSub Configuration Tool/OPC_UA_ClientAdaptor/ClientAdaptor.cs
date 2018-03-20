@@ -160,28 +160,6 @@ namespace ClientAdaptor
             return errorMessage;
         }
 
-        /// <summary>
-        /// Method to add new AMQP connection
-        /// </summary>
-        /// <param name="connection">AMQP connection information</param>
-        /// <param name="connectionId">NodeId of current connection</param>
-        /// <returns></returns>
-        public string AddAMQPConnection(Connection connection, out NodeId connectionId)
-        {
-            string errorMessage = string.Empty;
-            connectionId = null;
-            try
-            {
-                IList<object> lstResponse = Session.Call(Constants.PublishSubscribeObjectId,
-                    Constants.BrokerConnectionMethodId, new object[] { connection.Name, connection.Address, connection.PublisherId });
-                connectionId = lstResponse[0] as NodeId;
-            }
-            catch (Exception e)
-            {
-                errorMessage = e.Message;
-            }
-            return errorMessage;
-        }
 
         /// <summary>
         /// Method to add new UADP Connection
@@ -189,14 +167,54 @@ namespace ClientAdaptor
         /// <param name="connection">UADP Connection information</param>
         /// <param name="connectionId">NodeId of current connection</param>
         /// <returns>the error message</returns>
-        public string AddUADPConnection(Connection connection, out NodeId connectionId)
+        public string AddConnection(Connection connection, out NodeId connectionId)
         {
             string errorMessage = string.Empty;
             connectionId = null;
+            PubSubConnectionDataType PubSubConnectionDataType = new PubSubConnectionDataType();
+
+            PubSubConnectionDataType.Name = connection.Name;
+            PubSubConnectionDataType.PublisherId = new Variant(connection.PublisherId);
+            PubSubConnectionDataType.TransportProfileUri = connection.TransportProfile;
+
+            NetworkAddressUrlDataType _NetworkAddressDataType = new NetworkAddressUrlDataType();
+            _NetworkAddressDataType.NetworkInterface = connection.NetworkInterface;
+            _NetworkAddressDataType.Url = connection.Address;
+
+            ExtensionObject _AddressExtensionObject = new ExtensionObject();
+            _AddressExtensionObject.Body = _NetworkAddressDataType;
+            PubSubConnectionDataType.Address = _AddressExtensionObject;
+
+            if (connection.ConnectionType == "0")
+            {
+                NetworkAddressUrlDataType DatagramNetworkAddressDataType = new NetworkAddressUrlDataType();
+                DatagramNetworkAddressDataType.NetworkInterface = connection.DiscoveryNetworkInterface;
+                DatagramNetworkAddressDataType.Url = connection.DiscoveryAddress;
+
+                ExtensionObject _AddressUrlExtensionObject = new ExtensionObject();
+                _AddressUrlExtensionObject.Body = DatagramNetworkAddressDataType;
+
+                DatagramConnectionTransportDataType _DatagramConnectionTransportDataType = new DatagramConnectionTransportDataType();
+                _DatagramConnectionTransportDataType.DiscoveryAddress = _AddressUrlExtensionObject;
+
+                ExtensionObject _ExtensionObject = new ExtensionObject();
+                _ExtensionObject.Body = _DatagramConnectionTransportDataType;
+                PubSubConnectionDataType.TransportSettings = _ExtensionObject;
+            }
+            else
+            {
+                BrokerConnectionTransportDataType _BrokerConnectionTransportDataType = new BrokerConnectionTransportDataType();
+                _BrokerConnectionTransportDataType.AuthenticationProfileUri = connection.AuthenticationProfileUri;
+                _BrokerConnectionTransportDataType.ResourceUri = connection.ResourceUri;
+
+                ExtensionObject _ExtensionObject = new ExtensionObject();
+                _ExtensionObject.Body = _BrokerConnectionTransportDataType;
+                PubSubConnectionDataType.TransportSettings = _ExtensionObject;
+            }
             try
             {
                 IList<object> lstResponse = Session.Call(Constants.PublishSubscribeObjectId,
-                    Constants.UADPConnectionMethodId, new object[] { connection.Name, connection.Address, connection.PublisherId });
+                    Constants.AddConnectionMethodId, new object[] { PubSubConnectionDataType });
 
                 connectionId = lstResponse[0] as NodeId;
             }
@@ -284,10 +302,9 @@ namespace ClientAdaptor
                 {
                     try
                     {
-                        if (_ReferenceDescription.TypeDefinition != Constants.AMQPTypeDefinitionNodeId && _ReferenceDescription.TypeDefinition != Constants.UADPTypeDefinitionNodeId)
+                        if (_ReferenceDescription.TypeDefinition != Constants.ConnectionTypeDefinitionNodeId)
                         {
                             continue;
-
                         }
                         Connection connection = new Connection
                         {
@@ -301,12 +318,37 @@ namespace ClientAdaptor
                             {
                                 try
                                 {
+                                    if (_RefDescription.TypeDefinition == Constants.NetworkUrlType && _RefDescription.BrowseName.Name == "Address")
+                                    {
+                                        ReferenceDescriptionCollection NetworkUrlTypedefinitions = Browse((NodeId)_RefDescription.NodeId);
+
+                                        foreach (ReferenceDescription _NetworkRefDescription in NetworkUrlTypedefinitions)
+                                        {
+                                            if (_NetworkRefDescription.BrowseName.Name == "NetworkInterface")
+                                            {
+                                                object networkInterface = Session.ReadValue((NodeId)_NetworkRefDescription.NodeId).Value;
+                                                connection.NetworkInterface = Session.ReadValue((NodeId)_NetworkRefDescription.NodeId).Value.ToString();
+                                            }
+                                            else if (_NetworkRefDescription.BrowseName.Name == "Url")
+                                            {
+                                                connection.Address = Session.ReadValue((NodeId)_NetworkRefDescription.NodeId).Value.ToString();
+                                            }
+                                        }
+                                    }
+                                    if (_RefDescription.TypeDefinition == Constants.SelectionListType && _RefDescription.BrowseName.Name == "TransportProfileUri")
+                                    {
+                                        connection.TransportProfile = Session.ReadValue((NodeId)_RefDescription.NodeId).Value.ToString();
+                                        if (connection.TransportProfile == Constants.PUBSUB_ETH_UADP || connection.TransportProfile == Constants.PUBSUB_UDP_UADP)
+                                        {
+                                            connection.ConnectionType = "0";
+                                        }
+                                        else
+                                        {
+                                            connection.ConnectionType = "1";
+                                        }
+                                    }
                                     if (_RefDescription.TypeDefinition == Constants.PropertyNodeId)
                                     {
-                                        if (_RefDescription.BrowseName.Name == "Address")
-                                        {
-                                            connection.Address = Session.ReadValue((NodeId)_RefDescription.NodeId).Value.ToString();
-                                        }
                                         if (_RefDescription.BrowseName.Name == "PublisherId")
                                         {
                                             object value = Session.ReadValue((NodeId)_RefDescription.NodeId).Value;
@@ -336,13 +378,13 @@ namespace ClientAdaptor
                                             connection.PublisherId = value;
                                         }
                                     }
-
                                     if (_RefDescription.TypeDefinition == Constants.ReaderGroupTypeId)
                                     {
                                         ReaderGroupDefinition readerGroup = new ReaderGroupDefinition();
                                         readerGroup.Name = readerGroup.GroupName = _RefDescription.DisplayName.Text;
                                         readerGroup.GroupId = (NodeId)_RefDescription.NodeId;
                                         readerGroup.ParentNode = connection;
+
                                         ReferenceDescriptionCollection refDescriptionReaderGroupCollection = Browse((NodeId)_RefDescription.NodeId);
 
                                         foreach (ReferenceDescription refDesc in refDescriptionReaderGroupCollection)
@@ -369,91 +411,166 @@ namespace ClientAdaptor
                                                     foreach (ReferenceDescription refDsrDesc in
                                                         refDescriptionDataSetReaderCollection)
                                                     {
-                                                        if (refDsrDesc.BrowseName.Name == "TransportSettings")
+                                                        if (refDsrDesc.BrowseName.Name ==
+                                                            "DataSetFieldContentMask")
+                                                        {
+                                                            dataSetReaderDefinition.DataSetContentMask =
+                                                                Convert.ToInt32(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name == "DataSetMetaData")
+                                                        {
+                                                            try
+                                                            {
+                                                                dataSetReaderDefinition.DataSetMetaDataType =
+                                                                    (DataSetMetaDataType)(Session.ReadValue(
+                                                                        (NodeId)refDsrDesc.NodeId,
+                                                                        typeof(DataSetMetaDataType)));
+                                                            }
+                                                            catch (Exception ex)
+                                                            {
+                                                                Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration-DataSetMetaData API" + ex.Message);
+                                                            }
+                                                        }
+
+                                                        else if (refDsrDesc.BrowseName.Name == "DataSetWriterId")
+                                                        {
+                                                            dataSetReaderDefinition.DataSetWriterId =
+                                                                Convert.ToUInt16(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name ==
+                                                                 "NetworkMessageContentMask")
+                                                        {
+                                                            dataSetReaderDefinition.NetworkMessageContentMask =
+                                                                Convert.ToInt32(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name == "PublisherId")
+                                                        {
+                                                            dataSetReaderDefinition.PublisherId =
+                                                                Convert.ToString(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name == "MessageReceiveTimeout"
+                                                       )
+                                                        {
+                                                            dataSetReaderDefinition.MessageReceiveTimeOut =
+                                                                Convert.ToDouble(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name ==
+                                                                 "PublisherId")
+                                                        {
+                                                            dataSetReaderDefinition.PublisherId =
+                                                                Convert.ToDouble(Session
+                                                                    .ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        else if (refDsrDesc.BrowseName.Name == "SecurityGroupId")
+                                                        {
+                                                            dataSetReaderDefinition.SecurityGroupId =
+                                                                Convert.ToString(Session.ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+
+                                                        if (refDsrDesc.BrowseName.Name == "SecurityMode")
+                                                        {
+                                                            dataSetReaderDefinition.MessageSecurityMode =
+                                                                Convert.ToInt32(Session.ReadValue((NodeId)refDsrDesc.NodeId)
+                                                                    .Value);
+                                                        }
+                                                        if (refDsrDesc.BrowseName.Name == "WriterGroupId")
+                                                        {
+                                                            dataSetReaderDefinition.WriterGroupId =
+                                                               Convert.ToUInt16(Session.ReadValue((NodeId)refDsrDesc.NodeId).Value);
+                                                        }
+                                                        if (refDsrDesc.BrowseName.Name == "MessageSettings")
                                                         {
                                                             ReferenceDescriptionCollection
                                                                 refDescriptionDataSetReaderGroupCollection =
                                                                     Browse((NodeId)refDsrDesc.NodeId);
 
-
                                                             foreach (ReferenceDescription refDsDesc in
                                                                 refDescriptionDataSetReaderGroupCollection)
                                                             {
-                                                                if (refDsDesc.BrowseName.Name ==
-                                                                    "DataSetMessageContentMask")
+                                                                if (refDsrDesc.TypeDefinition == Constants.UadpDataSetReaderMessageType)
                                                                 {
-                                                                    dataSetReaderDefinition.DataSetContentMask =
-                                                                        Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
+                                                                    if (refDsDesc.BrowseName.Name == "GroupVersion")
+                                                                    {
+                                                                        dataSetReaderDefinition.GroupVersion =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "NetworkMessageNumber")
+                                                                    {
+                                                                        dataSetReaderDefinition.NetworkMessageNumber =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "DataSetOffset")
+                                                                    {
+                                                                        dataSetReaderDefinition.DataSetOffset =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "DataSetMessageContentMask")
+                                                                    {
+                                                                        dataSetReaderDefinition.UadpDataSetMessageContentMask =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "NetworkMessageContentMask")
+                                                                    {
+                                                                        dataSetReaderDefinition.UadpNetworkMessageContentMask =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "PublishingInterval")
+                                                                    {
+                                                                        dataSetReaderDefinition.PublishingInterval =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "ReceiveOffset")
+                                                                    {
+                                                                        dataSetReaderDefinition.Receiveoffset =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "ProcessingOffset")
+                                                                    {
+                                                                        dataSetReaderDefinition.ProcessingOffset =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    //      else if (refDsDesc.BrowseName.Name == "DataSetClassId")
+                                                                    //      {
+                                                                    //          dataSetReaderDefinition.DataSetClassId =
+                                                                    //Convert.gui(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    //      }
+
                                                                 }
-                                                                else if (refDsDesc.BrowseName.Name == "DataSetWriterId")
+                                                                else if (refDsrDesc.TypeDefinition == Constants.JsonDataSetReaderMessageType)
                                                                 {
-                                                                    dataSetReaderDefinition.DataSetWriterId =
-                                                                        Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
-                                                                }
-                                                                else if (refDsDesc.BrowseName.Name ==
-                                                                         "NetworkMessageContentMask")
-                                                                {
-                                                                    dataSetReaderDefinition.NetworkMessageContentMask =
-                                                                        Convert.ToInt32(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
-                                                                }
-                                                                else if (refDsDesc.BrowseName.Name == "PublisherId")
-                                                                {
-                                                                    dataSetReaderDefinition.PublisherId =
-                                                                        Convert.ToString(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
-                                                                }
-                                                                else if (refDsDesc.BrowseName.Name ==
-                                                                         "PublishingInterval")
-                                                                {
-                                                                    dataSetReaderDefinition.PublishingInterval =
-                                                                        Convert.ToDouble(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
+                                                                    if (refDsDesc.BrowseName.Name == "DataSetMessageContentMask")
+                                                                    {
+                                                                        dataSetReaderDefinition.JsonDataSetMessageContentMask =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
+                                                                    else if (refDsDesc.BrowseName.Name == "NetworkMessageContentMask")
+                                                                    {
+                                                                        dataSetReaderDefinition.JsonNetworkMessageContentMask =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDsDesc.NodeId).Value);
+                                                                    }
                                                                 }
                                                             }
                                                         }
+
                                                         if (refDsrDesc.BrowseName.Name == "SubscribedDataSet")
                                                         {
                                                             ReferenceDescriptionCollection
                                                                 refDescriptionDataSetReaderGroupCollection =
                                                                     Browse((NodeId)refDsrDesc.NodeId);
 
-
-                                                            foreach (ReferenceDescription refDsDesc in
-                                                                refDescriptionDataSetReaderGroupCollection)
-                                                            {
-                                                                if (refDsDesc.BrowseName.Name == "MessageReceiveTimeout"
-                                                                )
-                                                                {
-                                                                    dataSetReaderDefinition.MessageReceiveTimeOut =
-                                                                        Convert.ToDouble(Session
-                                                                            .ReadValue((NodeId)refDsDesc.NodeId)
-                                                                            .Value);
-                                                                }
-                                                                else if (refDsDesc.BrowseName.Name == "DataSetMetaData")
-                                                                {
-                                                                    try
-                                                                    {
-                                                                        dataSetReaderDefinition.DataSetMetaDataType =
-                                                                            (DataSetMetaDataType)(Session.ReadValue(
-                                                                                (NodeId)refDsDesc.NodeId,
-                                                                                typeof(DataSetMetaDataType)));
-                                                                    }
-                                                                    catch (Exception ex)
-                                                                    {
-                                                                        Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration-DataSetMetaData API" + ex.Message);
-                                                                    }
-                                                                }
-                                                                else if (refDsDesc.BrowseName.Name == "TargetVariables")
-                                                                {
-                                                                    SubscribedDataSetDefinition
+                                                            SubscribedDataSetDefinition
                                                                         subscribedDataSetDefinition =
                                                                             new SubscribedDataSetDefinition
                                                                             {
@@ -462,6 +579,27 @@ namespace ClientAdaptor
                                                                                 ParentNode =
                                                                         dataSetReaderDefinition
                                                                             };
+                                                            foreach (ReferenceDescription refDsDesc in
+                                                                refDescriptionDataSetReaderGroupCollection)
+                                                            {
+
+                                                                //if (refDsDesc.BrowseName.Name == "DataSetMetaData")
+                                                                //{
+                                                                //    try
+                                                                //    {
+                                                                //        dataSetReaderDefinition.DataSetMetaDataType =
+                                                                //            (DataSetMetaDataType)(Session.ReadValue(
+                                                                //                (NodeId)refDsDesc.NodeId,
+                                                                //                typeof(DataSetMetaDataType)));
+                                                                //    }
+                                                                //    catch (Exception ex)
+                                                                //    {
+                                                                //        Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration-DataSetMetaData API" + ex.Message);
+                                                                //    }
+                                                                //}
+                                                                if (refDsDesc.BrowseName.Name == "TargetVariables")
+                                                                {
+
 
                                                                     var fields =
                                                                         Session.ReadValue((NodeId)refDsDesc.NodeId);
@@ -522,7 +660,7 @@ namespace ClientAdaptor
                                                                             new MirrorSubscribedDataSetDefinition
                                                                             {
                                                                                 Name =
-                                                                        "SubscribedDataSet",
+                                                                        "MinnorSubscribedDataSet",
                                                                                 ParentNode =
                                                                         dataSetReaderDefinition
                                                                             };
@@ -571,14 +709,14 @@ namespace ClientAdaptor
                                                     if (refDesc.BrowseName.Name == "MaxNetworkMessageSize")
                                                     {
                                                         readerGroup.MaxNetworkMessageSize =
-                                                            Convert.ToInt32(Session.ReadValue((NodeId)refDesc.NodeId)
+                                                            Convert.ToUInt32(Session.ReadValue((NodeId)refDesc.NodeId)
                                                                 .Value);
                                                     }
-                                                    if (refDesc.BrowseName.Name == "QueueName")
-                                                    {
-                                                        readerGroup.QueueName =
-                                                            Session.ReadValue((NodeId)refDesc.NodeId).Value.ToString();
-                                                    }
+                                                    //if (refDesc.BrowseName.Name == "QueueName")
+                                                    //{
+                                                    //    readerGroup.QueueName =
+                                                    //        Session.ReadValue((NodeId)refDesc.NodeId).Value.ToString();
+                                                    //}
                                                 }
 
 
@@ -593,7 +731,6 @@ namespace ClientAdaptor
                                         connection.Children.Add(readerGroup);
 
                                     }
-
                                     if (_RefDescription.TypeDefinition == Constants.WriterGroupTypeId)
                                     {
                                         DataSetWriterGroup dataSetWriterGroup = new DataSetWriterGroup();
@@ -601,6 +738,7 @@ namespace ClientAdaptor
                                         dataSetWriterGroup.GroupId = (NodeId)_RefDescription.NodeId;
                                         dataSetWriterGroup.ParentNode = connection;
                                         ReferenceDescriptionCollection refDescriptionWriterCollection = Browse((NodeId)_RefDescription.NodeId, BrowseDirection.Both);
+
                                         foreach (ReferenceDescription referenceDescription in refDescriptionWriterCollection)
                                         {
                                             try
@@ -618,66 +756,125 @@ namespace ClientAdaptor
                                                         {
                                                             dataSetWriterDefinition.PublisherDataSetNodeId =
                                                                 (NodeId)refDesc.NodeId;
-
+                                                            dataSetWriterDefinition.DataSetName = refDesc.DisplayName.Text;
                                                         }
-                                                        if (refDesc.BrowseName.Name == "DataSetMessageContentMask")
+                                                        if (refDesc.BrowseName.Name == "DataSetFieldContentMask")
                                                         {
                                                             dataSetWriterDefinition.DataSetContentMask =
                                                                Convert.ToInt32(Session.ReadValue((NodeId)refDesc.NodeId).Value);
-
                                                         }
-                                                        if (refDesc.TypeDefinition == Constants.TransPortSettingsTypeDefinition)
+                                                        if (refDesc.BrowseName.Name == "DataSetWriterId")
                                                         {
-                                                            ReferenceDescriptionCollection refDescWriterPropertiesCollection = Browse((NodeId)refDesc.NodeId, BrowseDirection.Both);
-                                                            foreach (ReferenceDescription refDescription in refDescWriterPropertiesCollection)
+                                                            dataSetWriterDefinition.DataSetWriterId =
+                                                              Convert.ToUInt16(Session.ReadValue((NodeId)refDesc.NodeId).Value);
+                                                        }
+                                                        else if (refDesc.BrowseName.Name == "KeyFrameCount")
+                                                        {
+                                                            dataSetWriterDefinition.KeyFrameCount =
+                                                                Convert.ToUInt32(Session
+                                                                    .ReadValue((NodeId)refDesc.NodeId).Value);
+                                                        }
+                                                        if (refDesc.BrowseName.Name == "MessageSettings" && refDesc.TypeDefinition == Constants.UadpDataSetWriterMessageType)
+                                                        {
+                                                            // dataSetWriterDefinition.MessageSetting = 0;
+                                                            ReferenceDescriptionCollection messageSettingCollection = Browse((NodeId)refDesc.NodeId, BrowseDirection.Both);
+                                                            foreach (ReferenceDescription refDescription in messageSettingCollection)
                                                             {
-                                                                try
+                                                                if (refDescription.TypeDefinition == Constants.PropertyNodeId)
                                                                 {
-                                                                    if (refDescription.TypeDefinition == Constants.PropertyNodeId)
+                                                                    if (refDescription.BrowseName.Name == "ConfiguredSize")
+                                                                    {
+                                                                        dataSetWriterDefinition.ConfiguredSize = Convert.ToUInt16(Session
+                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                    }
+                                                                    else if (refDescription.BrowseName.Name == "DataSetMessageContentMask")
+                                                                    {
+                                                                        dataSetWriterDefinition.UadpDataSetMessageContentMask = Convert.ToUInt16(Session
+                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                    }
+                                                                    else if (refDescription.BrowseName.Name == "DataSetOffset")
+                                                                    {
+                                                                        dataSetWriterDefinition.DataSetOffset = Convert.ToUInt16(Session
+                                                                                   .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                    }
+                                                                    else if (refDescription.BrowseName.Name == "NetworkMessageNumber")
+                                                                    {
+                                                                        dataSetWriterDefinition.NetworkMessageNumber = Convert.ToUInt16(Session
+                                                                                   .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                    }
+
+                                                                }
+                                                            }
+                                                        }
+                                                        if (refDesc.BrowseName.Name == "MessageSettings" && refDesc.TypeDefinition == Constants.JsonDataSetWriterMessageType)
+                                                        {
+                                                            //dataSetWriterDefinition.MessageSetting = 1;
+                                                            ReferenceDescriptionCollection messageSettingCollection = Browse((NodeId)refDesc.NodeId, BrowseDirection.Both);
+                                                            foreach (ReferenceDescription refDescription in messageSettingCollection)
+                                                            {
+                                                                if (refDescription.BrowseName.Name == "DataSetMessageContentMask")
+                                                                {
+                                                                    dataSetWriterDefinition.JsonDataSetMessageContentMask = Convert.ToUInt16(Session
+                                                                                .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                }
+                                                            }
+                                                        }
+                                                        if (refDesc.BrowseName.Name == "TransportSettings")
+                                                        {
+                                                            if (refDesc.TypeDefinition == Constants.BrokerDataSetWriterTransportType)
+                                                            {
+                                                                dataSetWriterDefinition.MessageSetting = 1;
+                                                                ReferenceDescriptionCollection refDescWriterPropertiesCollection = Browse((NodeId)refDesc.NodeId, BrowseDirection.Both);
+                                                                foreach (ReferenceDescription refDescription in refDescWriterPropertiesCollection)
+                                                                {
+                                                                    try
+                                                                    {
+                                                                        if (refDescription.TypeDefinition == Constants.PropertyNodeId)
+                                                                        {
+                                                                            if (refDescription.BrowseName.Name == "QueueName")
+                                                                            {
+                                                                                dataSetWriterDefinition.QueueName =
+                                                                                    Convert.ToString(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                            else if (refDescription.BrowseName.Name == "MetaDataQueueName")
+                                                                            {
+                                                                                dataSetWriterDefinition.MetadataQueueName =
+                                                                                    Convert.ToString(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                            if (refDescription.BrowseName.Name == "ResourceUri")
+                                                                            {
+                                                                                dataSetWriterDefinition.ResourceUri =
+                                                                                    Convert.ToString(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                            if (refDescription.BrowseName.Name == "AuthenticationProfileUri")
+                                                                            {
+                                                                                dataSetWriterDefinition.AuthenticationProfileUri =
+                                                                                    Convert.ToString(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                            if (refDescription.BrowseName.Name == "RequestedDeliveryGuarantee")
+                                                                            {
+                                                                                dataSetWriterDefinition.RequestedDeliveryGuarantee =
+                                                                                    Convert.ToInt16(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                            if (refDescription.BrowseName.Name == "MetaDataUpdateTime")
+                                                                            {
+                                                                                dataSetWriterDefinition.MetadataUpdataTime =
+                                                                                    Convert.ToInt16(Session
+                                                                                        .ReadValue((NodeId)refDescription.NodeId).Value);
+                                                                            }
+                                                                        }
+
+                                                                    }
+
+                                                                    catch (Exception)
                                                                     {
 
-                                                                        if (refDescription.BrowseName.Name == "DataSetWriterId")
-                                                                        {
-                                                                            dataSetWriterDefinition.DataSetWriterId =
-                                                                                Convert.ToInt32(Session
-                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
-                                                                        }
-
-                                                                        else if (refDescription.BrowseName.Name == "KeyFrameCount")
-                                                                        {
-                                                                            dataSetWriterDefinition.KeyFrameCount =
-                                                                                Convert.ToInt32(Session
-                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
-                                                                        }
-                                                                        else if (refDescription.BrowseName.Name == "QueueName")
-                                                                        {
-                                                                            dataSetWriterDefinition.QueueName =
-                                                                                Session.ReadValue((NodeId)refDescription.NodeId)
-                                                                                    .Value.ToString();
-                                                                        }
-                                                                        else if (refDescription.BrowseName.Name == "MetadataQueueName")
-                                                                        {
-                                                                            dataSetWriterDefinition.MetadataQueueName =
-                                                                                Session.ReadValue((NodeId)refDescription.NodeId)
-                                                                                    .Value.ToString();
-                                                                        }
-                                                                        else if (refDescription.BrowseName.Name == "MetadataUpdataTime")
-                                                                        {
-                                                                            dataSetWriterDefinition.MetadataUpdataTime =
-                                                                                Convert.ToInt32(Session
-                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
-                                                                        }
-                                                                        else if (refDescription.BrowseName.Name == "MaxMessageSize")
-                                                                        {
-                                                                            dataSetWriterDefinition.MaxMessageSize =
-                                                                                Convert.ToInt32(Session
-                                                                                    .ReadValue((NodeId)refDescription.NodeId).Value);
-                                                                        }
                                                                     }
-                                                                }
-                                                                catch (Exception ex)
-                                                                {
-                                                                    Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                                                 }
                                                             }
                                                         }
@@ -685,6 +882,81 @@ namespace ClientAdaptor
 
                                                     dataSetWriterGroup.Children.Add(dataSetWriterDefinition);
 
+                                                }
+                                                if (referenceDescription.BrowseName.Name == "MessageSettings")
+                                                {
+                                                    if (referenceDescription.TypeDefinition == Constants.UadpWriterGroupMessageType)
+                                                    {
+                                                        dataSetWriterGroup.MessageSetting = 0;
+                                                        ReferenceDescriptionCollection MessageCollection = Browse((NodeId)referenceDescription.NodeId, BrowseDirection.Both);
+                                                        foreach (ReferenceDescription Messagereference in MessageCollection)
+                                                        {
+                                                            if (Messagereference.BrowseName.Name == "DataSetOrdering")
+                                                            {
+                                                                dataSetWriterGroup.DataSetOrdering = Convert.ToInt32(Session.ReadValue((NodeId)Messagereference.NodeId).Value);
+                                                            }
+                                                            else if (Messagereference.BrowseName.Name == "GroupVersion")
+                                                            {
+                                                                dataSetWriterGroup.GroupVersion = Convert.ToUInt32(Session.ReadValue((NodeId)Messagereference.NodeId).Value);
+                                                            }
+                                                            else if (Messagereference.BrowseName.Name == "NetworkMessageContentMask")
+                                                            {
+                                                                dataSetWriterGroup.UadpNetworkMessageContentMask = Convert.ToInt32(Session.ReadValue((NodeId)Messagereference.NodeId).Value);
+                                                            }
+                                                            else if (Messagereference.BrowseName.Name == "PublishingOffset")
+                                                            {
+                                                                dataSetWriterGroup.PublishingOffset = Convert.ToInt32(Session.ReadValue((NodeId)Messagereference.NodeId).Value);
+                                                            }
+                                                            else if (Messagereference.BrowseName.Name == "SamplingOffset")
+                                                            {
+                                                                dataSetWriterGroup.SamplingOffset = Convert.ToInt32(Session.ReadValue((NodeId)Messagereference.NodeId).Value);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                if (referenceDescription.BrowseName.Name == "TransportSettings")
+                                                {
+                                                    if (referenceDescription.TypeDefinition == Constants.DatagramWriterGroupTransportType)
+                                                    {
+                                                        dataSetWriterGroup.TransportSetting = 0;
+                                                        ReferenceDescriptionCollection TransportCollection = Browse((NodeId)referenceDescription.NodeId, BrowseDirection.Both);
+                                                        foreach (ReferenceDescription transportereference in TransportCollection)
+                                                        {
+                                                            if (transportereference.BrowseName.Name == "MessageRepeatCount")
+                                                            {
+                                                                dataSetWriterGroup.MessageRepeatCount = Convert.ToByte(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+                                                            else if (transportereference.BrowseName.Name == "MessageRepeatDelay")
+                                                            {
+                                                                dataSetWriterGroup.MessageRepeatDelay = Convert.ToInt32(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+                                                        }
+                                                    }
+                                                    else if (referenceDescription.TypeDefinition == Constants.BrokerWriterGroupTransportType)
+                                                    {
+                                                        dataSetWriterGroup.TransportSetting = 1;
+                                                        ReferenceDescriptionCollection TransportCollection = Browse((NodeId)referenceDescription.NodeId, BrowseDirection.Both);
+                                                        foreach (ReferenceDescription transportereference in TransportCollection)
+                                                        {
+                                                            if (transportereference.BrowseName.Name == "QueueName")
+                                                            {
+                                                                dataSetWriterGroup.QueueName = Convert.ToString(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+                                                            if (transportereference.BrowseName.Name == "ResourceUri")
+                                                            {
+                                                                dataSetWriterGroup.ResourceUri = Convert.ToString(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+                                                            if (transportereference.BrowseName.Name == "AuthenticationProfileUri")
+                                                            {
+                                                                dataSetWriterGroup.AuthenticationProfileUri = Convert.ToString(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+                                                            if (transportereference.BrowseName.Name == "RequestedDeliveryGuarantee")
+                                                            {
+                                                                dataSetWriterGroup.RequestedDeliveryGuarantee = Convert.ToInt16(Session.ReadValue((NodeId)transportereference.NodeId).Value);
+                                                            }
+
+                                                        }
+                                                    }
                                                 }
                                                 if (referenceDescription.TypeDefinition == Constants.PropertyNodeId)
                                                 {
@@ -702,7 +974,7 @@ namespace ClientAdaptor
                                                     }
                                                     else if (referenceDescription.BrowseName.Name == "Priority")
                                                     {
-                                                        dataSetWriterGroup.Priority = Convert.ToInt32(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
+                                                        dataSetWriterGroup.Priority = Convert.ToByte(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
                                                     }
                                                     else if (referenceDescription.BrowseName.Name == "PublishingInterval")
                                                     {
@@ -710,15 +982,11 @@ namespace ClientAdaptor
                                                     }
                                                     else if (referenceDescription.BrowseName.Name == "MaxNetworkMessageSize")
                                                     {
-                                                        dataSetWriterGroup.MaxNetworkMessageSize = Convert.ToInt32(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
-                                                    }
-                                                    else if (referenceDescription.BrowseName.Name == "NetworkMessageContentMask")
-                                                    {
-                                                        dataSetWriterGroup.NetworkMessageContentMask = Convert.ToInt32(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
+                                                        dataSetWriterGroup.MaxNetworkMessageSize = Convert.ToUInt32(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
                                                     }
                                                     else if (referenceDescription.BrowseName.Name == "PublishingOffset")
                                                     {
-                                                        dataSetWriterGroup.PublishingOffset = Convert.ToDouble(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
+                                                        dataSetWriterGroup.PublishingOffset = Convert.ToInt16(Session.ReadValue((NodeId)referenceDescription.NodeId).Value);
                                                     }
                                                     else if (referenceDescription.BrowseName.Name == "WriterGroupId")
                                                     {
@@ -728,7 +996,6 @@ namespace ClientAdaptor
                                                     {
                                                         object val = Session.ReadValue((NodeId)referenceDescription.NodeId).Value;
                                                         dataSetWriterGroup.SecurityGroupId = val.ToString();
-
                                                     }
 
                                                 }
@@ -738,9 +1005,6 @@ namespace ClientAdaptor
                                                 Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                             }
                                         }
-
-
-
                                         connection.Children.Add((dataSetWriterGroup));
                                     }
                                 }
@@ -749,15 +1013,6 @@ namespace ClientAdaptor
                                     Utils.Trace(ex, "ClientAdaptor:GetPubSubConfiguration API" + ex.Message);
                                 }
                             }
-                        }
-                        if (_ReferenceDescription.TypeDefinition == Constants.AMQPTypeDefinitionNodeId)
-                        {
-                            connection.ConnectionType = 1;
-                        }
-
-                        else if (_ReferenceDescription.TypeDefinition == Constants.UADPTypeDefinitionNodeId)
-                        {
-                            connection.ConnectionType = 0;
                         }
                         pubSubConfiguation.Add(connection);
                     }
@@ -802,13 +1057,13 @@ namespace ClientAdaptor
             string errorMessage = string.Empty;
             NodeId connectionId = connection.ConnectionNodeId;
 
-            string removeGroupId = string.Format("{0}.{1}.{2}", "PubSub", connection.Name, "RemoveGroup");
+           // string removeGroupId = string.Format("{0}.{1}.{2}", "PubSub", connection.Name, "RemoveGroup");
 
-            NodeId removeGroupNodeId = new NodeId(removeGroupId, 1);
+            NodeId removeGroupNodeId = new NodeId(groupId.Identifier, connectionId.NamespaceIndex);
             try
             {
                 IList<object> lstResponse = Session.Call(connectionId,
-                    removeGroupNodeId, new object[] { groupId });
+                  Constants.RemoveGroupId, new object[] { groupId });
             }
             catch (Exception e)
             {
@@ -822,7 +1077,7 @@ namespace ClientAdaptor
         /// </summary>
         /// <param name="dataSetWriterGroup">group information</param>
         /// <param name="writerNodeId">writer Node ID</param>
-        
+
         public string RemoveDataSetWriter(DataSetWriterGroup dataSetWriterGroup, NodeId writerNodeId)
         {
             string errorMessage = string.Empty;
@@ -851,7 +1106,7 @@ namespace ClientAdaptor
         /// </summary>
         /// <param name="readerGroupDefinition">Reader Group Information</param>
         /// <param name="readerNodeId">reader Node ID</param>
-        
+
         public string RemoveDataSetReader(ReaderGroupDefinition readerGroupDefinition, NodeId readerNodeId)
         {
             string errorMessage = string.Empty;
@@ -990,44 +1245,104 @@ namespace ClientAdaptor
                 string name = connection.Name;
             }
 
-            if (connection != null && connection.ConnectionType == 0)
+            if (connection != null) //Thilak
             {
                 try
                 {
-                    NodeId writerGroupNodeId = new NodeId(connection.ConnectionNodeId.Identifier.ToString() + ".AddWriterGroup", 1);
+                    //NodeId writerGroupNodeId = new NodeId(connection.ConnectionNodeId.Identifier.ToString() + ".AddWriterGroup", 1);
+                    WriterGroupDataType _WriterGroupDataType = new WriterGroupDataType();
+                    _WriterGroupDataType.Name = dataSetWriterGroup.GroupName;
+                    _WriterGroupDataType.PublishingInterval = dataSetWriterGroup.PublishingInterval;
+                    _WriterGroupDataType.KeepAliveTime = dataSetWriterGroup.KeepAliveTime;
+                    _WriterGroupDataType.Priority = dataSetWriterGroup.Priority;
+                    _WriterGroupDataType.SecurityMode = (MessageSecurityMode)dataSetWriterGroup.MessageSecurityMode;
+                    _WriterGroupDataType.WriterGroupId = (ushort)dataSetWriterGroup.WriterGroupId;
+                    _WriterGroupDataType.SecurityGroupId = dataSetWriterGroup.SecurityGroupId;
+                    _WriterGroupDataType.MaxNetworkMessageSize = dataSetWriterGroup.MaxNetworkMessageSize;
+
+                    if (dataSetWriterGroup.TransportSetting == 0)
+                    {
+                        DatagramWriterGroupTransportDataType _DatagramWriterGroupTransportDataType = new DatagramWriterGroupTransportDataType
+                        {
+                            MessageRepeatCount = dataSetWriterGroup.MessageRepeatCount,
+                            MessageRepeatDelay = dataSetWriterGroup.MessageRepeatDelay
+                        };
+
+                        ExtensionObject transportobject = new ExtensionObject
+                        {
+                            Body = _DatagramWriterGroupTransportDataType
+                        };
+                        _WriterGroupDataType.TransportSettings = transportobject;
+                    }
+                    else
+                    {
+                        BrokerWriterGroupTransportDataType _BrokerWriterGroupTransportDataType = new BrokerWriterGroupTransportDataType
+                        {
+                            QueueName = dataSetWriterGroup.QueueName,
+                            AuthenticationProfileUri = dataSetWriterGroup.AuthenticationProfileUri,
+                            ResourceUri = dataSetWriterGroup.ResourceUri,
+                            RequestedDeliveryGuarantee = GetBrokerTransportQualityOfService(dataSetWriterGroup.RequestedDeliveryGuarantee)
+                        };
+
+                        ExtensionObject MessageObject = new ExtensionObject
+                        {
+                            Body = _BrokerWriterGroupTransportDataType
+                        };
+                        _WriterGroupDataType.TransportSettings = MessageObject;
+                    }
+
+                    if (dataSetWriterGroup.MessageSetting == 0)
+                    {
+                        UadpWriterGroupMessageDataType _UadpWriterGroupMessageDataType = new UadpWriterGroupMessageDataType
+                        {
+                            NetworkMessageContentMask = (UadpNetworkMessageContentMask)dataSetWriterGroup.UadpNetworkMessageContentMask,
+                            GroupVersion = dataSetWriterGroup.GroupVersion,
+                            DataSetOrdering = GetDataSetOrdering(dataSetWriterGroup.DataSetOrdering)
+                        };
+                        DoubleCollection DoubleCollection = new DoubleCollection
+                        {
+                            dataSetWriterGroup.PublishingOffset
+                        };
+                        _UadpWriterGroupMessageDataType.PublishingOffset = DoubleCollection;
+                        _UadpWriterGroupMessageDataType.SamplingOffset = dataSetWriterGroup.SamplingOffset;
+
+                        ExtensionObject transportobject = new ExtensionObject
+                        {
+                            Body = _UadpWriterGroupMessageDataType
+                        };
+                        _WriterGroupDataType.MessageSettings = transportobject;
+                    }
+                    else
+                    {
+                        JsonWriterGroupMessageDataType _JsonWriterGroupMessageDataType = new JsonWriterGroupMessageDataType
+                        {
+                            NetworkMessageContentMask = (JsonNetworkMessageContentMask)dataSetWriterGroup.JsonNetworkMessageContentMask
+                        };
+
+                        ExtensionObject MessageObject = new ExtensionObject
+                        {
+                            Body = _JsonWriterGroupMessageDataType
+                        };
+                        _WriterGroupDataType.MessageSettings = MessageObject;
+                    }
+
+                    NodeId writerGroupNodeId = null;
+                    ReferenceDescriptionCollection referenceDescriptionReaderCollection = BrowserNodeControl.Browser.Browse(connection.ConnectionNodeId);
+                    foreach (ReferenceDescription referenceReaderDescription in referenceDescriptionReaderCollection)
+                    {
+                        if (referenceReaderDescription.BrowseName == "AddWriterGroup")
+                        {
+                            writerGroupNodeId = (NodeId)referenceReaderDescription.NodeId;
+                            break;
+                        }
+                    }
+
                     IList<object> lstResponse = Session.Call(connection.ConnectionNodeId,
                         writerGroupNodeId,
                         new object[]
                         {
-                                dataSetWriterGroup.GroupName, dataSetWriterGroup.PublishingInterval,
-                                dataSetWriterGroup.PublishingOffset, dataSetWriterGroup.KeepAliveTime,
-                                dataSetWriterGroup.Priority, dataSetWriterGroup.MessageSecurityMode,
-                                dataSetWriterGroup.SecurityGroupId, dataSetWriterGroup.WriterGroupId,
-                                dataSetWriterGroup.MaxNetworkMessageSize,dataSetWriterGroup.NetworkMessageContentMask
-
+                            _WriterGroupDataType
                         });
-                    groupId = lstResponse[0] as NodeId;
-                }
-                catch (Exception ex)
-                {
-                    errorMessage = ex.Message;
-                }
-            }
-            else if (connection != null && connection.ConnectionType == 1)
-            {
-                try
-                {
-                    NodeId writerGroupNodeId = new NodeId(connection.ConnectionNodeId.Identifier.ToString() + ".AddWriterGroup", 1);
-                    IList<object> lstResponse = Session.Call(connection.ConnectionNodeId,
-                        writerGroupNodeId,
-                        new object[]
-                        {
-                                dataSetWriterGroup.GroupName, dataSetWriterGroup.KeepAliveTime,
-                                dataSetWriterGroup.MessageSecurityMode, dataSetWriterGroup.EncodingMimeType,
-                                dataSetWriterGroup.QueueName, dataSetWriterGroup.Priority,
-                                dataSetWriterGroup.PublishingInterval, dataSetWriterGroup.SecurityGroupId
-                        });
-
                     groupId = lstResponse[0] as NodeId;
                 }
                 catch (Exception ex)
@@ -1036,6 +1351,21 @@ namespace ClientAdaptor
                 }
             }
             return errorMessage;
+        }
+
+        private DataSetOrderingType GetDataSetOrdering(int dataSetOrdering)
+        {
+            switch (dataSetOrdering)
+            {
+                case 0:
+                    return DataSetOrderingType.Undefined;
+                case 1:
+                    return DataSetOrderingType.AscendingWriterId;
+                case 2:
+                    return DataSetOrderingType.AscendingWriterIdSingle;
+                default:
+                    return DataSetOrderingType.Undefined;
+            }
         }
 
         /// <summary>
@@ -1062,48 +1392,54 @@ namespace ClientAdaptor
                     if (referenceReaderDescription.BrowseName == "AddReaderGroup")
                     {
                         readerGroupNodeId = (NodeId)referenceReaderDescription.NodeId;
+                        break;
                     }
                 }
-                if (connection.ConnectionType == 0)
+
+                ReaderGroupDataType _ReaderGroupDataType = new ReaderGroupDataType
                 {
-                    try
-                    {
-                        IList<object> lstResponse = Session.Call(connectionNodeId,
-                                                                 readerGroupNodeId,
-                                                                 new object[]
-                                                                 {
-                                                                         readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
-                                                                         readerGroupDefinition.SecurityGroupId,readerGroupDefinition.MaxNetworkMessageSize
-                                                                 });
-                        groupId = lstResponse[0] as NodeId;
-                    }
-                    catch (Exception ex)
-                    {
-                        errorMessage = ex.Message;
-                    }
+                    Name = readerGroupDefinition.Name,
+                    SecurityGroupId = readerGroupDefinition.SecurityGroupId,
+                    MaxNetworkMessageSize = readerGroupDefinition.MaxNetworkMessageSize,
+                    SecurityMode = GetSecurityMode(readerGroupDefinition.SecurityMode)
+                };
+
+                try
+                {
+                    IList<object> lstResponse = Session.Call(connectionNodeId,
+                                                             readerGroupNodeId,
+                                                             new object[]
+                                                             {
+                                                                       _ReaderGroupDataType
+                                                             });
+                    groupId = lstResponse[0] as NodeId;
                 }
-                else if (connection.ConnectionType == 1)
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        IList<object> lstResponse = Session.Call(connectionNodeId,
-                                                                 readerGroupNodeId,
-                                                                 new object[]
-                                                                 {
-                                                                         readerGroupDefinition.GroupName, readerGroupDefinition.SecurityMode,
-                                                                         readerGroupDefinition.SecurityGroupId,readerGroupDefinition.QueueName
-                                                                 });
-                        readerGroupDefinition.GroupId = lstResponse[0] as NodeId;
-                    }
-                    catch (Exception ex)
-                    {
-                        errorMessage = ex.Message;
-                    }
+                    errorMessage = ex.Message;
                 }
             }
 
             return errorMessage;
 
+        }
+
+        private MessageSecurityMode GetSecurityMode(int securityMode)
+        {
+            switch (securityMode)
+            {
+                case 0:
+                    return MessageSecurityMode.Invalid;
+                case 1:
+                    return MessageSecurityMode.None;
+                case 2:
+                    return MessageSecurityMode.Sign;
+                case 3:
+                    return MessageSecurityMode.SignAndEncrypt;
+
+                default:
+                    return MessageSecurityMode.Invalid;
+            }
         }
 
         /// <summary>
@@ -1114,17 +1450,69 @@ namespace ClientAdaptor
             string retMsg = string.Empty;
             try
             {
+                DataSetReaderDataType _DataSetReaderDataType = new DataSetReaderDataType();
+                _DataSetReaderDataType.Name = dataSetReaderDefinition.Name;
+                _DataSetReaderDataType.PublisherId = new Variant(dataSetReaderDefinition.PublisherId);
+                _DataSetReaderDataType.WriterGroupId = Convert.ToUInt16(dataSetReaderDefinition.WriterGroupId);
+                _DataSetReaderDataType.DataSetWriterId = dataSetReaderDefinition.DataSetWriterId;
+                _DataSetReaderDataType.DataSetFieldContentMask = (DataSetFieldContentMask)dataSetReaderDefinition.DataSetContentMask;
+                _DataSetReaderDataType.MessageReceiveTimeout = dataSetReaderDefinition.MessageReceiveTimeOut;
+                _DataSetReaderDataType.SecurityMode = GetSecurityMode(dataSetReaderDefinition.MessageSecurityMode);
+                _DataSetReaderDataType.SecurityGroupId = dataSetReaderDefinition.SecurityGroupId;
+                _DataSetReaderDataType.DataSetMetaData = dataSetReaderDefinition.DataSetMetaDataType;
+
+                if (dataSetReaderDefinition.TransportSetting == 1)
+                {
+                    BrokerDataSetReaderTransportDataType _BrokerDataSetReaderTransportDataType = new BrokerDataSetReaderTransportDataType
+                    {
+                        QueueName = dataSetReaderDefinition.QueueName,
+                        ResourceUri = dataSetReaderDefinition.ResourceUri,
+                        AuthenticationProfileUri = dataSetReaderDefinition.AuthenticationProfileUri,
+                        RequestedDeliveryGuarantee = GetBrokerTransportQualityOfService(dataSetReaderDefinition.RequestedDeliveryGuarantee),
+                        MetaDataQueueName = dataSetReaderDefinition.MetadataQueueName
+                    };
+
+                    ExtensionObject brokerExtensionObject = new ExtensionObject();
+                    brokerExtensionObject.Body = _BrokerDataSetReaderTransportDataType;
+                    _DataSetReaderDataType.TransportSettings = brokerExtensionObject;
+                }
+                if (dataSetReaderDefinition.MessageSetting == 0)
+                {
+                    UadpDataSetReaderMessageDataType _UadpDataSetReaderMessageDataType = new UadpDataSetReaderMessageDataType();
+                    _UadpDataSetReaderMessageDataType.DataSetMessageContentMask = (UadpDataSetMessageContentMask)dataSetReaderDefinition.UadpDataSetMessageContentMask;
+                    _UadpDataSetReaderMessageDataType.NetworkMessageContentMask = (UadpNetworkMessageContentMask)dataSetReaderDefinition.UadpNetworkMessageContentMask;
+                    _UadpDataSetReaderMessageDataType.GroupVersion = Convert.ToUInt16(dataSetReaderDefinition.GroupVersion);
+                    _UadpDataSetReaderMessageDataType.DataSetClassId = (Uuid)dataSetReaderDefinition.DataSetMetaDataType.DataSetClassId;
+                    _UadpDataSetReaderMessageDataType.DataSetOffset = Convert.ToUInt16(dataSetReaderDefinition.DataSetOffset);
+                    _UadpDataSetReaderMessageDataType.ProcessingOffset = dataSetReaderDefinition.ProcessingOffset;
+                    _UadpDataSetReaderMessageDataType.PublishingInterval = dataSetReaderDefinition.PublishingInterval;
+                    _UadpDataSetReaderMessageDataType.NetworkMessageNumber = Convert.ToUInt16(dataSetReaderDefinition.NetworkMessageNumber);
+                    _UadpDataSetReaderMessageDataType.ReceiveOffset = dataSetReaderDefinition.Receiveoffset;
+
+                    ExtensionObject messageExtensionObject = new ExtensionObject();
+                    messageExtensionObject.Body = _UadpDataSetReaderMessageDataType;
+                    _DataSetReaderDataType.MessageSettings = messageExtensionObject;
+                }
+                else
+                {
+                    JsonDataSetReaderMessageDataType _JsonDataSetReaderMessageDataType = new JsonDataSetReaderMessageDataType();
+                    _JsonDataSetReaderMessageDataType.DataSetMessageContentMask = (JsonDataSetMessageContentMask)dataSetReaderDefinition.JsonDataSetMessageContentMask;
+                    _JsonDataSetReaderMessageDataType.NetworkMessageContentMask = (JsonNetworkMessageContentMask)dataSetReaderDefinition.JsonNetworkMessageContentMask;
+
+                    ExtensionObject messageExtensionObject = new ExtensionObject();
+                    messageExtensionObject.Body = _JsonDataSetReaderMessageDataType;
+                    _DataSetReaderDataType.MessageSettings = messageExtensionObject;
+                }
+
                 NodeId addDataSetReaderMethodNodeId = new NodeId(dataSetReaderGroupNodeId.Identifier.ToString() + ".AddDataSetReader", 1);
                 IList<object> lstResponse = Session.Call(dataSetReaderGroupNodeId,
                        addDataSetReaderMethodNodeId,
                        new object[]
                        {
-                            dataSetReaderDefinition.DataSetReaderName,dataSetReaderDefinition.PublisherId,dataSetReaderDefinition.DataSetWriterId,dataSetReaderDefinition.DataSetMetaDataType,dataSetReaderDefinition.MessageReceiveTimeOut,dataSetReaderDefinition.NetworkMessageContentMask,dataSetReaderDefinition.DataSetContentMask,dataSetReaderDefinition.PublishingInterval
-
+                           _DataSetReaderDataType
                        });
 
                 dataSetReaderDefinition.DataSetReaderNodeId = lstResponse[0] as NodeId;
-                dataSetReaderDefinition.MessageReceiveTimeOut = Convert.ToInt32(lstResponse[1]);
             }
             catch (Exception ex)
             {
@@ -1134,70 +1522,90 @@ namespace ClientAdaptor
             return retMsg;
         }
 
+        private BrokerTransportQualityOfService GetBrokerTransportQualityOfService(int requestedDeliveryGuarantee)
+        {
+            switch (requestedDeliveryGuarantee)
+            {
+                case 0:
+                    return BrokerTransportQualityOfService.NotSpecified;
+                case 1:
+                    return BrokerTransportQualityOfService.BestEffort;
+                case 2:
+                    return BrokerTransportQualityOfService.AtLeastOnce;
+                case 3:
+                    return BrokerTransportQualityOfService.AtMostOnce;
+                case 4:
+                    return BrokerTransportQualityOfService.ExactlyOnce;
+                default:
+                    return BrokerTransportQualityOfService.NotSpecified;
+            }
+        }
+
         /// <summary>
         /// Method to add new UADP DataSetWriter.
         /// </summary>
-        public string AddUADPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
+        public string AddDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
             out int revisedKeyFrameCount)
         {
             string errorMessage = string.Empty;
             writerNodeId = null;
             revisedKeyFrameCount = 0;
+            DataSetWriterDataType _DataSetWriterDataType = new DataSetWriterDataType();
+            _DataSetWriterDataType.DataSetFieldContentMask = (DataSetFieldContentMask)dataSetWriterDefinition.DataSetContentMask;
+            _DataSetWriterDataType.Name = dataSetWriterDefinition.DataSetWriterName;
+            _DataSetWriterDataType.KeyFrameCount = dataSetWriterDefinition.KeyFrameCount;
+            _DataSetWriterDataType.DataSetWriterId = dataSetWriterDefinition.DataSetWriterId;
+            _DataSetWriterDataType.DataSetName = dataSetWriterDefinition.DataSetName;
+
+            if (dataSetWriterDefinition.TransportSetting == 1)
+            {
+                BrokerDataSetWriterTransportDataType _BrokerDataSetWriterTransportDataType = new BrokerDataSetWriterTransportDataType();
+                _BrokerDataSetWriterTransportDataType.AuthenticationProfileUri = dataSetWriterDefinition.AuthenticationProfileUri;
+                _BrokerDataSetWriterTransportDataType.ResourceUri = dataSetWriterDefinition.ResourceUri;
+                _BrokerDataSetWriterTransportDataType.QueueName = dataSetWriterDefinition.QueueName;
+                _BrokerDataSetWriterTransportDataType.MetaDataQueueName = dataSetWriterDefinition.MetadataQueueName;
+                _BrokerDataSetWriterTransportDataType.MetaDataUpdateTime = dataSetWriterDefinition.MetadataUpdataTime;
+
+                ExtensionObject TransportSettingsobject = new ExtensionObject();
+                TransportSettingsobject.Body = _BrokerDataSetWriterTransportDataType;
+                _DataSetWriterDataType.TransportSettings = TransportSettingsobject;
+            }
+            if (dataSetWriterDefinition.MessageSetting == 0)
+            {
+                UadpDataSetWriterMessageDataType _UadpDataSetWriterMessageDataType = new UadpDataSetWriterMessageDataType();
+                _UadpDataSetWriterMessageDataType.ConfiguredSize = dataSetWriterDefinition.ConfiguredSize;
+                _UadpDataSetWriterMessageDataType.DataSetOffset = dataSetWriterDefinition.DataSetOffset;
+                _UadpDataSetWriterMessageDataType.NetworkMessageNumber = dataSetWriterDefinition.NetworkMessageNumber;
+                _UadpDataSetWriterMessageDataType.DataSetMessageContentMask = (UadpDataSetMessageContentMask)dataSetWriterDefinition.UadpDataSetMessageContentMask;
+
+                ExtensionObject MessageSettingsobject = new ExtensionObject();
+                MessageSettingsobject.Body = _UadpDataSetWriterMessageDataType;
+                _DataSetWriterDataType.MessageSettings = MessageSettingsobject;
+            }
+            else
+            {
+                JsonDataSetWriterMessageDataType _JsonDataSetWriterMessageDataType = new JsonDataSetWriterMessageDataType();
+                _JsonDataSetWriterMessageDataType.DataSetMessageContentMask = (JsonDataSetMessageContentMask)dataSetWriterDefinition.JsonDataSetMessageContentMask;
+            }
 
             try
             {
-
                 NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString() + ".AddDataSetWriter", 1);
 
                 IList<object> lstResponse = Session.Call(dataSetWriterGroupNodeId,
                     addDataSetWriterNodeId,
                     new object[]
                     {
-                            dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.DataSetWriterId,dataSetWriterDefinition.PublisherDataSetNodeId,dataSetWriterDefinition.DataSetContentMask,dataSetWriterDefinition.KeyFrameCount
-
+                        _DataSetWriterDataType
                     });
 
                 writerNodeId = lstResponse[0] as NodeId;
-                revisedKeyFrameCount = Convert.ToInt32(lstResponse[1]);
             }
 
             catch (Exception ex)
             {
                 errorMessage = ex.Message;
 
-            }
-
-            return errorMessage;
-
-        }
-
-        /// <summary>
-        /// Method to add new AMQP DataSetWriter.
-        /// </summary>
-        public string AddAMQPDataSetWriter(NodeId dataSetWriterGroupNodeId, DataSetWriterDefinition dataSetWriterDefinition, out NodeId writerNodeId,
-            out int revisedMaxMessageSize)
-        {
-            string errorMessage = string.Empty;
-            writerNodeId = null;
-            revisedMaxMessageSize = 0;
-
-
-            try
-            {
-                NodeId addDataSetWriterNodeId = new NodeId(dataSetWriterGroupNodeId.Identifier.ToString() + ".AddDataSetwriter", 1);
-                IList<object> lstResponse = Session.Call(dataSetWriterGroupNodeId,
-                    addDataSetWriterNodeId,
-                    new object[]
-                    {
-                                dataSetWriterDefinition.DataSetWriterName,dataSetWriterDefinition.PublisherDataSetId,dataSetWriterDefinition.QueueName,dataSetWriterDefinition.MetadataQueueName,dataSetWriterDefinition.MetadataUpdataTime,dataSetWriterDefinition.MaxMessageSize
-                    });
-
-                writerNodeId = lstResponse[0] as NodeId;
-                revisedMaxMessageSize = Convert.ToInt32(lstResponse[1]);
-            }
-            catch (Exception ex)
-            {
-                errorMessage = ex.Message;
             }
             return errorMessage;
 
@@ -1284,7 +1692,8 @@ namespace ClientAdaptor
                 {
                     ReturnDiagnostics = DiagnosticsMasks.All
                 };
-                if (!new SessionOpenDlg().ShowDialog(Session, null))
+
+                if (!new SessionOpenDlg().ShowDialog(Session, null, clientCertificate))
                 {
                     return null;
                 }
@@ -1923,12 +2332,15 @@ namespace ClientAdaptor
             try
             {
                 List<string> fieldNameAliases = new List<string>();
-                List<bool>  promotedFields = new List<bool>();
-                List<PublishedVariableDataType>  variablesToAdd = new List<PublishedVariableDataType>();
-                foreach (PublishedDataSetItemDefinition  publishedDataSetItemDefinition in variableListDefinitionCollection)
+                UInt16[] promotedFields = new UInt16[variableListDefinitionCollection.Count];
+                List<PublishedVariableDataType> variablesToAdd = new List<PublishedVariableDataType>();
+                uint i = 0;
+                foreach (PublishedDataSetItemDefinition publishedDataSetItemDefinition in variableListDefinitionCollection)
                 {
-                     fieldNameAliases.Add(publishedDataSetItemDefinition.Name);
-                     promotedFields.Add(false);
+
+                    fieldNameAliases.Add(publishedDataSetItemDefinition.Name);
+
+                    promotedFields[i] = 0;
                     PublishedVariableDataType publishedVariableDataType = new PublishedVariableDataType
                     {
                         AttributeId = publishedDataSetItemDefinition.Attribute,
@@ -1942,9 +2354,10 @@ namespace ClientAdaptor
                     };
 
                     variablesToAdd.Add(publishedVariableDataType);
+                    i++;
                 }
                 IList<object> lstResponse = Session.Call(Constants.PublishedDataSetsNodeId,
-                    Constants.AddPublishedDataSetsNodeId, new object[] { publisherName, fieldNameAliases, promotedFields, variablesToAdd });
+                    Constants.AddPublishedDataSetsNodeId, new object[] { publisherName, fieldNameAliases.ToArray(), promotedFields, variablesToAdd.ToArray() });
 
                 NodeId publisherId = lstResponse[0] as NodeId;
                 return LoadPublishedData(publisherName, publisherId);
@@ -2013,7 +2426,7 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to remove Published dataset.
         /// </summary>
-        
+
         public string RemovePublishedDataSet(NodeId PublishedDataSetNodeId)
         {
             string errorMessage = string.Empty;
@@ -2135,6 +2548,7 @@ namespace ClientAdaptor
                     fieldTargetDataTypeCollection.Add(fieldTargetDataType);
                 }
                 NodeId addTargetVariablesMethodNodeId = new NodeId(ObjectId.Identifier.ToString() + ".AddTargetVariables", 1);
+
                 IList<object> lstResponse = Session.Call(ObjectId,
                   addTargetVariablesMethodNodeId, new object[] { configurationVersionDataType, fieldTargetDataTypeCollection });
             }
@@ -2186,7 +2600,7 @@ namespace ClientAdaptor
         /// <summary>
         /// Method to read value for node
         /// </summary>
-       
+
         public object ReadValue(NodeId nodeId)
         {
             try
@@ -2325,6 +2739,21 @@ namespace ClientAdaptor
 
             }
         }
+
+        /// <summary>
+        /// Security Groups
+        /// </summary>
+        public static NodeId SelectionListType
+        {
+            get
+            {
+                return m_dicNodeId["SelectionListType"];
+
+            }
+        }
+
+
+
         /// <summary>
         /// Security Group Type Definition ID
         /// </summary>
@@ -2438,12 +2867,20 @@ namespace ClientAdaptor
         /// <summary>
         /// UADP Connection Method ID
         /// </summary>
-        public static NodeId UADPConnectionMethodId
+        public static NodeId AddConnectionMethodId
         {
             get
             {
-                return m_dicNodeId["UADPConnectionMethodId"];
+                return m_dicNodeId["AddConnectionMethodId"];
 
+            }
+        }
+
+        public static NodeId CreateTargetVariablesMethodId
+        {
+            get
+            {
+                return m_dicNodeId["CreateTargetVariablesMethodId"];
             }
         }
         /// <summary>
@@ -2501,6 +2938,15 @@ namespace ClientAdaptor
 
             }
         }
+
+        public static NodeId NetworkUrlType
+        {
+            get
+            {
+                return m_dicNodeId["NetworkUrlTypeNodeId"];
+            }
+        }
+
         /// <summary>
         /// Writer Group Type ID
         /// </summary>
@@ -2512,6 +2958,35 @@ namespace ClientAdaptor
 
             }
         }
+
+        public static NodeId UadpDataSetReaderMessageType
+        {
+            get
+            {
+                return m_dicNodeId["UadpDataSetReaderMessageType"];
+
+            }
+        }
+
+        public static NodeId JsonDataSetReaderMessageType
+        {
+            get
+            {
+                return m_dicNodeId["JsonDataSetReaderMessageType"];
+
+            }
+        }
+
+        public static NodeId BrokerDataSetReaderTransportDataType
+        {
+            get
+            {
+                return m_dicNodeId["BrokerDataSetReaderTransportDataType"];
+
+            }
+        }
+
+
         /// <summary>
         /// Reader Group Type ID
         /// </summary>
@@ -2622,6 +3097,63 @@ namespace ClientAdaptor
 
             }
         }
+
+        public static NodeId UadpDataSetWriterMessageType
+        {
+            get
+            {
+                return m_dicNodeId["UadpDataSetWriterMessageType"];
+            }
+        }
+
+        public static NodeId BrokerDataSetWriterTransportType
+        {
+            get
+            {
+                return m_dicNodeId["BrokerDataSetWriterTransportType"];
+            }
+        }
+
+        public static NodeId JsonDataSetWriterMessageType
+        {
+            get
+            {
+                return m_dicNodeId["JsonDataSetWriterMessageType"];
+            }
+        }
+
+        public static NodeId JsonWriterGroupMessageType
+        {
+            get
+            {
+                return m_dicNodeId["JsonWriterGroupMessageType"];
+            }
+        }
+
+
+        public static NodeId UadpWriterGroupMessageType
+        {
+            get
+            {
+                return m_dicNodeId["UadpWriterGroupMessageType"];
+            }
+        }
+
+        public static NodeId DatagramWriterGroupTransportType
+        {
+            get
+            {
+                return m_dicNodeId["DatagramWriterGroupTransportType"];
+            }
+        }
+        public static NodeId BrokerWriterGroupTransportType
+        {
+            get
+            {
+                return m_dicNodeId["BrokerWriterGroupTransportType"];
+            }
+        }
+
         /// <summary>
         /// Pub Sub State Type ID
         /// </summary>
@@ -2644,8 +3176,25 @@ namespace ClientAdaptor
 
             }
         }
+        public static NodeId RemoveGroupId
+        {
+            get
+            {
+                return m_dicNodeId["RemoveGroupId"];
 
+            }
+        }
+
+
+        public static string PUBSUB_UDP_UADP = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+        public static string PUBSUB_ETH_UADP = "http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp";
+        public static string PUBSUB_MQTT_UADP = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp";
+        public static string PUBSUB_MQTT_JSON = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
+        public static string PUBSUB_AMQP_UADP = "http://opcfoundation.org/UA-Profile/Transport/pubsub-amqp-uadp";
+        public static string PUBSUB_AMQP_JSON = "http://opcfoundation.org/UA-Profile/Transport/pubsub-amqp-json";
         #endregion
+
+
     }
 
 }

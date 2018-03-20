@@ -157,6 +157,7 @@
     <Compile Include="Views\AddConnectionView.xaml.cs">
       <DependentUpon>AddConnectionView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ViewModels\AddConnectionViewViewModel.cs" />
     <Compile Include="Views\AddDataSetMetaData.xaml.cs">
       <DependentUpon>AddDataSetMetaData.xaml</DependentUpon>
     </Compile>

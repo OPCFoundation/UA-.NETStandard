@@ -24,10 +24,10 @@ namespace PubSubConfigurationUI.Views
 
         #region Private Methods
 
-        private void UIElement_OnMouseRightButtonDown( object sender, MouseButtonEventArgs e )
+        private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if ( e.ChangedButton == MouseButton.Right && !(e.OriginalSource is Image) &&
-                 !(e.OriginalSource is TextBlock) && !(e.OriginalSource is Border) )
+            if (e.ChangedButton == MouseButton.Right && !(e.OriginalSource is Image) &&
+                 !(e.OriginalSource is TextBlock) && !(e.OriginalSource is Border))
             {
                 ViewModel.IsAddEventsVisible = Visibility.Collapsed;
                 ViewModel.IsAddVariableVisible = Visibility.Collapsed;
@@ -43,14 +43,14 @@ namespace PubSubConfigurationUI.Views
 
                 return;
             }
-            UpdateMenuandButtonVisibility( );
+            UpdateMenuandButtonVisibility();
         }
 
-        private void UpdateMenuandButtonVisibility( )
+        private void UpdateMenuandButtonVisibility()
         {
-            if ( DataSetTreeView.ContextMenu != null ) DataSetTreeView.ContextMenu.Visibility = Visibility.Visible;
+            if (DataSetTreeView.ContextMenu != null) DataSetTreeView.ContextMenu.Visibility = Visibility.Visible;
 
-            if ( DataSetTreeView.SelectedItem is PublishedDataSetDefinition )
+            if (DataSetTreeView.SelectedItem is PublishedDataSetDefinition)
             {
                 ViewModel.IsAddEventsVisible = Visibility.Collapsed;
                 ViewModel.IsAddVariableVisible = Visibility.Collapsed;
@@ -64,7 +64,7 @@ namespace PubSubConfigurationUI.Views
                 ViewModel.IsUpdateVisible = Visibility.Collapsed;
                 ViewModel.IsCancelVisible = Visibility.Collapsed;
             }
-            else if ( DataSetTreeView.SelectedItem is DataSetMetaDataDefinition )
+            else if (DataSetTreeView.SelectedItem is DataSetMetaDataDefinition)
             {
                 ViewModel.IsAddEventsVisible = Visibility.Collapsed;
                 ViewModel.IsAddVariableVisible = Visibility.Collapsed;
@@ -78,7 +78,7 @@ namespace PubSubConfigurationUI.Views
                 ViewModel.IsUpdateVisible = Visibility.Collapsed;
                 ViewModel.IsCancelVisible = Visibility.Collapsed;
             }
-            else if ( DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition )
+            else if (DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition)
             {
                 ViewModel.IsAddEventsVisible = Visibility.Collapsed;
                 ViewModel.IsAddVariableVisible = Visibility.Collapsed;
@@ -108,29 +108,29 @@ namespace PubSubConfigurationUI.Views
             }
         }
 
-        private void DataSetTreeView_OnSelectedItemChanged( object sender, RoutedPropertyChangedEventArgs< object > e )
+        private void DataSetTreeView_OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            UpdateMenuandButtonVisibility( );
+            UpdateMenuandButtonVisibility();
 
-            if ( DataSetTreeView.SelectedItem is PublishedDataSetDefinition )
+            if (DataSetTreeView.SelectedItem is PublishedDataSetDefinition)
             {
                 _publishedDataSetUserControl.PublishedDataSetEditViewModel.Definition =
                 DataSetTreeView.SelectedItem as PublishedDataSetDefinition;
-                _publishedDataSetUserControl.PublishedDataSetEditViewModel.Initialize( );
+                _publishedDataSetUserControl.PublishedDataSetEditViewModel.Initialize();
                 PubSubContentControl.Content = _publishedDataSetUserControl;
             }
-            else if ( DataSetTreeView.SelectedItem is DataSetMetaDataDefinition )
+            else if (DataSetTreeView.SelectedItem is DataSetMetaDataDefinition)
             {
                 _dataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Definition =
                 DataSetTreeView.SelectedItem as DataSetMetaDataDefinition;
-                _dataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Initialize( );
+                _dataSetMetaDataUserControl.DataSetMetaDataEditViewModel.Initialize();
                 PubSubContentControl.Content = _dataSetMetaDataUserControl;
             }
-            else if ( DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition )
+            else if (DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition)
             {
                 _publishedDataItemUserControl.PublishedDataItemEditViewModel.Definition =
                 DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition;
-                _publishedDataItemUserControl.PublishedDataItemEditViewModel.Initialize( );
+                _publishedDataItemUserControl.PublishedDataItemEditViewModel.Initialize();
                 PubSubContentControl.Content = _publishedDataItemUserControl;
             }
             else
@@ -139,105 +139,125 @@ namespace PubSubConfigurationUI.Views
             }
         }
 
-        private void AddPublishedDataSet_Click( object sender, RoutedEventArgs e )
+        private void AddPublishedDataSet_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.AddPublishedDataSet( );
+            ViewModel.AddPublishedDataSet();
         }
 
-        private void AddVariable_Click( object sender, RoutedEventArgs e )
+        private void AddVariable_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.AddVariable( DataSetTreeView.SelectedItem as PublishedDataDefinition );
+            ViewModel.AddVariable(DataSetTreeView.SelectedItem as PublishedDataDefinition);
         }
 
-        private void RemoveVariable_Click( object sender, RoutedEventArgs e )
+        private void RemoveVariable_Click(object sender, RoutedEventArgs e)
         {
-            if ( DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition )
+            if (DataSetTreeView.SelectedItem is PublishedDataSetItemDefinition)
             {
-                var _PublishedDataSetDefinition = (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition)
+                MessageBoxResult result = MessageBox.Show("Are you sure, you want to remove the Variable?", "Remove Variable", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result == MessageBoxResult.Yes)
+                {
+                    var _PublishedDataSetDefinition = (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition)
                 .ParentNode.ParentNode as PublishedDataSetDefinition;
-                var variableIndexs = new List< uint >( );
-                uint count = 0;
-                foreach ( PublishedDataSetItemDefinition _PublishedDataSetItem in
-                    (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition).ParentNode.Children )
-                    if ( _PublishedDataSetItem == DataSetTreeView.SelectedItem ) variableIndexs.Add( count++ );
-                if ( variableIndexs.Count > 0 )
-                    ViewModel.RemoveVariables(
-                        (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition).ParentNode,
-                        _PublishedDataSetDefinition, _PublishedDataSetDefinition.ConfigurationVersionDataType,
-                        variableIndexs );
+                    var variableIndexs = new List<uint>();
+                    uint count = 0;
+                    foreach (PublishedDataSetItemDefinition _PublishedDataSetItem in
+                        (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition).ParentNode.Children)
+                        if (_PublishedDataSetItem == DataSetTreeView.SelectedItem) variableIndexs.Add(count++);
+                    if (variableIndexs.Count > 0)
+                        ViewModel.RemoveVariables(
+                            (DataSetTreeView.SelectedItem as PublishedDataSetItemDefinition).ParentNode,
+                            _PublishedDataSetDefinition, _PublishedDataSetDefinition.ConfigurationVersionDataType,
+                            variableIndexs);
+                }
             }
         }
 
-        private void RemoveVariables_Click( object sender, RoutedEventArgs e )
+        private void RemoveVariables_Click(object sender, RoutedEventArgs e)
         {
-            if ( DataSetTreeView.SelectedItem is PublishedDataDefinition )
+            if (DataSetTreeView.SelectedItem is PublishedDataDefinition)
             {
-                var _PublishedDataSetDefinition =
-                (DataSetTreeView.SelectedItem as PublishedDataDefinition).ParentNode as PublishedDataSetDefinition;
-                var variableIndexs = new List< uint >( );
-                uint count = 0;
-                foreach ( PublishedDataSetItemDefinition _PublishedDataSetItem in
-                    (DataSetTreeView.SelectedItem as PublishedDataDefinition).Children ) variableIndexs.Add( count++ );
-                if ( variableIndexs.Count > 0 )
-                    ViewModel.RemoveVariables( DataSetTreeView.SelectedItem as PublishedDataDefinition,
-                                               _PublishedDataSetDefinition,
-                                               _PublishedDataSetDefinition.ConfigurationVersionDataType,
-                                               variableIndexs );
+                MessageBoxResult result = MessageBox.Show("Are you sure, you want to remove the Variables?", "Remove Variables", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result == MessageBoxResult.Yes)
+                {
+                    var _PublishedDataSetDefinition =
+               (DataSetTreeView.SelectedItem as PublishedDataDefinition).ParentNode as PublishedDataSetDefinition;
+                    var variableIndexs = new List<uint>();
+                    uint count = 0;
+                    foreach (PublishedDataSetItemDefinition _PublishedDataSetItem in
+                        (DataSetTreeView.SelectedItem as PublishedDataDefinition).Children) variableIndexs.Add(count++);
+                    if (variableIndexs.Count > 0)
+                        ViewModel.RemoveVariables(DataSetTreeView.SelectedItem as PublishedDataDefinition,
+                                                   _PublishedDataSetDefinition,
+                                                   _PublishedDataSetDefinition.ConfigurationVersionDataType,
+                                                   variableIndexs);
+                }
             }
-        }
-
-        private void RemovePublishedDataSet_Click( object sender, RoutedEventArgs e )
-        {
-            if ( DataSetTreeView.SelectedItem is PublishedDataSetDefinition )
+            else
             {
-                var _PublishedDataSetDefinition = DataSetTreeView.SelectedItem as PublishedDataSetDefinition;
-                ViewModel.RemovePublishedDataSet( _PublishedDataSetDefinition );
+                return;
+            }
+
+        }
+
+        private void RemovePublishedDataSet_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataSetTreeView.SelectedItem is PublishedDataSetDefinition)
+            {
+                MessageBoxResult result = MessageBox.Show("Are you sure, you want to remove the Published Dataset?", "Remove Published Dataset", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result == MessageBoxResult.Yes)
+                {
+                    ViewModel.RemovePublishedDataSet(DataSetTreeView.SelectedItem as PublishedDataSetDefinition);
+                }
+            }
+            else
+            {
+                return;
             }
         }
 
-        private void AddPublishedEvents_Click( object sender, RoutedEventArgs e )
+        private void AddPublishedEvents_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void AddEvents_Click( object sender, RoutedEventArgs e )
+        private void AddEvents_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void RemoveEvents_Click( object sender, RoutedEventArgs e )
+        private void RemoveEvents_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void RemovePublishedEvents_Click( object sender, RoutedEventArgs e )
+        private void RemovePublishedEvents_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void OnUpdate_Click( object sender, RoutedEventArgs e )
+        private void OnUpdate_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void OnCancel_Click( object sender, RoutedEventArgs e )
+        private void OnCancel_Click(object sender, RoutedEventArgs e)
         {
         }
 
-        private void Refresh_Click( object sender, RoutedEventArgs e )
+        private void Refresh_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.Initialize( MainViewModel.Rootnode );
+            ViewModel.Initialize(MainViewModel.Rootnode);
         }
 
         #endregion
 
         #region Constructors
 
-        public PublishedDataSetView( OPCUAClientAdaptor opcuaClientAdaptor )
+        public PublishedDataSetView(OPCUAClientAdaptor opcuaClientAdaptor, Window owner)
         {
-            InitializeComponent( );
-            ViewModel = new PublishedDataSetMainViewModel( opcuaClientAdaptor );
+            InitializeComponent();
+            ViewModel = new PublishedDataSetMainViewModel(opcuaClientAdaptor);
             DataContext = ViewModel;
-
-            _publishedDataSetUserControl = new PublishedDataSetUserControl( );
-            _dataSetMetaDataUserControl = new DataSetMetaDataUserControl( );
-            _publishedDataItemUserControl = new PublishedDataItemUserControl( );
-            UpdateMenuandButtonVisibility( );
+            ViewModel.OwnerWindow = owner;
+            _publishedDataSetUserControl = new PublishedDataSetUserControl();
+            _dataSetMetaDataUserControl = new DataSetMetaDataUserControl();
+            _publishedDataItemUserControl = new PublishedDataItemUserControl();
+            UpdateMenuandButtonVisibility();
         }
 
         #endregion

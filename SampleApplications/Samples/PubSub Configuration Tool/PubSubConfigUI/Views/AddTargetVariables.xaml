@@ -107,6 +107,7 @@
             <ColumnDefinition Width="5" />
             <ColumnDefinition Width="70*" />
         </Grid.ColumnDefinitions>
+        
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="26" />
@@ -148,7 +149,7 @@
                 </TreeView.Style>
             </TreeView>
         </Grid>
-
+        
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
@@ -230,6 +231,5 @@
                         Click="OnCancel_Click" />
             </StackPanel>
         </Grid>
-
     </Grid>
 </Window>

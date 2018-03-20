@@ -5,10 +5,21 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
         mc:Ignorable="d"
-        Title="Add DataSet Writer Group" Height="570" Width="500" ResizeMode="NoResize">
+        Title="Add DataSet Writer Group" SizeToContent="WidthAndHeight" MinWidth="400">
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -33,14 +44,9 @@
             <TextBox x:Name="GroupNameTxt" Grid.Row="0" Text="{Binding GroupName}" Grid.Column="1" Margin="0,5"
                      Width="210" Height="23" />
 
-            <Label Grid.Row="1" Grid.Column="0" Content="Publishing Interval (mSec)" Width="180" />
-            <TextBox Text="{Binding PublishingInterval}" Grid.Row="1" Grid.Column="1" Margin="0,5" Width="210"
+            <Label Grid.Row="2" Grid.Column="0" Content="Publishing Interval (mSec)" Width="180" />
+            <TextBox Text="{Binding PublishingInterval}" Grid.Row="2" Grid.Column="1" Margin="0,5" Width="210"
                      Height="23" />
-
-            <Label Visibility="{Binding IsUADP}" Grid.Row="2" Grid.Column="0" Content="Publishing Offset (mSec)"
-                   Width="180" />
-            <TextBox Visibility="{Binding IsUADP}" Grid.Row="2" Text="{Binding PublishingOffset}" Grid.Column="1"
-                     Margin="0,5" Width="210" Height="23" />
 
             <Label Grid.Row="3" Grid.Column="0" Content="Keep Alive Time (mSec)" Width="180" />
             <TextBox Grid.Row="3" Text="{Binding KeepAliveTime}" Grid.Column="1" Margin="0,5" Width="210" Height="23" />
@@ -59,32 +65,86 @@
             <TextBox Visibility="{Binding IsUADP}" Grid.Row="6" Text="{Binding MaxNetworkMessageSize}" Grid.Column="1"
                      Margin="0,5" Width="210" Height="23" />
 
-
-            <Label Grid.Row="7" Grid.Column="0" Content="Message Security Mode" Width="180" />
-            <ComboBox Grid.Row="7" Grid.Column="1" SelectedIndex="{Binding MessageSecurityMode}" Margin="0,5"
-                      Width="210" Height="23">
+            <Label Grid.Row="7" Grid.Column="0" Content="Security Mode" Width="180" />
+            <ComboBox x:Name="MessageSecurity" Grid.Row="7" Grid.Column="1" SelectedIndex="{Binding MessageSecurityMode}" Margin="0,5"
+                      Width="210" Height="23" SelectionChanged="ComboBox_SelectionChanged">
                 <ComboBoxItem>Invalid</ComboBoxItem>
                 <ComboBoxItem>None</ComboBoxItem>
                 <ComboBoxItem>Sign</ComboBoxItem>
                 <ComboBoxItem>SignAndEncrypt</ComboBoxItem>
             </ComboBox>
 
-            <Label Visibility="{Binding IsUADP}" Grid.Row="8" Grid.Column="0" Content="Writer GroupId" Width="180" />
-            <TextBox Visibility="{Binding IsUADP}" Grid.Row="8" Text="{Binding WriterGroupId}" Grid.Column="1"
+            <Label Visibility="{Binding IsUADP}" Grid.Row="1" Grid.Column="0" Content="Writer GroupId" Width="180" />
+            <TextBox Visibility="{Binding IsUADP}" Grid.Row="1" PreviewTextInput="TextBox_PreviewTextInput" Text="{Binding WriterGroupId}" Grid.Column="1"
                      Margin="0,5" Width="210" Height="23" />
 
-            <Label Grid.Row="9" Visibility="{Binding IsAMQP}" Grid.Column="0" Content="Queue Name" Width="180" />
-            <TextBox Grid.Row="9" Visibility="{Binding IsAMQP}" Text="{Binding QueueName}" Grid.Column="1" Margin="0,5"
+            <Label Grid.Row="9" Visibility="{Binding IsBrokerTransport}" Grid.Column="0" Content="Queue Name" Width="180" />
+            <TextBox Grid.Row="9" Visibility="{Binding IsBrokerTransport}" Text="{Binding QueueName}" Grid.Column="1" Margin="0,5"
                      Width="210" Height="23" />
+            
+            <Label Grid.Row="11" Grid.Column="0" Content="Transport Settings" Width="180" />
+            <ComboBox x:Name="TransportSettings" IsEnabled="False" Grid.Row="11" SelectedIndex="{Binding TransportSetting}" SelectionChanged="TransportSettings_SelectionChanged" Grid.Column="1" Margin="0,5"
+                      Width="210" Height="23">
+                <ComboBoxItem>Datagram</ComboBoxItem>
+                <ComboBoxItem>Broker</ComboBoxItem>
+            </ComboBox>
 
-            <Label Grid.Row="10" Visibility="{Binding IsAMQP}" Grid.Column="0" Content="Encoding Mime Type" Width="180" />
-            <TextBox Grid.Row="10" Visibility="{Binding IsAMQP}" Text="{Binding EncodingMimeType}" Grid.Column="1"
+            <Label Grid.Row="14" Grid.Column="0" Content="Message Settings" Width="180" />
+            <ComboBox x:Name="MessageSettings" IsEnabled="False" Grid.Row="14" SelectionChanged="MessageSettings_SelectionChanged" Grid.Column="1" SelectedIndex="{Binding MessageSetting}" Margin="0,5"
+                      Width="210" Height="23">
+                <ComboBoxItem>Uadp</ComboBoxItem>
+                <ComboBoxItem>Json</ComboBoxItem>
+            </ComboBox>
+
+            <Label Grid.Row="12" Visibility="{Binding IsDatagramTransport}" Grid.Column="0" Content="Message Repeat Count" Width="180" />
+            <TextBox Grid.Row="12" Visibility="{Binding IsDatagramTransport}" Text="{Binding MessageRepeatCount}" Grid.Column="1"
                      Margin="0,5" Width="210" Height="23" />
 
-            <GroupBox x:Name="NetworkMessageGroupBox" Visibility="{Binding IsUADP}" Grid.Row="11" Grid.Column="0"
-                      Grid.ColumnSpan="3" Header="Network Message Content Mask" HorizontalAlignment="Left"
+            <Label Grid.Row="13" Visibility="{Binding IsDatagramTransport}" Grid.Column="0" Content="Message Repeat delay" Width="180" />
+            <TextBox Grid.Row="13" Visibility="{Binding IsDatagramTransport}" Text="{Binding MessageRepeatDelay}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="15" Visibility="{Binding IsDatagramMessage}" Grid.Column="0" Content="GroupVersion" Width="180" />
+            <TextBox Grid.Row="15" Visibility="{Binding IsDatagramMessage}" Text="{Binding GroupVersion}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="16" Visibility="{Binding IsDatagramMessage}" Grid.Column="0" Content="DataSetOrdering" Width="180" />
+            <ComboBox Grid.Row="16" Grid.Column="1" Visibility="{Binding IsDatagramMessage}" SelectedIndex="{Binding DataSetOrdering}" Margin="0,5"
+                      Width="210" Height="23">
+                <ComboBoxItem>Undefined</ComboBoxItem>
+                <ComboBoxItem>AscendingWriterId</ComboBoxItem>
+                <ComboBoxItem>AscendingWriterIdSingle</ComboBoxItem>
+            </ComboBox>
+            <Label Grid.Row="17" Visibility="{Binding IsDatagramMessage}" Grid.Column="0" Content="Sampling Offset" Width="180" />
+            <TextBox Grid.Row="17" Visibility="{Binding IsDatagramMessage}" PreviewTextInput="TextBox_PreviewTextInput" Text="{Binding SamplingOffset}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="18" Visibility="{Binding IsDatagramMessage}" Grid.Column="0" Content="Publishing Offset" Width="180" />
+            <TextBox Grid.Row="18" Visibility="{Binding IsDatagramMessage}" PreviewTextInput="TextBox_PreviewTextInput" Text="{Binding PublishingOffset}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="19" Visibility="{Binding IsBrokerTransport}" Grid.Column="0" Content="Resource Uri" Width="180" />
+            <TextBox Grid.Row="19" Visibility="{Binding IsBrokerTransport}"  Text="{Binding ResourceUri}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="20" Visibility="{Binding IsBrokerTransport}" Grid.Column="0" Content="Authentication Profile Uri" Width="180" />
+            <TextBox Grid.Row="20" Visibility="{Binding IsBrokerTransport}" Text="{Binding AuthenticationProfileUri}" Grid.Column="1"
+                     Margin="0,5" Width="210" Height="23" />
+
+            <Label Grid.Row="21" Visibility="{Binding IsBrokerTransport}" Grid.Column="0" Content="Requested Delivery Guarantee" Width="180" />
+            <ComboBox Grid.Row="21" Grid.Column="1" Visibility="{Binding IsBrokerTransport}" SelectedIndex="{Binding RequestedDeliveryGuarantee}" Margin="0,5"
+                      Width="210" Height="23">
+                <ComboBoxItem>NotSpecified</ComboBoxItem>
+                <ComboBoxItem>BestEffort</ComboBoxItem>
+                <ComboBoxItem>AtLeastOnce</ComboBoxItem>
+                <ComboBoxItem>AtMostOnce</ComboBoxItem>
+                <ComboBoxItem>ExactlyOnce</ComboBoxItem>
+            </ComboBox>
+
+            <GroupBox x:Name="NetworkMessageGroupBox" Visibility="{Binding IsDatagramMessage}" Grid.Row="22" Grid.Column="0"
+                      Grid.ColumnSpan="3" Header="Uadp Network Message Content Mask" HorizontalAlignment="Left"
                       VerticalAlignment="Top">
-                <Grid Width="430" Height="100" Margin="0,5">
+                <Grid  Height="100" Margin="0,5">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -92,7 +152,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="160" />
                         <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="150" />
                     </Grid.ColumnDefinitions>
@@ -107,7 +167,6 @@
                     <CheckBox x:Name="Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0" Content="Group Version"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
-
                     <CheckBox x:Name="Chk_box5" Grid.Row="0" Margin="0,5" Grid.Column="1"
                               Content="Network Message Number" HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
@@ -129,12 +188,46 @@
                     <CheckBox x:Name="Chk_box11" Content="Promoted Fields"  Margin="0,5" Grid.Row="2" Grid.Column="2"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top" />
-
                 </Grid>
 
             </GroupBox>
 
-            <StackPanel Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,7" Orientation="Horizontal"
+            <GroupBox Visibility="{Binding IsBrokerMessage}" Grid.Row="23" Grid.Column="0" Grid.ColumnSpan="3"
+                              Header="Json Network Message Content Mask" HorizontalAlignment="Left"
+                              VerticalAlignment="Top">
+                <Grid  Height="50" Margin="0,5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="150" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="Chk_box21" Content="Network Message Header" Margin="0,5" HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box22" Grid.Row="1" Margin="0,5" Grid.Column="0"
+                                      Content="DataSet Message Header" HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box23" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                                      Content="Single DataSet Message" HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box24" Grid.Row="1" Margin="0,5" Grid.Column="1"
+                                      Content="PublisherId" HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box25" Content="DataSetClassId" Margin="0,5" Grid.Row="0" Grid.Column="2"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                    <CheckBox x:Name="Chk_box26" Grid.Row="1" Margin="0,5" Grid.Column="2"
+                                      Content="ReplyTo" HorizontalAlignment="Left"
+                                      VerticalAlignment="Top" />
+                </Grid>
+            </GroupBox>
+
+            <StackPanel Grid.Row="24" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,7" Orientation="Horizontal"
                         VerticalAlignment="Bottom" HorizontalAlignment="Center">
                 <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="AddApplyClick" />
                 <Button Width="100" Margin="5,0" Content="Cancel" Height="23" VerticalAlignment="Center"

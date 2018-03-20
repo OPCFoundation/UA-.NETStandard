@@ -26,7 +26,7 @@ namespace PubSubBase.Definitions
 
         private string m_groupName;
         private string m_securityGroupId;
-        private int m_maxNetworkMessageSize = 1500;
+        private uint m_maxNetworkMessageSize = 1500;
         private int m_securityMode;
         private string m_queueName;
         private NodeId m_groupId;
@@ -70,7 +70,7 @@ namespace PubSubBase.Definitions
         /// <summary>
         /// defines maximum network message size
         /// </summary>
-        public int MaxNetworkMessageSize
+        public uint MaxNetworkMessageSize
         {
             get
             {

@@ -21,6 +21,7 @@ Historizing,20
 Executable,21
 UserExecutable,22
 DataTypeDefinition,23
-Permissions,24
-UserPermissions,25
-RolePermissions,26
+RolePermissions,24
+UserRolePermissions,25
+AccessRestrictions,26
+AccessLevelEx,27

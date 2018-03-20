@@ -13,65 +13,96 @@ namespace PubSubConfigurationUI.Views
     {
         #region Private Member 
 
-        private readonly Dictionary< string, int > _dicControlBitPositionmappping = new Dictionary< string, int >( );
+        private readonly Dictionary<string, int> _dicControlBitPositionmappping = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _uadpdicControlBitPositionmappping = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _jsondicControlBitPositionmappping = new Dictionary<string, int>();
 
         #endregion
 
         #region Private Methods
 
-        private void OnCanecelClick( object sender, RoutedEventArgs e )
+        private void OnCanecelClick(object sender, RoutedEventArgs e)
         {
             _isApplied = false;
-            Close( );
+            Close();
         }
 
-        private void OnApplyClick( object sender, RoutedEventArgs e )
+        private void OnApplyClick(object sender, RoutedEventArgs e)
         {
-            if ( string.IsNullOrWhiteSpace( DataSetWriterNameTxt.Text ) )
+            if (string.IsNullOrWhiteSpace(DataSetWriterNameTxt.Text))
             {
-                MessageBox.Show( "DataSet Writer Name cannot be empty.", "Add DataSet Writer" );
+                MessageBox.Show("DataSet Writer Name cannot be empty.", "Add DataSet Writer");
                 return;
             }
-            foreach ( var checkbox in new[ ]
+            foreach (var checkbox in new[]
                                       {
-                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6, Chk_box7,
-                                          Chk_box8, Chk_box9, Chk_box10, Chk_box11, Chk_box12
-                                      } )
+                                          Chk_box1, Chk_box2, Chk_box3, Chk_box4, Chk_box5, Chk_box6
+                                      })
             {
-                var shiftNumber = 1;
-                if ( checkbox.IsChecked == true )
+                if (checkbox.IsChecked == true)
                 {
-                    var bitposition = _dicControlBitPositionmappping[ checkbox.Name ];
-                    shiftNumber = 1 << bitposition;
-                    _dataSetContentMask = _dataSetContentMask | shiftNumber;
+                    var enumvalue = _dicControlBitPositionmappping[checkbox.Name];
+                    _dataSetContentMask = _dataSetContentMask | enumvalue;
+
                 }
             }
-
+            if (_dataSetWriterViewModel.MessageSetting == 0)
+            {
+                foreach (var checkbox in new[]
+                                     {
+                                          UadpChk_box1, UadpChk_box2, UadpChk_box3, UadpChk_box4, UadpChk_box5, UadpChk_box6
+                                      })
+                {
+                    if (checkbox.IsChecked == true)
+                    {
+                        var enumvalue = _uadpdicControlBitPositionmappping[checkbox.Name];
+                        _uadpdataSetMessageContentMask = _uadpdataSetMessageContentMask | enumvalue;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var checkbox in new[]
+                                     {
+                                          JsonChk_box1, JsonChk_box2, JsonChk_box3, JsonChk_box4, JsonChk_box5
+                                      })
+                {
+                    if (checkbox.IsChecked == true)
+                    {
+                        var enumvalue = _jsondicControlBitPositionmappping[checkbox.Name];
+                        _jsondataSetMessageContentMask = _jsondataSetMessageContentMask | enumvalue;
+                    }
+                }
+            }
+            _dataSetWriterViewModel.DataSetContentMask = _dataSetContentMask;
+            _dataSetWriterViewModel.UadpDataSetMessageContentMask = _uadpdataSetMessageContentMask;
+            _dataSetWriterViewModel.JsonDataSetMessageContentMask = _jsondataSetMessageContentMask;
             _isApplied = true;
 
-            Close( );
+            Close();
         }
 
-        private void OnGetPublisherId( object sender, RoutedEventArgs e )
+        private void OnGetPublisherId(object sender, RoutedEventArgs e)
         {
-            var getPublisherIdDialog = new GetPublisherIdDialog( );
+            var getPublisherIdDialog = new GetPublisherIdDialog();
             getPublisherIdDialog.Closing += _GetPublisherIdDialog_Closing;
             getPublisherIdDialog.ShowInTaskbar = false;
-            getPublisherIdDialog.ShowDialog( );
+            getPublisherIdDialog.ShowDialog();
         }
 
-        private void _GetPublisherIdDialog_Closing( object sender, CancelEventArgs e )
+        private void _GetPublisherIdDialog_Closing(object sender, CancelEventArgs e)
         {
             var getPublisherIdDialog = sender as GetPublisherIdDialog;
-            if ( getPublisherIdDialog != null && getPublisherIdDialog._isApplied )
+            if (getPublisherIdDialog != null && getPublisherIdDialog._isApplied)
             {
                 var publishedDataSetDefinition =
                 getPublisherIdDialog.PublisherDataGrid.SelectedItem as PublishedDataSetDefinition;
-                if ( publishedDataSetDefinition != null )
+                if (publishedDataSetDefinition != null)
                 {
                     _dataSetWriterViewModel.PublisherDataSetId =
-                    publishedDataSetDefinition.PublishedDataSetNodeId.ToString( );
+                    publishedDataSetDefinition.PublishedDataSetNodeId.ToString();
                     _dataSetWriterViewModel.PublisherDataSetNodeId = publishedDataSetDefinition.PublishedDataSetNodeId;
+                    _dataSetWriterViewModel.DataSetName = publishedDataSetDefinition.Name;
                 }
             }
         }
@@ -80,22 +111,31 @@ namespace PubSubConfigurationUI.Views
 
         #region Constructors
 
-        public AddDataSetWriter( )
+        public AddDataSetWriter()
         {
-            InitializeComponent( );
-            DataContext = _dataSetWriterViewModel = new DataSetWriterViewModel( );
-            _dicControlBitPositionmappping[ "Chk_box1" ] = 0;
-            _dicControlBitPositionmappping[ "Chk_box2" ] = 1;
-            _dicControlBitPositionmappping[ "Chk_box3" ] = 2;
-            _dicControlBitPositionmappping[ "Chk_box4" ] = 3;
-            _dicControlBitPositionmappping[ "Chk_box5" ] = 4;
-            _dicControlBitPositionmappping[ "Chk_box6" ] = 5;
-            _dicControlBitPositionmappping[ "Chk_box7" ] = 16;
-            _dicControlBitPositionmappping[ "Chk_box8" ] = 17;
-            _dicControlBitPositionmappping[ "Chk_box9" ] = 18;
-            _dicControlBitPositionmappping[ "Chk_box10" ] = 19;
-            _dicControlBitPositionmappping[ "Chk_box11" ] = 20;
-            _dicControlBitPositionmappping[ "Chk_box12" ] = 21;
+            DataContext = _dataSetWriterViewModel = new DataSetWriterViewModel();
+            InitializeComponent();
+
+            _dicControlBitPositionmappping["Chk_box1"] = 1;
+            _dicControlBitPositionmappping["Chk_box2"] = 2;
+            _dicControlBitPositionmappping["Chk_box3"] = 4;
+            _dicControlBitPositionmappping["Chk_box4"] = 8;
+            _dicControlBitPositionmappping["Chk_box5"] = 16;
+            _dicControlBitPositionmappping["Chk_box6"] = 32;
+
+            _uadpdicControlBitPositionmappping["UadpChk_box1"] = 1;
+            _uadpdicControlBitPositionmappping["UadpChk_box2"] = 2;
+            _uadpdicControlBitPositionmappping["UadpChk_box3"] = 4;
+            _uadpdicControlBitPositionmappping["UadpChk_box4"] = 8;
+            _uadpdicControlBitPositionmappping["UadpChk_box5"] = 16;
+            _uadpdicControlBitPositionmappping["UadpChk_box6"] = 32;
+
+            _jsondicControlBitPositionmappping["JsonChk_box1"] = 1;
+            _jsondicControlBitPositionmappping["JsonChk_box2"] = 2;
+            _jsondicControlBitPositionmappping["JsonChk_box3"] = 4;
+            _jsondicControlBitPositionmappping["JsonChk_box4"] = 8;
+            _jsondicControlBitPositionmappping["JsonChk_box5"] = 16;
+
         }
 
         #endregion
@@ -103,5 +143,41 @@ namespace PubSubConfigurationUI.Views
         public DataSetWriterViewModel _dataSetWriterViewModel;
         public bool _isApplied;
         public int _dataSetContentMask;
+        public int _uadpdataSetMessageContentMask;
+        public int _jsondataSetMessageContentMask;
+
+        private void MessageSelect_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (MessageSelect.SelectedIndex == 0)
+            {
+                _dataSetWriterViewModel.MessageSetting = 0;
+                _dataSetWriterViewModel.IsDatagramMessage = Visibility.Visible;
+                _dataSetWriterViewModel.IsBrokerMessage = Visibility.Collapsed;
+            }
+            else
+            {
+                _dataSetWriterViewModel.MessageSetting = 1;
+                _dataSetWriterViewModel.IsDatagramMessage = Visibility.Collapsed;
+                _dataSetWriterViewModel.IsBrokerMessage = Visibility.Visible;
+            }
+        }
+
+        private void TransportSelect_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+
+            if (TransportSelect.SelectedIndex == 0)
+            {
+                _dataSetWriterViewModel.TransportSetting = 0;
+                _dataSetWriterViewModel.IsBrokerTransport = Visibility.Collapsed;
+                _dataSetWriterViewModel.IsDatagramTransport = Visibility.Visible;
+            }
+            else
+            {
+                _dataSetWriterViewModel.TransportSetting = 1;
+                _dataSetWriterViewModel.IsBrokerTransport = Visibility.Visible;
+                _dataSetWriterViewModel.IsDatagramTransport = Visibility.Collapsed;
+            }
+
+        }
     }
 }

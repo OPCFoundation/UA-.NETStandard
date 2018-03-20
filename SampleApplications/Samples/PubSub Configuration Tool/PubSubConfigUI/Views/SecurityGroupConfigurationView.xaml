@@ -159,10 +159,10 @@
                         <StackPanel Margin="5,7">
                             <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
                                 <Button Width="100" Content="Update" Height="22" Visibility="{Binding IsUpdateVisible}"
-                                        VerticalAlignment="Center" Click="Update_Click" />
+                                        VerticalAlignment="Center" Click="Update_Click" IsEnabled="False" />
                                 <Button Width="100" Margin="5,5" Content="Cancel"
                                         Visibility="{Binding IsCancelVisible}" VerticalAlignment="Center"
-                                        Click="Cancel_Click" />
+                                        Click="Cancel_Click" IsEnabled="False" />
                             </StackPanel>
                             <StackPanel Margin="0,8" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                         Orientation="Horizontal">

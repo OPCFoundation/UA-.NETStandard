@@ -28,22 +28,93 @@ namespace PubSubConfigurationUI.ViewModels
 
         private string m_encodingMimeType = string.Empty;
         private string m_groupName;
-        private Visibility m_isAMQP = Visibility.Collapsed;
-        private Visibility m_isUADP = Visibility.Visible;
         private int m_keepAliveTime;
-        private int m_maxNetworkMessageSize = 1500;
+        private uint m_maxNetworkMessageSize = 1500;
         private int m_messageSecurityMode = 1;
-        private int m_priority;
+        private byte m_priority;
         private int m_publishingInterval;
         private int m_publishingOffset;
+        private int m_samplingOffset;
         private string m_queueName = string.Empty;
-        private string m_securityGroupId;
+        private string m_securityGroupId = "0";
         private int m_writerGroupId;
+        private byte m_messageRepeatCount;
+        private double m_messsageRepeatDelay;
+        private string m_resourceUri;
+        private string m_authenticationProfileUri;
+        private int m_requestedDeliveryGuarantee;
+        private int m_transportSetting;
+        private int m_messgaeSetting;
+        private int m_dataSetOrdering = 0;
+        private uint m_groupVersion;
+        private int m_networkMessageContentMask;
+        private int m_jsonNetworkMessageContentMask;
+
+        private Visibility m_isDatagramTransport = Visibility.Visible;
+        private Visibility m_isBrokerTransport = Visibility.Collapsed;
+        private Visibility m_isDatagramMessage = Visibility.Visible;
+        private Visibility m_isBrokerMessage = Visibility.Collapsed;
 
         #endregion
 
         #region Public Properties
 
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int UadpNetworkMessageContentMask
+        {
+            get { return m_networkMessageContentMask; }
+            set
+            {
+                m_networkMessageContentMask = value;
+                OnPropertyChanged("NetworkMessageContentMask");
+            }
+        }
+
+        /// <summary>
+        /// defines network message content mask
+        /// </summary>
+        public int JsonNetworkMessageContentMask
+        {
+            get { return m_jsonNetworkMessageContentMask; }
+            set
+            {
+                m_jsonNetworkMessageContentMask = value;
+                OnPropertyChanged("JsonNetworkMessageContentMask");
+            }
+        }
+
+        public int DataSetOrdering
+        {
+            get { return m_dataSetOrdering; }
+            set { m_dataSetOrdering = value; OnPropertyChanged("DataSetOrdering"); }
+        }
+
+        public int TransportSetting
+        {
+            get { return m_transportSetting; }
+            set { m_transportSetting = value; OnPropertyChanged("TransportSetting"); }
+        }
+
+        public int MessageSetting
+        {
+            get { return m_messgaeSetting; }
+            set { m_messgaeSetting = value; OnPropertyChanged("MessageSetting"); }
+        }
+
+        public uint GroupVersion
+        {
+            get
+            {
+                return m_groupVersion;
+            }
+            set
+            {
+                m_groupVersion = value;
+                OnPropertyChanged("GroupVersion");
+            }
+        }
         /// <summary>
         /// defines group name
         /// </summary>
@@ -53,7 +124,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_groupName = value;
-                OnPropertyChanged( "GroupName" );
+                OnPropertyChanged("GroupName");
             }
         }
 
@@ -66,7 +137,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_publishingInterval = value;
-                OnPropertyChanged( "PublishingInterval" );
+                OnPropertyChanged("PublishingInterval");
             }
         }
 
@@ -79,7 +150,17 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_publishingOffset = value;
-                OnPropertyChanged( "PublishingOffset" );
+                OnPropertyChanged("PublishingOffset");
+            }
+        }
+
+        public int SamplingOffset
+        {
+            get { return m_samplingOffset; }
+            set
+            {
+                m_samplingOffset = value;
+                OnPropertyChanged("SamplingOffset");
             }
         }
 
@@ -92,20 +173,20 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_keepAliveTime = value;
-                OnPropertyChanged( "KeepAliveTime" );
+                OnPropertyChanged("KeepAliveTime");
             }
         }
 
         /// <summary>
         /// defines priority
         /// </summary>
-        public int Priority
+        public byte Priority
         {
             get { return m_priority; }
             set
             {
                 m_priority = value;
-                OnPropertyChanged( "Priority" );
+                OnPropertyChanged("Priority");
             }
         }
 
@@ -118,7 +199,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_securityGroupId = value;
-                OnPropertyChanged( "SecurityGroupId" );
+                OnPropertyChanged("SecurityGroupId");
             }
         }
 
@@ -131,7 +212,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_queueName = value;
-                OnPropertyChanged( "QueueName" );
+                OnPropertyChanged("QueueName");
             }
         }
 
@@ -144,20 +225,20 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_encodingMimeType = value;
-                OnPropertyChanged( "EncodingMimeType" );
+                OnPropertyChanged("EncodingMimeType");
             }
         }
 
         /// <summary>
         /// defines maximum network message size
         /// </summary>
-        public int MaxNetworkMessageSize
+        public uint MaxNetworkMessageSize
         {
             get { return m_maxNetworkMessageSize; }
             set
             {
                 m_maxNetworkMessageSize = value;
-                OnPropertyChanged( "MaxNetworkMessageSize" );
+                OnPropertyChanged("MaxNetworkMessageSize");
             }
         }
 
@@ -170,7 +251,7 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_writerGroupId = value;
-                OnPropertyChanged( "WriterGroupId" );
+                OnPropertyChanged("WriterGroupId");
             }
         }
 
@@ -183,34 +264,89 @@ namespace PubSubConfigurationUI.ViewModels
             set
             {
                 m_messageSecurityMode = value;
-                OnPropertyChanged( "MessageSecurityMode" );
+                OnPropertyChanged("MessageSecurityMode");
             }
         }
 
-        /// <summary>
-        /// defines visibility for context menu
-        /// </summary>
-        public Visibility IsUADP
+        public Visibility IsDatagramTransport
         {
-            get { return m_isUADP; }
+            get
+            {
+                return m_isDatagramTransport;
+            }
             set
             {
-                m_isUADP = value;
-                OnPropertyChanged( "IsUADP" );
+                m_isDatagramTransport = value;
+                OnPropertyChanged("IsDatagramTransport");
             }
         }
 
-        /// <summary>
-        /// defines visibility for context menu
-        /// </summary>
-        public Visibility IsAMQP
+        public Visibility IsBrokerTransport
         {
-            get { return m_isAMQP; }
+            get
+            {
+                return m_isBrokerTransport;
+            }
             set
             {
-                m_isAMQP = value;
-                OnPropertyChanged( "IsAMQP" );
+                m_isBrokerTransport = value;
+                OnPropertyChanged("IsBrokerTransport");
             }
+        }
+        
+        public Visibility IsDatagramMessage
+        {
+            get
+            {
+                return m_isDatagramMessage;
+            }
+            set
+            {
+                m_isDatagramMessage = value;
+                OnPropertyChanged("IsDatagramMessage");
+            }
+        }
+
+        public Visibility IsBrokerMessage
+        {
+            get
+            {
+                return m_isBrokerMessage;
+            }
+            set
+            {
+                m_isBrokerMessage = value;
+                OnPropertyChanged("IsBrokerMessage");
+            }
+        }
+
+        public byte MessageRepeatCount
+        {
+            get { return m_messageRepeatCount; }
+            set { m_messageRepeatCount = value; OnPropertyChanged("MessageRepeatCount"); }
+        }
+
+        public double MessageRepeatDelay
+        {
+            get { return m_messsageRepeatDelay; }
+            set { m_messsageRepeatDelay = value; OnPropertyChanged("MessageRepeatDelay"); }
+        }
+        public string ResourceUri
+        {
+            get { return m_resourceUri; }
+            set { m_resourceUri = value; OnPropertyChanged("ResourceUri"); }
+        }
+
+        public string AuthenticationProfileUri
+        {
+            get { return m_authenticationProfileUri; }
+            set { m_authenticationProfileUri = value; OnPropertyChanged("AuthenticationProfileUri"); }
+        }
+
+        public int RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee; }
+            set { m_requestedDeliveryGuarantee = value; OnPropertyChanged("RequestedDeliveryGuarantee"); }
         }
 
         #endregion

@@ -103,7 +103,7 @@
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="100" />
+            <RowDefinition Height="70" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -115,7 +115,7 @@
 
             <CheckBox Margin="5,0" x:Name="RemoteConnection" Content="Use Remote Server connection" Width="Auto"
                       Height="23" Checked="RemoteConnectionChecked" Unchecked="RemoteConnectionUnChecked" />
-            <Grid x:Name="ConnectionPanel" Grid.Row="1">
+            <Grid x:Name="ConnectionPanel" Grid.Row="1" Height="30">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="110" />
@@ -144,6 +144,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Label Content="Choose DataSet Writer" FontWeight="ExtraBold" />
+
             <Border Grid.Row="1">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <TreeView x:Name="PubSubTreeView" Margin="0,5,0,0" ItemsSource="{Binding PubSubCollectionItems}"
@@ -171,6 +172,7 @@
                 </ScrollViewer>
 
             </Border>
+
             <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Hidden">
 
@@ -181,7 +183,28 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -196,37 +219,127 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <Label Grid.Row="1" Grid.Column="0" Content="Data Set Reader Name" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="DataSetReaderName" Grid.Row="1" Grid.Column="3" Margin="5,5,5,5" Width="200"
+                        <Label x:Name="DataSetReaderNamelbl" Grid.Row="1" Grid.Column="0" Content="Data Set Reader Name *" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="DataSetReaderName" Text="{Binding DataSetReaderName}" Grid.Row="1" Grid.Column="3" Margin="5,5,5,5" Width="210"
                                  Height="23" />
 
-                        <Label Grid.Row="2" Grid.Column="0" Content="Message Receive Timeout (mSec)"
+                        <Label x:Name="MessageReceiveTimeoutlbl" Grid.Row="2" Grid.Column="0" Content="Message Receive Timeout (mSec) *"
                                Grid.ColumnSpan="3" />
-                        <TextBox x:Name="MessageReceiveTimeout" Text="0" Grid.Row="2" Grid.Column="3"
-                                 Margin="5,5,5,5" Width="200" Height="23" />
+                        <TextBox x:Name="MessageReceiveTimeout"  Grid.Row="2" Text="1000" Grid.Column="3"
+                                 Margin="5,5,5,5" Width="210" PreviewTextInput="Receiveoffset_PreviewTextInput" Height="23" />
 
-
-                        <Label Grid.Row="3" Grid.Column="0" Content="Data Set Writer Id" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="DataSetWriterId" Grid.Row="3" Grid.Column="3" Margin="5,5,5,5" Width="200"
+                        <Label x:Name="DataSetWriterIdlbl" Grid.Row="3" Grid.Column="0" Content="Data Set Writer Id" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="DataSetWriterId" Grid.Row="3" Grid.Column="3" Margin="5,5,5,5" Width="210"
                                  Height="23" />
 
-                        <Label Grid.Row="4" Grid.Column="0" Content="Publisher Id" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="PublisherId" Grid.Row="4" Grid.Column="3" Width="200" Margin="5,5,5,5"
+                        <!--<Label x:Name="PublisherDataTypelbl" Grid.Row="4" Grid.Column="0" Content="Publisher DataType" Grid.ColumnSpan="3" />
+                        <ComboBox x:Name="PublisherDataType" IsEnabled="False" SelectedIndex="0" Grid.Row="4" Grid.Column="3" Margin="0,5" Width="210"
+                  Height="23">
+                            <ComboBoxItem>String</ComboBoxItem>
+                            <ComboBoxItem>Byte</ComboBoxItem>
+                            <ComboBoxItem>UInt16</ComboBoxItem>
+                            <ComboBoxItem>UInt32</ComboBoxItem>
+                            <ComboBoxItem>UInt64</ComboBoxItem>
+                            <ComboBoxItem>Guid</ComboBoxItem>
+                        </ComboBox>-->
+                        <Label x:Name="PublisherIdlbl" Grid.Row="5" Grid.Column="0" Content="Publisher Id" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="PublisherId" Text="{Binding PublisherId}" IsEnabled="False" Grid.Row="5" Grid.Column="3" Width="210" Margin="5,5,5,5"
                                  Height="23" />
 
 
-                        <Label Grid.Row="5" Grid.Column="0" Content="Publishing Interval (mSec)" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="PublishingIterval" Text="0" Grid.Row="5" Grid.Column="3" Margin="5,5,5,5"
-                                 Width="200" Height="23" />
+                        <Label x:Name="PublishingItervallbl" Grid.Row="24" Grid.Column="0" Content="Publishing Interval (mSec)" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="PublishingIterval"  Grid.Row="24" Grid.Column="3" Margin="5,5,5,5"
+                                 Width="210" Height="23" />
 
                         <Label Grid.Row="6" Grid.Column="0" Content="View DataSetMetaData" Grid.ColumnSpan="3" />
                         <Button Content="..." Height="23" Width="30" HorizontalAlignment="Left" Margin="5,0"
                                 Grid.Row="6" Grid.Column="3" Click="ViewDataSetMeta_Click" />
 
-                        <GroupBox Margin="0,5,0,0" Grid.Row="7" Grid.ColumnSpan="4" Header="Data Set Content Mask"
+                        <Label x:Name="WriterGroupIdlbl" Grid.Row="7" Grid.Column="0" Content="Writer GroupId" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="WriterGroupId"  Grid.Row="7" Grid.Column="3" Margin="5,5,5,5"
+                                 Width="210" Height="23" />
+
+                        <Label x:Name="MessageSecurityModelbl" Grid.Row="8" Grid.Column="0" Content="Security Mode" Grid.ColumnSpan="3" />
+                        <ComboBox x:Name="MessageSecurityMode" SelectedIndex="0" Grid.Row="8" Grid.Column="3" Margin="0,5" Width="210"
+                  Height="23">
+                            <ComboBoxItem>Invalid</ComboBoxItem>
+                            <ComboBoxItem>None</ComboBoxItem>
+                            <ComboBoxItem>Sign</ComboBoxItem>
+                            <ComboBoxItem>SignAndEncrypt</ComboBoxItem>
+                        </ComboBox>
+
+                        <Label x:Name="SecurityGroupIdlbl" Grid.Row="9" Grid.Column="0" Content="Security Group Id" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="SecurityGroupId"  Grid.Row="9" Grid.Column="3" Margin="5,5,5,5"
+                                 Width="210" Height="23" />
+
+                        <Label x:Name="TransportSelectlbl" Grid.Row="10" Grid.Column="0" Content="Transport Settings" Grid.ColumnSpan="3" />
+                        <ComboBox x:Name="TransportSelect" IsEnabled="False" Grid.Row="10" SelectedIndex="0" SelectionChanged="TransportSelect_SelectionChanged" Grid.Column="3"
+                                  Margin="0,5" Width="210" Height="23">
+                            <ComboBoxItem>Datagram</ComboBoxItem>
+                            <ComboBoxItem>Broker</ComboBoxItem>
+                        </ComboBox>
+
+                        <Label x:Name="MessageSelectlbl" Grid.Row="11" Grid.Column="0" Content="Message Settings"  Grid.ColumnSpan="3" />
+                        <ComboBox x:Name="MessageSelect" IsEnabled="False" Grid.Row="11" SelectedIndex="0" SelectionChanged="MessageSelect_SelectionChanged" Grid.Column="3"
+                                  Margin="0,5" Width="210" Height="23">
+                            <ComboBoxItem>Uadp</ComboBoxItem>
+                            <ComboBoxItem>Json</ComboBoxItem>
+                        </ComboBox>
+
+                        <Label x:Name="Queuenamelbl" Grid.Row="12" Visibility="Collapsed"  Grid.ColumnSpan="3" Grid.Column="0" Content="Queue Name" />
+                        <TextBox x:Name="Queuename" Grid.Row="12" Visibility="Collapsed" Text="{Binding QueueName}" Grid.Column="3" Margin="0,5"
+                     Width="210" Height="23" />
+
+                        <Label x:Name="MetadataQueuenamelbl" Grid.Row="13" Visibility="Collapsed" Grid.Column="0" Grid.ColumnSpan="3" Content="Metadata QueueName" />
+                        <TextBox  x:Name="MetadataQueuename"  Visibility="Collapsed" Text="{Binding MetadataQueueName}" Grid.Row="13" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="Resourceurilbl" Grid.Row="14" Visibility="Collapsed" Grid.Column="0" Grid.ColumnSpan="3" Content="Resource Uri"  />
+                        <TextBox  x:Name="Resourceuri" Grid.Row="14" Visibility="Collapsed" Text="{Binding ResourceUri}" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="Authenticationprofileurilbl" Grid.Row="15" Visibility="Collapsed" Grid.Column="0" Grid.ColumnSpan="3" Content="Authentication Profile Uri"  />
+                        <TextBox x:Name="Authenticationprofileuri" Grid.Row="15" Visibility="Collapsed" Text="{Binding AuthenticationProfileUri}" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="Requesteddeliveryguaranteelbl" Grid.Row="16" Visibility="Collapsed" Grid.Column="0" Grid.ColumnSpan="3" Content="Requested Delivery Guarantee"  />
+                        <ComboBox x:Name="Requesteddeliveryguarantee" Grid.Row="16" Grid.Column="3" Visibility="Collapsed" SelectedIndex="{Binding RequestedDeliveryGuarantee}" Margin="0,5"
+                      Width="210" Height="23">
+                            <ComboBoxItem>NotSpecified</ComboBoxItem>
+                            <ComboBoxItem>BestEffort</ComboBoxItem>
+                            <ComboBoxItem>AtLeastOnce</ComboBoxItem>
+                            <ComboBoxItem>AtMostOnce</ComboBoxItem>
+                            <ComboBoxItem>ExactlyOnce</ComboBoxItem>
+                        </ComboBox>
+
+                        <Label x:Name="Networkmessagenumberlbl" Grid.Row="19" Visibility="Collapsed" Grid.Column="0" Content="Network Message Number" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="19" x:Name="Networkmessagenumber" Visibility="Collapsed" PreviewTextInput="Receiveoffset_PreviewTextInput" Text="{Binding NetworkMessageNumber}" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="Groupversionlbl" Grid.Row="20" Visibility="Collapsed" Grid.Column="0" Content="Group Version" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="20" x:Name="Groupversion" Visibility="Collapsed" PreviewTextInput="Receiveoffset_PreviewTextInput" Text="{Binding GroupVersion}" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="datasetoffsetlbl" Grid.Row="21" Visibility="Collapsed" Grid.Column="0" Content="DataSet Offset *" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="21" x:Name="datasetoffset" Visibility="Collapsed" PreviewTextInput="Receiveoffset_PreviewTextInput" Text="{Binding DataSetOffset}" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <!--<Label x:Name="DatasetclassIdlbl" Grid.Row="22" Visibility="Collapsed" Grid.Column="0" Content="DataSet ClassId" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="22" x:Name="DatasetclassId" IsEnabled="False" Visibility="Collapsed"  Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />-->
+
+                        <Label x:Name="Receiveoffsetlbl" Grid.Row="23" Visibility="Collapsed" Grid.Column="0" Content="Receive Offset *" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="23" x:Name="Receiveoffset" PreviewTextInput="Receiveoffset_PreviewTextInput" Visibility="Collapsed" Text="0" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <Label x:Name="Processingoffsetlbl" Grid.Row="18" Visibility="Collapsed" Grid.Column="0" Content="Processing Offset *" Grid.ColumnSpan="3" />
+                        <TextBox Grid.Row="18" x:Name="Processingoffset" PreviewTextInput="Receiveoffset_PreviewTextInput" Visibility="Collapsed" Text="0" Grid.Column="3"
+                     Margin="0,5" Width="210" Height="23" />
+
+                        <GroupBox Margin="0,5,0,0" Grid.Row="29"  Grid.ColumnSpan="4" Header="Data Set Field Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
-                            <Grid Width="460" Height="100" Margin="0,5">
+                            <Grid Width="460" Height="50" Margin="0,5">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -238,45 +351,95 @@
                                     <ColumnDefinition Width="160" />
                                     <ColumnDefinition Width="160" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="Chk_box1" Content="Field Status Code" Margin="0,5" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box1" Content="Status Code" Margin="0,5" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
-                                          Content="Field Source TimeStamp" HorizontalAlignment="Left"
+                                          Content="Source TimeStamp" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box3" Grid.Row="2" Margin="0,5" Grid.Column="0"
-                                          Content="Field Server TimeStamp" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box3" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                                          Content="Server TimeStamp" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0"
-                                          Content="Field Source PicoSeconds" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box4" Grid.Row="1" Margin="0,5" Grid.Column="1"
+                                          Content="Source PicoSeconds" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box5" Content="Field Server PicoSeconds" Margin="0,5" Grid.Row="0"
-                                          Grid.Column="1" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box5" Content="Server PicoSeconds" Margin="0,5" Grid.Row="0"
+                                          Grid.Column="2" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="1"
-                                          Content="Field Raw Data Encoding" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box7" Grid.Row="2" Margin="0,5" Grid.Column="1"
-                                          Content="Header TimeStamp" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box8" Grid.Row="3" Margin="0,5" Grid.Column="1"
-                                          Content="Header PicoSeconds" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box9" Grid.Row="0" Margin="0,5" Grid.Column="2"
-                                          Content="Header Status" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box10" Grid.Row="1" Margin="0,5" Grid.Column="2"
-                                          Content="Header Major Version" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box11" Grid.Row="2" Margin="0,5" Grid.Column="2"
-                                          Content="Header Minor Version" HorizontalAlignment="Left"
-                                          VerticalAlignment="Top" />
-                                <CheckBox x:Name="Chk_box12" Grid.Row="3" Margin="0,5" Grid.Column="2"
-                                          Content="Sequence Number" HorizontalAlignment="Left"
+                                <CheckBox x:Name="Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="2"
+                                          Content="Raw Data" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                             </Grid>
                         </GroupBox>
-                        <GroupBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="4"
-                                  Header="Network Message Content Mask" HorizontalAlignment="Left"
+
+                        <GroupBox x:Name="UadpDatasetMask" Margin="0,5,0,0" Grid.Row="25" Visibility="Collapsed"  Grid.ColumnSpan="4" Header="Uadp DataSet Message Content Mask"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Top">
+                            <Grid Width="460" Height="50" Margin="0,5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="UDChk_box1" Content="Time Stamp" Margin="0,5" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="UDChk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
+                                          Content="PicoSeconds" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="UDChk_box3" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                                          Content="Status" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="UDChk_box4" Grid.Row="1" Margin="0,5" Grid.Column="1"
+                                          Content="MajorVersion" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="UDChk_box5" Content="MinorVersion" Margin="0,5" Grid.Row="0"
+                                          Grid.Column="2" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="UDChk_box6" Grid.Row="1" Margin="0,5" Grid.Column="2"
+                                          Content="SequenceNumber" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox x:Name="JsonDatasetMask" Margin="0,5,0,0" Grid.Row="26" Grid.ColumnSpan="4" Visibility="Collapsed"  Header="Json DataSet Message Content Mask"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Top">
+                            <Grid Width="460" Height="50" Margin="0,5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="JNChk_box1" Content="DataSetWriterId" Margin="0,5" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JNChk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
+                                          Content="MetaDataVersion" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JNChk_box3" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                                          Content="SequenceNumber" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JNChk_box4" Grid.Row="1" Margin="0,5" Grid.Column="1"
+                                          Content="Timestamp" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JNChk_box5" Content="Status" Margin="0,5" Grid.Row="0"
+                                          Grid.Column="2" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox x:Name="UadpNetworkmask" Grid.Row="27" Grid.Column="0" Grid.ColumnSpan="4"
+                                  Header="Uadp Network Message Content Mask" Visibility="Collapsed" HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="100" Margin="0,5">
                                 <Grid.RowDefinitions>
@@ -296,12 +459,11 @@
                                           Content="Group Header" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="NM_Chk_box3" Grid.Row="2" Margin="0,5" Grid.Column="0"
-                                          Content="Group Id" HorizontalAlignment="Left"
+                                          Content="Writer Group Id" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
                                 <CheckBox x:Name="NM_Chk_box4" Grid.Row="3" Margin="0,5" Grid.Column="0"
                                           Content="Group Version" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
-
                                 <CheckBox x:Name="NM_Chk_box5" Grid.Row="0" Margin="0,5" Grid.Column="1"
                                           Content="Network Message Number" HorizontalAlignment="Left"
                                           VerticalAlignment="Top" />
@@ -327,10 +489,47 @@
 
                         </GroupBox>
 
+                        <GroupBox x:Name="JsonNetworkMessage" Grid.Row="28" Grid.Column="0" Grid.ColumnSpan="4"
+                                  Header="Json Network Message Content Mask" Visibility="Collapsed" HorizontalAlignment="Left"
+                                  VerticalAlignment="Top">
+                            <Grid Width="460" Height="50" Margin="0,5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="160" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="JN_Chk_box1" Content="Network Message Header" Margin="0,5" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JN_Chk_box2" Grid.Row="1" Margin="0,5" Grid.Column="0"
+                                          Content="DataSet Message Header" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JN_Chk_box3" Grid.Row="0" Margin="0,5" Grid.Column="1"
+                                          Content="Single DataSet Message" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JN_Chk_box4" Grid.Row="1" Margin="0,5" Grid.Column="1"
+                                          Content="PublisherId" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JN_Chk_box5" Grid.Row="0" Margin="0,5" Grid.Column="2"
+                                          Content="DataSet ClassId" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                                <CheckBox x:Name="JN_Chk_box6" Grid.Row="1" Margin="0,5" Grid.Column="2"
+                                          Content="ReplyTo" HorizontalAlignment="Left"
+                                          VerticalAlignment="Top" />
+                            </Grid>
+
+                        </GroupBox>
 
                     </Grid>
                 </GroupBox>
+
             </ScrollViewer>
+
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="10,0" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="Apply_Click" />
                 <Button Width="100" Margin="5,0" Content="Cancel" Height="23" VerticalAlignment="Center"

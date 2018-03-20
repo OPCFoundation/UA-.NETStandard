@@ -140,7 +140,7 @@ namespace PubSubConfigurationUI
         {
             InitializeComponent( );
             Closing += MainWindow_Closing;
-            DataContext = m_mainViewModel = new MainViewModel( );
+            DataContext = m_mainViewModel = new MainViewModel(this );
             Loaded += MainWindow_Loaded;
         }
 

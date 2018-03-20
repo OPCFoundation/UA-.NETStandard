@@ -17,7 +17,7 @@ namespace Opc.Ua.Security
     public partial class SecuredApplication : object
     {
         private string ApplicationNameField;
-        
+
         private string ApplicationUriField;
         
         private Opc.Ua.Security.ApplicationType ApplicationTypeField;

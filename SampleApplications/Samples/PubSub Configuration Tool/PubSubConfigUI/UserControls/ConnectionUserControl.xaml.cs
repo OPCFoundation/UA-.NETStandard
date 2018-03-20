@@ -36,5 +36,7 @@ namespace PubSubConfigurationUI.Views
         #endregion
 
         public ConnectionEditViewModel ConnectionEditViewModel;
+
+       
     }
 }

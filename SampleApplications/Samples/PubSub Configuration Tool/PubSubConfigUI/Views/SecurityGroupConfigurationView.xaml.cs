@@ -177,10 +177,11 @@ namespace PubSubConfigurationUI.Views
 
         #region Constructors
 
-        public SecurityGroupConfigurationView( OPCUAClientAdaptor _OPCUAClientAdaptor )
+        public SecurityGroupConfigurationView( OPCUAClientAdaptor _OPCUAClientAdaptor, Window owner)
         {
             InitializeComponent( );
             ViewModel = new SecurityGroupViewModel( _OPCUAClientAdaptor );
+            ViewModel.OwnerWindow = owner;
             DataContext = ViewModel;
             _SecurityGroupUserControl = new SecurityGroupUserControl( );
             _SecurityKeysUserControl = new SecurityKeysUserControl( );

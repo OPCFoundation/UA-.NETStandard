@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -148,6 +148,11 @@ namespace Opc.Ua
         /// An error occurred verifying security.
         /// </summary>
         public const uint BadSecurityChecksFailed = 0x80130000;
+
+        /// <summary>
+        /// The certificate does not meet the requirements of the security policy.
+        /// </summary>
+        public const uint BadCertificatePolicyCheckFailed = 0x81140000;
 
         /// <summary>
         /// The certificate has expired or is not yet valid.
@@ -490,6 +495,11 @@ namespace Opc.Ua
         public const uint BadNodeNotInView = 0x804E0000;
 
         /// <summary>
+        /// The number was not accepted because of a numeric overflow.
+        /// </summary>
+        public const uint BadNumericOverflow = 0x81120000;
+
+        /// <summary>
         /// The ServerUri is not a valid URI.
         /// </summary>
         public const uint BadServerUriInvalid = 0x804F0000;
@@ -738,6 +748,11 @@ namespace Opc.Ua
         /// The client did not specify all of the input arguments for the method.
         /// </summary>
         public const uint BadArgumentsMissing = 0x80760000;
+
+        /// <summary>
+        /// The executable attribute does not allow the execution of the method.
+        /// </summary>
+        public const uint BadNotExecutable = 0x81110000;
 
         /// <summary>
         /// The server has reached its  maximum number of subscriptions.
@@ -1068,6 +1083,11 @@ namespace Opc.Ua
         /// The request was rejected by the server because it did not meet the criteria set by the server.
         /// </summary>
         public const uint BadRequestNotAllowed = 0x80E40000;
+
+        /// <summary>
+        /// The request has not been processed by the server yet.
+        /// </summary>
+        public const uint BadRequestNotComplete = 0x81130000;
 
         /// <summary>
         /// The value does not come from the real source and has been edited by the server.

@@ -3864,6 +3864,7 @@ namespace Opc.Ua
         /// </summary>
         public void AddChild(BaseInstanceState child)
         {
+             
             if (!Object.ReferenceEquals(child.Parent, this))
             {
                 child.Parent = this;

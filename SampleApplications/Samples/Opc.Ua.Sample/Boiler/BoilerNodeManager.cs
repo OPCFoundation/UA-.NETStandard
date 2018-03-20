@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Sample;
 using System.Reflection;
+ 
 
 namespace Boiler
 {
@@ -93,7 +94,7 @@ namespace Boiler
                 CreateBoiler(SystemContext, 2);
             }
         }
-
+         
         /// <summary>
         /// Creates a boiler and adds it to the address space.
         /// </summary>
@@ -133,11 +134,11 @@ namespace Boiler
             AddPredefinedNode(context, boiler);
 
             // Autostart boiler simulation state machine
-            MethodState start = boiler.Simulation.Start;
-            IList<Variant> inputArguments = new List<Variant>();
-            IList<Variant> outputArguments = new List<Variant>();
-            List<ServiceResult> errors = new List<ServiceResult>();
-            start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
+          //  MethodState start = boiler.Simulation.Start;
+           // IList<Variant> inputArguments = new List<Variant>();
+          //  IList<Variant> outputArguments = new List<Variant>();
+          //  List<ServiceResult> errors = new List<ServiceResult>();
+            //start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
 
         }
 
@@ -214,11 +215,11 @@ namespace Boiler
                     }
 
                     // Autostart boiler simulation state machine
-                    MethodState start = activeNode.Simulation.Start;
-                    IList<Variant> inputArguments = new List<Variant>();
-                    IList<Variant> outputArguments = new List<Variant>();
-                    List<ServiceResult> errors = new List<ServiceResult>();
-                    start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
+                 //   MethodState start = activeNode.Simulation.Start;
+                  //  IList<Variant> inputArguments = new List<Variant>();
+                 //   IList<Variant> outputArguments = new List<Variant>();
+                 //   List<ServiceResult> errors = new List<ServiceResult>();
+                   // start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
                 }
