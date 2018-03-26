@@ -1,0 +1,16 @@
+{
+  "BoilerId": "Boiler #1",
+  "DrumLevel": 125,
+  "DrumLevel.EURange": {
+    "Low": 64,
+    "High": 164
+  },
+  "DrumLevel.EngineeringUnits": {
+    "NamespaceUri": "http://opcfoundation.org/Quickstarts/DataAccess",
+    "DisplayName": "liters"
+  },
+  "FlowSetPoint": 2,
+  "LevelSetPoint": 2,
+  "InputPipeFlow": 95,
+  "OutputPipeFlow": 78
+}

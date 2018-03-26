@@ -1,0 +1,86 @@
+{
+  "MessageId": "32235546-05d9-4fd7-97df-ea3ff3408574",
+  "MessageType": "ua-data",
+  "PublisherId": "MQTT-Localhost",
+  "DataSetClassId": "2dc07ece-cab9-4470-8f8a-2c1ead207e0e",
+  "Messages": [
+    {
+      "DataSetWriterId": "1",
+      "SequenceNumber": 224,
+      "MetaDataVersion": {
+        "MajorVersion": 1,
+        "MinorVersion": 1
+      },
+      "Payload": {
+        "BoilerId": {
+          "Value": {
+            "Type": 12,
+            "Body": "Boiler #1"
+          },
+          "SourceTimestamp": "2018-03-25T13:32:20.7604426Z"
+        },
+        "DrumLevel": {
+          "Value": {
+            "Type": 10,
+            "Body": 99
+          },
+          "SourceTimestamp": "2018-03-25T13:32:20.3198208Z"
+        },
+        "DrumLevel.EURange": {
+          "Value": {
+            "Type": 22,
+            "Body": {
+              "TypeId": { "Id": 884 },
+              "Body": {
+                "Low": 67,
+                "High": 167
+              }
+            }
+          },
+          "SourceTimestamp": "2018-03-25T13:07:36.3503012Z"
+        },
+        "DrumLevel.EngineeringUnits": {
+          "Value": {
+            "Type": 22,
+            "Body": {
+              "TypeId": { "Id": 887 },
+              "Body": {
+                "NamespaceUri": "http://opcfoundation.org/Quickstarts/DataAccess",
+                "DisplayName": { "Text": "liters" }
+              }
+            }
+          },
+          "SourceTimestamp": "2018-03-25T13:07:36.3503012Z"
+        },
+        "FlowSetPoint": {
+          "Value": {
+            "Type": 10,
+            "Body": 2
+          },
+          "SourceTimestamp": "2018-03-25T13:31:43.0132416Z"
+        },
+        "LevelSetPoint": {
+          "Value": {
+            "Type": 10,
+            "Body": 2
+          },
+          "SourceTimestamp": "2018-03-25T13:31:29.5634923Z"
+        },
+        "InputPipeFlow": {
+          "Value": {
+            "Type": 10,
+            "Body": 75
+          },
+          "SourceTimestamp": "2018-03-25T13:32:19.4542576Z"
+        },
+        "OutputPipeFlow": {
+          "Value": {
+            "Type": 10,
+            "Body": 85
+          },
+          "SourceTimestamp": "2018-03-25T13:32:19.5266645Z"
+        }
+      }
+    }
+  ]
+}

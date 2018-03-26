@@ -1,0 +1,107 @@
+{
+  "Name": "MQTT-Localhost",
+  "Enabled": true,
+  "PublisherId": {
+    "Type": 12,
+    "Body": "MQTT-Localhost"
+  },
+  "TransportProfileUri": "http://opcfoundation.org/UA-Profile/Transport/pubsub_MQTT_JSON",
+  "Address": {
+    "TypeId": { "Id": 15510 },
+    "Body": { "Url": "mqtts://localhost" }
+  },
+  "TransportSettings": {
+    "TypeId": { "Id": 15007 },
+    "Body": {
+      "ResourceUri": "",
+      "AuthenticationProfileUri": "http://opcfoundation.org/UA-Profile/Security/UserToken/Client/UserNamePassword"
+    }
+  },
+  "WriterGroups": [
+    {
+      "Name": "MinimalGroup",
+      "Enabled": true,
+      "SecurityMode": 1,
+      "MaxNetworkMessageSize": 10000,
+      "WriterGroupId": 1,
+      "PublishingInterval": 20000,
+      "KeepAliveTime": 10000,
+      "Priority": 50,
+      "TransportSettings": {
+        "TypeId": { "Id": 15667 },
+        "Body": {
+          "QueueName": "opcua.prototype.minimal",
+          "RequestedDeliveryGuarantee": 1
+        }
+      },
+      "MessageSettings": {
+        "TypeId": { "Id": 15657 },
+        "Body": { "NetworkMessageContentMask": 4 }
+      },
+      "DataSetWriters": [
+        {
+          "Name": "MinimalWriter",
+          "Enabled": true,
+          "DataSetWriterId": 1,
+          "DataSetFieldContentMask": 32,
+          "KeyFrameCount": 1,
+          "DataSetName": "boiler01-dataset",
+          "TransportSettings": {
+            "TypeId": { "Id": 15669 },
+            "Body": {
+              "MetaDataQueueName": "opcua.prototype.metadata",
+              "MetaDataUpdateTime": 60000
+            }
+          },
+          "MessageSettings": {
+            "TypeId": { "Id": 15664 },
+            "Body": { "DataSetMessageContentMask": 1 }
+          }
+        }
+      ]
+    },
+
+    {
+      "Name": "FullGroup",
+      "Enabled": false,
+      "SecurityMode": 1,
+      "MaxNetworkMessageSize": 10000,
+      "WriterGroupId": 1,
+      "PublishingInterval": 20000,
+      "KeepAliveTime": 10000,
+      "Priority": 50,
+      "TransportSettings": {
+        "TypeId": { "Id": 15667 },
+        "Body": {
+          "QueueName": "opcua.prototype.full",
+          "RequestedDeliveryGuarantee": 1
+        }
+      },
+      "MessageSettings": {
+        "TypeId": { "Id": 15657 },
+        "Body": { "NetworkMessageContentMask": 27 }
+      },
+      "DataSetWriters": [
+        {
+          "Name": "FullWriter",
+          "Enabled": true,
+          "DataSetWriterId": 1,
+          "DataSetFieldContentMask": 3,
+          "KeyFrameCount": 1,
+          "DataSetName": "boiler01-dataset",
+          "TransportSettings": {
+            "TypeId": { "Id": 15669 },
+            "Body": {
+              "MetaDataQueueName": "opcua.prototype.metadata",
+              "MetaDataUpdateTime": 60000
+            }
+          },
+          "MessageSettings": {
+            "TypeId": { "Id": 15664 },
+            "Body": { "DataSetMessageContentMask": 1 }
+          }
+        }
+      ]
+    }
+  ]
+}

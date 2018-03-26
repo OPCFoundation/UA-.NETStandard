@@ -1,0 +1,169 @@
+{
+  "Name": "BoilerSample",
+  "DataSetMetaData": {
+    "Name": "BoilerSample",
+    "Description": { "Text": "The current state of a boiler." },
+    "Fields": [
+      {
+        "Name": "BoilerId",
+        "Description": { "Text": "The identifier for the boiler." },
+        "BuiltInType": 12,
+        "DataType": { "Id": 12 },
+        "ValueRank": -1,
+        "DataSetFieldId": "69079547-0cf7-44ca-9e50-7724fc90d8e2"
+      },
+      {
+        "Name": "DrumLevel",
+        "Description": { "Text": "The drum level." },
+        "BuiltInType": 10,
+        "DataType": { "Id": 10 },
+        "ValueRank": -1,
+        "DataSetFieldId": "FDDEBDEB-3892-4012-AA83-AD1CA293BC5E"
+      },
+      {
+        "Name": "DrumLevel.EURange",
+        "Description": { "Text": "The drum level allowed range." },
+        "BuiltInType": 22,
+        "DataType": { "Id": 884 },
+        "ValueRank": -1,
+        "DataSetFieldId": "95912BF2-975D-4BC6-B34F-E391DB920180"
+      },
+      {
+        "Name": "DrumLevel.EngineeringUnits",
+        "Description": { "Text": "The drum level engineering units." },
+        "BuiltInType": 22,
+        "DataType": { "Id": 887 },
+        "ValueRank": -1,
+        "DataSetFieldId": "A21046AB-A4EC-41AE-9319-534C2789418E"
+      },
+      {
+        "Name": "FlowSetPoint",
+        "Description": { "Text": "The flow." },
+        "BuiltInType": 10,
+        "DataType": { "Id": 10 },
+        "ValueRank": -1,
+        "DataSetFieldId": "6b6270aa-4bb8-45f1-8b5b-ea70e6ba0c15"
+      },
+      {
+        "Name": "LevelSetPoint",
+        "Description": { "Text": "The level." },
+        "BuiltInType": 10,
+        "DataType": { "Id": 10 },
+        "ValueRank": -1,
+        "DataSetFieldId": "36db2468-3daf-4bf0-936c-ac8e395a2fc9"
+      },
+      {
+        "Name": "InputPipeFlow",
+        "Description": { "Text": "The input pipe flow." },
+        "BuiltInType": 10,
+        "DataType": { "Id": 10 },
+        "ValueRank": -1,
+        "DataSetFieldId": "b96523fe-8bd1-4306-bfb4-fb79b96701a2"
+      },
+      {
+        "Name": "OutputPipeFlow",
+        "Description": { "Text": "The output pipe flow." },
+        "BuiltInType": 10,
+        "DataType": { "Id": 10 },
+        "ValueRank": -1,
+        "DataSetFieldId": "23ffc1cd-0a7b-406d-8425-03a2e3d6c77c"
+      }
+    ],
+    "DataSetClassId": "2dc07ece-cab9-4470-8f8a-2c1ead207e0e",
+    "ConfigurationVersion": {
+      "MajorVersion": 1,
+      "MinorVersion": 1
+    }
+  },
+  "ExtensionFields": [
+    {
+      "Key": {
+        "Name": "BoilerId",
+        "Namespace": 1
+      },
+      "Value": {
+        "Type": 12,
+        "Body": "Boiler #1"
+      }
+    }
+  ],
+  "DataSetSource": {
+    "TypeId": { "Id": 15581 },
+    "Body": {
+      "PublishedData": [
+        {
+          "SubstituteValue": {
+            "Type": 20,
+            "Body": {
+              "Name": "BoilerId",
+              "Namespace": 1
+            }
+          }
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:Drum1002?Measurement",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:Drum1002?Measurement/EURange",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:Drum1002?Measurement/EngineeringUnits",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:FC1001?SetPoint",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:LC1001?SetPoint",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:Pipe1001?Measurement",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        },
+        {
+          "PublishedVariable": {
+            "IdType": 1,
+            "Id": "1:Pipe1002?Measurement",
+            "Namespace": 2
+          },
+          "AttributeId": 13,
+          "SamplingIntervalHint": -1
+        }
+      ]
+    }
+  }
+}
