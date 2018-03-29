@@ -29,7 +29,7 @@
         <dependency id="System.Collections.NonGeneric" version="4.3.0"/>
         <dependency id="System.Xml.XmlSerializer" version="4.3.0"/>
         <dependency id="System.Threading.Thread" version="4.3.0"/>
-        <dependency id="System.Reflection.TypeExtensions" Version="4.3.0" />
+        <dependency id="System.Reflection.TypeExtensions" version="4.3.0" />
       </group>
       <group targetFramework="netstandard2.0" >
         <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.0.1"/>
@@ -39,7 +39,7 @@
         <dependency id="System.Data.Common" version="4.3.0"/>
         <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
         <dependency id="System.Net.NameResolution" version="4.3.0"/>
-        <dependency id="System.Reflection.TypeExtensions" Version="4.3.0" />
+        <dependency id="System.Reflection.TypeExtensions" version="4.3.0" />
       </group>
     </dependencies>
   </metadata>
