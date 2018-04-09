@@ -24,6 +24,7 @@ namespace Opc.Ua.Bindings
     public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
     {
         #region Constructors
+
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -32,6 +33,22 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
+            EndpointDescriptionCollection endpoints,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
+        :
+            this(contextId, bufferManager, quotas, serverCertificate, null, endpoints, securityMode, securityPolicyUri)
+        { }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
@@ -75,6 +92,7 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager;
             m_quotas = quotas;
             m_serverCertificate = serverCertificate;
+            m_serverCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
             m_securityMode = securityMode;
             m_securityPolicyUri = securityPolicyUri;

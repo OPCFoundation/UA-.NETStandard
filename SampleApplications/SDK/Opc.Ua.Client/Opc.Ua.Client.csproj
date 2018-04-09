@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Client</AssemblyName>
+    <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Client</PackageId>
-    <Version>1.03.351</Version>
-    <AssemblyVersion>1.03.351</AssemblyVersion>
-    <FileVersion>1.03.351.0</FileVersion>
+    <Version>1.03.352</Version>
+    <AssemblyVersion>1.03.352</AssemblyVersion>
+    <FileVersion>1.03.352.0</FileVersion>
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>
     <Description>OPC UA Client Class Library</Description>
@@ -19,6 +20,11 @@
 
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.ServiceModel" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

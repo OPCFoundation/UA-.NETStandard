@@ -15,6 +15,7 @@ using System.Text;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Bindings
 {
@@ -57,6 +58,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// The server certificate chain.
+        /// </summary>
+        protected X509Certificate2Collection ServerCertificateChain
+        {
+            get { return m_serverCertificateChain; }
+            set { m_serverCertificateChain = value; }
+        }
+
+        /// <summary>
         /// The security mode used with the channel.
         /// </summary>
         protected MessageSecurityMode SecurityMode
@@ -92,6 +102,14 @@ namespace Opc.Ua.Bindings
             set { m_clientCertificate = value; }
         }
 
+        /// <summary>
+        /// The client certificate chain.
+        /// </summary>
+        internal X509Certificate2Collection ClientCertificateChain
+        {
+            get { return m_clientCertificateChain; }
+            set { m_clientCertificateChain = value; }
+        }
 
         /// <summary>
         /// Creates a new nonce.
@@ -416,7 +434,34 @@ namespace Opc.Ua.Bindings
             X509Certificate2 senderCertificate,
             X509Certificate2 receiverCertificate)
         {
+            int senderCertificateSize = 0;
+
+            WriteAsymmetricMessageHeader(
+                encoder,
+                messageType,
+                secureChannelId,
+                securityPolicyUri,
+                senderCertificate, 
+                null, 
+                receiverCertificate,
+                out senderCertificateSize);
+        }
+
+        /// <summary>
+        /// Writes the asymmetric security header to the buffer.
+        /// </summary>
+        protected void WriteAsymmetricMessageHeader(
+            BinaryEncoder encoder,
+            uint messageType,
+            uint secureChannelId,
+            string securityPolicyUri,
+            X509Certificate2 senderCertificate,
+            X509Certificate2Collection senderCertificateChain,
+            X509Certificate2 receiverCertificate,
+            out int senderCertificateSize)
+        {
             int start = encoder.Position;
+            senderCertificateSize = 0;
 
             encoder.WriteUInt32(null, messageType);
             encoder.WriteUInt32(null, 0);
@@ -425,7 +470,36 @@ namespace Opc.Ua.Bindings
 
             if (SecurityMode != MessageSecurityMode.None)
             {
-                encoder.WriteByteString(null, senderCertificate.RawData);
+                if (senderCertificateChain != null && senderCertificateChain.Count >0)
+                {
+                    X509Certificate2 currentCertificate = senderCertificateChain[0];
+                    int maxSenderCertificateSize = GetMaxSenderCertificateSize(currentCertificate, securityPolicyUri);
+                    List<byte> senderCertificateList = new List<byte>(currentCertificate.RawData);
+                    senderCertificateSize = currentCertificate.RawData.Length;
+
+                    for (int i = 1; i < senderCertificateChain.Count; i++)
+                    {
+                        currentCertificate = senderCertificateChain[i];
+                        senderCertificateSize += currentCertificate.RawData.Length;
+
+                        if (senderCertificateSize < maxSenderCertificateSize)
+                        {
+                            senderCertificateList.AddRange(currentCertificate.RawData);
+                        }
+                        else
+                        {
+                            senderCertificateSize -= currentCertificate.RawData.Length;
+                            break;
+                        }
+                    }
+
+                    encoder.WriteByteString(null, senderCertificateList.ToArray());
+                }
+                else
+                {
+                    encoder.WriteByteString(null, senderCertificate.RawData);
+                }
+
                 encoder.WriteByteString(null, GetThumbprintBytes(receiverCertificate.Thumbprint));
             }
             else
@@ -468,12 +542,26 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sends a OpenSecureChannel response.
+        /// Sends a OpenSecureChannel request.
         /// </summary>
         protected BufferCollection WriteAsymmetricMessage(
             uint messageType,
             uint requestId,
             X509Certificate2 senderCertificate,
+            X509Certificate2 receiverCertificate,
+            ArraySegment<byte> messageBody)
+        {
+            return WriteAsymmetricMessage(messageType, requestId, senderCertificate, null, receiverCertificate, messageBody);
+        }
+
+        /// <summary>
+        /// Sends a OpenSecureChannel request.
+        /// </summary>
+        protected BufferCollection WriteAsymmetricMessage(
+            uint messageType,
+            uint requestId,
+            X509Certificate2 senderCertificate,
+            X509Certificate2Collection senderCertificateChain,
             X509Certificate2 receiverCertificate,
             ArraySegment<byte> messageBody)
         {
@@ -484,18 +572,39 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                int headerSize = GetAsymmetricHeaderSize(SecurityPolicyUri, senderCertificate);
-                int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
-
                 BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
+                int headerSize = 0;
 
-                WriteAsymmetricMessageHeader(
-                    encoder,
-                    messageType | TcpMessageType.Intermediate,
-                    ChannelId,
-                    SecurityPolicyUri,
-                    senderCertificate,
-                    receiverCertificate);
+                if (senderCertificateChain != null && senderCertificateChain.Count >0)
+                {
+                    int senderCertificateSize = 0;
+
+                    WriteAsymmetricMessageHeader(
+                        encoder,
+                        messageType | TcpMessageType.Intermediate,
+                        ChannelId,
+                        SecurityPolicyUri,
+                        senderCertificate,
+                        senderCertificateChain,
+                        receiverCertificate,
+                        out senderCertificateSize);
+
+                    headerSize = GetAsymmetricHeaderSize(SecurityPolicyUri, senderCertificate, senderCertificateSize);
+                }
+                else
+                {
+                    WriteAsymmetricMessageHeader(
+                        encoder,
+                        messageType | TcpMessageType.Intermediate,
+                        ChannelId,
+                        SecurityPolicyUri,
+                        senderCertificate,
+                        receiverCertificate);
+
+                    headerSize = GetAsymmetricHeaderSize(SecurityPolicyUri, senderCertificate);
+                }
+
+                int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
                 // save the header.
                 ArraySegment<byte> header = new ArraySegment<byte>(buffer, 0, headerSize);
@@ -653,11 +762,11 @@ namespace Opc.Ua.Bindings
         protected void ReadAsymmetricMessageHeader(
             BinaryDecoder decoder,
             X509Certificate2 receiverCertificate,
-            out uint secureChannelId,
-            out X509Certificate2 senderCertificate,
+            out uint secureChannelId, 
+            out X509Certificate2Collection senderCertificateChain,
             out string securityPolicyUri)
         {
-            senderCertificate = null;
+            senderCertificateChain = null;
 
             uint messageType = decoder.ReadUInt32(null);
             uint messageSize = decoder.ReadUInt32(null);
@@ -681,14 +790,14 @@ namespace Opc.Ua.Bindings
                     "The asymmetric security header could not be parsed.");
             }
 
-            // verify sender certificate.
+            // verify sender certificate chain.
             if (certificateData != null && certificateData.Length > 0)
             {
-                senderCertificate = CertificateFactory.Create(certificateData, true);
+                senderCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
 
                 try
                 {
-                    string thumbprint = senderCertificate.Thumbprint;
+                    string thumbprint = senderCertificateChain[0].Thumbprint;
 
                     if (thumbprint == null)
                     {
@@ -806,19 +915,38 @@ namespace Opc.Ua.Bindings
             BinaryDecoder decoder = new BinaryDecoder(buffer.Array, buffer.Offset, buffer.Count, Quotas.MessageContext);
 
             string securityPolicyUri = null;
+            X509Certificate2Collection senderCertificateChain;
 
             // parse the security header.
             ReadAsymmetricMessageHeader(
                 decoder,
                 receiverCertificate,
                 out channelId,
-                out senderCertificate,
+                out senderCertificateChain,
                 out securityPolicyUri);
+
+            if (senderCertificateChain != null && senderCertificateChain.Count > 0)
+            {
+                senderCertificate = senderCertificateChain[0];
+            }
+            else
+            {
+                senderCertificate = null;
+            }
 
             // validate the sender certificate.
             if (senderCertificate != null && Quotas.CertificateValidator != null && securityPolicyUri != SecurityPolicies.None)
             {
-                Quotas.CertificateValidator.Validate(senderCertificate);
+                CertificateValidator certificateValidator = Quotas.CertificateValidator as CertificateValidator;
+
+                if (certificateValidator != null)
+                {
+                    certificateValidator.Validate(senderCertificateChain);
+                }
+                else
+                {
+                    Quotas.CertificateValidator.Validate(senderCertificate);
+                }
             }
 
             // check if this is the first open secure channel request.
@@ -1137,7 +1265,9 @@ namespace Opc.Ua.Bindings
         private bool m_discoveryOnly;
         private EndpointDescription m_selectedEndpoint;
         private X509Certificate2 m_serverCertificate;
+        private X509Certificate2Collection m_serverCertificateChain;
         private X509Certificate2 m_clientCertificate;
+        private X509Certificate2Collection m_clientCertificateChain;
         private bool m_uninitialized;
         #endregion
     }

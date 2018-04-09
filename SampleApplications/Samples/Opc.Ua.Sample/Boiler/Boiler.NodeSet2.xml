@@ -1,8 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2013-01-22T13:40:00.4845684Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/Boiler/</Uri>
   </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Boiler/">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2018-02-09T00:00:00Z" />
+    </Model>
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -82,7 +87,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=210</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=989" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=210" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=989" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=210" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -131,7 +136,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable NodeId="ns=1;i=999" BrowseName="1:Input" ParentNodeId="ns=1;i=998" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=999" BrowseName="1:Input" ParentNodeId="ns=1;i=998" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1002</Reference>
@@ -160,7 +165,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable NodeId="ns=1;i=1005" BrowseName="1:Input1" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1005" BrowseName="1:Input1" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -168,7 +173,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1006" BrowseName="1:Input2" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1006" BrowseName="1:Input2" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -176,7 +181,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1007" BrowseName="1:Input3" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1007" BrowseName="1:Input3" ParentNodeId="ns=1;i=513" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -239,11 +244,56 @@
     <DisplayName>BoilerStateMachineType</DisplayName>
     <Description>A program that produces simulated values for a running boiler.</Description>
     <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=1095</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1096</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1097</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1098</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1099</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1100</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2391</Reference>
     </References>
   </UAObjectType>
-  <UAVariable NodeId="ns=1;i=1100" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1039" DataType="UInt32" AccessLevel="3" UserAccessLevel="3">
+  <UAMethod NodeId="ns=1;i=1095" BrowseName="1:Start" ParentNodeId="ns=1;i=1039" MethodDeclarationId="i=2426">
+    <DisplayName>Start</DisplayName>
+    <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1039</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1096" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1039" MethodDeclarationId="i=2427">
+    <DisplayName>Suspend</DisplayName>
+    <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1039</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1097" BrowseName="1:Resume" ParentNodeId="ns=1;i=1039" MethodDeclarationId="i=2428">
+    <DisplayName>Resume</DisplayName>
+    <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1039</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1098" BrowseName="1:Halt" ParentNodeId="ns=1;i=1039" MethodDeclarationId="i=2429">
+    <DisplayName>Halt</DisplayName>
+    <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1039</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1099" BrowseName="1:Reset" ParentNodeId="ns=1;i=1039" MethodDeclarationId="i=2430">
+    <DisplayName>Reset</DisplayName>
+    <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1039</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=1100" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1039" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -296,7 +346,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1101</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1110" BrowseName="1:Input" ParentNodeId="ns=1;i=1109" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1110" BrowseName="1:Input" ParentNodeId="ns=1;i=1109" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1113</Reference>
@@ -449,7 +499,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1133</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1142" BrowseName="1:Input" ParentNodeId="ns=1;i=1141" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1142" BrowseName="1:Input" ParentNodeId="ns=1;i=1141" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1145</Reference>
@@ -566,7 +616,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1164</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1166" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1164" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1166" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1164" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1176</Reference>
@@ -604,7 +654,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1168</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1170" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1168" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1170" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1168" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -634,7 +684,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1132</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1173" BrowseName="1:Input1" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1173" BrowseName="1:Input1" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1171</Reference>
@@ -643,7 +693,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1172</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1174" BrowseName="1:Input2" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1174" BrowseName="1:Input2" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1135</Reference>
@@ -652,7 +702,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1172</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1175" BrowseName="1:Input3" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1175" BrowseName="1:Input3" ParentNodeId="ns=1;i=1172" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1158</Reference>
@@ -684,13 +734,14 @@
       <Reference ReferenceType="HasComponent">ns=1;i=1179</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=1184</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1190</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1191</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1192</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1234</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1235</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1236</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1237</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1238</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1239</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15013</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15014</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15015</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15016</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15017</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1039</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1132</Reference>
@@ -765,6 +816,14 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1178</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="ns=1;i=1191" BrowseName="AutoDelete" ParentNodeId="ns=1;i=1178" DataType="Boolean">
+    <DisplayName>AutoDelete</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAVariable>
   <UAVariable NodeId="ns=1;i=1192" BrowseName="RecycleCount" ParentNodeId="ns=1;i=1178" DataType="Int32">
     <DisplayName>RecycleCount</DisplayName>
     <References>
@@ -773,47 +832,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1178</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1234" BrowseName="Start" ParentNodeId="ns=1;i=1178" MethodDeclarationId="i=2426">
-    <DisplayName>Start</DisplayName>
-    <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
-    <References>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1235" BrowseName="Suspend" ParentNodeId="ns=1;i=1178" MethodDeclarationId="i=2427">
-    <DisplayName>Suspend</DisplayName>
-    <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
-    <References>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1236" BrowseName="Resume" ParentNodeId="ns=1;i=1178" MethodDeclarationId="i=2428">
-    <DisplayName>Resume</DisplayName>
-    <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
-    <References>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1237" BrowseName="Halt" ParentNodeId="ns=1;i=1178" MethodDeclarationId="i=2429">
-    <DisplayName>Halt</DisplayName>
-    <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
-    <References>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1238" BrowseName="Reset" ParentNodeId="ns=1;i=1178" MethodDeclarationId="i=2430">
-    <DisplayName>Reset</DisplayName>
-    <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
-    <References>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="ns=1;i=1239" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1178" DataType="UInt32" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1239" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1178" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -822,6 +841,46 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1178</Reference>
     </References>
   </UAVariable>
+  <UAMethod NodeId="ns=1;i=15013" BrowseName="1:Start" ParentNodeId="ns=1;i=1178" MethodDeclarationId="ns=1;i=1095">
+    <DisplayName>Start</DisplayName>
+    <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15014" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1178" MethodDeclarationId="ns=1;i=1096">
+    <DisplayName>Suspend</DisplayName>
+    <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15015" BrowseName="1:Resume" ParentNodeId="ns=1;i=1178" MethodDeclarationId="ns=1;i=1097">
+    <DisplayName>Resume</DisplayName>
+    <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15016" BrowseName="1:Halt" ParentNodeId="ns=1;i=1178" MethodDeclarationId="ns=1;i=1098">
+    <DisplayName>Halt</DisplayName>
+    <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15017" BrowseName="1:Reset" ParentNodeId="ns=1;i=1178" MethodDeclarationId="ns=1;i=1099">
+    <DisplayName>Reset</DisplayName>
+    <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1178</Reference>
+    </References>
+  </UAMethod>
   <UAObject NodeId="ns=1;i=1240" BrowseName="1:Boilers" EventNotifier="1">
     <DisplayName>Boilers</DisplayName>
     <References>
@@ -897,7 +956,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1242</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1251" BrowseName="1:Input" ParentNodeId="ns=1;i=1250" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1251" BrowseName="1:Input" ParentNodeId="ns=1;i=1250" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1254</Reference>
@@ -1004,7 +1063,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1273</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1275" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1273" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1275" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1273" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1285</Reference>
@@ -1038,7 +1097,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1277</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1279" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1277" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1279" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1277" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1065,7 +1124,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1241</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1282" BrowseName="1:Input1" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1282" BrowseName="1:Input1" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1280</Reference>
@@ -1073,7 +1132,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1281</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1283" BrowseName="1:Input2" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1283" BrowseName="1:Input2" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1244</Reference>
@@ -1081,7 +1140,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1281</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1284" BrowseName="1:Input3" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2" UserAccessLevel="2">
+  <UAVariable NodeId="ns=1;i=1284" BrowseName="1:Input3" ParentNodeId="ns=1;i=1281" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=987" IsForward="false">ns=1;i=1267</Reference>
@@ -1110,13 +1169,14 @@
       <Reference ReferenceType="HasComponent">ns=1;i=1288</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=1293</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1299</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1300</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1301</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1343</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1344</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1345</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1346</Reference>
-      <Reference ReferenceType="HasComponent">ns=1;i=1347</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1348</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15018</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15019</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15020</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15021</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15022</Reference>
       <Reference ReferenceType="HasEventSource" IsForward="false">ns=1;i=1241</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1039</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1241</Reference>
@@ -1183,6 +1243,13 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1287</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="ns=1;i=1300" BrowseName="AutoDelete" ParentNodeId="ns=1;i=1287" DataType="Boolean">
+    <DisplayName>AutoDelete</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAVariable>
   <UAVariable NodeId="ns=1;i=1301" BrowseName="RecycleCount" ParentNodeId="ns=1;i=1287" DataType="Int32">
     <DisplayName>RecycleCount</DisplayName>
     <References>
@@ -1190,42 +1257,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1287</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1343" BrowseName="Start" ParentNodeId="ns=1;i=1287" MethodDeclarationId="i=2426">
-    <DisplayName>Start</DisplayName>
-    <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
-    <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1344" BrowseName="Suspend" ParentNodeId="ns=1;i=1287" MethodDeclarationId="i=2427">
-    <DisplayName>Suspend</DisplayName>
-    <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
-    <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1345" BrowseName="Resume" ParentNodeId="ns=1;i=1287" MethodDeclarationId="i=2428">
-    <DisplayName>Resume</DisplayName>
-    <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
-    <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1346" BrowseName="Halt" ParentNodeId="ns=1;i=1287" MethodDeclarationId="i=2429">
-    <DisplayName>Halt</DisplayName>
-    <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
-    <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
-    </References>
-  </UAMethod>
-  <UAMethod NodeId="ns=1;i=1347" BrowseName="Reset" ParentNodeId="ns=1;i=1287" MethodDeclarationId="i=2430">
-    <DisplayName>Reset</DisplayName>
-    <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
-    <References>
-      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
-    </References>
-  </UAMethod>
-  <UAVariable NodeId="ns=1;i=1348" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1287" DataType="UInt32" AccessLevel="3" UserAccessLevel="3">
+  <UAVariable NodeId="ns=1;i=1348" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1287" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -1233,4 +1265,39 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1287</Reference>
     </References>
   </UAVariable>
+  <UAMethod NodeId="ns=1;i=15018" BrowseName="1:Start" ParentNodeId="ns=1;i=1287" MethodDeclarationId="ns=1;i=1095">
+    <DisplayName>Start</DisplayName>
+    <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15019" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1287" MethodDeclarationId="ns=1;i=1096">
+    <DisplayName>Suspend</DisplayName>
+    <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15020" BrowseName="1:Resume" ParentNodeId="ns=1;i=1287" MethodDeclarationId="ns=1;i=1097">
+    <DisplayName>Resume</DisplayName>
+    <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15021" BrowseName="1:Halt" ParentNodeId="ns=1;i=1287" MethodDeclarationId="ns=1;i=1098">
+    <DisplayName>Halt</DisplayName>
+    <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15022" BrowseName="1:Reset" ParentNodeId="ns=1;i=1287" MethodDeclarationId="ns=1;i=1099">
+    <DisplayName>Reset</DisplayName>
+    <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1287</Reference>
+    </References>
+  </UAMethod>
 </UANodeSet>

@@ -1,7 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-02-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-02-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -426,6 +455,54 @@
       <Field Name="Value" DataType="i=10" />
     </Definition>
   </UADataType>
+  <UAObject NodeId="i=886" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=884</Reference>
+      <Reference ReferenceType="HasDescription">i=8238</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=889" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=887</Reference>
+      <Reference ReferenceType="HasDescription">i=8241</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12181" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12171</Reference>
+      <Reference ReferenceType="HasDescription">i=12183</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12182" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12172</Reference>
+      <Reference ReferenceType="HasDescription">i=12186</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12089" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12079</Reference>
+      <Reference ReferenceType="HasDescription">i=12091</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=12090" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12080</Reference>
+      <Reference ReferenceType="HasDescription">i=12094</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=885" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
     <References>
@@ -474,51 +551,45 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=886" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15375" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=884</Reference>
-      <Reference ReferenceType="HasDescription">i=8238</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=889" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15376" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=887</Reference>
-      <Reference ReferenceType="HasDescription">i=8241</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12181" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15377" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12171</Reference>
-      <Reference ReferenceType="HasDescription">i=12183</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12182" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15378" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12172</Reference>
-      <Reference ReferenceType="HasDescription">i=12186</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12089" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15379" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12079</Reference>
-      <Reference ReferenceType="HasDescription">i=12091</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12090" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15380" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12080</Reference>
-      <Reference ReferenceType="HasDescription">i=12094</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>

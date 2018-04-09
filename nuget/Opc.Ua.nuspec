@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua</id>
-    <version>1.03.351</version>
+    <version>1.03.352</version>
     <title>OPC UA .Net Standard Library</title>
     <description>This package contains the OPC UA reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -13,32 +13,33 @@
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
       <group targetFramework="net46" >
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="1.1.2"/>
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "1.1.2"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="1.1.3"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "1.1.3"/>
         <dependency id="Newtonsoft.Json" version="10.0.3"/>
         <dependency id="Portable.BouncyCastle" version="1.8.1.3"/>
-        <dependency id="System.Data.Common" version="4.3.0"/>
-        <dependency id="System.Private.ServiceModel" version="4.3.0"/>
-        <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
       </group>
       <group targetFramework="netstandard1.3" >
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="1.1.2"/>
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "1.1.2"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="1.1.3"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "1.1.3"/>
         <dependency id="Newtonsoft.Json" version="10.0.3"/>
         <dependency id="Portable.BouncyCastle" version="1.8.1.3"/>
         <dependency id="System.Data.Common" version="4.3.0"/>
-        <dependency id="System.Private.ServiceModel" version="4.3.0"/>
         <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
+        <dependency id="System.Net.NameResolution" version="4.3.0"/>
+        <dependency id="System.Collections.NonGeneric" version="4.3.0"/>
         <dependency id="System.Xml.XmlSerializer" version="4.3.0"/>
+        <dependency id="System.Threading.Thread" version="4.3.0"/>
+        <dependency id="System.Reflection.TypeExtensions" version="4.3.0" />
       </group>
       <group targetFramework="netstandard2.0" >
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.0.0"/>
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.0.0"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.0.1"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.0.1"/>
         <dependency id="Newtonsoft.Json" version="10.0.3"/>
         <dependency id="Portable.BouncyCastle" version="1.8.1.3"/>
         <dependency id="System.Data.Common" version="4.3.0"/>
-        <dependency id="System.Private.ServiceModel" version="4.4.0"/>
-        <dependency id="System.ServiceModel.Primitives" version="4.4.0"/>
+        <dependency id="System.ServiceModel.Primitives" version="4.3.0"/>
+        <dependency id="System.Net.NameResolution" version="4.3.0"/>
+        <dependency id="System.Reflection.TypeExtensions" version="4.3.0" />
       </group>
     </dependencies>
   </metadata>

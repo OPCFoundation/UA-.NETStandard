@@ -642,22 +642,30 @@ public class CertificateFactory
                 }
             }
 
+            // build CSR extensions
+            List<GeneralName> generalNames = new List<GeneralName>();
+
+            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            if (applicationUri != null)
+            {
+                generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
+            }
+
             if (domainNames.Count > 0)
             {
-                List<GeneralName> generalNames = CreateSubjectAlternateNameDomains(domainNames);
-                if (generalNames.Count > 0)
-                {
-                    IList oids = new ArrayList();
-                    IList values = new ArrayList();
-                    oids.Add(X509Extensions.SubjectAlternativeName);
-                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+                generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
+            }
 
-                    AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(new X509Extensions(oids, values)));
-
-                    attributes = new DerSet(attribute);
-                }
+            if (generalNames.Count > 0)
+            {
+                IList oids = new ArrayList();
+                IList values = new ArrayList();
+                oids.Add(X509Extensions.SubjectAlternativeName);
+                values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
+                    new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+                AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                    new DerSet(new X509Extensions(oids, values)));
+                attributes = new DerSet(attribute);
             }
 
             Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(

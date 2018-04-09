@@ -341,7 +341,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        parsedClientCertificate = CertificateFactory.Create(clientCertificate, true);
+                        X509Certificate2Collection clientCertificateChain = Utils.ParseCertificateChainBlob(clientCertificate);
+                        parsedClientCertificate = clientCertificateChain[0];
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
@@ -357,7 +358,7 @@ namespace Opc.Ua.Server
                                     "The URI specified in the ApplicationDescription does not match the URI in the Certificate.");
                             }
 
-                            CertificateValidator.Validate(parsedClientCertificate);
+                            CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
                     catch (Exception e)
@@ -395,29 +396,44 @@ namespace Opc.Ua.Server
                     out sessionId,
                     out authenticationToken,
                     out serverNonce,
-                    out revisedSessionTimeout);           
-                                
+                    out revisedSessionTimeout);
+
                 lock (m_lock)
-                {                
+                {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
                     {
-                        serverCertificate = InstanceCertificate.RawData;
+                        // check if complete chain should be sent.
+                        if (Configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count >0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            serverCertificate = serverCertificateChain.ToArray();
+                        }
+                        else
+                        {
+                            serverCertificate = InstanceCertificate.RawData;
+                        }
                     }
-                                 
+
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
                     // return the software certificates assigned to the server.
                     serverSoftwareCertificates = new SignedSoftwareCertificateCollection(ServerProperties.SoftwareCertificates);
-                    
+
                     // sign the nonce provided by the client.
                     serverSignature = null;
-                    
+
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(clientCertificate, clientNonce);
+                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
                         serverSignature = SecurityPolicies.Sign(InstanceCertificate, context.SecurityPolicyUri, dataToSign);
                     }
                 }
@@ -2682,7 +2698,7 @@ namespace Opc.Ua.Server
             serverDescription.ApplicationType = configuration.ApplicationType;
             serverDescription.ProductUri = configuration.ProductUri;
             serverDescription.DiscoveryUrls = GetDiscoveryUrls();
-                          
+
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 

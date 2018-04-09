@@ -64,7 +64,7 @@ namespace Quickstarts.DataAccessClient
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62547/Quickstarts/DataAccessServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62548/Quickstarts/DataAccessServer";
             this.Text = m_configuration.ApplicationName;
 
             // create the callback.

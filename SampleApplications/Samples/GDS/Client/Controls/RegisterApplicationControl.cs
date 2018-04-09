@@ -1854,10 +1854,7 @@ namespace Opc.Ua.Gds.Client
 
         private void PickServerButton_Click(object sender, EventArgs e)
         {
-            List<string> list = new List<string>();
-            list.Add("opc.tcp://localhost:58810/GlobalDiscoveryServer");
-            list.Add("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
-            string uri = new SelectPushServerDialog().ShowDialog(null, m_pushClient, list);
+            string uri = new SelectPushServerDialog().ShowDialog(null, m_pushClient, m_gds.GetDefaultServerUrls(null));
             if (uri != null && m_pushClient.IsConnected)
             {
                 EndpointDescription endpoint = m_pushClient.Endpoint.Description;

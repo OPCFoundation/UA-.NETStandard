@@ -64,7 +64,7 @@ namespace Quickstarts.ViewsClient
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62546/Quickstarts/ViewsServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62561/Quickstarts/ViewsServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion
@@ -86,7 +86,7 @@ namespace Quickstarts.ViewsClient
         {
             try
             {
-                ConnectServerCTRL.Connect();
+                ConnectServerCTRL.Connect().Wait();
             }
             catch (Exception exception)
             {

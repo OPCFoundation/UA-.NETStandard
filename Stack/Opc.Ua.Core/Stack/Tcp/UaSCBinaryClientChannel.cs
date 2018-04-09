@@ -39,6 +39,23 @@ namespace Opc.Ua.Bindings
             X509Certificate2 clientCertificate,
             X509Certificate2 serverCertificate,
             EndpointDescription endpoint)
+         :
+            this(contextId, bufferManager, socketFactory, quotas, clientCertificate, null, serverCertificate, endpoint)
+        {
+        }
+
+        /// <summary>
+        /// Creates a channel for for a client.
+        /// </summary>
+        public UaSCUaBinaryClientChannel(
+            string contextId,
+            BufferManager bufferManager,
+            IMessageSocketFactory socketFactory,
+            ChannelQuotas quotas,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            X509Certificate2 serverCertificate,
+            EndpointDescription endpoint)
         :
             base(
                 contextId,
@@ -61,6 +78,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 ClientCertificate = clientCertificate;
+                ClientCertificateChain = clientCertificateChain;
             }
 
             m_requests = new Dictionary<uint, WriteOperation>();
@@ -471,7 +489,7 @@ namespace Opc.Ua.Bindings
             request.ClientNonce = token.ClientNonce;
             request.RequestedLifetime = (uint)Quotas.SecurityTokenLifetime;
 
-            // encode the request.            
+            // encode the request.
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
             // write the asymmetric message.
@@ -479,6 +497,7 @@ namespace Opc.Ua.Bindings
                 TcpMessageType.Open,
                 m_handshakeOperation.RequestId,
                 ClientCertificate,
+                ClientCertificateChain,
                 ServerCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length));
 

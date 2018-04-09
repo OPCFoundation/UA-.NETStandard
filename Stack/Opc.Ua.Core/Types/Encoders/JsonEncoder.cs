@@ -740,13 +740,13 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
 
-            m_nestingLevel++;
-
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
             }
+
+            m_nestingLevel++;
 
             PushStructure(fieldName);
 
@@ -865,13 +865,13 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
 
-            m_nestingLevel++;
-
             if (Variant.Null == value)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
             }
+
+            m_nestingLevel++;
 
             bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
 
@@ -1024,13 +1024,14 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
 
-            m_nestingLevel++;
 
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
             }
+
+            m_nestingLevel++;
 
             PushStructure(fieldName);
 

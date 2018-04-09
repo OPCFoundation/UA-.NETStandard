@@ -760,6 +760,7 @@ namespace Opc.Ua
             m_rejectSHA1SignedCertificates = true;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
             m_addAppCertToTrustedStore = true;
+            m_sendCertificateChain = false;
         }
 
         /// <summary>
@@ -907,6 +908,7 @@ namespace Opc.Ua
             get { return m_minCertificateKeySize; }
             set { m_minCertificateKeySize = value; }
         }
+
         /// <summary>
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
         /// </summary>
@@ -918,6 +920,19 @@ namespace Opc.Ua
         {
             get { return m_addAppCertToTrustedStore; }
             set { m_addAppCertToTrustedStore = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the application should send the complete certificate chain.
+        /// </summary>
+        /// <remarks>
+        /// If set to true the complete certificate chain will be sent for CA signed certificates.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        public bool SendCertificateChain
+        {
+            get { return m_sendCertificateChain; }
+            set { m_sendCertificateChain = value; }
         }
         #endregion
 
@@ -932,6 +947,7 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private ushort m_minCertificateKeySize;
         private bool m_addAppCertToTrustedStore;
+        private bool m_sendCertificateChain;
         #endregion
     }
     #endregion

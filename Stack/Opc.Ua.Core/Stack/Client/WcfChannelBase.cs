@@ -670,6 +670,27 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             ServiceMessageContext messageContext)
         {
+            return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+        }
+
+        /// <summary>
+        /// Creates a new UA-binary transport channel if requested. Null otherwise.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="description">The description for the endpoint.</param>
+        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certificate chain.</param>
+        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <returns></returns>
+        public static ITransportChannel CreateUaBinaryChannel(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            ServiceMessageContext messageContext)
+        {
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
 
@@ -690,10 +711,14 @@ namespace Opc.Ua
             }
 
             // note: WCF channels are not supported
-            if (!useUaTcp && !useHttps)
+            if (!useUaTcp
+#if !NO_HTTPS
+                && !useHttps
+#endif
+                )
             {
                 throw ServiceResultException.Create(
-                    StatusCodes.BadServiceUnsupported,
+                    StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile\r\n");
             }
 
@@ -706,6 +731,7 @@ namespace Opc.Ua
             settings.Description = description;
             settings.Configuration = endpointConfiguration;
             settings.ClientCertificate = clientCertificate;
+            settings.ClientCertificateChain = clientCertificateChain;
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
@@ -733,7 +759,9 @@ namespace Opc.Ua
             }
             else if (useHttps)
             {
+#if !NO_HTTPS
                 channel = new HttpsTransportChannel();
+#endif
             }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);

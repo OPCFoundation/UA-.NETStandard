@@ -529,6 +529,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the instance certificate chain.
+        /// </summary>
+        protected X509Certificate2Collection InstanceCertificateChain
+        {
+            get
+            {
+                return m_instanceCertificateChain;
+            }
+
+            private set
+            {
+                m_instanceCertificateChain = value;
+            }
+        }
+
+        /// <summary>
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
@@ -649,12 +665,14 @@ namespace Opc.Ua
                     tcpListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
                     continue;
                 }
+#if !NO_HTTPS
                 UaHttpsChannelListener httpsListener = listener as UaHttpsChannelListener;
                 if (httpsListener != null)
                 {
                     httpsListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
                     continue;
                 }
+#endif
             }
         }
 
@@ -737,6 +755,19 @@ namespace Opc.Ua
                     if (requireEncryption)
                     {
                         description.ServerCertificate = InstanceCertificate.RawData;
+
+                        // check if complete chain should be sent.
+                        if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count >0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            description.ServerCertificate = serverCertificateChain.ToArray();
+                        }
                     }
 
                     endpoints.Add( description );
@@ -749,10 +780,15 @@ namespace Opc.Ua
 
                     settings.Descriptions = endpoints;
                     settings.Configuration = endpointConfiguration;
-                    settings.ServerCertificate = this.InstanceCertificate;
                     settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
                     settings.NamespaceUris = this.MessageContext.NamespaceUris;
                     settings.Factory = this.MessageContext.Factory;
+                    settings.ServerCertificate = this.InstanceCertificate;
+
+                    if (configuration.SecurityConfiguration.SendCertificateChain)
+                    {
+                        settings.ServerCertificateChain = this.InstanceCertificateChain;
+                    }
 
                     ITransportListener listener = new Opc.Ua.Bindings.UaTcpChannelListener();
 
@@ -828,25 +864,25 @@ namespace Opc.Ua
 
                 if (uri.Scheme == Utils.UriSchemeHttps)
                 {
-                    // can only support one policy with HTTPS so pick the best one.
+                    // Can only support one policy with HTTPS so pick the 
+                    // first secure policy with sign and encrypt in the list 
                     ServerSecurityPolicy bestPolicy = null;
-                    byte bestLevel = 0;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        if (bestPolicy == null)
+                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                         {
-                            bestPolicy = policy;
                             continue;
                         }
 
-                        byte securityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
-                        if (bestLevel < securityLevel)
-                        {
-                            bestPolicy = policy;
-                            bestLevel = securityLevel;
-                        }
+                        bestPolicy = policy;
+                        break;
                     }
-                
+
+                    if (bestPolicy == null)
+                    {
+                        throw new ServiceResultException("HTTPS transport requires policy with sign and encrypt.");
+                    }
+
                     EndpointDescription description = new EndpointDescription();
 
                     description.EndpointUrl = uri.ToString();
@@ -855,6 +891,19 @@ namespace Opc.Ua
                     if (InstanceCertificate != null)
                     {
                         description.ServerCertificate = InstanceCertificate.RawData;
+
+                        // check if complete chain should be sent.
+                        if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count > 0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            description.ServerCertificate = serverCertificateChain.ToArray();
+                        }
                     }
 
                     description.SecurityMode = bestPolicy.SecurityMode;
@@ -1324,6 +1373,16 @@ namespace Opc.Ua
                     "Server does not have access to the private key for the instance certificate.");
             }
 
+            // load certificate chain.
+            InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
+            List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+            configuration.CertificateValidator.GetIssuers(InstanceCertificateChain, issuers).Wait();
+
+            for (int i = 0; i < issuers.Count; i++)
+            {
+                InstanceCertificateChain.Add(issuers[i].Certificate);
+            }
+
             // use the message context from the configuration to ensure the channels are using the same one.
             MessageContext = configuration.CreateMessageContext();
 
@@ -1487,6 +1546,7 @@ namespace Opc.Ua
         private object m_serverError;
         private object m_certificateValidator;
         private object m_instanceCertificate;
+        private X509Certificate2Collection m_instanceCertificateChain;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

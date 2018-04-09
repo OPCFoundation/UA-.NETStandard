@@ -87,6 +87,9 @@
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    
+    <!-- Specifies whether the complete certificate chain should be sent for CA signed certificates. -->
+    <SendCertificateChain>false</SendCertificateChain>
 
   </SecurityConfiguration>
 
@@ -141,6 +144,7 @@
          http://localhost:61211/UA/SampleClient/Basic256 -->
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
+      <ua:String>https://localhost:61212/UA/SampleClient</ua:String>
     </BaseAddresses>
 
     <!-- 
@@ -180,22 +184,6 @@
       </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>      
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
@@ -214,6 +202,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
       </ServerSecurityPolicy>
+
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>

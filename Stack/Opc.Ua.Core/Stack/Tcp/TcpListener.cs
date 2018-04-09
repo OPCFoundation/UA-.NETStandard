@@ -344,6 +344,7 @@ namespace Opc.Ua.Bindings
                                 m_bufferManager,
                                 m_quotas,
                                 m_serverCertificate,
+                                m_serverCertificateChain,
                                 m_descriptions);
 
                             if (m_callback != null)

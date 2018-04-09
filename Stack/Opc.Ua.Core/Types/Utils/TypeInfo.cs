@@ -1248,7 +1248,7 @@ namespace Opc.Ua
                 case BuiltInType.QualifiedName: { return QualifiedName.Null; }
                 case BuiltInType.LocalizedText: { return LocalizedText.Null; }
                 case BuiltInType.Variant: { return Variant.Null; }
-                case BuiltInType.DataValue: { return new DataValue(); }
+                case BuiltInType.DataValue: { return null; }
                 case BuiltInType.Enumeration: { return (int)0; }
                 case BuiltInType.Number: { return (double)0; }
                 case BuiltInType.Integer: { return (long)0; }

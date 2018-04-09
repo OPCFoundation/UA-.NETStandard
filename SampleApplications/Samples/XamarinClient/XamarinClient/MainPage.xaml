@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="XamarinClient.MainPage"
+             Title="OPC UA Xamarin Client">
+    <ContentPage.Content>
+        <StackLayout  Margin = "20,20,20,20">
+
+            <Label Text="Enter yor OPC UA server's endpoint URL here:"
+                   FontSize="Small" >
+            </Label>
+
+            <Entry x:Name="EntryUrl"
+                   Placeholder="endpointURL">
+            </Entry>
+
+            <Button x:Name="ConnectButton"
+                Text="Connect"
+                Font="small"
+                HorizontalOptions="End"
+                Clicked="OnConnect"
+                Margin="0,40,0,0">
+            </Button>
+
+            <ActivityIndicator x:Name="ConnectIndicator" 
+                IsRunning="False"
+                Color="DarkGray"/>
+
+            <Label x:Name="label" 
+                   Text="{Binding LabelText, Mode=TwoWay}"
+                FontSize="Medium"
+                   FontAttributes="None"
+                   Margin="0,50,0,0"
+                   TextColor="Black">
+            </Label>
+
+        </StackLayout>
+    </ContentPage.Content>
+</ContentPage>

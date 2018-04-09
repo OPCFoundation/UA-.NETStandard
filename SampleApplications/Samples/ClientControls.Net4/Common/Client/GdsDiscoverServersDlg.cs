@@ -126,8 +126,8 @@ namespace Opc.Ua.Client.Controls
 
             if (urls.Count == 0)
             {
-                // TODO
-                urls.Add("opc.tcp://localhost:48041/GlobalDiscoveryServer");
+                // TODO find servers with LDS
+                urls.Add("opc.tcp://localhost:58800/GlobalDiscoveryServer");
             }
 
             ServerCTRL.Configuration = configuration;

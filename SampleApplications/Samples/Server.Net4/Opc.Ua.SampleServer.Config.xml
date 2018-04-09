@@ -55,6 +55,7 @@
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:51210/UA/SampleServer</ua:String>
+      <ua:String>https://localhost:51212/UA/SampleServer</ua:String>
     </BaseAddresses>
 
     <!-- 
@@ -84,22 +85,7 @@
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
       </ServerSecurityPolicy>-->
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
+
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>

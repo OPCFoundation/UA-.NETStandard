@@ -138,7 +138,6 @@ namespace Boiler
             IList<Variant> outputArguments = new List<Variant>();
             List<ServiceResult> errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
-
         }
 
         /// <summary>
