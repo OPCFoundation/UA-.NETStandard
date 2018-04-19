@@ -1,0 +1,36 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.GetPublisherIdDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="Get Publisher Id Dialog" Height="310" Width="405" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="200" />
+            <RowDefinition Height="100" />
+
+        </Grid.RowDefinitions>
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto">
+            <DataGrid Grid.ColumnSpan="2" x:Name="PublisherDataGrid" Grid.Row="0" AutoGenerateColumns="False"
+                      CanUserSortColumns="False"
+                      Foreground="Black" CanUserAddRows="False" HeadersVisibility="Column">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" MinWidth="150"
+                                        Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Published Id" MinWidth="180"
+                                        Binding="{Binding DataSetNodeId,UpdateSourceTrigger=PropertyChanged}"
+                                        IsReadOnly="True" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
+        <StackPanel Margin="0,0,0,8" VerticalAlignment="Center" HorizontalAlignment="Right" Orientation="Horizontal"
+                    Grid.Row="1">
+            <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="OnApply_Click" />
+            <Button Width="100" Margin="5,5" Content="Cancel" Height="23" VerticalAlignment="Center"
+                    Click="OnCancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -756,6 +756,16 @@ namespace Opc.Ua.Client
                 }
             }
         }
+        /// <summary>
+        /// Gets the Instance Certificate
+        /// </summary>
+        public X509Certificate2 InstanceCertificate
+        {
+            get
+            {
+                return m_instanceCertificate;
+            }
+        }
         #endregion
 
         #region Public Static Methods

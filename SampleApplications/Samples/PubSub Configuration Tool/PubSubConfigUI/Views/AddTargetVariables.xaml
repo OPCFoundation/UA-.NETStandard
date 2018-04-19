@@ -1,0 +1,235 @@
+﻿<Window x:Class="PubSubConfigurationUI.Views.AddTargetVariables"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converter="clr-namespace:PubSubConfigurationUI.ViewModels"
+        xmlns:local="clr-namespace:PubSubConfigurationUI.Views"
+        mc:Ignorable="d"
+        Title="Add Target Variables" Width="853" Height="600" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <converter:TreeViewLineConverter x:Key="TreeViewLineConverter" />
+        <Style x:Key="ExpandCollapseToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="Black" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid Width="14" Height="14" SnapsToDevicePixels="True" Background="Black">
+                            <Rectangle Width="14" Height="14" Stroke="DarkGray" SnapsToDevicePixels="true" Fill="White" />
+                            <TextBlock x:Name="txt_minus" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="txt_minus" Property="Text" Value="-" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="txt_minus" Property="Text" Value="+" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TreeViewItem -->
+        <Style x:Key="TreeviewItemStyle" TargetType="{x:Type TreeViewItem}">
+            <Setter Property="Padding" Value="1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TreeViewItem}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition MinWidth="25" Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" MinHeight="32" />
+
+                                <RowDefinition />
+                            </Grid.RowDefinitions>
+
+                            <!-- Connecting Lines -->
+                            <Rectangle x:Name="HorLn" Margin="9,1,0,0" Height="1" StrokeDashArray="3 3"
+                                       Stroke="DarkGray" SnapsToDevicePixels="True" />
+                            <Rectangle x:Name="VerLn" Width="1" Stroke="DarkGray" StrokeDashArray="3 3"
+                                       Margin="0,0,1,0" SnapsToDevicePixels="true" Fill="White" />
+                            <ToggleButton Margin="-1,0,0,0" x:Name="Expander"
+                                          Style="{StaticResource ExpandCollapseToggleStyle}"
+                                          IsChecked="{Binding Path=IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press"
+                                          Background="Black" />
+                            <Border Name="Bd" Grid.Column="1" Grid.ColumnSpan="2"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                                <ContentPresenter x:Name="PART_Header" ContentSource="Header"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalAlignment}" />
+                            </Border>
+                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <!-- This trigger changes the connecting lines if the item is the last in the list -->
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#007ACC" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <DataTrigger
+                                Binding="{Binding RelativeSource={RelativeSource Self}, Converter={StaticResource TreeViewLineConverter}}"
+                                Value="true">
+                                <Setter TargetName="VerLn" Property="Height" Value="9" />
+                                <Setter TargetName="VerLn" Property="VerticalAlignment" Value="Top" />
+                            </DataTrigger>
+                            <Trigger Property="IsExpanded" Value="false">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="30*" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="70*" />
+        </Grid.ColumnDefinitions>
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="26" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="Browsed Nodes" Grid.Row="0" Height="20" Margin="5,0" />
+            <TreeView x:Name="BrowsedItems" Grid.Row="1" Margin="0,2" Foreground="Black"
+                      ItemsSource="{Binding ServerItems,UpdateSourceTrigger=PropertyChanged}"
+                      SelectedItemChanged="BrowsedItems_SelectedItemChanged"
+                      ItemContainerStyle="{StaticResource TreeviewItemStyle}">
+                <TreeView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Rebrowse" Click="Rebrowse_Click" />
+                    </ContextMenu>
+                </TreeView.ContextMenu>
+                <TreeView.ItemTemplate>
+                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                        <StackPanel Orientation="Horizontal" Height="20">
+                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                       Foreground="Black" FontFamily="Arial" FontSize="12" />
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                </TreeView.ItemTemplate>
+
+                <TreeView.Style>
+                    <Style TargetType="TreeView">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsServerConfigured,UpdateSourceTrigger=PropertyChanged}"
+                                         Value="false">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsServerConfigured,UpdateSourceTrigger=PropertyChanged}"
+                                         Value="true">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+
+                </TreeView.Style>
+            </TreeView>
+        </Grid>
+        
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="30" />
+            </Grid.RowDefinitions>
+            <Grid>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="200*" />
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="40*" />
+                </Grid.RowDefinitions>
+
+                <GroupBox x:Name="General" Header="General">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Label Content="Configuration Minor Version" Margin="5,0" MinWidth="180" />
+                            <TextBox x:Name="MinorVersion" IsEnabled="False" Text="{Binding MinorVersion}" Height="23"
+                                     Width="240" Margin="7,2" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Grid.Row="1">
+                            <Label Content="Configuration Major Version" Margin="5,0" MinWidth="180" />
+                            <TextBox x:Name="MajorVersion" IsEnabled="False" Text="{Binding MajorVersion}" Height="23"
+                                     Width="240" Margin="7,0" />
+                        </StackPanel>
+
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox x:Name="FieldTargetVariableDataType" Grid.Row="1" Header="Field Target Variable DataType">
+
+                    <local:FieldTargetVariableUserControl Grid.Row="1" Loaded="TargetDataItemUserControl_Loaded"
+                                                          x:Name="TargetVariableUserControl" />
+                </GroupBox>
+                <StackPanel Orientation="Horizontal" Grid.Row="2">
+                    <Label Content="Variable List" FontWeight="ExtraBold" Margin="10,0" MinWidth="460" />
+                    <Button Content="Add Variable" HorizontalAlignment="Right" Width="100" Height="23"
+                            Click="AddVariable" />
+                </StackPanel>
+                <Border Grid.Row="3" BorderThickness="1" BorderBrush="Black" SnapsToDevicePixels="True">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+                        <DataGrid x:Name="VariableListDataGrid" AutoGenerateColumns="False" CanUserSortColumns="False"
+                                  Foreground="Black" CanUserAddRows="False" HeadersVisibility="Column"
+                                  ItemsSource="{Binding VariableListDefinitionCollection,UpdateSourceTrigger=PropertyChanged}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Name" MinWidth="100"
+                                                    Binding="{Binding Name,UpdateSourceTrigger=PropertyChanged}"
+                                                    IsReadOnly="True" />
+                                <DataGridTextColumn Header="Node ID" MinWidth="100"
+                                                    Binding="{Binding TargetNodeId,UpdateSourceTrigger=PropertyChanged}"
+                                                    IsReadOnly="True" />
+                                <DataGridTemplateColumn Width="200" Header="Action">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="X" Foreground="Red" 
+                                                       Width="25" Height="18" ToolTip="Remove"
+                                                       PreviewMouseLeftButtonDown="OnVariableDeleteClick"
+                                                       Tag="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type TabControl}}, Path=DataContext.TabItems}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+            <StackPanel Margin="0,-25" VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Width="100" Content="Apply" Height="22" VerticalAlignment="Center" Click="OnApply_Click" />
+                <Button Width="100" Margin="5,5" Content="Cancel" Height="22" VerticalAlignment="Center"
+                        Click="OnCancel_Click" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
