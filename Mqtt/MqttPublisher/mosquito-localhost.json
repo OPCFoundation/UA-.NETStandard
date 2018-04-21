@@ -1,0 +1,9 @@
+﻿{
+  "Broker": "localhost",
+  "Topic": "opcua/pubsub/prototype",
+  "ClientId": "opcua-mqtt-client",
+  "UseTls": false,
+  "CredentialType": 1,
+  "CredentialName": "",
+  "CredentialSecret": ""
+}

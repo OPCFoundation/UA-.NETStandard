@@ -1,0 +1,9 @@
+﻿{
+  "Broker": "opcf-prototype-iothub.azure-devices.net",
+  "Topic": "devices/mqtt-prototype-certificate/messages/events/",
+  "ClientId": "mqtt-prototype-certificate",
+  "UseTls": true,
+  "CredentialType": 2,
+  "CredentialName": "opcf-prototype-iothub.azure-devices.net/mqtt-prototype-certificate",
+  "CredentialSecret": ""
+}

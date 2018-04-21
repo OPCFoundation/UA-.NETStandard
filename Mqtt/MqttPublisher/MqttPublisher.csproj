@@ -9,7 +9,34 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="DataSetWriterSettings.cs" />
+    <Compile Remove="SubscriptionSettings.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="azure-iothub-certificate.json" />
+    <None Remove="azure-iothub-sharedkey.json" />
+    <None Remove="mosquito-localhost.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="azure-iothub-certificate.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="azure-iothub-sharedkey.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="mosquito-localhost.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(SolutionDir)\packages\Opc.Ua.CertificateGenerator.1.1.338\Opc.Ua.CertificateGenerator.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="M2MqttDotnetCore" Version="1.0.7" />
+    <PackageReference Include="Microsoft.Azure.Devices" Version="1.6.0" />
     <PackageReference Include="Mono.Options" Version="5.3.0.1" />
   </ItemGroup>
 

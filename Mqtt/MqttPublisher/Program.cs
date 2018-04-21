@@ -25,7 +25,8 @@ namespace MqttSamplePublisher
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => settings.AutoAccept = a != null },
                 { "s|source=", "the source used for the data to publish.", s => settings.EndpointUrl = s },
-                { "c|config=", "the configuration file to use.", c => settings.ConfigFile = c }
+                { "c|config=", "the connection configuration file to use.", c => settings.ConfigFile = c },
+                { "b|broker=", "the broker configuration file to use.", b => settings.BrokerFile = b }
             };
 
             IList<string> extraArgs = null;

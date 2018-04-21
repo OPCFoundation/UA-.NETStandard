@@ -12,8 +12,8 @@ namespace SimulatedDevice
     {
         static DeviceClient deviceClient;
         static string iotHubUri = "opcf-prototype-iothub.azure-devices.net";
-        static string deviceId = "mqtt-prototype-redopal-sparhawksoftware-com";
-        static string deviceKey = "";
+        static string deviceId = "mqtt-prototype-sharedkeys";
+        static string deviceKey = "8xW/ttOlWLiwktSCrHtZNvlk2pj9XdizYniMtdqoSeQ=";
 
         private static async void SendDeviceToCloudMessagesAsync()
         {
@@ -47,6 +47,7 @@ namespace SimulatedDevice
 
         static void Main(string[] args)
         {
+            // var key = new DeviceAuthenticationWithX509Certificate(deviceId, new System.Security.Cryptography.X509Certificates.X509Certificate2(@"C:\Work\opcuanet\pki\own\private\mqtt-prototype-redopal [9EBEC9414DC8A9FA990907761FC3CFCFEB7F57D1].pfx"));
             var key = new DeviceAuthenticationWithRegistrySymmetricKey(deviceId, deviceKey);
             Console.WriteLine("Simulated device\n");
             deviceClient = DeviceClient.Create(iotHubUri, key, TransportType.Mqtt);

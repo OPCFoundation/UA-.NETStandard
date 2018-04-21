@@ -24,7 +24,7 @@
       "SecurityMode": 1,
       "MaxNetworkMessageSize": 10000,
       "WriterGroupId": 1,
-      "PublishingInterval": 20000,
+      "PublishingInterval": 10000,
       "KeepAliveTime": 10000,
       "Priority": 50,
       "TransportSettings": {
@@ -67,7 +67,7 @@
       "SecurityMode": 1,
       "MaxNetworkMessageSize": 10000,
       "WriterGroupId": 1,
-      "PublishingInterval": 20000,
+      "PublishingInterval": 10000,
       "KeepAliveTime": 10000,
       "Priority": 50,
       "TransportSettings": {

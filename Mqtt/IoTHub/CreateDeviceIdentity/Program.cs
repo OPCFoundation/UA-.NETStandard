@@ -14,7 +14,7 @@ namespace CreateDeviceIdentity
         static string connectionString = "";
         private static async Task AddDeviceAsync()
         {
-            string deviceId = "mqtt-prototype-redopal-sparhawksoftware-com";
+            string deviceId = "mqtt-prototype-sharedkeys";
             Device device;
 
             try

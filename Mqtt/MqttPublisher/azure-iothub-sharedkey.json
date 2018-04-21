@@ -1,0 +1,9 @@
+﻿{
+  "Broker": "opcf-prototype-iothub.azure-devices.net",
+  "Topic": "devices/mqtt-prototype-sharedkeys/messages/events/",
+  "ClientId": "mqtt-prototype-sharedkeys",
+  "UseTls": true,
+  "CredentialType": 3,
+  "CredentialName": "opcf-prototype-iothub.azure-devices.net/mqtt-prototype-sharedkeys",
+  "CredentialSecret": "8xW/ttOlWLiwktSCrHtZNvlk2pj9XdizYniMtdqoSeQ="
+}

@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using System.Globalization;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Net;
 using uPLibrary.Networking.M2Mqtt;
+using uPLibrary.Networking.M2Mqtt.Messages;
 using Opc.Ua;
 using Opc.Ua.Client;
 
@@ -17,6 +19,7 @@ namespace MqttSamplePublisher
     {
         public string EndpointUrl = String.Empty;
         public string ConfigFile = String.Empty;
+        public string BrokerFile = String.Empty;
         public int Timeout = System.Threading.Timeout.Infinite;
         public bool AutoAccept = true;
     }
@@ -33,12 +36,13 @@ namespace MqttSamplePublisher
 
     class PubSubApplication
     {
+        private BrokerSettings m_broker;
         private ApplicationConfiguration m_configuration;
         private Session m_session;
         private Subscription m_subscription;
-        private bool m_useSecurity;
         private int m_sequenceNumber = 0;
         private Queue<JsonNetworkMessage> m_messages;
+        private MqttClientFactory m_mqttFactory;
         private MqttClient m_mqttClient;
 
         private Dictionary<string, PubSubConnectionDataType> m_connections;
@@ -64,6 +68,13 @@ namespace MqttSamplePublisher
             m_writerGroups = new Dictionary<string, WriterGroupDataType>();
             m_datasetWriters = new Dictionary<string, DataSetWriterDataType>();
             m_datasets = new Dictionary<string, PublishedDataSetDataType>();
+            m_mqttFactory = new MqttClientFactory();
+            m_mqttFactory.LogMessage += MqttFactory_LogMessage;
+        }
+
+        private void MqttFactory_LogMessage(object sender, LogMessageEventArgs e)
+        {
+            LogMessage(this, e);
         }
 
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
@@ -87,93 +98,13 @@ namespace MqttSamplePublisher
             }
         }
 
-        private async Task<X509Certificate2> FindIssuer(ApplicationConfiguration configuration, string subjectName)
-        {
-            DirectoryCertificateStore store = (DirectoryCertificateStore)configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-
-            foreach (var ii in await store.Enumerate())
-            {
-                if (Utils.CompareDistinguishedName(ii.Subject, subjectName))
-                {
-                    return store.LoadPrivateKey(ii.Thumbprint, null, null);
-                }
-            }
-
-            return null;
-        }
-
-        private async Task GenerateCertificate(ApplicationConfiguration configuration)
-        {
-            Log("    INFO: Creating new application certificate: {0}", configuration.ApplicationName);
-
-            string issuerName = "CN=TestCA,DC=" + System.Net.Dns.GetHostName();
-            X509Certificate2 issuer = await FindIssuer(configuration, issuerName);
-
-            if (issuer == null)
-            {
-                Log("    INFO: Creating new issuer certificate: {0}", issuerName);
-
-                issuer = CertificateFactory.CreateCertificate(
-                   configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType,
-                   configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath,
-                   null,
-                   null,
-                   null,
-                   issuerName,
-                   null,
-                   CertificateFactory.defaultKeySize,
-                   DateTime.UtcNow - TimeSpan.FromDays(1),
-                   CertificateFactory.defaultLifeTime,
-                   CertificateFactory.defaultHashSize,
-                   true,
-                   null,
-                   null);
-            }
-
-            var verification = CertificateFactory.CreateCertificate(
-                configuration.SecurityConfiguration.ApplicationCertificate.StoreType,
-                configuration.SecurityConfiguration.ApplicationCertificate.StorePath,
-                null,
-                null,
-                null,
-                "CN=C40538A3D342CAD24C2009C8765D6B5685D274DDAD36DE2A",
-                null,
-                CertificateFactory.defaultKeySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize,
-                false,
-                issuer,
-                null);
-
-            Log("    INFO: Creating new application certificate: {0}", configuration.ApplicationName);
-
-            X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                configuration.SecurityConfiguration.ApplicationCertificate.StoreType,
-                configuration.SecurityConfiguration.ApplicationCertificate.StorePath,
-                null,
-                configuration.ApplicationUri,
-                configuration.ApplicationName,
-                configuration.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                null,
-                CertificateFactory.defaultKeySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize,
-                false,
-                issuer,
-                null);
-
-            configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
-        }
-
         private async Task<ApplicationConfiguration> CreateApplicationConfiguration(ApplicationStartSettings settings)
         {
             CertificateIdentifier applicationCertificate = new CertificateIdentifier
             {
                 StoreType = "Directory",
-                StorePath = "pki/own",
-                SubjectName = "UA Core Sample Client"
+                StorePath = "../../../../../pki/own",
+                SubjectName = "CN=" + "MQTT Sample Publisher" + ",DC=" + Dns.GetHostName()
             };
 
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
@@ -189,17 +120,17 @@ namespace MqttSamplePublisher
                     TrustedPeerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "pki/trusted"
+                        StorePath = "../../../../../pki/trusted"
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "pki/issuers"
+                        StorePath = "../../../../../pki/issuers"
                     },
                     RejectedCertificateStore = new CertificateTrustList
                     {
                         StoreType = "Directory",
-                        StorePath = "pki/rejected"
+                        StorePath = "../../../../../pki/rejected"
                     },
                     NonceLength = 32,
                     AutoAcceptUntrustedCertificates = settings.AutoAccept
@@ -215,10 +146,10 @@ namespace MqttSamplePublisher
 
             if (!haveAppCertificate)
             {
-                await GenerateCertificate(config);
+                await m_mqttFactory.CreateCertificate(config, applicationCertificate.SubjectName);
             }
 
-            m_useSecurity = haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
+            haveAppCertificate = config.SecurityConfiguration.ApplicationCertificate.Certificate != null;
 
             if (haveAppCertificate)
             {
@@ -231,7 +162,7 @@ namespace MqttSamplePublisher
             }
             else
             {
-                Log("    WARN: missing application certificate, using unsecure connection.");
+                Log("WARN: missing application certificate, using unsecure connection.");
             }
 
             Utils.SetTraceMask(Utils.TraceMasks.None);
@@ -517,40 +448,9 @@ namespace MqttSamplePublisher
             }
         }
 
-        private bool ServerCertificateValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-        {
-            return true;
-        }
-
-        X509Certificate ClientCertificateSelectionCallback(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers)
-        {
-            return m_configuration.SecurityConfiguration.ApplicationCertificate.Certificate;
-        }
-
-        void MqttStackTrace(string format, params object[] args)
-        {
-            Console.WriteLine(format, args);
-        }
-
-        const string iotHubId = "opcf-prototype-iothub.azure-devices.net";
-        const string deviceId = "mqtt-prototype-redopal-sparhawksoftware-com";
-
         private async void StartMqttPublishing()
-        { 
-            X509Certificate2 issuer = await FindIssuer(m_configuration, m_configuration.SecurityConfiguration.ApplicationCertificate.Certificate.Issuer);
-
-            m_mqttClient = new MqttClient(
-                iotHubId, 
-                8883, 
-                true, 
-                issuer,
-                m_configuration.SecurityConfiguration.ApplicationCertificate.Certificate,
-                MqttSslProtocols.TLSv1_2);
-
-            const string userName = iotHubId + "/" + deviceId;
-            const string password = "";
-            
-            int result = m_mqttClient.Connect(deviceId, userName, password);
+        {
+            m_mqttClient = await m_mqttFactory.Create(m_configuration, m_broker);
 
             m_mqttClient.MqttMsgPublished += Client_MqttMsgPublished;
             m_mqttClient.MqttMsgPublishReceived += Client_MqttMsgPublishReceived;
@@ -560,20 +460,22 @@ namespace MqttSamplePublisher
 
         private void PublishMessage(string queueName, JsonNetworkMessage networkMessage)
         {
-            lock (m_messages)
+            if (m_mqttClient != null)
             {
-                var ostrm = new MemoryStream();
-
-                using (var stream = new StreamWriter(ostrm))
+                lock (m_messages)
                 {
-                    networkMessage.Encode(m_session.MessageContext, false, stream);
-                }
+                    var ostrm = new MemoryStream();
 
-                var array = ostrm.ToArray();
-                m_mqttClient.Publish("devices/" + deviceId + "/messages/events/", array, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, false);
+                    using (var stream = new StreamWriter(ostrm))
+                    {
+                        networkMessage.Encode(m_session.MessageContext, false, stream);
+                    }
+
+                    var data = ostrm.ToArray();
+                    m_mqttClient.Publish(m_broker.Topic, data, MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, false);
+                }
             }
         }
-
 
         private void StopMqttPublishing()
         {
@@ -600,29 +502,42 @@ namespace MqttSamplePublisher
             Log("MQTT: Published: {0} {1}", e.MessageId, e.IsPublished);
         }
 
+        private async Task<BrokerSettings> LoadBrokerSettings(string filePath)
+        {
+            BrokerSettings settings = null;
+
+            using (var istrm = new System.IO.StreamReader(filePath))
+            {
+                settings = await BrokerSettings.Decode(ServiceMessageContext.GlobalContext, istrm);
+            }
+
+            return settings;
+        }
+
         public async Task Start(ApplicationStartSettings settings)
         {
-            Log("1 - Create an Application Configuration.");
+            Log("1 - Load Broker Settings.");
+            m_broker = await LoadBrokerSettings(settings.BrokerFile);
+
+            Log("2 - Create an Application Configuration.");
             m_configuration = await CreateApplicationConfiguration(settings);
 
-            m_useSecurity = false;
+            Log("3 - Discover endpoints of {0}.", settings.EndpointUrl);
+            var selectedEndpoint = CoreClientUtils.SelectEndpoint(settings.EndpointUrl, false, settings.Timeout);
+            Log("Selected endpoint uses: {0}", selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
-            Log("2 - Discover endpoints of {0}.", settings.EndpointUrl);
-            var selectedEndpoint = CoreClientUtils.SelectEndpoint(settings.EndpointUrl, m_useSecurity, settings.Timeout);
-            Log("    Selected endpoint uses: {0}", selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
-
-            Log("3 - Create a session with OPC UA server.");
+            Log("4 - Create a session with OPC UA server.");
             var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             m_session = await Session.Create(m_configuration, endpoint, false, "OPC UA Sample Publisher", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
-            Log("4 - Start MQTT publishing.");
+            Log("5 - Start MQTT publishing.");
             StartMqttPublishing();
 
-            Log("5 - Create subscription.");
+            Log("6 - Create subscription.");
             await CreateSubscription();
 
-            Log("6 - Load connection configuration.");
+            Log("7 - Load connection configuration.");
             await LoadConnection(settings.ConfigFile);
         }
 

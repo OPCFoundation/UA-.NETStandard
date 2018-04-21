@@ -1,0 +1,106 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2027
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{84FE2F0A-4192-4D2C-8097-9C396C2375E8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{259094EF-B5FC-412D-8187-0ED7FF763D55}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MqttPublisher", "Mqtt\MqttPublisher\MqttPublisher.csproj", "{783026B4-E2C6-4F93-85F4-D2E2D18FDC41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CreateDeviceIdentity", "Mqtt\IoTHub\CreateDeviceIdentity\CreateDeviceIdentity.csproj", "{0338BBFE-D423-4D90-AD9B-A73338B3E077}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadDeviceToCloudMessages", "Mqtt\IoTHub\ReadDeviceToCloudMessages\ReadDeviceToCloudMessages.csproj", "{E9531616-ADCD-4F52-8825-232565A11FDF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimulatedDevice", "Mqtt\IoTHub\SimulatedDevice\SimulatedDevice.csproj", "{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SDK", "SDK", "{7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IoTHub", "IoTHub", "{D3F5A0D8-F709-454B-A5D4-D21855AC110A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccess Server", "Mqtt\DataAccess\Server\DataAccess Server.csproj", "{82FD7FC9-1912-44A4-BF20-178927A7FCBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quickstart Library", "Mqtt\QuickstartLibrary\Quickstart Library.csproj", "{D8D0F7BC-BD73-4BE4-98E1-7ABDECAE4C50}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "SampleApplications\Samples\ServerControls.Net4\UA Server Controls.csproj", "{80056988-44E7-4EF4-9F59-50BCF215CB03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Client Controls", "SampleApplications\Samples\ClientControls.Net4\UA Client Controls.csproj", "{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{84FE2F0A-4192-4D2C-8097-9C396C2375E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{84FE2F0A-4192-4D2C-8097-9C396C2375E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{84FE2F0A-4192-4D2C-8097-9C396C2375E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{84FE2F0A-4192-4D2C-8097-9C396C2375E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{259094EF-B5FC-412D-8187-0ED7FF763D55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{259094EF-B5FC-412D-8187-0ED7FF763D55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{259094EF-B5FC-412D-8187-0ED7FF763D55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{259094EF-B5FC-412D-8187-0ED7FF763D55}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{783026B4-E2C6-4F93-85F4-D2E2D18FDC41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{783026B4-E2C6-4F93-85F4-D2E2D18FDC41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{783026B4-E2C6-4F93-85F4-D2E2D18FDC41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{783026B4-E2C6-4F93-85F4-D2E2D18FDC41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0338BBFE-D423-4D90-AD9B-A73338B3E077}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0338BBFE-D423-4D90-AD9B-A73338B3E077}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0338BBFE-D423-4D90-AD9B-A73338B3E077}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0338BBFE-D423-4D90-AD9B-A73338B3E077}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E9531616-ADCD-4F52-8825-232565A11FDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9531616-ADCD-4F52-8825-232565A11FDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9531616-ADCD-4F52-8825-232565A11FDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9531616-ADCD-4F52-8825-232565A11FDF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82FD7FC9-1912-44A4-BF20-178927A7FCBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82FD7FC9-1912-44A4-BF20-178927A7FCBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82FD7FC9-1912-44A4-BF20-178927A7FCBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82FD7FC9-1912-44A4-BF20-178927A7FCBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8D0F7BC-BD73-4BE4-98E1-7ABDECAE4C50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8D0F7BC-BD73-4BE4-98E1-7ABDECAE4C50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8D0F7BC-BD73-4BE4-98E1-7ABDECAE4C50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8D0F7BC-BD73-4BE4-98E1-7ABDECAE4C50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{84FE2F0A-4192-4D2C-8097-9C396C2375E8} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+		{259094EF-B5FC-412D-8187-0ED7FF763D55} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+		{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+		{DCA9C101-199F-4519-9F97-4CD22817EBE8} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+		{0338BBFE-D423-4D90-AD9B-A73338B3E077} = {D3F5A0D8-F709-454B-A5D4-D21855AC110A}
+		{E9531616-ADCD-4F52-8825-232565A11FDF} = {D3F5A0D8-F709-454B-A5D4-D21855AC110A}
+		{AF6A6E0C-823F-4B0E-AF42-BD5407FDACF8} = {D3F5A0D8-F709-454B-A5D4-D21855AC110A}
+		{80056988-44E7-4EF4-9F59-50BCF215CB03} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+		{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A} = {7AB9E6B7-47CD-4B8A-B4BE-D3FE6AF15F8B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {16C8F46D-CE17-433F-B22D-06CE04A1CF8F}
+	EndGlobalSection
+EndGlobal

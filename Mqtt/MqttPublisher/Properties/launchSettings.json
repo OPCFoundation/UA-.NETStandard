@@ -2,7 +2,7 @@
   "profiles": {
     "MqttPublisher": {
       "commandName": "Project",
-      "commandLineArgs": "-s=opc.tcp://redopal:62547/Quickstarts/DataAccessServer -c=localhost-connection.json"
+      "commandLineArgs": "-s=opc.tcp://redopal:62547/Quickstarts/DataAccessServer -c=localhost-connection.json -b=mosquito-localhost.json"
     }
   }
 }
