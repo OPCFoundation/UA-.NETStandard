@@ -3,7 +3,7 @@
 This code demonstrates the use of OPC UA PubSub over MQTT using the JSON encoding.
 The components of the prototype are shown in Figure 1.
 
-![Figure 1 - MQTT Prototype Context Diagram](/doc/mqtt-context-diagram.png)
+![Figure 1 - MQTT Prototype Context Diagram](doc/mqtt-context-diagram.png)
 The OPC UA Server is any OPC UA Server. 
 
 The Publisher is the prototype application that subscribes to the OPC UA Server, constructs PubSub messages and sends them to the specified MQTT broker. 
@@ -18,7 +18,7 @@ The DataSetWriters reference DataSets which are defined in a “dataset.json” 
 ## Software
 The components of the prototype application are shown in Figure 2.
 
-![Figure 2 - MQTT Software Components](/doc/mqtt-software-components.png)
+![Figure 2 - MQTT Software Components](doc/mqtt-software-components.png)
 
 The PubSubApplication loads the connection.json file and creates the Sessions and Subscriptions necessary to collect the data to publish. It then loads the dataset.job files referenced by the connection.json file and creates the monitored items specified for the specfied variables.
 
