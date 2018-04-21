@@ -4,6 +4,7 @@ This code demonstrates the use of OPC UA PubSub over MQTT using the JSON encodin
 The components of the prototype are shown in Figure 1.
 
 ![Figure 1 - MQTT Prototype Context Diagram](doc/mqtt-context-diagram.png)
+
 The OPC UA Server is any OPC UA Server. 
 
 The Publisher is the prototype application that subscribes to the OPC UA Server, constructs PubSub messages and sends them to the specified MQTT broker. 
