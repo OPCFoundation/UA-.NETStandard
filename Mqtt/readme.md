@@ -25,6 +25,8 @@ The PubSubApplication loads the connection.json file and creates the Sessions an
 
 When the data changes arrive from the server they are cached by the MonitoredItem objects. The timer that runs at the publishing interval specified in the connection.json will construct a JSON NetworkMessage with the current values and publish it to the broker. 
 
+The MQTT functionality is provided by the [Eclipse Paho](https://github.com/eclipse/paho.mqtt.m2mqtt) library. 
+
 ## Command Line Parameters
 Parameter | Short Form | Description
 -|-|-
