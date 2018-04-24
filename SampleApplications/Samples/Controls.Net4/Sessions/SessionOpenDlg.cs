@@ -155,8 +155,12 @@ namespace Opc.Ua.Sample.Controls
                     {
                         identity = new UserIdentity(username, PasswordTB.Text);
                     }
+                    
                 }
-
+                else if ((UserTokenType)UserIdentityTypeCB.SelectedItem == UserTokenType.Certificate)
+                {
+                    identity = new UserIdentity(m_session.InstanceCertificate);
+                }
                 Cursor = Cursors.WaitCursor;
 
                 ThreadPool.QueueUserWorkItem(Open, new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales, m_checkDomain });

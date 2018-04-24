@@ -727,7 +727,7 @@
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
-      <Project>{251c2bd9-33f5-4eb1-903d-8463c8fd16f0}</Project>
+      <Project>{6c449a1e-244e-4515-9949-a7e22012537c}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
     <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
