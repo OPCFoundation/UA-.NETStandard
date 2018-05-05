@@ -760,6 +760,10 @@ namespace Opc.Ua.Bindings
                         socket.Shutdown(SocketShutdown.Both);
                     }
                 }
+                catch
+                {
+                    // socket.Shutdown may throw but can be ignored
+                }
                 finally
                 {
                     socket.Dispose();

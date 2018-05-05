@@ -116,12 +116,7 @@ namespace Opc.Ua
             /// <summary>
             /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
             /// </summary>
-            DebugAndFile = 2,
-
-            /// <summary>
-            /// Write to trace listeners and a file (if specified).
-            /// </summary>
-            StdOutAndFile = 3
+            DebugAndFile = 2
         }
 
         /// <summary>
