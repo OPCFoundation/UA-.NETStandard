@@ -1,5 +1,5 @@
  
-# OPC UA .Net Standard Stack and Samples
+# Official OPC UA .Net Standard Stack and Samples from the OPC Foundation
 
 ## Overview
 This OPC UA reference implementation is targeting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) .

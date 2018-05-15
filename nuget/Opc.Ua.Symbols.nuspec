@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Symbols</id>
-    <version>1.03.352</version>
+    <version>1.04.353</version>
     <title>OPC UA .Net Standard Library Symbols</title>
     <description>This package contains the OPC UA reference implementation symbols and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
