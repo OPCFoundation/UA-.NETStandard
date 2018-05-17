@@ -168,7 +168,7 @@ namespace Opc.Ua.Gds.Test
             CertificateValidator certValidator = new CertificateValidator();
             CertificateTrustList issuerStore = new CertificateTrustList();
             CertificateTrustList trustedStore = new CertificateTrustList();
-            trustedStore.TrustedCertificates = issuerCertIdCollection;
+            issuerStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(trustedStore, issuerStore, null);
             Assert.That(() =>
             {
