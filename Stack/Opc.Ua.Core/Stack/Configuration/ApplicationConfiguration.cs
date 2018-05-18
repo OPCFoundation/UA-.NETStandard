@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -23,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
 	/// Loads the configuration section for an application.
 	/// </summary>
-	public class ApplicationConfigurationSection
+	public class ApplicationConfigurationSection : IConfigurationSectionHandler
     {
         #region IConfigurationSectionHandler Members	
         /// <summary>
