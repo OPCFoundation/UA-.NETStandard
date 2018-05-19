@@ -659,7 +659,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a translate browse path request.
         /// </summary>
-        public void SetResolvePathResult( 
+        public virtual void SetResolvePathResult( 
             BrowsePathResult          result,
             int                       index,
             DiagnosticInfoCollection  diagnosticInfos,         
@@ -688,7 +688,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a create monitored item request.
         /// </summary>
-        public void SetCreateResult(            
+        public virtual void SetCreateResult(            
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult  result,
             int                        index,
@@ -709,7 +709,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a modify monitored item request.
         /// </summary>
-        public void SetModifyResult(            
+        public virtual void SetModifyResult(            
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult  result,
             int                        index,
@@ -730,7 +730,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a modify monitored item request.
         /// </summary>
-        public void SetDeleteResult(            
+        public virtual void SetDeleteResult(            
             StatusCode               result,
             int                      index,
             DiagnosticInfoCollection diagnosticInfos,            
