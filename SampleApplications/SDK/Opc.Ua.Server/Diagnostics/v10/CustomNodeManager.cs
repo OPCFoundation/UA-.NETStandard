@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
 
                     if (source == null)
                     {
-                        return;
+                        continue;
                     }
 
                     // add reference to external target.
