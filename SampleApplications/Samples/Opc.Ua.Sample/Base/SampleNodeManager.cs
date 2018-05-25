@@ -817,7 +817,7 @@ namespace Opc.Ua.Sample
 
                     if (source == null)
                     {
-                        return;
+                        continue;
                     }
 
                     // add reference to external target.

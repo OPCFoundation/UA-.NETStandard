@@ -928,7 +928,7 @@ namespace Quickstarts
                     // only support external references to nodes that are stored in memory.
                     if (source == null || !source.Validated || source.Node == null)
                     {
-                        return;
+                        continue;
                     }
                     
                     // add reference to external target.
