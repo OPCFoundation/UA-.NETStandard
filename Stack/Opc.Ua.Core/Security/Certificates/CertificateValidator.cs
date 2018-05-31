@@ -509,11 +509,11 @@ namespace Opc.Ua
 
             do
             {
-                issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true);
+                issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true);
 
                 if (issuer == null)
                 {
-                    issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true);
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true);
 
                     if (issuer == null)
                     {
@@ -555,11 +555,11 @@ namespace Opc.Ua
 
             do
             {
-                issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true);
+                issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true);
 
                 if (issuer == null)
                 {
-                    issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true);
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true);
                 }
                 else
                 {
