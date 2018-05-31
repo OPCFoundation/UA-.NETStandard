@@ -525,19 +525,19 @@ namespace Opc.Ua
                 m_namespaces.Pop();
             }
         }
-        
+
         /// <summary>
         /// Reads the body extension object from the stream.
         /// </summary>
         public object ReadExtensionObjectBody(ExpandedNodeId typeId)
         {            
             m_reader.MoveToContent();
-                                    
+
             // check for binary encoded body.
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                byte[] bytes = ReadByteString("ByteString");       
+                byte[] bytes = ReadByteString("ByteString");
                 PopNamespace();
                 
                 return bytes;
@@ -545,10 +545,18 @@ namespace Opc.Ua
 
             // check for empty body.
             XmlDocument document = new XmlDocument();
+            string xmlString = null;
 
             if (m_reader.IsEmptyElement)
-            {        
-                document.InnerXml = m_reader.ReadOuterXml();                        
+            {
+                xmlString = m_reader.ReadOuterXml();
+
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
+                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                {
+                    document.Load(reader);
+                }
+
                 return document.DocumentElement;
             }
 
@@ -559,16 +567,23 @@ namespace Opc.Ua
 
             // decode known type.
             if (systemType != null)
-            {                      
+            {
                 PushNamespace(m_reader.NamespaceURI);
                 encodeable = ReadEncodeable(m_reader.LocalName, systemType);
                 PopNamespace();
-                                
+
                 return encodeable;
             }
-            
-            // return undecoded xml body.                 
-            document.InnerXml = m_reader.ReadOuterXml();                        
+
+            // return undecoded xml body.
+            xmlString = m_reader.ReadOuterXml();
+
+            using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
+                { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+            {
+                document.Load(reader);
+            }
+
             return document.DocumentElement;
         }
         #endregion
