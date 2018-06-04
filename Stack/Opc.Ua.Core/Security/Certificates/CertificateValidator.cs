@@ -796,8 +796,9 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
+					// EMR: Changed exception thrown from BadCertificateUntrusted to BadSecurityChecksFailed to comply with CTT
                     throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateUntrusted,
+                        StatusCodes.BadSecurityChecksFailed,
                         "Certificate issuer is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
                         certificate.SubjectName.Name,
                         certificate.IssuerName.Name);
@@ -809,8 +810,9 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
+					// EMR: Changed exception thrown from BadCertificateUntrusted to BadSecurityChecksFailed to comply with CTT
                     throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateUntrusted,
+                        StatusCodes.BadSecurityChecksFailed,
                         "Certificate is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
                         certificate.SubjectName.Name,
                         certificate.IssuerName.Name);

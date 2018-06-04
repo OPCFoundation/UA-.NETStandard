@@ -2488,7 +2488,11 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+			//return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
+			// EMR: add version.Build and version.Revision. The modifications are derived from stack v1.03.342 code
+			Version version = typeof(Utils).GetTypeInfo().Assembly.GetName().Version;
+            return Utils.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision); 
         }
 
         /// <summary>
