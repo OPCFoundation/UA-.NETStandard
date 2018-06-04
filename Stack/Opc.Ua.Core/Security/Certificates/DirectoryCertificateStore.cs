@@ -397,7 +397,9 @@ namespace Opc.Ua
 
                     if (crl.IsRevoked(certificate))
                     {
-                        return StatusCodes.BadCertificateRevoked;
+                        // EMR: Changed from BadCertificateRevoked to BadSecurityChecksFailed to comply with CTT
+						// The modifications are derived from stack v1.03.342 code
+                        return StatusCodes.BadSecurityChecksFailed;
                     }
 
                     if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
