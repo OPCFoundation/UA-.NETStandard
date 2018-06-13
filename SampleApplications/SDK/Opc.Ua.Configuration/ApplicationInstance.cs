@@ -926,9 +926,12 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
+        /// <param name="newCertLifeTimeInMonths">Lifetime used if a new certificate is created</param>
+        /// <returns></returns>
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
-            ushort minimumKeySize)
+            ushort minimumKeySize,
+            ushort newCertLifeTimeInMonths = CertificateFactory.defaultLifeTime)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate.");
 
@@ -1003,7 +1006,7 @@ namespace Opc.Ua.Configuration
 
             if ((certificate == null) || !certificateValid)
             {
-                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize);
+                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize, newCertLifeTimeInMonths);
 
                 if (certificate == null)
                 {
