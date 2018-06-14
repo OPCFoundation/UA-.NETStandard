@@ -11,6 +11,12 @@ One of the reference implementations inside this project has been certified for 
 Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
+This repository includes the UA .NET Stack sample libraries and sample applications, all based on the .NET StandardLibrary. The UA .NET StandardLibrary Stack follows a dual-license:
+
+OPC Foundation Corporate Members: [![License: RCL v1](https://img.shields.io/badge/License-RCLv1-blue.svg)](https://opcfoundation.org/license/rcl.html)
+
+Everybody else: [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+
 
 ## Features included
 1. Fully ported Core UA stack and SDK (Client, Server, Configuration & Sample assemblies)
