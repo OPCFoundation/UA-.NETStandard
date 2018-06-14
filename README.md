@@ -27,7 +27,7 @@ Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websit
 12. [OPC Classic adapter for OPC UA](ComIOP/README.md).
 13. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS/README.md).
 14. OPC UA [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md).
-15. OPC UA [Quickstart Samples](SampleApplications/Workshop/README.md).
+15. OPC UA [Quickstart Samples](SampleApplications/Workshop).
 16. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/). 
 16. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .Net projects.
 17. The Core UA stack and SDK has been tested with Mono 5.4 to add support for the [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md) and the Mono console application samples.
