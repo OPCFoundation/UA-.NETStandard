@@ -29,7 +29,7 @@
 
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
-using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Database.Linq;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -132,9 +132,12 @@ namespace Opc.Ua.Gds.Test
                 }
             }
 
+            var database = JsonApplicationsDatabase.Load(databaseStorePath);
+
             // start the server.
             m_server = new GlobalDiscoverySampleServer(
-                JsonApplicationsDatabase.Load(databaseStorePath),
+                database,
+                database,
                 new CertificateGroup());
             await application.Start(m_server);
 

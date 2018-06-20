@@ -27,9 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Server.Database.Sql;
 using Opc.Ua.Server.Controls;
+using System;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -61,8 +62,10 @@ namespace Opc.Ua.Gds.Server
                 application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
+                var database = new SqlApplicationsDatabase();
                 var server = new GlobalDiscoverySampleServer(
-                    new SqlApplicationsDatabase(),
+                    database,
+                    database,
                     new CertificateGroup());
                 application.Start(server).Wait();
 

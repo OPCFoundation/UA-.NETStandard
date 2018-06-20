@@ -32,7 +32,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace Opc.Ua.Gds.Server.Database
+namespace Opc.Ua.Gds.Server.Database.Linq
 {
     [Serializable]
     public class BinaryApplicationsDatabase : LinqApplicationsDatabase

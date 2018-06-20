@@ -30,7 +30,7 @@
 using System.IO;
 using Newtonsoft.Json;
 
-namespace Opc.Ua.Gds.Server.Database
+namespace Opc.Ua.Gds.Server.Database.Linq
 {
     public class JsonApplicationsDatabase : LinqApplicationsDatabase
     {

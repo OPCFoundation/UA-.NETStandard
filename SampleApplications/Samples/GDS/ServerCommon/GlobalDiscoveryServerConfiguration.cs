@@ -29,6 +29,7 @@
 
 using System.Runtime.Serialization;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -72,15 +73,18 @@ namespace Opc.Ua.Gds.Server
         public string ApplicationCertificatesStorePath { get; set; }
 
         [DataMember(Order = 3)]
+        public string BaseCertificateGroupStorePath { get; set; }
+        
+        [DataMember(Order = 4)]
         public string DefaultSubjectNameContext { get; set; }
 
-        [DataMember(Order = 4)]
+        [DataMember(Order = 5)]
         public CertificateGroupConfigurationCollection CertificateGroups { get; set; }
 
-        [DataMember(Order = 5)]
+        [DataMember(Order = 6)]
         public StringCollection KnownHostNames { get; set; }
 
-        [DataMember(Order = 6)]
+        [DataMember(Order = 7)]
         public string DatabaseStorePath { get; set; }
         #endregion
 
@@ -120,30 +124,45 @@ namespace Opc.Ua.Gds.Server
             DefaultCertificateLifetime = CertificateFactory.defaultLifeTime;
             DefaultCertificateKeySize = CertificateFactory.defaultKeySize;
             DefaultCertificateHashSize = CertificateFactory.defaultHashSize;
+            CACertificateLifetime = CertificateFactory.defaultLifeTime;
+            CACertificateKeySize = CertificateFactory.defaultKeySize;
+            CACertificateHashSize = CertificateFactory.defaultHashSize;
         }
         #endregion
 
         #region Public Properties
-        [DataMember(IsRequired = true, Order = 1)]
+        [DataMember(IsRequired = true, Order = 10)]
         public string Id { get; set; }
 
-        [DataMember(IsRequired = true, Order = 2)]
+        [DataMember(IsRequired = true, Order = 20)]
+        public string CertificateType { get; set; }
+
+        [DataMember(IsRequired = true, Order = 25)]
         public string SubjectName { get; set; }
 
-        [DataMember(IsRequired = true, Order = 3)]
+        [DataMember(IsRequired = true, Order = 30)]
         public string BaseStorePath { get; set; }
 
-        [DataMember(Order = 4)]
+        [DataMember(Order = 40)]
         public ushort DefaultCertificateLifetime { get; set; }
 
-        [DataMember(Order = 5)]
+        [DataMember(Order = 50)]
         public ushort DefaultCertificateKeySize { get; set; }
 
-        [DataMember(Order = 6)]
+        [DataMember(Order = 60)]
         public ushort DefaultCertificateHashSize { get; set; }
 
-        public string TrustedListPath { get { return BaseStorePath + "\\trusted"; }}
-        public string IssuerListPath { get { return BaseStorePath + "\\issuer"; } }
+        [DataMember(Order = 70)]
+        public ushort CACertificateLifetime { get; set; }
+
+        [DataMember(Order = 80)]
+        public ushort CACertificateKeySize { get; set; }
+
+        [DataMember(Order = 90)]
+        public ushort CACertificateHashSize { get; set; }
+
+        public string TrustedListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "trusted"; }}
+        public string IssuerListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "issuer"; } }
         #endregion
 
         #region Private Members

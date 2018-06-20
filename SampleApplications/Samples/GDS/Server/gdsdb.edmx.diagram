@@ -4,7 +4,7 @@
   <edmx:Designer xmlns="http://schemas.microsoft.com/ado/2008/10/edmx">
     <!-- Diagram content (shape and connector positions) -->
     <edmx:Diagrams>
-      <Diagram DiagramId="8403d882368444c4843a482f4de1234d" Name="Diagram1">
+      <Diagram DiagramId="8403d882368444c4843a482f4de1234d" Name="Diagram1" ZoomLevel="96">
         <EntityTypeShape EntityType="gdsdbModel.ApplicationName" Width="1.5" PointX="8.125" PointY="3.875" IsExpanded="true" />
         <EntityTypeShape EntityType="gdsdbModel.ServerEndpoint" Width="1.5" PointX="8.625" PointY="6.75" />
         <EntityTypeShape EntityType="gdsdbModel.Application" Width="2.125" PointX="11.875" PointY="4.125" />
