@@ -32,6 +32,24 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server
 {
+    public class X509Certificate2KeyPair
+    {
+        public readonly X509Certificate2 Certificate;
+        public readonly string PrivateKeyFormat;
+        public readonly byte[] PrivateKey;
+
+        public X509Certificate2KeyPair(X509Certificate2 certificate, string privateKeyFormat, byte [] privateKey)
+        {
+            if (certificate.HasPrivateKey)
+            {
+                certificate = new X509Certificate2(certificate.RawData);
+            }
+            Certificate = certificate;
+            PrivateKeyFormat = privateKeyFormat;
+            PrivateKey = privateKey;
+        }
+    };
+
     /// <summary>
     /// An abstract interface to the certificate provider
     /// </summary>
@@ -47,8 +65,13 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             );
 
-        Task RevokeCertificateAsync(
+        Task<Opc.Ua.X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate
+            );
+
+        Task VerifySigningRequestAsync(
+            ApplicationRecordDataType application,
+            byte[] certificateRequest
             );
 
         Task<X509Certificate2> SigningRequestAsync(
@@ -57,7 +80,7 @@ namespace Opc.Ua.Gds.Server
             byte[] certificateRequest
             );
 
-        Task<X509Certificate2> NewKeyPairRequestAsync(
+        Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
             string subjectName,
             string[] domainNames,

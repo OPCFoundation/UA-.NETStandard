@@ -18,8 +18,13 @@ namespace Opc.Ua.Gds.Server
         public System.Guid RequestId { get; set; }
         public int ApplicationId { get; set; }
         public int State { get; set; }
-        public byte[] Certificate { get; set; }
-        public byte[] PrivateKey { get; set; }
+        public string CertificateGroupId { get; set; }
+        public string CertificateTypeId { get; set; }
+        public byte[] CertificateSigningRequest { get; set; }
+        public string SubjectName { get; set; }
+        public string DomainNames { get; set; }
+        public string PrivateKeyFormat { get; set; }
+        public string PrivateKeyPassword { get; set; }
         public string AuthorityId { get; set; }
     
         public virtual Application Application { get; set; }

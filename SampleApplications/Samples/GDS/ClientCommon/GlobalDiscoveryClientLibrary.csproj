@@ -6,6 +6,14 @@
     <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
     <PackageId>Opc.Ua.Gds.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
+    <LangVersion>6</LangVersion>
+    <Version>1.04.353</Version>
+    <AssemblyVersion>1.04.353</AssemblyVersion>
+    <FileVersion>1.04.353.0</FileVersion>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+    <Description>OPC UA Core Class Library</Description>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

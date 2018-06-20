@@ -27,15 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Mono.Options;
 using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server;
-using Opc.Ua.Gds.Server.Database;
-
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -96,11 +96,9 @@ namespace Opc.Ua.Gds.Server
 
             // command line options
             bool showHelp = false;
-            bool autoAccept = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
-                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null }
             };
 
             try
@@ -128,7 +126,7 @@ namespace Opc.Ua.Gds.Server
                 return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
-            NetCoreGlobalDiscoveryServer server = new NetCoreGlobalDiscoveryServer(autoAccept);
+            NetCoreGlobalDiscoveryServer server = new NetCoreGlobalDiscoveryServer();
             server.Run();
 
             return (int)NetCoreGlobalDiscoveryServer.ExitCode;
@@ -140,12 +138,10 @@ namespace Opc.Ua.Gds.Server
         GlobalDiscoverySampleServer server;
         Task status;
         DateTime lastEventTime;
-        static bool autoAccept = false;
         static ExitCode exitCode;
 
-        public NetCoreGlobalDiscoveryServer(bool _autoAccept)
+        public NetCoreGlobalDiscoveryServer()
         {
-            autoAccept = _autoAccept;
         }
 
         public void Run()
@@ -204,15 +200,9 @@ namespace Opc.Ua.Gds.Server
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
-                {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-                }
-                else
-                {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
-                }
+                // GDS accepts any client certificate
+                e.Accept = true;
+                Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
             }
         }
 
@@ -246,10 +236,19 @@ namespace Opc.Ua.Gds.Server
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
 
             // start the server.
+            var database = JsonApplicationsDatabase.Load(databaseStorePath);
             server = new GlobalDiscoverySampleServer(
-                JsonApplicationsDatabase.Load(databaseStorePath),
+                database,
+                database,
                 new CertificateGroup());
             await application.Start(server);
+
+            // print endpoint info
+            var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            foreach (var endpoint in endpoints)
+            {
+                Console.WriteLine(endpoint);
+            }
 
             // start the status thread
             status = Task.Run(new Action(StatusThread));

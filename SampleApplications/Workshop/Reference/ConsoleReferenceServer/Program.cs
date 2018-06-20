@@ -229,7 +229,7 @@ namespace Quickstarts.ReferenceServer
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize, CertificateFactory.defaultLifeTime);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");

@@ -29,47 +29,55 @@
 
 using System;
 
-namespace Opc.Ua.Gds.Server.Database
+namespace Opc.Ua.Gds.Server
 {
+    public enum CertificateRequestState
+    {
+        New,
+        Approved,
+        Rejected,
+        Accepted
+    }
+
     /// <summary>
     /// An abstract interface to the application database
     /// </summary>
-    public interface IApplicationsDatabase
+    public interface ICertificateRequest
     {
         void Initialize();
         ushort NamespaceIndex { get; set; }
-        NodeId RegisterApplication(ApplicationRecordDataType application);
-        void UnregisterApplication(
+        NodeId CreateSigningRequest(
             NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate);
-        ApplicationRecordDataType GetApplication(NodeId applicationId);
-        ApplicationRecordDataType[] FindApplications(string applicationUri);
-        ServerOnNetwork[] QueryServers(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            string[] serverCapabilities,
-            out DateTime lastCounterResetTime);
-        bool SetApplicationCertificate(
-            NodeId applicationId, 
-            byte[] certificate, 
-            bool isHttpsCertificate);
-        bool SetApplicationTrustLists(
-            NodeId applicationId, 
-            NodeId trustListId, 
-            NodeId httpsTrustListId);
-        ApplicationDescription[] QueryApplications(
-            uint startingRecordId, 
-            uint maxRecordsToReturn, 
-            string applicationName, 
-            string applicationUri, 
-            uint applicationType,
-            string productUri, 
-            string[] serverCapabilities, 
-            out DateTime lastCounterResetTime, 
-            out uint nextRecordId);
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificateRequest,
+            string authorityId);
+        NodeId CreateNewKeyPairRequest(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            string[] domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            string authorityId);
+        void ApproveCertificateRequest(
+            NodeId requestId, 
+            bool isRejected);
+
+        void AcceptCertificateRequest(
+            NodeId requestId,
+            byte [] certificate);
+
+        CertificateRequestState CompleteCertificateRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
+            out byte[] certificateRequest,
+            out string subjectName,
+            out string[] domainNames,
+            out string privateKeyFormat,
+            out string privateKeyPassword);
     }
 }

@@ -31,8 +31,7 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/rejected</StorePath>
     </RejectedCertificateStore>
 
-    <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
-    for easy debugging purposes ONLY and turned off for production deployments! -->
+    <!-- The GDS server must accept connections from any client -->
     <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
     
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
@@ -136,11 +135,15 @@
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
+            <CertificateType>RsaSha256ApplicationCertificateType</CertificateType>
             <SubjectName>CN=IOP-2018 CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/PKI/CA/default</BaseStorePath>
-            <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
+            <DefaultCertificateLifetime>12</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
             <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
+            <CACertificateLifetime>60</CACertificateLifetime>
+            <CACertificateKeySize>4096</CACertificateKeySize>
+            <CACertificateHashSize>512</CACertificateHashSize>
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>
