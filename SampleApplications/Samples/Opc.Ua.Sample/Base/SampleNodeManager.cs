@@ -817,7 +817,7 @@ namespace Opc.Ua.Sample
 
                     if (source == null)
                     {
-                        return;
+                        continue;
                     }
 
                     // add reference to external target.
@@ -1799,22 +1799,24 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     methodToCall.Processed = true;
 
-                    // check for valid method.
-                    MethodState method = GetManagerHandle(systemContext, methodToCall.MethodId, operationCache) as MethodState;
+                    // find the method.
+                    MethodState method = source.FindMethod(systemContext, methodToCall.MethodId);
 
                     if (method == null)
                     {
-                        errors[ii] = StatusCodes.BadMethodInvalid;
-                        continue;
+                        // check for loose coupling.
+                        if (source.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodToCall.MethodId))
+                        {
+                            method = (MethodState)FindPredefinedNode(methodToCall.MethodId, typeof(MethodState));
+                        }
+
+                        if (method == null)
+                        {
+                            errors[ii] = StatusCodes.BadMethodInvalid;
+                            continue;
+                        }
                     }
 
-                    // check if method belongs to the object.
-                    if (!Object.ReferenceEquals(method.Parent, source))
-                    {
-                        errors[ii] = StatusCodes.BadMethodInvalid;
-                        continue;
-                    }
-                    
                     CallMethodResult result = results[ii] = new CallMethodResult();
 
                     // check if the node is ready for reading.
