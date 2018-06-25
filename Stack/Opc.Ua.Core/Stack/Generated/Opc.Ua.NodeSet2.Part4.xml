@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-02-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-06-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-02-09T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-06-20T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -1488,85 +1488,82 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="AttributeWriteMask" IsOptionSet="true">
-      <Field Name="None" Value="0">
-        <Description>No attributes are writable.</Description>
-      </Field>
-      <Field Name="AccessLevel" Value="1">
+      <Field Name="AccessLevel" Value="0">
         <Description>The access level attribute is writable.</Description>
       </Field>
-      <Field Name="ArrayDimensions" Value="2">
+      <Field Name="ArrayDimensions" Value="1">
         <Description>The array dimensions attribute is writable.</Description>
       </Field>
-      <Field Name="BrowseName" Value="4">
+      <Field Name="BrowseName" Value="2">
         <Description>The browse name attribute is writable.</Description>
       </Field>
-      <Field Name="ContainsNoLoops" Value="8">
+      <Field Name="ContainsNoLoops" Value="3">
         <Description>The contains no loops attribute is writable.</Description>
       </Field>
-      <Field Name="DataType" Value="16">
+      <Field Name="DataType" Value="4">
         <Description>The data type attribute is writable.</Description>
       </Field>
-      <Field Name="Description" Value="32">
+      <Field Name="Description" Value="5">
         <Description>The description attribute is writable.</Description>
       </Field>
-      <Field Name="DisplayName" Value="64">
+      <Field Name="DisplayName" Value="6">
         <Description>The display name attribute is writable.</Description>
       </Field>
-      <Field Name="EventNotifier" Value="128">
+      <Field Name="EventNotifier" Value="7">
         <Description>The event notifier attribute is writable.</Description>
       </Field>
-      <Field Name="Executable" Value="256">
+      <Field Name="Executable" Value="8">
         <Description>The executable attribute is writable.</Description>
       </Field>
-      <Field Name="Historizing" Value="512">
+      <Field Name="Historizing" Value="9">
         <Description>The historizing attribute is writable.</Description>
       </Field>
-      <Field Name="InverseName" Value="1024">
+      <Field Name="InverseName" Value="10">
         <Description>The inverse name attribute is writable.</Description>
       </Field>
-      <Field Name="IsAbstract" Value="2048">
+      <Field Name="IsAbstract" Value="11">
         <Description>The is abstract attribute is writable.</Description>
       </Field>
-      <Field Name="MinimumSamplingInterval" Value="4096">
+      <Field Name="MinimumSamplingInterval" Value="12">
         <Description>The minimum sampling interval attribute is writable.</Description>
       </Field>
-      <Field Name="NodeClass" Value="8192">
+      <Field Name="NodeClass" Value="13">
         <Description>The node class attribute is writable.</Description>
       </Field>
-      <Field Name="NodeId" Value="16384">
+      <Field Name="NodeId" Value="14">
         <Description>The node id attribute is writable.</Description>
       </Field>
-      <Field Name="Symmetric" Value="32768">
+      <Field Name="Symmetric" Value="15">
         <Description>The symmetric attribute is writable.</Description>
       </Field>
-      <Field Name="UserAccessLevel" Value="65536">
+      <Field Name="UserAccessLevel" Value="16">
         <Description>The user access level attribute is writable.</Description>
       </Field>
-      <Field Name="UserExecutable" Value="131072">
+      <Field Name="UserExecutable" Value="17">
         <Description>The user executable attribute is writable.</Description>
       </Field>
-      <Field Name="UserWriteMask" Value="262144">
+      <Field Name="UserWriteMask" Value="18">
         <Description>The user write mask attribute is writable.</Description>
       </Field>
-      <Field Name="ValueRank" Value="524288">
+      <Field Name="ValueRank" Value="19">
         <Description>The value rank attribute is writable.</Description>
       </Field>
-      <Field Name="WriteMask" Value="1048576">
+      <Field Name="WriteMask" Value="20">
         <Description>The write mask attribute is writable.</Description>
       </Field>
-      <Field Name="ValueForVariableType" Value="2097152">
+      <Field Name="ValueForVariableType" Value="21">
         <Description>The value attribute is writable.</Description>
       </Field>
-      <Field Name="DataTypeDefinition" Value="4194304">
+      <Field Name="DataTypeDefinition" Value="22">
         <Description>The DataTypeDefinition attribute is writable.</Description>
       </Field>
-      <Field Name="RolePermissions" Value="8388608">
+      <Field Name="RolePermissions" Value="23">
         <Description>The RolePermissions attribute is writable.</Description>
       </Field>
-      <Field Name="AccessRestrictions" Value="16777216">
+      <Field Name="AccessRestrictions" Value="24">
         <Description>The AccessRestrictions attribute is writable.</Description>
       </Field>
-      <Field Name="AccessLevelEx" Value="33554432">
+      <Field Name="AccessLevelEx" Value="25">
         <Description>The AccessLevelEx attribute is writable.</Description>
       </Field>
     </Definition>
