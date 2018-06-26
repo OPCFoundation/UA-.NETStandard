@@ -61,6 +61,7 @@ namespace Opc.Ua.Gds.Server
             string privateKeyFormat,
             string privateKeyPassword,
             string authorityId);
+
         void ApproveCertificateRequest(
             NodeId requestId, 
             bool isRejected);
@@ -74,10 +75,20 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             out NodeId certificateGroupId,
             out NodeId certificateTypeId,
+            out byte[] signedCertificate,
+            out byte[] privateKey
+            );
+
+        CertificateRequestState ReadRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
             out byte[] certificateRequest,
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
             out string privateKeyPassword);
+
     }
 }

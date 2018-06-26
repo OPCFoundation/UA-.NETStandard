@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string PrivateKeyFormat { get; set; }
         public string PrivateKeyPassword { get; set; }
         public string AuthorityId { get; set; }
-        public byte [] Certificate { get; set; }
+        public byte[] Certificate { get; set; }
     }
     [Serializable]
     class CertificateStore
@@ -727,7 +727,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public void AcceptCertificateRequest(
             NodeId requestId,
-            byte [] signedCertificate)
+            byte[] signedCertificate)
         {
             Guid id = GetNodeIdGuid(requestId);
 
@@ -754,8 +754,53 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         }
 
-
         public CertificateRequestState CompleteCertificateRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
+            out byte[] signedCertificate,
+            out byte[] privateKey
+            )
+        {
+            certificateGroupId = null;
+            certificateTypeId = null;
+            signedCertificate = null;
+            privateKey = null;
+            Guid reqId = GetNodeIdGuid(requestId);
+            Guid appId = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                switch (request.State)
+                {
+                    case (int)CertificateRequestState.New:
+                        return CertificateRequestState.New;
+                    case (int)CertificateRequestState.Rejected:
+                        return CertificateRequestState.Rejected;
+                    case (int)CertificateRequestState.Accepted:
+                        return CertificateRequestState.Accepted;
+                    case (int)CertificateRequestState.Approved:
+                        break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                certificateGroupId = request.CertificateGroupId;
+                certificateTypeId = request.CertificateTypeId;
+
+                return CertificateRequestState.Approved;
+            }
+        }
+
+        public CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,
             out NodeId certificateGroupId,
@@ -807,10 +852,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 privateKeyFormat = request.PrivateKeyFormat;
                 privateKeyPassword = request.PrivateKeyPassword;
 
-                SaveChanges();
                 return CertificateRequestState.Approved;
             }
-
         }
         #endregion
         #region Public Members

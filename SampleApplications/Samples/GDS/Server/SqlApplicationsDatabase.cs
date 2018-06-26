@@ -671,6 +671,52 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             NodeId requestId,
             out NodeId certificateGroupId,
             out NodeId certificateTypeId,
+            out byte[] signedCertificate,
+            out byte[] privateKey)
+        {
+            certificateGroupId = null;
+            certificateTypeId = null;
+            signedCertificate = null;
+            privateKey = null;
+            Guid reqId = GetNodeIdGuid(requestId);
+            Guid appId = GetNodeIdGuid(applicationId);
+
+            using (gdsdbEntities entities = new gdsdbEntities())
+            {
+                var request = (from x in entities.CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                switch (request.State)
+                {
+                    case (int)CertificateRequestState.New:
+                        return CertificateRequestState.New;
+                    case (int)CertificateRequestState.Rejected:
+                        return CertificateRequestState.Rejected;
+                    case (int)CertificateRequestState.Accepted:
+                        return CertificateRequestState.Accepted;
+                    case (int)CertificateRequestState.Approved:
+                        break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                certificateGroupId = new NodeId(request.CertificateGroupId);
+                certificateTypeId = new NodeId(request.CertificateTypeId);
+
+                entities.SaveChanges();
+                return CertificateRequestState.Approved;
+            }
+        }
+
+        public CertificateRequestState ReadRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
             out byte[] certificateRequest,
             out string subjectName,
             out string[] domainNames,
@@ -722,6 +768,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                 return CertificateRequestState.Approved;
             }
         }
+
         #endregion
         #region Private Fileds
         private DateTime m_lastCounterResetTime = DateTime.MinValue;
