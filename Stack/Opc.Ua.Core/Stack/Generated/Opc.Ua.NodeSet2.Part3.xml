@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-02-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-06-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-02-09T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-06-20T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -502,6 +502,34 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
+  <UAReferenceType NodeId="i=129" BrowseName="DescribesArgument">
+    <DisplayName>DescribesArgument</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>ArgumentDescriptionFor</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=130" BrowseName="DescribesInputArgument">
+    <DisplayName>DescribesInputArgument</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=129</Reference>
+    </References>
+    <InverseName>InputArgumentDescriptionFor</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=131" BrowseName="DescribesOptionalInputArgument">
+    <DisplayName>DescribesOptionalInputArgument</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=130</Reference>
+    </References>
+    <InverseName>OptionalInputArgumentDescriptionFor</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=132" BrowseName="DescribesOutputArgument">
+    <DisplayName>DescribesOutputArgument</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=129</Reference>
+    </References>
+    <InverseName>OutputArgumentDescriptionFor</InverseName>
+  </UAReferenceType>
   <UAVariable NodeId="i=3068" BrowseName="NodeVersion" DataType="String" ValueRank="-2">
     <DisplayName>NodeVersion</DisplayName>
     <Description>The version number of the node (used to indicate changes to references of the owning node).</Description>
@@ -943,28 +971,26 @@
     <DisplayName>PermissionType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=15030</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="PermissionType" IsOptionSet="true">
-      <Field Name="None" Value="0" />
-      <Field Name="Browse" Value="1" />
-      <Field Name="ReadRolePermissions" Value="2" />
-      <Field Name="WriteAttribute" Value="4" />
-      <Field Name="WriteRolePermissions" Value="8" />
-      <Field Name="WriteHistorizing" Value="16" />
-      <Field Name="Read" Value="32" />
-      <Field Name="Write" Value="64" />
-      <Field Name="ReadHistory" Value="128" />
-      <Field Name="InsertHistory" Value="256" />
-      <Field Name="ModifyHistory" Value="512" />
-      <Field Name="DeleteHistory" Value="1024" />
-      <Field Name="ReceiveEvents" Value="2048" />
-      <Field Name="Call" Value="4096" />
-      <Field Name="AddReference" Value="8192" />
-      <Field Name="RemoveReference" Value="16384" />
-      <Field Name="DeleteNode" Value="32768" />
-      <Field Name="AddNode" Value="65536" />
-      <Field Name="All" Value="131071" />
+      <Field Name="Browse" Value="0" />
+      <Field Name="ReadRolePermissions" Value="1" />
+      <Field Name="WriteAttribute" Value="2" />
+      <Field Name="WriteRolePermissions" Value="3" />
+      <Field Name="WriteHistorizing" Value="4" />
+      <Field Name="Read" Value="5" />
+      <Field Name="Write" Value="6" />
+      <Field Name="ReadHistory" Value="7" />
+      <Field Name="InsertHistory" Value="8" />
+      <Field Name="ModifyHistory" Value="9" />
+      <Field Name="DeleteHistory" Value="10" />
+      <Field Name="ReceiveEvents" Value="11" />
+      <Field Name="Call" Value="12" />
+      <Field Name="AddReference" Value="13" />
+      <Field Name="RemoveReference" Value="14" />
+      <Field Name="DeleteNode" Value="15" />
+      <Field Name="AddNode" Value="16" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15030" BrowseName="OptionSetValues" ParentNodeId="i=94" DataType="LocalizedText" ValueRank="1">
@@ -1071,13 +1097,12 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=3</Reference>
     </References>
     <Definition Name="AccessLevelType" IsOptionSet="true">
-      <Field Name="None" Value="0" />
-      <Field Name="CurrentRead" Value="1" />
-      <Field Name="CurrentWrite" Value="2" />
-      <Field Name="HistoryRead" Value="4" />
-      <Field Name="HistoryWrite" Value="16" />
-      <Field Name="StatusWrite" Value="32" />
-      <Field Name="TimestampWrite" Value="64" />
+      <Field Name="CurrentRead" Value="0" />
+      <Field Name="CurrentWrite" Value="1" />
+      <Field Name="HistoryRead" Value="2" />
+      <Field Name="HistoryWrite" Value="4" />
+      <Field Name="StatusWrite" Value="5" />
+      <Field Name="TimestampWrite" Value="6" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15032" BrowseName="OptionSetValues" ParentNodeId="i=15031" DataType="LocalizedText" ValueRank="1">
@@ -1134,16 +1159,15 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="AccessLevelExType" IsOptionSet="true">
-      <Field Name="None" Value="0" />
-      <Field Name="CurrentRead" Value="1" />
-      <Field Name="CurrentWrite" Value="2" />
-      <Field Name="HistoryRead" Value="4" />
-      <Field Name="HistoryWrite" Value="16" />
-      <Field Name="StatusWrite" Value="32" />
-      <Field Name="TimestampWrite" Value="64" />
-      <Field Name="NonatomicRead" Value="65536" />
-      <Field Name="NonatomicWrite" Value="131072" />
-      <Field Name="WriteFullArrayOnly" Value="262144" />
+      <Field Name="CurrentRead" Value="0" />
+      <Field Name="CurrentWrite" Value="1" />
+      <Field Name="HistoryRead" Value="2" />
+      <Field Name="HistoryWrite" Value="4" />
+      <Field Name="StatusWrite" Value="5" />
+      <Field Name="TimestampWrite" Value="6" />
+      <Field Name="NonatomicRead" Value="8" />
+      <Field Name="NonatomicWrite" Value="9" />
+      <Field Name="WriteFullArrayOnly" Value="10" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15407" BrowseName="OptionSetValues" ParentNodeId="i=15406" DataType="LocalizedText" ValueRank="1">
@@ -1198,46 +1222,6 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
-          <Text>Reserved</Text>
-        </LocalizedText>
-        <LocalizedText>
-          <Locale>
-          </Locale>
           <Text>NonatomicRead</Text>
         </LocalizedText>
         <LocalizedText>
@@ -1257,13 +1241,12 @@
     <DisplayName>EventNotifierType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=15034</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=3</Reference>
     </References>
     <Definition Name="EventNotifierType" IsOptionSet="true">
-      <Field Name="None" Value="0" />
-      <Field Name="SubscribeToEvents" Value="1" />
-      <Field Name="HistoryRead" Value="4" />
-      <Field Name="HistoryWrite" Value="8" />
+      <Field Name="SubscribeToEvents" Value="0" />
+      <Field Name="HistoryRead" Value="2" />
+      <Field Name="HistoryWrite" Value="3" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15034" BrowseName="OptionSetValues" ParentNodeId="i=15033" DataType="LocalizedText" ValueRank="1">
@@ -1305,10 +1288,9 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="AccessRestrictionType" IsOptionSet="true">
-      <Field Name="None" Value="0" />
-      <Field Name="SigningRequired" Value="1" />
-      <Field Name="EncryptionRequired" Value="2" />
-      <Field Name="SessionRequired " Value="4" />
+      <Field Name="SigningRequired" Value="0" />
+      <Field Name="EncryptionRequired" Value="1" />
+      <Field Name="SessionRequired" Value="2" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15035" BrowseName="OptionSetValues" ParentNodeId="i=95" DataType="LocalizedText" ValueRank="1">
@@ -1333,7 +1315,7 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>SessionRequired </Text>
+          <Text>SessionRequired</Text>
         </LocalizedText>
       </ListOfLocalizedText>
     </Value>
@@ -1345,7 +1327,7 @@
     </References>
     <Definition Name="RolePermissionType">
       <Field Name="RoleId" DataType="i=17" />
-      <Field Name="Permissions" DataType="i=7" />
+      <Field Name="Permissions" DataType="i=94" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=97" BrowseName="DataTypeDefinition" IsAbstract="true">

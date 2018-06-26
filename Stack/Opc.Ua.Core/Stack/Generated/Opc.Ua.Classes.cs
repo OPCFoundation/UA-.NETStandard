@@ -1221,9 +1221,9 @@ namespace Opc.Ua
                 OperationLimits.Initialize(context, OperationLimits_InitializationString);
             }
 
-            if (Roles != null)
+            if (RoleSet != null)
             {
-                Roles.Initialize(context, Roles_InitializationString);
+                RoleSet.Initialize(context, RoleSet_InitializationString);
             }
         }
 
@@ -1248,16 +1248,16 @@ namespace Opc.Ua
            "ZSBsaW1pdHMgc3VwcG9ydGVkIGJ5IHRoZSBzZXJ2ZXIgZm9yIGRpZmZlcmVudCBvcGVyYXRpb25zLgAv" +
            "AQAsLR8tAAD/////AAAAAA==";
 
-        private const string Roles_InitializationString =
-           "//////////8kYIAKAQAAAAAABQAAAFJvbGVzAQCnPwMAAAAALAAAAERlc2NyaWJlcyB0aGUgcm9sZXMg" +
-           "c3VwcG9ydGVkIGJ5IHRoZSBzZXJ2ZXIuAC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRS" +
-           "b2xlAQCoPwAvAQB9Pqg/AAABAf////8CAAAAFWCpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8A" +
-           "LgBEqT8AAJYCAAAAAQAqAQEXAAAACAAAAFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFt" +
-           "ZXNwYWNlVXJpAAz/////AAAAAAABACgBAQAAAAEB/////wAAAAAVYKkKAgAAAAAADwAAAE91dHB1dEFy" +
-           "Z3VtZW50cwEAqj8ALgBEqj8AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEA" +
-           "KAEBAAAAAQH/////AAAAAARhggoEAAAAAAAKAAAAUmVtb3ZlUm9sZQEAqz8ALwEAgD6rPwAAAQH/////" +
-           "AQAAABVgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKw/AC4ARKw/AACWAQAAAAEAKgEBGQAAAAoA" +
-           "AABSb2xlTm9kZUlkABH/////AAAAAAABACgBAQAAAAEB/////wAAAAA=";
+        private const string RoleSet_InitializationString =
+           "//////////8kYIAKAQAAAAAABwAAAFJvbGVTZXQBAKc/AwAAAAAsAAAARGVzY3JpYmVzIHRoZSByb2xl" +
+           "cyBzdXBwb3J0ZWQgYnkgdGhlIHNlcnZlci4ALwEA9zynPwAA/////wIAAAAEYYIKBAAAAAAABwAAAEFk" +
+           "ZFJvbGUBAKg/AC8BAH0+qD8AAAEB/////wIAAAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCp" +
+           "PwAuAESpPwAAlgIAAAABACoBARcAAAAIAAAAUm9sZU5hbWUADP////8AAAAAAAEAKgEBGwAAAAwAAABO" +
+           "YW1lc3BhY2VVcmkADP////8AAAAAAAEAKAEBAAAAAQH/////AAAAABVgqQoCAAAAAAAPAAAAT3V0cHV0" +
+           "QXJndW1lbnRzAQCqPwAuAESqPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAA" +
+           "AQAoAQEAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABSZW1vdmVSb2xlAQCrPwAvAQCAPqs/AAABAf//" +
+           "//8BAAAAFWCpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArD8ALgBErD8AAJYBAAAAAQAqAQEZAAAA" +
+           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
            "//////////8EYIAAAQAAAAAAHgAAAFNlcnZlckNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEA3QcBAN0H" +
@@ -1289,15 +1289,15 @@ namespace Opc.Ua
            "AAAAQSBmb2xkZXIgZm9yIHRoZSBtb2RlbGxpbmcgcnVsZXMgc3VwcG9ydGVkIGJ5IHRoZSBzZXJ2ZXIu" +
            "AC8APeMHAAD/////AAAAACRggAoBAAAAAAASAAAAQWdncmVnYXRlRnVuY3Rpb25zAQDCCgMAAAAAPgAA" +
            "AEEgZm9sZGVyIGZvciB0aGUgcmVhbCB0aW1lIGFnZ3JlZ2F0ZXMgc3VwcG9ydGVkIGJ5IHRoZSBzZXJ2" +
-           "ZXIuAC8APcIKAAD/////AAAAACRggAoBAAAAAAAFAAAAUm9sZXMBAKc/AwAAAAAsAAAARGVzY3JpYmVz" +
-           "IHRoZSByb2xlcyBzdXBwb3J0ZWQgYnkgdGhlIHNlcnZlci4ALwEA9zynPwAA/////wIAAAAEYYIKBAAA" +
-           "AAAABwAAAEFkZFJvbGUBAKg/AC8BAH0+qD8AAAEB/////wIAAAAVYKkKAgAAAAAADgAAAElucHV0QXJn" +
-           "dW1lbnRzAQCpPwAuAESpPwAAlgIAAAABACoBARcAAAAIAAAAUm9sZU5hbWUADP////8AAAAAAAEAKgEB" +
-           "GwAAAAwAAABOYW1lc3BhY2VVcmkADP////8AAAAAAAEAKAEBAAAAAQH/////AAAAABVgqQoCAAAAAAAP" +
-           "AAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESqPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR" +
-           "/////wAAAAAAAQAoAQEAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABSZW1vdmVSb2xlAQCrPwAvAQCA" +
-           "Pqs/AAABAf////8BAAAAFWCpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEArD8ALgBErD8AAJYBAAAA" +
-           "AQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQH/////AAAAAA==";
+           "ZXIuAC8APcIKAAD/////AAAAACRggAoBAAAAAAAHAAAAUm9sZVNldAEApz8DAAAAACwAAABEZXNjcmli" +
+           "ZXMgdGhlIHJvbGVzIHN1cHBvcnRlZCBieSB0aGUgc2VydmVyLgAvAQD3PKc/AAD/////AgAAAARhggoE" +
+           "AAAAAAAHAAAAQWRkUm9sZQEAqD8ALwEAfT6oPwAAAQH/////AgAAABVgqQoCAAAAAAAOAAAASW5wdXRB" +
+           "cmd1bWVudHMBAKk/AC4ARKk/AACWAgAAAAEAKgEBFwAAAAgAAABSb2xlTmFtZQAM/////wAAAAAAAQAq" +
+           "AQEbAAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAABAf////8AAAAAFWCpCgIAAAAA" +
+           "AA8AAABPdXRwdXRBcmd1bWVudHMBAKo/AC4ARKo/AACWAQAAAAEAKgEBGQAAAAoAAABSb2xlTm9kZUlk" +
+           "ABH/////AAAAAAABACgBAQAAAAEB/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8B" +
+           "AIA+qz8AAAEB/////wEAAAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEA" +
+           "AAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -1579,21 +1579,21 @@ namespace Opc.Ua
         /// <summary>
         /// Describes the roles supported by the server.
         /// </summary>
-        public RoleSetState Roles
+        public RoleSetState RoleSet
         {
             get
             {
-                return m_roles;
+                return m_roleSet;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_roles, value))
+                if (!Object.ReferenceEquals(m_roleSet, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_roles = value;
+                m_roleSet = value;
             }
         }
         #endregion
@@ -1673,9 +1673,9 @@ namespace Opc.Ua
                 children.Add(m_aggregateFunctions);
             }
 
-            if (m_roles != null)
+            if (m_roleSet != null)
             {
-                children.Add(m_roles);
+                children.Add(m_roleSet);
             }
 
             base.GetChildren(context, children);
@@ -1972,24 +1972,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.Roles:
+                case Opc.Ua.BrowseNames.RoleSet:
                 {
                     if (createOrReplace)
                     {
-                        if (Roles == null)
+                        if (RoleSet == null)
                         {
                             if (replacement == null)
                             {
-                                Roles = new RoleSetState(this);
+                                RoleSet = new RoleSetState(this);
                             }
                             else
                             {
-                                Roles = (RoleSetState)replacement;
+                                RoleSet = (RoleSetState)replacement;
                             }
                         }
                     }
 
-                    instance = Roles;
+                    instance = RoleSet;
                     break;
                 }
             }
@@ -2017,7 +2017,7 @@ namespace Opc.Ua
         private OperationLimitsState m_operationLimits;
         private FolderState m_modellingRules;
         private FolderState m_aggregateFunctions;
-        private RoleSetState m_roles;
+        private RoleSetState m_roleSet;
         #endregion
     }
     #endif
@@ -34424,6 +34424,709 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region EUItemState Class
+    #if (!OPCUA_EXCLUDE_EUItemState)
+    /// <summary>
+    /// Stores an instance of the EUItemType VariableType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class EUItemState : DataItemState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public EUItemState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.EUItemType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default data type node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default value rank for the instance.
+        /// </summary>
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (InstrumentRange != null)
+            {
+                InstrumentRange.Initialize(context, InstrumentRange_InitializationString);
+            }
+
+            if (EURange != null)
+            {
+                EURange.Initialize(context, EURange_InitializationString);
+            }
+
+            if (EngineeringUnits != null)
+            {
+                EngineeringUnits.Initialize(context, EngineeringUnits_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string InstrumentRange_InitializationString =
+           "//////////8VYIkKAgAAAAAADwAAAEluc3RydW1lbnRSYW5nZQEAXEQALgBEXEQAAAEAdAP/////AQH/" +
+           "////AAAAAA==";
+
+        private const string EURange_InitializationString =
+           "//////////8VYIkKAgAAAAAABwAAAEVVUmFuZ2UBAF1EAC4ARF1EAAABAHQD/////wEB/////wAAAAA=";
+
+        private const string EngineeringUnits_InitializationString =
+           "//////////8VYIkKAgAAAAAAEAAAAEVuZ2luZWVyaW5nVW5pdHMBAF5EAC4ARF5EAAABAHcD/////wEB" +
+           "/////wAAAAA=";
+
+        private const string InitializationString =
+           "//////////8VYIEAAgAAAAAAEgAAAEVVSXRlbVR5cGVJbnN0YW5jZQEAWUQBAFlEABoBAf////8DAAAA" +
+           "FWCJCgIAAAAAAA8AAABJbnN0cnVtZW50UmFuZ2UBAFxEAC4ARFxEAAABAHQD/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAABwAAAEVVUmFuZ2UBAF1EAC4ARF1EAAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "EAAAAEVuZ2luZWVyaW5nVW5pdHMBAF5EAC4ARF5EAAABAHcD/////wEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A description for the InstrumentRange Property.
+        /// </summary>
+        public PropertyState<Range> InstrumentRange
+        {
+            get
+            {
+                return m_instrumentRange;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_instrumentRange, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_instrumentRange = value;
+            }
+        }
+
+        /// <summary>
+        /// A description for the EURange Property.
+        /// </summary>
+        public PropertyState<Range> EURange
+        {
+            get
+            {
+                return m_eURange;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_eURange, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_eURange = value;
+            }
+        }
+
+        /// <summary>
+        /// A description for the EngineeringUnits Property.
+        /// </summary>
+        public PropertyState<EUInformation> EngineeringUnits
+        {
+            get
+            {
+                return m_engineeringUnits;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_engineeringUnits, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_engineeringUnits = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_instrumentRange != null)
+            {
+                children.Add(m_instrumentRange);
+            }
+
+            if (m_eURange != null)
+            {
+                children.Add(m_eURange);
+            }
+
+            if (m_engineeringUnits != null)
+            {
+                children.Add(m_engineeringUnits);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.InstrumentRange:
+                {
+                    if (createOrReplace)
+                    {
+                        if (InstrumentRange == null)
+                        {
+                            if (replacement == null)
+                            {
+                                InstrumentRange = new PropertyState<Range>(this);
+                            }
+                            else
+                            {
+                                InstrumentRange = (PropertyState<Range>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = InstrumentRange;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.EURange:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EURange == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EURange = new PropertyState<Range>(this);
+                            }
+                            else
+                            {
+                                EURange = (PropertyState<Range>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EURange;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.EngineeringUnits:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EngineeringUnits == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EngineeringUnits = new PropertyState<EUInformation>(this);
+                            }
+                            else
+                            {
+                                EngineeringUnits = (PropertyState<EUInformation>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EngineeringUnits;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<Range> m_instrumentRange;
+        private PropertyState<Range> m_eURange;
+        private PropertyState<EUInformation> m_engineeringUnits;
+        #endregion
+    }
+
+    #region EUItemState<T> Class
+    /// <summary>
+    /// A typed version of the EUItemType variable.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class EUItemState<T> : EUItemState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the instance with its defalt attribute values.
+        /// </summary>
+        public EUItemState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(base.Value, true);
+            }
+
+            set
+            {
+                base.Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region AnalogUnitItemState Class
+    #if (!OPCUA_EXCLUDE_AnalogUnitItemState)
+    /// <summary>
+    /// Stores an instance of the AnalogUnitItemType VariableType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class AnalogUnitItemState : DataItemState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public AnalogUnitItemState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.AnalogUnitItemType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default data type node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default value rank for the instance.
+        /// </summary>
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (InstrumentRange != null)
+            {
+                InstrumentRange.Initialize(context, InstrumentRange_InitializationString);
+            }
+
+            if (EURange != null)
+            {
+                EURange.Initialize(context, EURange_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string InstrumentRange_InitializationString =
+           "//////////8VYIkKAgAAAAAADwAAAEluc3RydW1lbnRSYW5nZQEAYkQALgBEYkQAAAEAdAP/////AQH/" +
+           "////AAAAAA==";
+
+        private const string EURange_InitializationString =
+           "//////////8VYIkKAgAAAAAABwAAAEVVUmFuZ2UBAGVEAC4ARGVEAAABAHQD/////wEB/////wAAAAA=";
+
+        private const string InitializationString =
+           "//////////8VYIEAAgAAAAAAGgAAAEFuYWxvZ1VuaXRJdGVtVHlwZUluc3RhbmNlAQBfRAEAX0QAGgEB" +
+           "/////wMAAAAVYIkKAgAAAAAADwAAAEluc3RydW1lbnRSYW5nZQEAYkQALgBEYkQAAAEAdAP/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEAZUQALgBEZUQAAAEAdAP/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEAZkQALgBEZkQAAAEAdwP/////AQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A description for the InstrumentRange Property.
+        /// </summary>
+        public PropertyState<Range> InstrumentRange
+        {
+            get
+            {
+                return m_instrumentRange;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_instrumentRange, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_instrumentRange = value;
+            }
+        }
+
+        /// <summary>
+        /// A description for the EURange Property.
+        /// </summary>
+        public PropertyState<Range> EURange
+        {
+            get
+            {
+                return m_eURange;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_eURange, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_eURange = value;
+            }
+        }
+
+        /// <summary>
+        /// A description for the EngineeringUnits Property.
+        /// </summary>
+        public PropertyState<EUInformation> EngineeringUnits
+        {
+            get
+            {
+                return m_engineeringUnits;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_engineeringUnits, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_engineeringUnits = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_instrumentRange != null)
+            {
+                children.Add(m_instrumentRange);
+            }
+
+            if (m_eURange != null)
+            {
+                children.Add(m_eURange);
+            }
+
+            if (m_engineeringUnits != null)
+            {
+                children.Add(m_engineeringUnits);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.InstrumentRange:
+                {
+                    if (createOrReplace)
+                    {
+                        if (InstrumentRange == null)
+                        {
+                            if (replacement == null)
+                            {
+                                InstrumentRange = new PropertyState<Range>(this);
+                            }
+                            else
+                            {
+                                InstrumentRange = (PropertyState<Range>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = InstrumentRange;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.EURange:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EURange == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EURange = new PropertyState<Range>(this);
+                            }
+                            else
+                            {
+                                EURange = (PropertyState<Range>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EURange;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.EngineeringUnits:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EngineeringUnits == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EngineeringUnits = new PropertyState<EUInformation>(this);
+                            }
+                            else
+                            {
+                                EngineeringUnits = (PropertyState<EUInformation>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EngineeringUnits;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<Range> m_instrumentRange;
+        private PropertyState<Range> m_eURange;
+        private PropertyState<EUInformation> m_engineeringUnits;
+        #endregion
+    }
+
+    #region AnalogUnitItemState<T> Class
+    /// <summary>
+    /// A typed version of the AnalogUnitItemType variable.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class AnalogUnitItemState<T> : AnalogUnitItemState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the instance with its defalt attribute values.
+        /// </summary>
+        public AnalogUnitItemState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(base.Value, true);
+            }
+
+            set
+            {
+                base.Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DiscreteItemState Class
     #if (!OPCUA_EXCLUDE_DiscreteItemState)
     /// <summary>
@@ -59152,6 +59855,447 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region CreateCredentialMethodState Class
+    #if (!OPCUA_EXCLUDE_CreateCredentialMethodState)
+    /// <summary>
+    /// Stores an instance of the CreateCredentialMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class CreateCredentialMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public CreateCredentialMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new CreateCredentialMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAENyZWF0ZUNyZWRlbnRpYWxNZXRob2RUeXBlAQCQOwAvAQCQO5A7" +
+           "AAABAf////8CAAAAFWCpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAlTsALgBElTsAAJYDAAAAAQAq" +
+           "AQEaAAAACwAAAFJlc291cmNlVXJpAAz/////AAAAAAABACoBARkAAAAKAAAAUHJvZmlsZVVyaQAM////" +
+           "/wAAAAAAAQAqAQEbAAAADAAAAEVuZHBvaW50VXJscwAMAQAAAAAAAAAAAQAoAQEAAAABAf////8AAAAA" +
+           "FWCpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFdEAC4ARFdEAACWAQAAAAEAKgEBFwAAAAgAAABP" +
+           "YmplY3RJZAAR/////wAAAAAAAQAoAQEAAAABAf////8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public CreateCredentialMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <returns></returns>
+        protected override ServiceResult Call(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(context, objectId, inputArguments, outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string resourceUri = (string)inputArguments[0];
+            string profileUri = (string)inputArguments[1];
+            string[] endpointUrls = (string[])inputArguments[2];
+
+            NodeId objectIdOutput = (NodeId)outputArguments[0];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    context,
+                    this,
+                    objectId,
+                    resourceUri,
+                    profileUri,
+                    endpointUrls,
+                    ref objectIdOutput);
+            }
+
+            outputArguments[0] = objectId;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult CreateCredentialMethodStateMethodCallHandler(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        string resourceUri,
+        string profileUri,
+        string[] endpointUrls,
+        ref NodeId objectIdOutput);
+    #endif
+    #endregion
+
+    #region KeyCredentialConfigurationFolderState Class
+    #if (!OPCUA_EXCLUDE_KeyCredentialConfigurationFolderState)
+    /// <summary>
+    /// Stores an instance of the KeyCredentialConfigurationFolderType ObjectType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class KeyCredentialConfigurationFolderState : FolderState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public KeyCredentialConfigurationFolderState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialConfigurationFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (CreateCredential != null)
+            {
+                CreateCredential.Initialize(context, CreateCredential_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string CreateCredential_InitializationString =
+           "//////////8EYYIKBAAAAAAAEAAAAENyZWF0ZUNyZWRlbnRpYWwBAHJEAC8BAHJEckQAAAEB/////wIA" +
+           "AAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBzRAAuAERzRAAAlgMAAAABACoBARoAAAALAAAA" +
+           "UmVzb3VyY2VVcmkADP////8AAAAAAAEAKgEBGQAAAAoAAABQcm9maWxlVXJpAAz/////AAAAAAABACoB" +
+           "ARsAAAAMAAAARW5kcG9pbnRVcmxzAAwBAAAAAAAAAAABACgBAQAAAAEB/////wAAAAAVYKkKAgAAAAAA" +
+           "DwAAAE91dHB1dEFyZ3VtZW50cwEAdEQALgBEdEQAAJYBAAAAAQAqAQEXAAAACAAAAE9iamVjdElkABH/" +
+           "////AAAAAAABACgBAQAAAAEB/////wAAAAA=";
+
+        private const string InitializationString =
+           "//////////8EYIAAAQAAAAAALAAAAEtleUNyZWRlbnRpYWxDb25maWd1cmF0aW9uRm9sZGVyVHlwZUlu" +
+           "c3RhbmNlAQBYRAEAWET/////AQAAAARhggoEAAAAAAAQAAAAQ3JlYXRlQ3JlZGVudGlhbAEAckQALwEA" +
+           "ckRyRAAAAQH/////AgAAABVgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHNEAC4ARHNEAACWAwAA" +
+           "AAEAKgEBGgAAAAsAAABSZXNvdXJjZVVyaQAM/////wAAAAAAAQAqAQEZAAAACgAAAFByb2ZpbGVVcmkA" +
+           "DP////8AAAAAAAEAKgEBGwAAAAwAAABFbmRwb2ludFVybHMADAEAAAAAAAAAAAEAKAEBAAAAAQH/////" +
+           "AAAAABVgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQB0RAAuAER0RAAAlgEAAAABACoBARcAAAAI" +
+           "AAAAT2JqZWN0SWQAEf////8AAAAAAAEAKAEBAAAAAQH/////AAAAAA==";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// A description for the CreateCredentialMethodType Method.
+        /// </summary>
+        public CreateCredentialMethodState CreateCredential
+        {
+            get
+            {
+                return m_createCredentialMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_createCredentialMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_createCredentialMethod = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_createCredentialMethod != null)
+            {
+                children.Add(m_createCredentialMethod);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.CreateCredential:
+                {
+                    if (createOrReplace)
+                    {
+                        if (CreateCredential == null)
+                        {
+                            if (replacement == null)
+                            {
+                                CreateCredential = new CreateCredentialMethodState(this);
+                            }
+                            else
+                            {
+                                CreateCredential = (CreateCredentialMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = CreateCredential;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private CreateCredentialMethodState m_createCredentialMethod;
+        #endregion
+    }
+    #endif
+    #endregion
+
+    #region GetEncryptingKeyMethodState Class
+    #if (!OPCUA_EXCLUDE_GetEncryptingKeyMethodState)
+    /// <summary>
+    /// Stores an instance of the GetEncryptingKeyMethodType Method.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class GetEncryptingKeyMethodState : MethodState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public GetEncryptingKeyMethodState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Constructs an instance of a node.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The new node.</returns>
+        public new static NodeState Construct(NodeState parent)
+        {
+            return new GetEncryptingKeyMethodState(parent);
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8EYYIKBAAAAAAAGgAAAEdldEVuY3J5cHRpbmdLZXlNZXRob2RUeXBlAQB7RAAvAQB7RHtE" +
+           "AAABAf////8CAAAAFWCpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAfEQALgBEfEQAAJYCAAAAAQAq" +
+           "AQEbAAAADAAAAENyZWRlbnRpYWxJZAAM/////wAAAAAAAQAqAQEpAAAAGgAAAFJlcXVlc3RlZFNlY3Vy" +
+           "aXR5UG9saWN5VXJpAAz/////AAAAAAABACgBAQAAAAEB/////wAAAAAVYKkKAgAAAAAADwAAAE91dHB1" +
+           "dEFyZ3VtZW50cwEAfUQALgBEfUQAAJYCAAAAAQAqAQEYAAAACQAAAFB1YmxpY0tleQAP/////wAAAAAA" +
+           "AQAqAQEnAAAAGAAAAFJldmlzZWRTZWN1cml0eVBvbGljeVVyaQAR/////wAAAAAAAQAoAQEAAAABAf//" +
+           "//8AAAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the the method is called.
+        /// </summary>
+        public GetEncryptingKeyMethodStateMethodCallHandler OnCall;
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <returns></returns>
+        protected override ServiceResult Call(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            if (OnCall == null)
+            {
+                return base.Call(context, objectId, inputArguments, outputArguments);
+            }
+
+            ServiceResult result = null;
+
+            string credentialId = (string)inputArguments[0];
+            string requestedSecurityPolicyUri = (string)inputArguments[1];
+
+            byte[] publicKey = (byte[])outputArguments[0];
+            NodeId revisedSecurityPolicyUri = (NodeId)outputArguments[1];
+
+            if (OnCall != null)
+            {
+                result = OnCall(
+                    context,
+                    this,
+                    objectId,
+                    credentialId,
+                    requestedSecurityPolicyUri,
+                    ref publicKey,
+                    ref revisedSecurityPolicyUri);
+            }
+
+            outputArguments[0] = publicKey;
+            outputArguments[1] = revisedSecurityPolicyUri;
+
+            return result;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    /// <summary>
+    /// Used to receive notifications when the method is called.
+    /// </summary>
+    /// <exclude />
+    public delegate ServiceResult GetEncryptingKeyMethodStateMethodCallHandler(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        string credentialId,
+        string requestedSecurityPolicyUri,
+        ref byte[] publicKey,
+        ref NodeId revisedSecurityPolicyUri);
+    #endif
+    #endregion
+
     #region KeyCredentialConfigurationState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialConfigurationState)
     /// <summary>
@@ -59213,6 +60357,11 @@ namespace Opc.Ua
                 ServiceStatus.Initialize(context, ServiceStatus_InitializationString);
             }
 
+            if (GetEncryptingKey != null)
+            {
+                GetEncryptingKey.Initialize(context, GetEncryptingKey_InitializationString);
+            }
+
             if (UpdateCredential != null)
             {
                 UpdateCredential.Initialize(context, UpdateCredential_InitializationString);
@@ -59233,6 +60382,14 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAADQAAAFNlcnZpY2VTdGF0dXMBAFVGAC4ARFVGAAAAE/////8BAf////8A" +
            "AAAA";
 
+        private const string GetEncryptingKey_InitializationString =
+           "//////////8EYYIKBAAAAAAAEAAAAEdldEVuY3J5cHRpbmdLZXkBAH5EAC8BAH5EfkQAAAEB/////wIA" +
+           "AAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQB/RAAuAER/RAAAlgIAAAABACoBARsAAAAMAAAA" +
+           "Q3JlZGVudGlhbElkAAz/////AAAAAAABACoBASkAAAAaAAAAUmVxdWVzdGVkU2VjdXJpdHlQb2xpY3lV" +
+           "cmkADP////8AAAAAAAEAKAEBAAAAAQH/////AAAAABVgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
+           "AQCARAAuAESARAAAlgIAAAABACoBARgAAAAJAAAAUHVibGljS2V5AA//////AAAAAAABACoBAScAAAAY" +
+           "AAAAUmV2aXNlZFNlY3VyaXR5UG9saWN5VXJpABH/////AAAAAAABACgBAQAAAAEB/////wAAAAA=";
+
         private const string UpdateCredential_InitializationString =
            "//////////8EYYIKBAAAAAAAEAAAAFVwZGF0ZUNyZWRlbnRpYWwBAFZGAC8BAFZGVkYAAAEB/////wEA" +
            "AAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBXRgAuAERXRgAAlgQAAAABACoBARsAAAAMAAAA" +
@@ -59246,16 +60403,22 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIAAAQAAAAAAJgAAAEtleUNyZWRlbnRpYWxDb25maWd1cmF0aW9uVHlwZUluc3RhbmNl" +
-           "AQBRRgEAUUb/////BgAAABVgiQoCAAAAAAALAAAAUmVzb3VyY2VVcmkBAJVGAC4ARJVGAAAADP////8B" +
+           "AQBRRgEAUUb/////BwAAABVgiQoCAAAAAAALAAAAUmVzb3VyY2VVcmkBAJVGAC4ARJVGAAAADP////8B" +
            "Af////8AAAAAFWCJCgIAAAAAAAoAAABQcm9maWxlVXJpAQD1RgAuAET1RgAAAAz/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAMAAAARW5kcG9pbnRVcmxzAQBURgAuAERURgAAAAwBAAAAAQH/////AAAAABVgiQoC" +
            "AAAAAAANAAAAU2VydmljZVN0YXR1cwEAVUYALgBEVUYAAAAT/////wEB/////wAAAAAEYYIKBAAAAAAA" +
-           "EAAAAFVwZGF0ZUNyZWRlbnRpYWwBAFZGAC8BAFZGVkYAAAEB/////wEAAAAVYKkKAgAAAAAADgAAAElu" +
-           "cHV0QXJndW1lbnRzAQBXRgAuAERXRgAAlgQAAAABACoBARsAAAAMAAAAQ3JlZGVudGlhbElkAAz/////" +
-           "AAAAAAABACoBAR8AAAAQAAAAQ3JlZGVudGlhbFNlY3JldAAP/////wAAAAAAAQAqAQEkAAAAFQAAAENl" +
-           "cnRpZmljYXRlVGh1bWJwcmludAAM/////wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJp" +
-           "AAz/////AAAAAAABACgBAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAERlbGV0ZUNyZWRlbnRpYWwB" +
-           "AFhGAC8BAFhGWEYAAAEB/////wAAAAA=";
+           "EAAAAEdldEVuY3J5cHRpbmdLZXkBAH5EAC8BAH5EfkQAAAEB/////wIAAAAVYKkKAgAAAAAADgAAAElu" +
+           "cHV0QXJndW1lbnRzAQB/RAAuAER/RAAAlgIAAAABACoBARsAAAAMAAAAQ3JlZGVudGlhbElkAAz/////" +
+           "AAAAAAABACoBASkAAAAaAAAAUmVxdWVzdGVkU2VjdXJpdHlQb2xpY3lVcmkADP////8AAAAAAAEAKAEB" +
+           "AAAAAQH/////AAAAABVgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCARAAuAESARAAAlgIAAAAB" +
+           "ACoBARgAAAAJAAAAUHVibGljS2V5AA//////AAAAAAABACoBAScAAAAYAAAAUmV2aXNlZFNlY3VyaXR5" +
+           "UG9saWN5VXJpABH/////AAAAAAABACgBAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFVwZGF0ZUNy" +
+           "ZWRlbnRpYWwBAFZGAC8BAFZGVkYAAAEB/////wEAAAAVYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
+           "AQBXRgAuAERXRgAAlgQAAAABACoBARsAAAAMAAAAQ3JlZGVudGlhbElkAAz/////AAAAAAABACoBAR8A" +
+           "AAAQAAAAQ3JlZGVudGlhbFNlY3JldAAP/////wAAAAAAAQAqAQEkAAAAFQAAAENlcnRpZmljYXRlVGh1" +
+           "bWJwcmludAAM/////wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAAB" +
+           "ACgBAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAERlbGV0ZUNyZWRlbnRpYWwBAFhGAC8BAFhGWEYA" +
+           "AAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -59346,6 +60509,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// A description for the GetEncryptingKeyMethodType Method.
+        /// </summary>
+        public GetEncryptingKeyMethodState GetEncryptingKey
+        {
+            get
+            {
+                return m_getEncryptingKeyMethod;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_getEncryptingKeyMethod, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_getEncryptingKeyMethod = value;
+            }
+        }
+
+        /// <summary>
         /// A description for the KeyCredentialUpdateMethodType Method.
         /// </summary>
         public KeyCredentialUpdateMethodState UpdateCredential
@@ -59416,6 +60600,11 @@ namespace Opc.Ua
             if (m_serviceStatus != null)
             {
                 children.Add(m_serviceStatus);
+            }
+
+            if (m_getEncryptingKeyMethod != null)
+            {
+                children.Add(m_getEncryptingKeyMethod);
             }
 
             if (m_updateCredentialMethod != null)
@@ -59533,6 +60722,27 @@ namespace Opc.Ua
                     break;
                 }
 
+                case Opc.Ua.BrowseNames.GetEncryptingKey:
+                {
+                    if (createOrReplace)
+                    {
+                        if (GetEncryptingKey == null)
+                        {
+                            if (replacement == null)
+                            {
+                                GetEncryptingKey = new GetEncryptingKeyMethodState(this);
+                            }
+                            else
+                            {
+                                GetEncryptingKey = (GetEncryptingKeyMethodState)replacement;
+                            }
+                        }
+                    }
+
+                    instance = GetEncryptingKey;
+                    break;
+                }
+
                 case Opc.Ua.BrowseNames.UpdateCredential:
                 {
                     if (createOrReplace)
@@ -59590,6 +60800,7 @@ namespace Opc.Ua
         private PropertyState<string> m_profileUri;
         private PropertyState<string[]> m_endpointUrls;
         private PropertyState<StatusCode> m_serviceStatus;
+        private GetEncryptingKeyMethodState m_getEncryptingKeyMethod;
         private KeyCredentialUpdateMethodState m_updateCredentialMethod;
         private MethodState m_deleteCredentialMethod;
         #endregion

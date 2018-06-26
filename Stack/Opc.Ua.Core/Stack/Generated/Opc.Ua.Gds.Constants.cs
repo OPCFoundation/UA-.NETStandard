@@ -246,6 +246,11 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_FinishRequest = 85;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_RevokeCertificate Method.
+        /// </summary>
+        public const uint CertificateDirectoryType_RevokeCertificate = 15003;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_GetCertificateGroups Method.
         /// </summary>
         public const uint CertificateDirectoryType_GetCertificateGroups = 369;
@@ -1286,6 +1291,11 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_FinishRequest_OutputArguments = 87;
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_RevokeCertificate_InputArguments Variable.
+        /// </summary>
+        public const uint CertificateDirectoryType_RevokeCertificate_InputArguments = 15004;
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_GetCertificateGroups_InputArguments Variable.
         /// </summary>
         public const uint CertificateDirectoryType_GetCertificateGroups_InputArguments = 370;
@@ -1866,6 +1876,11 @@ namespace Opc.Ua.Gds
         public const uint Directory_FinishRequest_OutputArguments = 165;
 
         /// <summary>
+        /// The identifier for the Directory_RevokeCertificate_InputArguments Variable.
+        /// </summary>
+        public const uint Directory_RevokeCertificate_InputArguments = 15006;
+
+        /// <summary>
         /// The identifier for the Directory_GetCertificateGroups_InputArguments Variable.
         /// </summary>
         public const uint Directory_GetCertificateGroups_InputArguments = 509;
@@ -2144,6 +2159,11 @@ namespace Opc.Ua.Gds
         /// The identifier for the CertificateDirectoryType_FinishRequest Method.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_FinishRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_FinishRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
+        /// The identifier for the CertificateDirectoryType_RevokeCertificate Method.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_RevokeCertificate = new ExpandedNodeId(Opc.Ua.Gds.Methods.CertificateDirectoryType_RevokeCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
         /// The identifier for the CertificateDirectoryType_GetCertificateGroups Method.
@@ -3186,6 +3206,11 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_FinishRequest_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_FinishRequest_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the CertificateDirectoryType_RevokeCertificate_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId CertificateDirectoryType_RevokeCertificate_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_RevokeCertificate_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the CertificateDirectoryType_GetCertificateGroups_InputArguments Variable.
         /// </summary>
         public static readonly ExpandedNodeId CertificateDirectoryType_GetCertificateGroups_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_GetCertificateGroups_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -3766,6 +3791,11 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_FinishRequest_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_FinishRequest_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <summary>
+        /// The identifier for the Directory_RevokeCertificate_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Directory_RevokeCertificate_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_RevokeCertificate_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <summary>
         /// The identifier for the Directory_GetCertificateGroups_InputArguments Variable.
         /// </summary>
         public static readonly ExpandedNodeId Directory_GetCertificateGroups_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_GetCertificateGroups_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -4023,6 +4053,11 @@ namespace Opc.Ua.Gds
         /// The BrowseName for the Revoke component.
         /// </summary>
         public const string Revoke = "Revoke";
+
+        /// <summary>
+        /// The BrowseName for the RevokeCertificate component.
+        /// </summary>
+        public const string RevokeCertificate = "RevokeCertificate";
 
         /// <summary>
         /// The BrowseName for the ServiceCertificate component.

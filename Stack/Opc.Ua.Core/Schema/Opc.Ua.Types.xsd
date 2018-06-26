@@ -1726,6 +1726,12 @@
   </xs:simpleType>
   <xs:element name="NodeClass" type="tns:NodeClass" />
 
+  <xs:simpleType  name="PermissionType">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="PermissionType" type="tns:PermissionType" />
+
   <xs:simpleType  name="AccessLevelType">
     <xs:restriction base="xs:unsignedByte">
     </xs:restriction>
@@ -1739,7 +1745,7 @@
   <xs:element name="AccessLevelExType" type="tns:AccessLevelExType" />
 
   <xs:simpleType  name="EventNotifierType">
-    <xs:restriction base="xs:unsignedInt">
+    <xs:restriction base="xs:unsignedByte">
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="EventNotifierType" type="tns:EventNotifierType" />
@@ -1747,7 +1753,7 @@
   <xs:complexType name="RolePermissionType">
     <xs:sequence>
       <xs:element name="RoleId" type="ua:NodeId" minOccurs="0" nillable="true" />
-      <xs:element name="Permissions" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Permissions" type="tns:PermissionType" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="RolePermissionType" type="tns:RolePermissionType" />
