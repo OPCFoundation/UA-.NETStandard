@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>Opc.Ua.Gds.Server.Common</id>
-    <version>1.04.352.1-preview180615</version>
+    <version>1.04.352.1-preview180626</version>
     <title>OPC UA .Net Standard GDS Library</title>
     <description>This package contains the OPC UA GDS common library implementation.</description>
     <authors>OPC Foundation</authors>
