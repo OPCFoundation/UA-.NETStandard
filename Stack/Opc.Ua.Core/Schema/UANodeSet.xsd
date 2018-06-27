@@ -159,7 +159,6 @@
     <xs:attribute name="ModelUri" type="xs:string" use="optional"></xs:attribute>
     <xs:attribute name="Version" type="xs:string" use="optional"></xs:attribute>
     <xs:attribute name="PublicationDate" type="xs:dateTime" use="optional"></xs:attribute>
-    <xs:attribute name="SymbolicName" type="SymbolicName" use="optional"></xs:attribute>
     <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0"></xs:attribute>
   </xs:complexType>
 
@@ -233,7 +232,7 @@
     <xs:list>
       <xs:simpleType>
         <xs:restriction base="xs:string">
-          <xs:pattern value="(\p{L})(\p{L}|\p{N}|_)*"></xs:pattern>
+          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*"></xs:pattern>
         </xs:restriction>
       </xs:simpleType>
     </xs:list>
@@ -360,6 +359,7 @@
     <xs:sequence>
       <xs:element name="Name" type="xs:string" minOccurs="0" maxOccurs="1"></xs:element>
       <xs:element name="Description" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
+      <xs:element name="Documentation" type="xs:string" minOccurs="0" maxOccurs="1"></xs:element>
     </xs:sequence>
   </xs:complexType>
 
@@ -459,11 +459,14 @@
     <xs:sequence>
       <xs:element name="DisplayName" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
       <xs:element name="Description" type="LocalizedText" minOccurs="0" maxOccurs="unbounded"></xs:element>
+      <xs:element name="Documentation" type="xs:string" minOccurs="0" maxOccurs="1"></xs:element>
     </xs:sequence>
     <xs:attribute name="Name" type="xs:string" use="required"></xs:attribute>
     <xs:attribute name="SymbolicName" type="SymbolicName" use="optional"></xs:attribute>
     <xs:attribute name="DataType" type="NodeId" default="i=24"></xs:attribute>
     <xs:attribute name="ValueRank" type="ValueRank" default="-1"></xs:attribute>
+    <xs:attribute name="ArrayDimensions" type="ArrayDimensions" default=""></xs:attribute>
+    <xs:attribute name="MaxStringLength" type="xs:unsignedInt" default="0"></xs:attribute>
     <xs:attribute name="Value" type="xs:int" default="-1"></xs:attribute>
     <xs:attribute name="IsOptional" type="xs:boolean" use="optional" default="false"></xs:attribute>
   </xs:complexType>
