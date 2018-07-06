@@ -510,8 +510,7 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 applicationName,
                 applicationUri,
-                // TODO
-                // applicationType
+                applicationType,
                 productUri,
                 serverCapabilities);
 
