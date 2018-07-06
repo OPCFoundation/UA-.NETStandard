@@ -141,13 +141,8 @@ namespace Opc.Ua.Gds.Server.Database
             return nodeId;
         }
 
-        public virtual void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+        public virtual void UnregisterApplication(NodeId applicationId)
         {
-            certificate = null;
-            httpsCertificate = null;
             ValidateApplicationNodeId(applicationId);
         }
 
@@ -204,12 +199,31 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
             return false;
         }
+        public virtual void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate)
+        {
+            certificate = null;
+            httpsCertificate = null;
+            ValidateApplicationNodeId(applicationId);
+        }
 
         public virtual bool SetApplicationTrustLists(
             NodeId applicationId,
             NodeId trustListId,
             NodeId httpsTrustListId)
         {
+            ValidateApplicationNodeId(applicationId);
+            return false;
+        }
+        public virtual bool GetApplicationTrustLists(
+            NodeId applicationId,
+            out NodeId trustListId,
+            out NodeId httpsTrustListId)
+        {
+            trustListId = null;
+            httpsTrustListId = null;
             ValidateApplicationNodeId(applicationId);
             return false;
         }
@@ -261,7 +275,7 @@ namespace Opc.Ua.Gds.Server.Database
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
 
-        public bool IsMatchPattern(string pattern)
+        public static bool IsMatchPattern(string pattern)
         {
             var patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
             if (String.IsNullOrEmpty(pattern))

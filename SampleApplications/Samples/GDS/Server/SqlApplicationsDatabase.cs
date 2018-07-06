@@ -146,14 +146,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-        public override void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+        public override void UnregisterApplication(NodeId applicationId)
         {
-            certificate = null;
-            httpsCertificate = null;
-
             Guid id = GetNodeIdGuid(applicationId);
 
             List<byte[]> certificates = new List<byte[]>();
@@ -168,9 +162,6 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                 {
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
-
-                certificate = result.Certificate;
-                httpsCertificate = result.HttpsCertificate;
 
                 foreach (var entry in new List<CertificateRequest>(result.CertificateRequests))
                 {
@@ -461,6 +452,35 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             return true;
         }
 
+        public override void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate)
+        {
+            certificate = null;
+            httpsCertificate = null;
+
+            Guid id = GetNodeIdGuid(applicationId);
+
+            List<byte[]> certificates = new List<byte[]>();
+
+            using (gdsdbEntities entities = new gdsdbEntities())
+            {
+                var result = (from ii in entities.Applications
+                              where ii.ApplicationId == id
+                              select ii).SingleOrDefault();
+
+                if (result == null)
+                {
+                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
+                }
+
+                certificate = result.Certificate;
+                httpsCertificate = result.HttpsCertificate;
+            }
+        }
+
+
         public override bool SetApplicationTrustLists(
             NodeId applicationId,
             NodeId trustListId,
@@ -509,6 +529,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
             return true;
         }
+
         #endregion
         #region ICertificateRequest
         public NodeId CreateSigningRequest(
@@ -769,9 +790,9 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-        #endregion
-        #region Private Fileds
+#endregion
+#region Private Fileds
         private DateTime m_lastCounterResetTime = DateTime.MinValue;
-        #endregion
+#endregion
     }
 }

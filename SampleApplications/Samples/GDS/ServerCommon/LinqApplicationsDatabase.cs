@@ -205,14 +205,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         }
 
 
-        public override void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+        public override void UnregisterApplication(NodeId applicationId)
         {
-            certificate = null;
-            httpsCertificate = null;
-
             Guid id = GetNodeIdGuid(applicationId);
 
             List<byte[]> certificates = new List<byte[]>();
@@ -227,9 +221,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 {
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
-
-                certificate = application.Certificate;
-                httpsCertificate = application.HttpsCertificate;
 
                 var certificateRequests =
                     from ii in CertificateRequests
@@ -532,6 +523,36 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
 
             return true;
+        }
+
+        public override void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate)
+        {
+            certificate = null;
+            httpsCertificate = null;
+
+            Guid id = GetNodeIdGuid(applicationId);
+
+            List<byte[]> certificates = new List<byte[]>();
+
+            lock (Lock)
+            {
+                var application = (from ii in Applications
+                                   where ii.ApplicationId == id
+                                   select ii).SingleOrDefault();
+
+                if (application == null)
+                {
+                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
+                }
+
+                certificate = application.Certificate;
+                httpsCertificate = application.HttpsCertificate;
+
+                SaveChanges();
+            }
         }
 
         public override bool SetApplicationTrustLists(

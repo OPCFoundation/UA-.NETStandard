@@ -60,7 +60,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         protected void OneTimeSetUp()
         {
             // work around travis issue by selecting different ports on every run
-            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc()/10000) & 0x1fff);
+            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
             _dataGenerator = new DataGenerator(_randomSource);
@@ -141,16 +141,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             _goodRegistrationOk = true;
         }
 
-        [Test, Order(101)]
-        public void RegisterGoodApplicationsAuditEvents()
-        {
-            AssertIgnoreTestWithoutGoodRegistration();
-            foreach (var application in _goodApplicationTestSet)
-            {
-                // TODO
-            }
-        }
-
         [Test, Order(105)]
         public void RegisterDuplicateGoodApplications()
         {
@@ -197,17 +187,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             _invalidRegistrationOk = true;
         }
 
-        [Test, Order(111)]
-        public void RegisterInvalidApplicationsAuditEvents()
-        {
-            AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in _invalidApplicationTestSet)
-            {
-                // TODO
-            }
-        }
-
         [Test, Order(120)]
         public void RegisterApplicationAsUser()
         {
@@ -233,16 +212,6 @@ namespace NUnit.Opc.Ua.Gds.Test
                 _gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord);
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(1, result.Length, "Couldn't find updated application record");
-            }
-        }
-
-        [Test, Order(201)]
-        public void UpdateGoodApplicationsAuditEvents()
-        {
-            AssertIgnoreTestWithoutGoodRegistration();
-            foreach (var application in _goodApplicationTestSet)
-            {
-                // TODO
             }
         }
 
@@ -272,17 +241,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
-        [Test, Order(211)]
-        public void UpdateGoodApplicationsWithNewGuidAuditEvents()
-        {
-            AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in _goodApplicationTestSet)
-            {
-                // TODO
-            }
-        }
-
         [Test, Order(220)]
         public void UpdateInvalidApplications()
         {
@@ -291,17 +249,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => { _gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord); }, Throws.Exception);
-            }
-        }
-
-        [Test, Order(221)]
-        public void UpdateInvalidApplicationsAuditEvents()
-        {
-            AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in _invalidApplicationTestSet)
-            {
-                // TODO
             }
         }
 
@@ -633,6 +580,34 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
+        [Test, Order(480)]
+        public void QueryAllApplications()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            // get all applications
+            DateTime lastResetCounterTime;
+            uint nextRecordId;
+            var allApplications = _gdsClient.GDSClient.QueryApplications(0, 0, "", "", 0, "", new List<string>(), out lastResetCounterTime, out nextRecordId);
+            int totalCount = 0;
+            Assert.IsNotNull(allApplications);
+            nextRecordId = 0;
+            foreach (var application in allApplications)
+            {
+                var oneApplication = _gdsClient.GDSClient.QueryApplications(nextRecordId, 1, "", "", 0, "", new List<string>(), out lastResetCounterTime, out nextRecordId);
+                Assert.IsNotNull(oneApplication);
+                Assert.GreaterOrEqual(oneApplication.Count, 1);
+                foreach (var oneApp in oneApplication)
+                {
+                    //Assert.AreEqual(oneApp., server.RecordId);
+                }
+                totalCount++;
+            }
+            Assert.GreaterOrEqual(totalCount, goodApplicationsTestCount);
+            Assert.AreEqual(totalCount, allApplications.Count);
+        }
+
+
         [Test, Order(500)]
         public void StartGoodNewKeyPairRequests()
         {
@@ -958,16 +933,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
 
-        [Test, Order(901)]
-        public void UnregisterGoodApplicationsAuditEvents()
-        {
-            ConnectGDS(true);
-            foreach (var application in _goodApplicationTestSet)
-            {
-                // TODO
-            }
-        }
-
         [Test, Order(910)]
         public void UnregisterInvalidApplications()
         {
@@ -975,16 +940,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => { _gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
-            }
-        }
-
-        [Test, Order(911)]
-        public void UnregisterInvalidApplicationsAuditEvents()
-        {
-            ConnectGDS(true);
-            foreach (var application in _invalidApplicationTestSet)
-            {
-                // TODO
             }
         }
 
@@ -1012,16 +967,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             foreach (var application in _goodApplicationTestSet)
             {
                 Assert.That(() => { _gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
-            }
-        }
-
-        [Test, Order(921)]
-        public void UnregisterUnregisteredGoodApplicationsAuditEvents()
-        {
-            ConnectGDS(true);
-            foreach (var application in _goodApplicationTestSet)
-            {
-                // TODO
             }
         }
 

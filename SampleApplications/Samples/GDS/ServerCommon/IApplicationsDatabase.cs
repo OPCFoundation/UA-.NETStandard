@@ -39,10 +39,7 @@ namespace Opc.Ua.Gds.Server.Database
         void Initialize();
         ushort NamespaceIndex { get; set; }
         NodeId RegisterApplication(ApplicationRecordDataType application);
-        void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate);
+        void UnregisterApplication(NodeId applicationId);
         ApplicationRecordDataType GetApplication(NodeId applicationId);
         ApplicationRecordDataType[] FindApplications(string applicationUri);
         ServerOnNetwork[] QueryServers(
@@ -57,10 +54,18 @@ namespace Opc.Ua.Gds.Server.Database
             NodeId applicationId, 
             byte[] certificate, 
             bool isHttpsCertificate);
+        void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate);
         bool SetApplicationTrustLists(
             NodeId applicationId, 
             NodeId trustListId, 
             NodeId httpsTrustListId);
+        bool GetApplicationTrustLists(
+            NodeId applicationId,
+            out NodeId trustListId,
+            out NodeId httpsTrustListId);
         ApplicationDescription[] QueryApplications(
             uint startingRecordId, 
             uint maxRecordsToReturn, 

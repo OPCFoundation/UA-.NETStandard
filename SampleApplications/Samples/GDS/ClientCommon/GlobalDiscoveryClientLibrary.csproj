@@ -1,19 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
-    <PackageId>Opc.Ua.Gds.Common</PackageId>
+    <PackageId>Opc.Ua.Gds.Client.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
     <LangVersion>6</LangVersion>
-    <Version>1.04.353</Version>
-    <AssemblyVersion>1.04.353</AssemblyVersion>
-    <FileVersion>1.04.353.0</FileVersion>
-    <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
-    <Description>OPC UA Core Class Library</Description>
-    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
+    <Description>OPC UA GDS Client Class Library</Description>
   </PropertyGroup>
 
   <ItemGroup>

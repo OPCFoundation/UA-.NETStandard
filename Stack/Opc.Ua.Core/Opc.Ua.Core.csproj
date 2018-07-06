@@ -6,13 +6,7 @@
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
-    <Version>1.04.353</Version>
-    <AssemblyVersion>1.04.353</AssemblyVersion>
-    <FileVersion>1.04.353.0</FileVersion>
-    <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
     <Description>OPC UA Core Class Library</Description>
-    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>1.04.354</VersionPrefix>
+    <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
+    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
+    <Company>OPC Foundation</Company>
+    <Product>OPC UA SDK</Product>
+  </PropertyGroup>
+</Project>

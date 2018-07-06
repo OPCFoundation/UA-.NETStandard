@@ -450,7 +450,7 @@ namespace Opc.Ua.Gds.Server
             uint maxRecordsToReturn,
             string applicationName,
             string applicationUri,
-            //uint applicationType,
+            uint applicationType,
             string productUri,
             string[] serverCapabilities,
             ref DateTime lastCounterResetTime,
@@ -458,9 +458,6 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationDescription[] applications
             )
         {
-            // TODO: remove once nodeset is up to date
-            uint applicationType = 3;
-
             Utils.Trace(Utils.TraceMasks.Information, "QueryApplications: {0} {1}", applicationUri, applicationName);
 
             applications = m_database.QueryApplications(
@@ -526,12 +523,19 @@ namespace Opc.Ua.Gds.Server
             Utils.Trace(Utils.TraceMasks.Information, "OnUnregisterApplication: {0}", applicationId.ToString());
 
             byte[] certificate;
-            byte[] privateKey;
-            m_database.UnregisterApplication(applicationId, out certificate, out privateKey);
+            byte[] httpsCertificate;
+            m_database.GetApplicationCertificates(applicationId, out certificate, out httpsCertificate);
+            m_database.UnregisterApplication(applicationId);
 
+            // TODO: revoke per trust list
             if (certificate != null)
             {
                 RevokeCertificateAsync(certificate).Wait();
+            }
+
+            if (httpsCertificate != null)
+            {
+                RevokeCertificateAsync(httpsCertificate).Wait();
             }
 
             return ServiceResult.Good;
