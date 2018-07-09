@@ -313,6 +313,7 @@ namespace Opc.Ua.Gds.Server
                 base.CreateAddressSpace(externalReferences);
 
                 m_database.NamespaceIndex = NamespaceIndexes[0];
+                m_request.NamespaceIndex = NamespaceIndexes[0];
 
                 foreach (var certificateGroupConfiguration in m_configuration.CertificateGroups)
                 {
