@@ -386,6 +386,8 @@ namespace Opc.Ua.Gds.Server
                         activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
                         activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                         activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
+                        // TODO
+                        //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
                         activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                         activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
@@ -808,7 +810,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames,
                 privateKeyFormat,
                 privateKeyPassword,
-                certificateGroup.Id.Identifier as string);
+                certificateGroup.Configuration.Id);
 
             if (m_autoApprove)
             {
@@ -872,7 +874,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId,
                 certificateTypeId,
                 certificateRequest,
-                certificateGroup.Id.Identifier as string);
+                certificateGroup.Configuration.Id);
 
             if (m_autoApprove)
             {
@@ -1261,7 +1263,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else
-            { 
+            {
                 throw new NotImplementedException("Unknown certificate type {certificateGroup.Configuration.CertificateType}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
             }
 
@@ -1291,11 +1293,10 @@ namespace Opc.Ua.Gds.Server
             }
             return null;
         }
+        #endregion
 
-    #endregion
-
-    #region Private Fields
-    private bool m_autoApprove;
+        #region Private Fields
+        private bool m_autoApprove;
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
         private IApplicationsDatabase m_database;
