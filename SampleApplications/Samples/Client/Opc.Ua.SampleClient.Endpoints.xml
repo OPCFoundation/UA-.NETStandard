@@ -13,7 +13,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:61210/UA/SampleClient</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -43,7 +43,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:51210/UA/SampleServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -73,7 +73,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:62541/UA/ReferenceServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -103,7 +103,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:62547/Quickstarts/DataAccessServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -133,7 +133,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:62544/Quickstarts/AlarmConditionServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -163,7 +163,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:62550/Quickstarts/HistoricalAccessServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
@@ -193,7 +193,7 @@
       <ua:Endpoint>
         <EndpointUrl>opc.tcp://localhost:62553/Quickstarts/HistoricalEventsServer</EndpointUrl>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
         <UserIdentityTokens>
           <UserTokenPolicy>
             <TokenType>Anonymous_0</TokenType>
