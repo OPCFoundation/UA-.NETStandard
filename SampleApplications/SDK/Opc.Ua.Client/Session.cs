@@ -2468,7 +2468,7 @@ namespace Opc.Ua.Client
             byte[]  dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
-            // choose a default token.            
+            // choose a default token.
             if (identity == null)
             {
                 identity = new UserIdentity();
@@ -2490,6 +2490,14 @@ namespace Opc.Ua.Client
             if (String.IsNullOrEmpty(securityPolicyUri))
             {
                 securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+
+            bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+
+            // validate the server certificate before encrypting tokens.
+            if (m_serverCertificate != null && requireEncryption && identity.TokenType != UserTokenType.Anonymous)
+            {
+                m_configuration.CertificateValidator.Validate(m_serverCertificate);
             }
 
             // sign data with user token.
