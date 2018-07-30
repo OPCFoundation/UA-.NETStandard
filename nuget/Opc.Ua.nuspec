@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua</id>
-    <version>1.04.353</version>
+    <version>1.04.354-preview180731</version>
     <title>OPC UA .Net Standard Library</title>
     <description>This package contains the OPC UA reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -56,5 +56,11 @@
     <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Release\netstandard2.0\Opc.Ua.Client.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Release\netstandard2.0\Opc.Ua.Server.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Release\netstandard2.0\Opc.Ua.Configuration.dll" target="lib\netstandard2.0" />
+    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Release\net46\Opc.Ua.Gds.Server.Common.dll" target="lib\net46" />
+    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Release\netstandard1.3\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Release\netstandard2.0\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard2.0" />
+    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\net46\Opc.Ua.Gds.Client.Common.dll" target="lib\net46" />
+    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\netstandard1.3\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\netstandard2.0\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard2.0" />
   </files>
 </package>

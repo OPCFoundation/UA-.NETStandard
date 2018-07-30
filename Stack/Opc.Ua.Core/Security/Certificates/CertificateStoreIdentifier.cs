@@ -138,20 +138,6 @@ namespace Opc.Ua
                         store = new DirectoryCertificateStore();
                         break;
                     }
-                default:
-                    {
-                        string typeName = storeType + "CertificateStore";
-                        Type type = Type.GetType(typeName);
-
-                        if (type == null)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadNotSupported,
-                                "Cannot load type: {0}",
-                                typeName);
-                        }
-                        return Activator.CreateInstance(type) as ICertificateStore;
-                    }
             }
             return store;
         }
