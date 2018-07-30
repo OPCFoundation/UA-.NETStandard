@@ -230,7 +230,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                 string[] capabilities = null;
 
                 if (result.ServerCapabilities != null &&
-                    result.ServerCapabilities.Length >  0)
+                    result.ServerCapabilities.Length > 0)
                 {
                     capabilities = result.ServerCapabilities.Split(',');
                 }
@@ -532,7 +532,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
         #endregion
         #region ICertificateRequest
-        public NodeId CreateSigningRequest(
+        public NodeId StartSigningRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -580,7 +580,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-        public NodeId CreateNewKeyPairRequest(
+        public NodeId StartNewKeyPairRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -631,7 +631,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-        public void ApproveCertificateRequest(
+        public void ApproveRequest(
             NodeId requestId,
             bool isRejected
             )
@@ -662,9 +662,9 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-        public void AcceptCertificateRequest(
+        public void AcceptRequest(
             NodeId requestId,
-            byte [] certificate)
+            byte[] certificate)
         {
             Guid id = GetNodeIdGuid(requestId);
             using (gdsdbEntities entities = new gdsdbEntities())
@@ -687,7 +687,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
         }
 
 
-        public CertificateRequestState CompleteCertificateRequest(
+        public CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
             out NodeId certificateGroupId,
@@ -790,9 +790,9 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
-#endregion
-#region Private Fileds
+        #endregion
+        #region Private Fileds
         private DateTime m_lastCounterResetTime = DateTime.MinValue;
-#endregion
+        #endregion
     }
 }

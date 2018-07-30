@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -46,13 +47,15 @@ namespace Opc.Ua.Gds.Server
     {
         void Initialize();
         ushort NamespaceIndex { get; set; }
-        NodeId CreateSigningRequest(
+
+        NodeId StartSigningRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             byte[] certificateRequest,
             string authorityId);
-        NodeId CreateNewKeyPairRequest(
+
+        NodeId StartNewKeyPairRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -62,15 +65,15 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             string authorityId);
 
-        void ApproveCertificateRequest(
+        void ApproveRequest(
             NodeId requestId, 
             bool isRejected);
 
-        void AcceptCertificateRequest(
+        void AcceptRequest(
             NodeId requestId,
             byte [] certificate);
 
-        CertificateRequestState CompleteCertificateRequest(
+        CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
             out NodeId certificateGroupId,

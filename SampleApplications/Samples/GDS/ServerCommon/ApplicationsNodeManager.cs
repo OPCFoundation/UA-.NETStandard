@@ -56,7 +56,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationConfiguration configuration,
             IApplicationsDatabase database,
             ICertificateRequest request,
-            ICertificateGroupProvider certificateGroupProvider
+            ICertificateGroup certificateGroup
             )
             : base(server, configuration)
         {
@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = true;
             m_database = database;
             m_request = request;
-            m_certificateGroupProvider = certificateGroupProvider;
+            m_certificateGroupFactory = certificateGroup;
             m_certificateGroups = new Dictionary<NodeId, CertificateGroup>();
 
             try
@@ -207,7 +207,6 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
-
             CertificateGroup certificateGroup = null;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
@@ -224,7 +223,7 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private CertificateGroup GetCertificateGroup(NodeId certificateGroupId)
+        private ICertificateGroup GetCertificateGroup(NodeId certificateGroupId)
         {
             foreach (var certificateGroup in m_certificateGroups.Values)
             {
@@ -237,7 +236,21 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private CertificateGroup GetGroupForCertificate(byte[] certificate)
+        private ICertificateGroup GetCertificateGroup(string id)
+        {
+            foreach (var certificateGroup in m_certificateGroups.Values)
+            {
+                if (id == certificateGroup.Configuration.Id)
+                {
+                    return certificateGroup;
+                }
+            }
+
+            return null;
+        }
+
+
+        private ICertificateGroup GetGroupForCertificate(byte[] certificate)
         {
             if (certificate != null && certificate.Length > 0)
             {
@@ -259,7 +272,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                CertificateGroup certificateGroup = GetGroupForCertificate(certificate);
+                ICertificateGroup certificateGroup = GetGroupForCertificate(certificate);
 
                 if (certificateGroup != null)
                 {
@@ -288,7 +301,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException("BaseStorePath not specified");
             }
 
-            CertificateGroup certificateGroup = m_certificateGroupProvider.Create(
+            CertificateGroup certificateGroup = m_certificateGroupFactory.Create(
                 m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
             SetCertificateGroupNodes(certificateGroup);
             await certificateGroup.Init();
@@ -312,8 +325,8 @@ namespace Opc.Ua.Gds.Server
             {
                 base.CreateAddressSpace(externalReferences);
 
-                m_database.NamespaceIndex = NamespaceIndexes[0];
-                m_request.NamespaceIndex = NamespaceIndexes[0];
+                m_database.NamespaceIndex = this.NamespaceIndexes[0];
+                m_request.NamespaceIndex = this.NamespaceIndexes[0];
 
                 foreach (var certificateGroupConfiguration in m_configuration.CertificateGroups)
                 {
@@ -802,7 +815,7 @@ namespace Opc.Ua.Gds.Server
                 domainNames = GetDefaultDomainNames(application);
             }
 
-            requestId = m_request.CreateNewKeyPairRequest(
+            requestId = m_request.StartNewKeyPairRequest(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -814,7 +827,7 @@ namespace Opc.Ua.Gds.Server
 
             if (m_autoApprove)
             {
-                m_request.ApproveCertificateRequest(requestId, false);
+                m_request.ApproveRequest(requestId, false);
             }
 
             return ServiceResult.Good;
@@ -869,7 +882,7 @@ namespace Opc.Ua.Gds.Server
                 ).Wait();
 
             // store request in the queue for approval
-            requestId = m_request.CreateSigningRequest(
+            requestId = m_request.StartSigningRequest(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -878,7 +891,7 @@ namespace Opc.Ua.Gds.Server
 
             if (m_autoApprove)
             {
-                m_request.ApproveCertificateRequest(requestId, false);
+                m_request.ApproveRequest(requestId, false);
             }
 
             return ServiceResult.Good;
@@ -908,7 +921,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId;
             NodeId certificateTypeId;
 
-            var state = m_request.CompleteCertificateRequest(
+            var state = m_request.FinishRequest(
                 applicationId,
                 requestId,
                 out certificateGroupId,
@@ -1034,7 +1047,8 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.SetApplicationCertificate(applicationId, signedCertificate, certificateGroup.Id.Identifier as string == "https");
-            m_request.AcceptCertificateRequest(requestId, signedCertificate);
+
+            m_request.AcceptRequest(requestId, signedCertificate);
 
             return ServiceResult.Good;
         }
@@ -1239,7 +1253,7 @@ namespace Opc.Ua.Gds.Server
             return new NodeId(++m_nextNodeId, NamespaceIndex);
         }
 
-        protected void SetCertificateGroupNodes(CertificateGroup certificateGroup)
+        protected void SetCertificateGroupNodes(ICertificateGroup certificateGroup)
         {
             var certificateType = (typeof(Opc.Ua.ObjectTypeIds)).GetField(certificateGroup.Configuration.CertificateType).GetValue(null) as NodeId;
             certificateGroup.CertificateType = certificateType;
@@ -1301,7 +1315,7 @@ namespace Opc.Ua.Gds.Server
         private GlobalDiscoveryServerConfiguration m_configuration;
         private IApplicationsDatabase m_database;
         private ICertificateRequest m_request;
-        private ICertificateGroupProvider m_certificateGroupProvider;
+        private ICertificateGroup m_certificateGroupFactory;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
         #endregion
     }

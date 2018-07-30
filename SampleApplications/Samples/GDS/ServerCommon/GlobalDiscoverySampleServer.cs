@@ -53,12 +53,12 @@ namespace Opc.Ua.Gds.Server
         public GlobalDiscoverySampleServer(
             IApplicationsDatabase database,
             ICertificateRequest request,
-            ICertificateGroupProvider certificateProvider
+            ICertificateGroup certificateGroup
             )
         {
             m_database = database;
             m_request = request;
-            m_certificateGroupProvider = certificateProvider;
+            m_certificateGroup = certificateGroup;
         }
 
         #region Overridden Methods
@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Server
             List<INodeManager> nodeManagers = new List<INodeManager>
             {
                 // create the custom node managers.
-                new ApplicationsNodeManager(server, configuration, m_database, m_request, m_certificateGroupProvider)
+                new ApplicationsNodeManager(server, configuration, m_database, m_request, m_certificateGroup)
             };
 
             // create master node manager.
@@ -296,7 +296,7 @@ namespace Opc.Ua.Gds.Server
         private Dictionary<uint, ImpersonationContext> m_contexts = new Dictionary<uint, ImpersonationContext>();
         private IApplicationsDatabase m_database = null;
         private ICertificateRequest m_request = null;
-        private ICertificateGroupProvider m_certificateGroupProvider = null;
+        private ICertificateGroup m_certificateGroup = null;
         #endregion 
     }
 }
