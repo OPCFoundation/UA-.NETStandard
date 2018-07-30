@@ -35,19 +35,20 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroupProvider
+    public class CertificateGroup : ICertificateGroup
     {
         #region Public Fields
-        public NodeId Id;
-        public readonly CertificateGroupConfiguration Configuration;
-        public X509Certificate2 Certificate;
-        public TrustListState DefaultTrustList;
-        public NodeId CertificateType;
-        public Boolean UpdateRequired = false;
+        public NodeId Id { get; set; }
+        public NodeId CertificateType { get; set; }
+        public CertificateGroupConfiguration Configuration { get; }
+        public X509Certificate2 Certificate { get; set; }
+        public TrustListState DefaultTrustList { get; set; }
+        public Boolean UpdateRequired { get; set; }
         #endregion
 
         public CertificateGroup()
         {
+            UpdateRequired = false;
         }
 
         protected CertificateGroup(

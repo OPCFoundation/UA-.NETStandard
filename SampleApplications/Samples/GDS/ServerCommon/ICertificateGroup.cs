@@ -38,7 +38,7 @@ namespace Opc.Ua.Gds.Server
         public readonly string PrivateKeyFormat;
         public readonly byte[] PrivateKey;
 
-        public X509Certificate2KeyPair(X509Certificate2 certificate, string privateKeyFormat, byte [] privateKey)
+        public X509Certificate2KeyPair(X509Certificate2 certificate, string privateKeyFormat, byte[] privateKey)
         {
             if (certificate.HasPrivateKey)
             {
@@ -53,8 +53,15 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// An abstract interface to the certificate provider
     /// </summary>
-    public interface ICertificateGroupProvider
+    public interface ICertificateGroup
     {
+        NodeId Id { get; set; }
+        NodeId CertificateType { get; set; }
+        CertificateGroupConfiguration Configuration { get; }
+        X509Certificate2 Certificate { get; set; }
+        TrustListState DefaultTrustList { get; set; }
+        bool UpdateRequired { get; set; }
+
         CertificateGroup Create(
             string path,
             CertificateGroupConfiguration certificateGroupConfiguration);

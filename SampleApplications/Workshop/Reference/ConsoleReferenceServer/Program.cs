@@ -33,6 +33,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -243,6 +244,13 @@ namespace Quickstarts.ReferenceServer
             // start the server.
             server = new ReferenceServer();
             await application.Start(server);
+
+            // print endpoint info
+            var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            foreach (var endpoint in endpoints)
+            {
+                Console.WriteLine(endpoint);
+            }
 
             // start the status thread
             status = Task.Run(new Action(StatusThread));

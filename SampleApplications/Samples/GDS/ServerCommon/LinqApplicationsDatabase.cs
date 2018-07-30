@@ -606,7 +606,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         }
         #endregion
         #region ICertificateRequest
-        public NodeId CreateSigningRequest(
+        public NodeId StartSigningRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -656,7 +656,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         }
 
-        public NodeId CreateNewKeyPairRequest(
+        public NodeId StartNewKeyPairRequest(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -713,7 +713,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         }
 
-        public void ApproveCertificateRequest(
+        public void ApproveRequest(
             NodeId requestId,
             bool isRejected
             )
@@ -746,7 +746,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         }
 
-        public void AcceptCertificateRequest(
+        public void AcceptRequest(
             NodeId requestId,
             byte[] signedCertificate)
         {
@@ -775,7 +775,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         }
 
-        public CertificateRequestState CompleteCertificateRequest(
+        public CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
             out NodeId certificateGroupId,

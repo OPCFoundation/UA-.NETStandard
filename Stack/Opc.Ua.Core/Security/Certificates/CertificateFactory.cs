@@ -321,7 +321,7 @@ public class CertificateFactory
                 // Key usage 
                 cg.AddExtension(X509Extensions.KeyUsage, true,
                     new KeyUsage(KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
-                        KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment));
+                        KeyUsage.NonRepudiation | KeyUsage.KeyCertSign | KeyUsage.KeyEncipherment));
 
                 // Extended Key usage
                 cg.AddExtension(X509Extensions.ExtendedKeyUsage, true,
