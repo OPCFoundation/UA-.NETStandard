@@ -1215,7 +1215,7 @@ namespace Opc.Ua.Bindings
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private Timer m_cleanupTimer;
         private bool m_responseRequired;
-        private string g_ImplementationString = "TcpServerChannel UA-TCP " + Utils.GetAssemblySoftwareVersion();
+        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 

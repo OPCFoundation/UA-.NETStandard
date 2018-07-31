@@ -126,11 +126,11 @@
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="DB\Tables.sql" />
     <Content Include="gdsdb.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>gdsdb.Context.cs</LastGenOutput>
     </Content>
+    <EmbeddedResource Include="DB\gdsdb.edmx.sql" />
     <Content Include="gdsdb.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>gdsdb.cs</LastGenOutput>

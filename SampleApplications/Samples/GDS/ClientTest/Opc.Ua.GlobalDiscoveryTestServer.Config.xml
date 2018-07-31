@@ -134,11 +134,15 @@
         <CertificateGroups>
           <CertificateGroupConfiguration>
             <Id>Default</Id>
+            <CertificateType>RsaSha256ApplicationCertificateType</CertificateType>
             <SubjectName>CN=GDS Test CA, O=OPC Foundation</SubjectName>
             <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/default</BaseStorePath>
-            <DefaultCertificateLifetime>60</DefaultCertificateLifetime>
+            <DefaultCertificateLifetime>12</DefaultCertificateLifetime>
             <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
             <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
+            <CACertificateLifetime>60</CACertificateLifetime>
+            <CACertificateKeySize>4096</CACertificateKeySize>
+            <CACertificateHashSize>512</CACertificateHashSize>
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames/>

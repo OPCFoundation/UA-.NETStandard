@@ -116,7 +116,6 @@ namespace Opc.Ua
             
             // decrypt.
             EncryptedData encryptedData = new EncryptedData();
-
             encryptedData.Data = m_password;
             encryptedData.Algorithm = m_encryptionAlgorithm;
 
@@ -136,7 +135,7 @@ namespace Opc.Ua
 
             if (senderNonce != null)
             {
-                 startOfNonce -= senderNonce.Length;
+                startOfNonce -= senderNonce.Length;
 
                 int result = 0;
                 for (int ii = 0; ii < senderNonce.Length; ii++)

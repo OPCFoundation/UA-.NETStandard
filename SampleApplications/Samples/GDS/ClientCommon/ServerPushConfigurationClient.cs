@@ -59,7 +59,7 @@ namespace Opc.Ua.Gds.Client
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }
         // TODO: currently only sha256 cert is supported
-        public NodeId ApplicationCertificateType { get => Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType; }
+        public NodeId ApplicationCertificateType { get { return Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType; } }
 
         /// <summary>
         /// Gets the application instance.

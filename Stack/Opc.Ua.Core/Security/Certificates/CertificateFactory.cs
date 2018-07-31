@@ -301,6 +301,10 @@ public class CertificateFactory
             {
                 issuerPublicKey = GetPublicKeyParameter(issuerCAKeyCert);
                 issuerSerialNumber = GetSerialNumber(issuerCAKeyCert);
+                if (startTime.AddMonths(lifetimeInMonths) > issuerCAKeyCert.NotAfter)
+                {
+                    cg.SetNotAfter(issuerCAKeyCert.NotAfter);
+                }
             }
             else
             {
@@ -519,69 +523,15 @@ public class CertificateFactory
 
                 List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
 
-                using (var cfrg = new CertificateFactoryRandomGenerator())
+                var certificateCollection = new X509Certificate2Collection() { certificate };
+                updatedCRL = RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
+
+                store.AddCRL(updatedCRL);
+
+                // delete outdated CRLs from store
+                foreach (X509CRL caCrl in certCACrl)
                 {
-                    // cert generators
-                    SecureRandom random = new SecureRandom(cfrg);
-                    BigInteger crlSerialNumber = BigInteger.Zero;
-
-                    Org.BouncyCastle.X509.X509Certificate bcCertCA = new X509CertificateParser().ReadCertificate(certCA.RawData);
-                    AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(certCAWithPrivateKey);
-
-                    ISignatureFactory signatureFactory =
-                            new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
-
-                    X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
-                    crlGen.SetIssuerDN(bcCertCA.IssuerDN);
-                    crlGen.SetThisUpdate(DateTime.UtcNow);
-                    crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(12));
-
-                    // merge all existing revocation list
-                    X509CrlParser parser = new X509CrlParser();
-                    foreach (X509CRL caCrl in certCACrl)
-                    {
-                        X509Crl crl = parser.ReadCrl(caCrl.RawData);
-                        crlGen.AddCrl(crl);
-                        var crlVersion = GetCrlNumber(crl);
-                        if (crlVersion.IntValue > crlSerialNumber.IntValue)
-                        {
-                            crlSerialNumber = crlVersion;
-                        }
-                    }
-
-                    if (isCACert)
-                    {
-                        // add a dummy revoked cert
-                        crlGen.AddCrlEntry(BigInteger.One, DateTime.UtcNow, CrlReason.Superseded);
-                    }
-                    else
-                    {
-                        // add the revoked cert
-                        crlGen.AddCrlEntry(GetSerialNumber(certificate), DateTime.UtcNow, CrlReason.PrivilegeWithdrawn);
-                    }
-
-                    crlGen.AddExtension(X509Extensions.AuthorityKeyIdentifier,
-                                       false,
-                                       new AuthorityKeyIdentifierStructure(bcCertCA));
-
-                    // set new serial number
-                    crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
-                    crlGen.AddExtension(X509Extensions.CrlNumber,
-                                       false,
-                                       new CrlNumber(crlSerialNumber));
-
-                    // generate updated CRL
-                    X509Crl updatedCrl = crlGen.Generate(signatureFactory);
-
-                    // add updated CRL to store
-                    updatedCRL = new X509CRL(updatedCrl.GetEncoded());
-                    store.AddCRL(updatedCRL);
-
-                    // delete outdated CRLs from store
-                    foreach (X509CRL caCrl in certCACrl)
-                    {
-                        store.DeleteCRL(caCrl);
-                    }
+                    store.DeleteCRL(caCrl);
                 }
                 store.Close();
             }
@@ -592,6 +542,87 @@ public class CertificateFactory
         }
         return updatedCRL;
     }
+
+    /// <summary>
+    /// Revoke the certificate. 
+    /// The CRL number is increased by one and the new CRL is returned.
+    /// </summary>
+    public static X509CRL RevokeCertificate(
+        X509Certificate2 issuerCertificate,
+        List<X509CRL> issuerCrls,
+        X509Certificate2Collection revokedCertificates
+        )
+    {
+        if (!issuerCertificate.HasPrivateKey)
+        {
+            throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
+        }
+
+        using (var cfrg = new CertificateFactoryRandomGenerator())
+        {
+            // cert generators
+            SecureRandom random = new SecureRandom(cfrg);
+            BigInteger crlSerialNumber = BigInteger.Zero;
+
+            Org.BouncyCastle.X509.X509Certificate bcCertCA = new X509CertificateParser().ReadCertificate(issuerCertificate.RawData);
+            AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(issuerCertificate);
+
+            ISignatureFactory signatureFactory =
+                    new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
+
+            X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
+            crlGen.SetIssuerDN(bcCertCA.IssuerDN);
+            crlGen.SetThisUpdate(DateTime.UtcNow);
+            crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(12));
+
+            // merge all existing revocation list
+            if (issuerCrls != null)
+            {
+                X509CrlParser parser = new X509CrlParser();
+                foreach (X509CRL issuerCrl in issuerCrls)
+                {
+
+                    X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
+                    crlGen.AddCrl(crl);
+                    var crlVersion = GetCrlNumber(crl);
+                    if (crlVersion.IntValue > crlSerialNumber.IntValue)
+                    {
+                        crlSerialNumber = crlVersion;
+                    }
+                }
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if (revokedCertificates == null || revokedCertificates.Count == 0)
+            {
+                // add a dummy revoked cert
+                crlGen.AddCrlEntry(BigInteger.One, now, CrlReason.Unspecified);
+            }
+            else
+            {
+                // add the revoked cert
+                foreach (var revokedCertificate in revokedCertificates)
+                {
+                    crlGen.AddCrlEntry(GetSerialNumber(revokedCertificate), now, CrlReason.PrivilegeWithdrawn);
+                }
+            }
+
+            crlGen.AddExtension(X509Extensions.AuthorityKeyIdentifier,
+                                false,
+                                new AuthorityKeyIdentifierStructure(bcCertCA));
+
+            // set new serial number
+            crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
+            crlGen.AddExtension(X509Extensions.CrlNumber,
+                                false,
+                                new CrlNumber(crlSerialNumber));
+
+            // generate updated CRL
+            X509Crl updatedCrl = crlGen.Generate(signatureFactory);
+            return new X509CRL(updatedCrl.GetEncoded());
+        }
+    }
+
 
     /// <summary>
     /// Creates a certificate signing request from an existing certificate.
