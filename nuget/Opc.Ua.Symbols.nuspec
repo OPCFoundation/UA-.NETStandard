@@ -74,10 +74,8 @@
     <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard1.3\Opc.Ua.Gds.Server.Common.pdb" target="lib\netstandard1.3" />
     <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\net46\Opc.Ua.Gds.Client.Common.dll" target="lib\net46" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\net46\Opc.Ua.Gds.Client.Common.pdb" target="lib\net46" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard1.3\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard1.3" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\netstandard1.3\Opc.Ua.Gds.Client.Common.pdb" target="lib\netstandard1.3" />
+    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\net46\Opc.Ua.Gds.Client.Common.dll" target="lib\net46" />
+    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\net46\Opc.Ua.Gds.Client.Common.pdb" target="lib\net46" />
     <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.pdb" target="lib\netstandard2.0" />
   </files>

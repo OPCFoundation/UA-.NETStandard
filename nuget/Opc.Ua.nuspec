@@ -60,7 +60,6 @@
     <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Release\netstandard1.3\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard1.3" />
     <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Release\netstandard2.0\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard2.0" />
     <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\net46\Opc.Ua.Gds.Client.Common.dll" target="lib\net46" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\netstandard1.3\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard1.3" />
     <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Release\netstandard2.0\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard2.0" />
   </files>
 </package>
