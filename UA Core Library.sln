@@ -11,6 +11,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "Sam
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{0B97D07F-629D-47DD-8975-B1F96D434130}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{B64C8C45-7323-4353-A01C-81803F368799}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,8 +37,19 @@ Global
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B97D07F-629D-47DD-8975-B1F96D434130}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B97D07F-629D-47DD-8975-B1F96D434130}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B97D07F-629D-47DD-8975-B1F96D434130}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B97D07F-629D-47DD-8975-B1F96D434130}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B64C8C45-7323-4353-A01C-81803F368799}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B64C8C45-7323-4353-A01C-81803F368799}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B64C8C45-7323-4353-A01C-81803F368799}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B64C8C45-7323-4353-A01C-81803F368799}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EA3AA3AE-CE8A-4DF1-BED8-CA0BAFC87303}
 	EndGlobalSection
 EndGlobal
