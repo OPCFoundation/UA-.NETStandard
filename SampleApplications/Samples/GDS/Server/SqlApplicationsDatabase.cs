@@ -304,6 +304,142 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             }
         }
 
+        public override ApplicationDescription[] QueryApplications(
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
+            uint applicationType,
+            string productUri,
+            string[] serverCapabilities,
+            out DateTime lastCounterResetTime,
+            out uint nextRecordId)
+        {
+            lastCounterResetTime = DateTime.MinValue;
+            nextRecordId = 0;
+            var records = new List<ApplicationDescription>();
+
+            lastCounterResetTime = m_lastCounterResetTime;
+
+            using (gdsdbEntities entities = new gdsdbEntities())
+            {
+                var results = from x in entities.Applications
+                              where ((int)startingRecordId == 0 || (int)startingRecordId <= x.ID)
+                              orderby x.ID
+                              select x;
+
+                int lastID = 0;
+
+                foreach (var result in results)
+                {
+
+                    if (!String.IsNullOrEmpty(applicationName))
+                    {
+                        if (!Match(result.ApplicationName, applicationName))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!String.IsNullOrEmpty(applicationUri))
+                    {
+                        if (!Match(result.ApplicationUri, applicationUri))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!String.IsNullOrEmpty(productUri))
+                    {
+                        if (!Match(result.ProductUri, productUri))
+                        {
+                            continue;
+                        }
+                    }
+
+                    string[] capabilities = null;
+                    if (!String.IsNullOrEmpty(result.ServerCapabilities))
+                    {
+                        capabilities = result.ServerCapabilities.Split(',');
+                    }
+
+                    if (serverCapabilities != null && serverCapabilities.Length > 0)
+                    {
+                        bool match = true;
+
+                        for (int ii = 0; ii < serverCapabilities.Length; ii++)
+                        {
+                            if (capabilities == null || !capabilities.Contains(serverCapabilities[ii]))
+                            {
+                                match = false;
+                                break;
+                            }
+                        }
+
+                        if (!match)
+                        {
+                            continue;
+                        }
+                    }
+
+                    // type filter, 0 and 3 returns all
+                    // filter for servers
+                    if (applicationType == 1 &&
+                        result.ApplicationType == (int)ApplicationType.Client)
+                    {
+                        continue;
+                    }
+                    else // filter for clients
+                    if (applicationType == 2 &&
+                        result.ApplicationType != (int)ApplicationType.Client &&
+                        result.ApplicationType != (int)ApplicationType.ClientAndServer)
+                    {
+                        continue;
+                    }
+
+                    var discoveryUrls = new StringCollection();
+                    if (result.ServerEndpoints != null)
+                    {
+                        discoveryUrls = new StringCollection();
+
+                        foreach (var endpoint in result.ServerEndpoints)
+                        {
+                            discoveryUrls.Add(endpoint.DiscoveryUrl);
+                        }
+                    }
+
+                    if (lastID == 0)
+                    {
+                        lastID = result.ID;
+                    }
+                    else
+                    {
+                        if (maxRecordsToReturn != 0 &&
+                            records.Count >= maxRecordsToReturn)
+                        {
+                            break;
+                        }
+
+                        lastID = result.ID;
+                    }
+
+                    records.Add(new ApplicationDescription()
+                    {
+                        ApplicationUri = result.ApplicationUri,
+                        ProductUri = result.ProductUri,
+                        ApplicationName = result.ApplicationName,
+                        ApplicationType = (ApplicationType)result.ApplicationType,
+                        GatewayServerUri = null,
+                        DiscoveryProfileUri = null,
+                        DiscoveryUrls = discoveryUrls
+                    });
+                    nextRecordId = (uint)lastID + 1;
+
+                }
+                return records.ToArray();
+            }
+        }
+
         public override ServerOnNetwork[] QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
