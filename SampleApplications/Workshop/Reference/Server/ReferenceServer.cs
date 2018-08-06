@@ -31,6 +31,7 @@ using Opc.Ua;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Quickstarts.ReferenceServer
@@ -115,6 +116,24 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
+        /// Initializes the server before it starts up.
+        /// </summary>
+        /// <remarks>
+        /// This method is called before any startup processing occurs. The sub-class may update the 
+        /// configuration object or do any other application specific startup tasks.
+        /// </remarks>
+        protected override void OnServerStarting(ApplicationConfiguration configuration)
+        {
+            Utils.Trace("The server is starting.");
+
+            base.OnServerStarting(configuration);
+
+            // it is up to the application to decide how to validate user identity tokens.
+            // this function creates validator for X509 identity tokens.
+            CreateUserIdentityValidators(configuration);
+        }
+
+        /// <summary>
         /// Called after the server has been started.
         /// </summary>
         protected override void OnServerStarted(IServerInternal server)
@@ -127,6 +146,35 @@ namespace Quickstarts.ReferenceServer
 
         #endregion
         #region User Validation Functions
+        /// <summary>
+        /// Creates the objects used to validate the user identity tokens supported by the server.
+        /// </summary>
+        private void CreateUserIdentityValidators(ApplicationConfiguration configuration)
+        {
+            for (int ii = 0; ii < configuration.ServerConfiguration.UserTokenPolicies.Count; ii++)
+            {
+                UserTokenPolicy policy = configuration.ServerConfiguration.UserTokenPolicies[ii];
+
+                // create a validator for a certificate token policy.
+                if (policy.TokenType == UserTokenType.Certificate)
+                {
+                    // check if user certificate trust lists are specified in configuration.
+                    if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
+                        configuration.SecurityConfiguration.UserIssuerCertificates != null)
+                    {
+                        CertificateValidator certificateValidator = new CertificateValidator();
+                        certificateValidator.Update(configuration.SecurityConfiguration).Wait();
+                        certificateValidator.Update(configuration.SecurityConfiguration.UserIssuerCertificates,
+                            configuration.SecurityConfiguration.TrustedUserCertificates,
+                            configuration.SecurityConfiguration.RejectedCertificateStore);
+
+                        // set custom validator for user certificates.
+                        m_certificateValidator = certificateValidator.GetChannelValidator();
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Called when a client tries to change its user identity.
         /// </summary>
@@ -209,7 +257,14 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
-                CertificateValidator.Validate(certificate);
+                if (m_certificateValidator != null)
+                {
+                    m_certificateValidator.Validate(certificate);
+                }
+                else
+                {
+                    CertificateValidator.Validate(certificate);
+                }
 
                 // determine if self-signed.
                 bool isSelfSigned = Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
@@ -253,9 +308,10 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
         }
+        #endregion
 
         #region Private Fields
-        #endregion 
+        private X509CertificateValidator m_certificateValidator;
         #endregion
     }
 }

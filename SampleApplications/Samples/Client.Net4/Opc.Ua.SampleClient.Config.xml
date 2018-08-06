@@ -86,7 +86,30 @@
 
     <!-- Specifies whether the complete certificate chain should be sent for CA signed certificates. -->
     <SendCertificateChain>false</SendCertificateChain>
-  
+
+    <!-- Where the User issuer certificates are stored -->
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+    </UserIssuerCertificates>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+    </TrustedUserCertificates>
+
+    <!-- Where the Https issuer certificates are stored -->
+    <HttpsIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerHttps</StorePath>
+    </HttpsIssuerCertificates>
+
+    <!-- Where the Https trust list is stored-->
+    <TrustedHttpsCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedHttps</StorePath>
+    </TrustedHttpsCertificates>
 </SecurityConfiguration>
 
   <TransportConfigurations></TransportConfigurations>
@@ -169,11 +192,11 @@
          
          The first policy in the list is assigned to base address. -->
     <SecurityPolicies>
-      <!--Removing no secuirty option from the configuration as this is a security risk
+      <!--Removing no secuirty option from the configuration as this is a security risk-->
         <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
-      </ServerSecurityPolicy>-->
+      </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
@@ -293,7 +316,7 @@
     </RegistrationEndpoint>
 
     <!-- The maximum interval between registration. 0 disables periodic registration -->
-    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
+    <MaxRegistrationInterval>0</MaxRegistrationInterval>
 
     <!-- The file used to save nodes added to the CoreNodeManager. If missing the CoreNodeManger will discard nodes when it stops. -->
     <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>

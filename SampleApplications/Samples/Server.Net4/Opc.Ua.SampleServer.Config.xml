@@ -29,13 +29,24 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications</StorePath>
     </TrustedPeerCertificates>
-    
+
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
     </RejectedCertificateStore>
 
+    <!-- Where the User issuer certificates are stored -->
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+    </UserIssuerCertificates>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+    </TrustedUserCertificates>
   </SecurityConfiguration>
 
 
