@@ -98,18 +98,6 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
     </TrustedUserCertificates>
-
-    <!-- Where the Https issuer certificates are stored -->
-    <HttpsIssuerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerHttps</StorePath>
-    </HttpsIssuerCertificates>
-
-    <!-- Where the Https trust list is stored-->
-    <TrustedHttpsCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedHttps</StorePath>
-    </TrustedHttpsCertificates>
 </SecurityConfiguration>
 
   <TransportConfigurations></TransportConfigurations>

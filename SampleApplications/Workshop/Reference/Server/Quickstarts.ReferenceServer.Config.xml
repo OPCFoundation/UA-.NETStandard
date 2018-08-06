@@ -45,6 +45,17 @@
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
 
+    <!-- Where the User issuer certificates are stored -->
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+    </UserIssuerCertificates>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+    </TrustedUserCertificates>
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
