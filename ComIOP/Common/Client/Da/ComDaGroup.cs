@@ -220,7 +220,8 @@ namespace Opc.Ua.Com.Client
                     for (int jj = 0; jj < monitoredItems.Length; jj++)
                     {
 
-                        if (info.LastValue.Value.GetType().IsArray
+                        if (info.LastValue.Value != null
+                            && info.LastValue.Value.GetType().IsArray
                             && monitoredItems[jj].IndexRange.Count != info.LastValue.Value.GetType().GetArrayRank()
                             && StatusCode.IsBad(info.LastValue.StatusCode))
                         {
