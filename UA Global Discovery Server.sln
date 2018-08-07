@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2002
+VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{761E1EB7-59FB-4D77-8AB3-986B623535C8}"
 EndProject
@@ -39,6 +39,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		nuget\Opc.Ua.nuspec = nuget\Opc.Ua.nuspec
 		nuget\Opc.Ua.Symbols.nuspec = nuget\Opc.Ua.Symbols.nuspec
 		SampleApplications\Samples\GDS\README.md = SampleApplications\Samples\GDS\README.md
+		version.props = version.props
 	EndProjectSection
 EndProject
 Global

@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-02-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-06-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-02-09T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-06-20T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -169,7 +169,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
     </References>
     <Definition Name="DataSetFieldFlags" IsOptionSet="true">
-      <Field Name="PromotedField" Value="1" />
+      <Field Name="PromotedField" Value="0" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15577" BrowseName="OptionSetValues" ParentNodeId="i=15904" DataType="LocalizedText" ValueRank="1">
@@ -261,12 +261,12 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="DataSetFieldContentMask" IsOptionSet="true">
-      <Field Name="StatusCode" Value="1" />
-      <Field Name="SourceTimestamp" Value="2" />
-      <Field Name="ServerTimestamp" Value="4" />
-      <Field Name="SourcePicoSeconds" Value="8" />
-      <Field Name="ServerPicoSeconds" Value="16" />
-      <Field Name="RawDataEncoding" Value="32" />
+      <Field Name="StatusCode" Value="0" />
+      <Field Name="SourceTimestamp" Value="1" />
+      <Field Name="ServerTimestamp" Value="2" />
+      <Field Name="SourcePicoSeconds" Value="3" />
+      <Field Name="ServerPicoSeconds" Value="4" />
+      <Field Name="RawDataEncoding" Value="5" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15584" BrowseName="OptionSetValues" ParentNodeId="i=15583" DataType="LocalizedText" ValueRank="1">
@@ -365,7 +365,7 @@
       <Field Name="PublishingInterval" DataType="i=290" />
       <Field Name="KeepAliveTime" DataType="i=290" />
       <Field Name="Priority" DataType="i=3" />
-      <Field Name="LocaleIds" DataType="i=12" ValueRank="1" />
+      <Field Name="LocaleIds" DataType="i=295" ValueRank="1" />
       <Field Name="TransportSettings" DataType="i=22" />
       <Field Name="MessageSettings" DataType="i=22" />
       <Field Name="DataSetWriters" DataType="i=15597" ValueRank="1" />
@@ -579,17 +579,17 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="UadpNetworkMessageContentMask" IsOptionSet="true">
-      <Field Name="PublisherId" Value="1" />
-      <Field Name="GroupHeader" Value="2" />
-      <Field Name="WriterGroupId" Value="4" />
-      <Field Name="GroupVersion" Value="8" />
-      <Field Name="NetworkMessageNumber" Value="16" />
-      <Field Name="SequenceNumber" Value="32" />
-      <Field Name="PayloadHeader" Value="64" />
-      <Field Name="Timestamp" Value="128" />
-      <Field Name="Picoseconds" Value="256" />
-      <Field Name="DataSetClassId" Value="512" />
-      <Field Name="PromotedFields" Value="1024" />
+      <Field Name="PublisherId" Value="0" />
+      <Field Name="GroupHeader" Value="1" />
+      <Field Name="WriterGroupId" Value="2" />
+      <Field Name="GroupVersion" Value="3" />
+      <Field Name="NetworkMessageNumber" Value="4" />
+      <Field Name="SequenceNumber" Value="5" />
+      <Field Name="PayloadHeader" Value="6" />
+      <Field Name="Timestamp" Value="7" />
+      <Field Name="Picoseconds" Value="8" />
+      <Field Name="DataSetClassId" Value="9" />
+      <Field Name="PromotedFields" Value="10" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15643" BrowseName="OptionSetValues" ParentNodeId="i=15642" DataType="LocalizedText" ValueRank="1">
@@ -679,12 +679,12 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="UadpDataSetMessageContentMask" IsOptionSet="true">
-      <Field Name="Timestamp" Value="1" />
-      <Field Name="PicoSeconds" Value="2" />
-      <Field Name="Status" Value="4" />
-      <Field Name="MajorVersion" Value="8" />
-      <Field Name="MinorVersion" Value="16" />
-      <Field Name="SequenceNumber" Value="32" />
+      <Field Name="Timestamp" Value="0" />
+      <Field Name="PicoSeconds" Value="1" />
+      <Field Name="Status" Value="2" />
+      <Field Name="MajorVersion" Value="3" />
+      <Field Name="MinorVersion" Value="4" />
+      <Field Name="SequenceNumber" Value="5" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15647" BrowseName="OptionSetValues" ParentNodeId="i=15646" DataType="LocalizedText" ValueRank="1">
@@ -765,12 +765,12 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="JsonNetworkMessageContentMask" IsOptionSet="true">
-      <Field Name="NetworkMessageHeader" Value="1" />
-      <Field Name="DataSetMessageHeader" Value="2" />
-      <Field Name="SingleDataSetMessage" Value="4" />
-      <Field Name="PublisherId" Value="8" />
-      <Field Name="DataSetClassId" Value="16" />
-      <Field Name="ReplyTo" Value="32" />
+      <Field Name="NetworkMessageHeader" Value="0" />
+      <Field Name="DataSetMessageHeader" Value="1" />
+      <Field Name="SingleDataSetMessage" Value="2" />
+      <Field Name="PublisherId" Value="3" />
+      <Field Name="DataSetClassId" Value="4" />
+      <Field Name="ReplyTo" Value="5" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15655" BrowseName="OptionSetValues" ParentNodeId="i=15654" DataType="LocalizedText" ValueRank="1">
@@ -831,11 +831,11 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="JsonDataSetMessageContentMask" IsOptionSet="true">
-      <Field Name="DataSetWriterId" Value="1" />
-      <Field Name="MetaDataVersion" Value="2" />
-      <Field Name="SequenceNumber" Value="4" />
-      <Field Name="Timestamp" Value="8" />
-      <Field Name="Status" Value="16" />
+      <Field Name="DataSetWriterId" Value="0" />
+      <Field Name="MetaDataVersion" Value="1" />
+      <Field Name="SequenceNumber" Value="2" />
+      <Field Name="Timestamp" Value="3" />
+      <Field Name="Status" Value="4" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15659" BrowseName="OptionSetValues" ParentNodeId="i=15658" DataType="LocalizedText" ValueRank="1">

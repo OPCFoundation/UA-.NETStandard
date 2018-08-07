@@ -33,6 +33,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -229,7 +230,7 @@ namespace Quickstarts.ReferenceServer
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize, CertificateFactory.defaultLifeTime);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -243,6 +244,13 @@ namespace Quickstarts.ReferenceServer
             // start the server.
             server = new ReferenceServer();
             await application.Start(server);
+
+            // print endpoint info
+            var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            foreach (var endpoint in endpoints)
+            {
+                Console.WriteLine(endpoint);
+            }
 
             // start the status thread
             status = Task.Run(new Action(StatusThread));

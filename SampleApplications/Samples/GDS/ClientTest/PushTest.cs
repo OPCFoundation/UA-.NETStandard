@@ -41,6 +41,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
+using OpcUa = Opc.Ua;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -55,12 +56,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
-#if DEBUG
             // make sure all servers started in travis use a different port, or test will fail
-            const int testPort = 58820;
-#else
-            const int testPort = 58830;
-#endif
+            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
             _dataGenerator = new DataGenerator(_randomSource);
@@ -256,6 +253,13 @@ namespace NUnit.Opc.Ua.Gds.Test
             ConnectPushClient(true);
             byte[] csr = _pushClient.PushClient.CreateSigningRequest(null, _pushClient.PushClient.ApplicationCertificateType, null, false, null);
             Assert.IsNotNull(csr);
+        }
+
+        [Test, Order(402)]
+        public void CreateSigningRequestRsaMinNullParms()
+        {
+            ConnectPushClient(true);
+            Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType, null, false, null); }, Throws.Exception);
         }
 
         [Test, Order(409)]
@@ -540,8 +544,8 @@ namespace NUnit.Opc.Ua.Gds.Test
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
-#endregion
-#region Private Methods
+        #endregion
+        #region Private Methods
         private void ConnectPushClient(bool sysAdmin)
         {
             _pushClient.PushClient.AdminCredentials = sysAdmin ? _pushClient.SysAdminUser : _pushClient.AppUser;
@@ -595,7 +599,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             NodeId id = _gdsClient.GDSClient.RegisterApplication(_applicationRecord);
             Assert.IsNotNull(id);
             _applicationRecord.ApplicationId = id;
-            
+
             // add issuer and trusted certs to client stores
             NodeId trustListId = _gdsClient.GDSClient.GetTrustList(id, null);
             var trustList = _gdsClient.GDSClient.ReadTrustList(trustListId);
@@ -838,7 +842,6 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         #endregion
-
         #region Private Fields
         private const int randomStart = 1;
         private RandomSource _randomSource;

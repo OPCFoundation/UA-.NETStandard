@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 
@@ -120,63 +121,36 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            Guid applicationId = Guid.Empty;
+            NodeId nodeId = new NodeId();
             if (!NodeId.IsNull(application.ApplicationId))
             {
-                if (application.ApplicationId.IdType != IdType.Guid)
+                // verify node integrity
+                switch (application.ApplicationId.IdType)
                 {
-                    throw new ArgumentException("The ApplicationId has not the type Guid.", "ApplicationId");
+                    case IdType.Guid:
+                        nodeId = new NodeId((Guid)application.ApplicationId.Identifier, NamespaceIndex);
+                        break;
+                    case IdType.String:
+                        nodeId = new NodeId((string)application.ApplicationId.Identifier, NamespaceIndex);
+                        break;
+                    default:
+                        throw new ArgumentException("The ApplicationId has invalid type {0}", application.ApplicationId.ToString());
                 }
-
-                applicationId = (Guid)application.ApplicationId.Identifier;
             }
 
-            return new NodeId(applicationId, NamespaceIndex);
+            return nodeId;
         }
 
-        public virtual NodeId CreateCertificateRequest(
-            NodeId applicationId,
-            byte[] certificate,
-            byte[] privateKey,
-            string authorityId)
+        public virtual void UnregisterApplication(NodeId applicationId)
         {
-            Guid id = GetNodeIdGuid(applicationId);
-            return new NodeId(Guid.Empty, NamespaceIndex);
-        }
-
-        public virtual void ApproveCertificateRequest(NodeId requestId, bool isRejected)
-        {
-            Guid id = GetNodeIdGuid(requestId);
-        }
-
-        public virtual bool CompleteCertificateRequest(
-            NodeId applicationId,
-            NodeId requestId,
-            out byte[] certificate,
-            out byte[] privateKey)
-        {
-            certificate = null;
-            privateKey = null;
-            Guid appId = GetNodeIdGuid(applicationId);
-            Guid reqId = GetNodeIdGuid(requestId);
-            return false;
-        }
-
-        public virtual void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
-        {
-            certificate = null;
-            httpsCertificate = null;
-            Guid id = GetNodeIdGuid(applicationId);
+            ValidateApplicationNodeId(applicationId);
         }
 
         public virtual ApplicationRecordDataType GetApplication(
             NodeId applicationId
             )
         {
-            Guid id = GetNodeIdGuid(applicationId);
+            ValidateApplicationNodeId(applicationId);
             return null;
         }
 
@@ -200,13 +174,39 @@ namespace Opc.Ua.Gds.Server.Database
             return null;
         }
 
+        public virtual ApplicationDescription[] QueryApplications(
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
+            uint applicationType,
+            string productUri,
+            string[] serverCapabilities,
+            out DateTime lastCounterResetTime,
+            out uint nextRecordId
+            )
+        {
+            lastCounterResetTime = DateTime.MinValue;
+            nextRecordId = 0;
+            return null;
+        }
+
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
             byte[] certificate,
             bool isHttpsCertificate)
         {
-            Guid id = GetNodeIdGuid(applicationId);
+            ValidateApplicationNodeId(applicationId);
             return false;
+        }
+        public virtual void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate)
+        {
+            certificate = null;
+            httpsCertificate = null;
+            ValidateApplicationNodeId(applicationId);
         }
 
         public virtual bool SetApplicationTrustLists(
@@ -214,12 +214,17 @@ namespace Opc.Ua.Gds.Server.Database
             NodeId trustListId,
             NodeId httpsTrustListId)
         {
-            Guid id = GetNodeIdGuid(applicationId);
-            if (NodeId.IsNull(applicationId))
-            {
-                throw new ArgumentNullException(nameof(applicationId));
-            }
-
+            ValidateApplicationNodeId(applicationId);
+            return false;
+        }
+        public virtual bool GetApplicationTrustLists(
+            NodeId applicationId,
+            out NodeId trustListId,
+            out NodeId httpsTrustListId)
+        {
+            trustListId = null;
+            httpsTrustListId = null;
+            ValidateApplicationNodeId(applicationId);
             return false;
         }
         #endregion
@@ -264,6 +269,30 @@ namespace Opc.Ua.Gds.Server.Database
 
             return true;
         }
+
+        /// <summary>
+        /// Returns true if the pattern string contains a UA pattern. 
+        /// The pattern string may include UA wildcards %_\[]!
+        /// </summary>
+
+        public static bool IsMatchPattern(string pattern)
+        {
+            var patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
+            if (String.IsNullOrEmpty(pattern))
+            {
+                return false;
+            }
+
+            foreach (var patternChar in patternChars)
+            {
+                if (pattern.Contains(patternChar))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public string ServerCapabilities(ApplicationRecordDataType application)
         {
             if (application.ApplicationType != ApplicationType.Client)
@@ -277,6 +306,7 @@ namespace Opc.Ua.Gds.Server.Database
             StringBuilder capabilities = new StringBuilder();
             if (application.ServerCapabilities != null)
             {
+                application.ServerCapabilities.Sort();
                 foreach (var capability in application.ServerCapabilities)
                 {
                     if (String.IsNullOrEmpty(capability))
@@ -295,7 +325,8 @@ namespace Opc.Ua.Gds.Server.Database
 
             return capabilities.ToString();
         }
-        public Guid GetNodeIdGuid(
+
+        protected Guid GetNodeIdGuid(
             NodeId nodeId
             )
         {
@@ -315,11 +346,59 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
-            else
+            return (Guid)id;
+        }
+
+        protected string GetNodeIdString(
+            NodeId nodeId
+            )
+        {
+            if (NodeId.IsNull(nodeId))
             {
-                return (Guid)id;
+                return null;
+            }
+
+            if (nodeId.IdType != IdType.String || NamespaceIndex != nodeId.NamespaceIndex)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+
+            string id = nodeId.Identifier as string;
+
+            if (id == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+            return id;
+        }
+
+        protected void ValidateApplicationNodeId(
+            NodeId nodeId
+            )
+        {
+            if (NodeId.IsNull(nodeId))
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+
+            if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) || 
+                NamespaceIndex != nodeId.NamespaceIndex)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+
+            if (nodeId.IdType == IdType.Guid)
+            {
+                // test if identifier is a valid Guid
+                Guid? id = nodeId.Identifier as Guid?;
+
+                if (id == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
             }
         }
+
         #endregion
         #region Private Members
         private static List<string> Parse(string pattern)

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
@@ -6,6 +6,8 @@
     <AssemblyName>Opc.Ua.Gds.Server.Common</AssemblyName>
     <PackageId>Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
+    <LangVersion>6</LangVersion>
+    <Description>OPC UA GDS Server Class Library</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,5 +30,5 @@
     <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
-
+  
 </Project>

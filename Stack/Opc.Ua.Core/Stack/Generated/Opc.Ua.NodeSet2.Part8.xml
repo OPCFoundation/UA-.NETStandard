@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-02-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-06-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-02-09T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-06-20T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -127,6 +127,72 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=2368</Reference>
+    </References>
+  </UAVariable>
+  <UAVariableType NodeId="i=17497" BrowseName="EUItemType" DataType="Number" ValueRank="-2">
+    <DisplayName>EUItemType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=17500</Reference>
+      <Reference ReferenceType="HasProperty">i=17501</Reference>
+      <Reference ReferenceType="HasProperty">i=17502</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2365</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="i=17500" BrowseName="InstrumentRange" ParentNodeId="i=17497" DataType="i=884">
+    <DisplayName>InstrumentRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17501" BrowseName="EURange" ParentNodeId="i=17497" DataType="i=884">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17502" BrowseName="EngineeringUnits" ParentNodeId="i=17497" DataType="i=887">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariableType NodeId="i=17503" BrowseName="AnalogUnitItemType" DataType="Number" ValueRank="-2">
+    <DisplayName>AnalogUnitItemType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=17506</Reference>
+      <Reference ReferenceType="HasProperty">i=17509</Reference>
+      <Reference ReferenceType="HasProperty">i=17510</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2365</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="i=17506" BrowseName="InstrumentRange" ParentNodeId="i=17503" DataType="i=884">
+    <DisplayName>InstrumentRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17503</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17509" BrowseName="EURange" ParentNodeId="i=17503" DataType="i=884">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17503</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17510" BrowseName="EngineeringUnits" ParentNodeId="i=17503" DataType="i=887">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17503</Reference>
     </References>
   </UAVariable>
   <UAVariableType NodeId="i=2372" BrowseName="DiscreteItemType" IsAbstract="true" ValueRank="-2">

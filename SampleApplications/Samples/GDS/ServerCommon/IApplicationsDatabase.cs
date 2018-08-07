@@ -31,14 +31,6 @@ using System;
 
 namespace Opc.Ua.Gds.Server.Database
 {
-    public enum CertificateRequestState
-    {
-        New,
-        Approved,
-        Rejected,
-        Accepted
-    }
-
     /// <summary>
     /// An abstract interface to the application database
     /// </summary>
@@ -47,24 +39,7 @@ namespace Opc.Ua.Gds.Server.Database
         void Initialize();
         ushort NamespaceIndex { get; set; }
         NodeId RegisterApplication(ApplicationRecordDataType application);
-        NodeId CreateCertificateRequest(
-            NodeId applicationId,
-            byte[] certificate,
-            byte[] privateKey,
-            string authorityId);
-        void ApproveCertificateRequest(
-            NodeId requestId, 
-            bool isRejected);
-        bool CompleteCertificateRequest(
-            NodeId applicationId,
-            NodeId requestId,
-            out byte[] certificate,
-            out byte[] privateKey);
-
-        void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate);
+        void UnregisterApplication(NodeId applicationId);
         ApplicationRecordDataType GetApplication(NodeId applicationId);
         ApplicationRecordDataType[] FindApplications(string applicationUri);
         ServerOnNetwork[] QueryServers(
@@ -79,9 +54,27 @@ namespace Opc.Ua.Gds.Server.Database
             NodeId applicationId, 
             byte[] certificate, 
             bool isHttpsCertificate);
+        void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate);
         bool SetApplicationTrustLists(
             NodeId applicationId, 
             NodeId trustListId, 
             NodeId httpsTrustListId);
+        bool GetApplicationTrustLists(
+            NodeId applicationId,
+            out NodeId trustListId,
+            out NodeId httpsTrustListId);
+        ApplicationDescription[] QueryApplications(
+            uint startingRecordId, 
+            uint maxRecordsToReturn, 
+            string applicationName, 
+            string applicationUri, 
+            uint applicationType,
+            string productUri, 
+            string[] serverCapabilities, 
+            out DateTime lastCounterResetTime, 
+            out uint nextRecordId);
     }
 }

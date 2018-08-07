@@ -33,7 +33,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
 
-namespace Opc.Ua.Gds.Server.Database
+namespace Opc.Ua.Gds.Server.Database.Linq
 {
     [Serializable]
     class ApplicationName
@@ -63,9 +63,15 @@ namespace Opc.Ua.Gds.Server.Database
         public Guid RequestId { get; set; }
         public Guid ApplicationId { get; set; }
         public int State { get; set; }
-        public byte[] Certificate { get; set; }
-        public byte[] PrivateKey { get; set; }
+        public NodeId CertificateGroupId { get; set; }
+        public NodeId CertificateTypeId { get; set; }
+        public byte[] CertificateSigningRequest { get; set; }
+        public string SubjectName { get; set; }
+        public string[] DomainNames { get; set; }
+        public string PrivateKeyFormat { get; set; }
+        public string PrivateKeyPassword { get; set; }
         public string AuthorityId { get; set; }
+        public byte[] Certificate { get; set; }
     }
     [Serializable]
     class CertificateStore
@@ -81,14 +87,13 @@ namespace Opc.Ua.Gds.Server.Database
     [Serializable]
     class ServerEndpoint
     {
-        public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
         public string DiscoveryUrl { get; set; }
     }
     [Serializable]
-    public class LinqApplicationsDatabase : ApplicationsDatabaseBase
+    public class LinqApplicationsDatabase : ApplicationsDatabaseBase, ICertificateRequest
     {
-        #region IApplicationsDatabase Members
+        #region IApplicationsDatabase 
         public override void Initialize()
         {
         }
@@ -98,6 +103,10 @@ namespace Opc.Ua.Gds.Server.Database
             )
         {
             NodeId appNodeId = base.RegisterApplication(application);
+            if (NodeId.IsNull(appNodeId))
+            {
+                appNodeId = new NodeId(Guid.NewGuid(), NamespaceIndex);
+            }
             Guid applicationId = GetNodeIdGuid(appNodeId);
             string capabilities = base.ServerCapabilities(application);
 
@@ -142,7 +151,11 @@ namespace Opc.Ua.Gds.Server.Database
                 if (record == null)
                 {
                     applicationId = Guid.NewGuid();
-                    record = new Application() { ApplicationId = applicationId };
+                    record = new Application()
+                    {
+                        ApplicationId = applicationId,
+                        ID = 0
+                    };
                     isNew = true;
                 }
 
@@ -163,7 +176,12 @@ namespace Opc.Ua.Gds.Server.Database
                 {
                     foreach (var discoveryUrl in application.DiscoveryUrls)
                     {
-                        ServerEndpoints.Add(new ServerEndpoint() { ApplicationId = record.ApplicationId, DiscoveryUrl = discoveryUrl });
+                        ServerEndpoints.Add(
+                            new ServerEndpoint()
+                            {
+                                ApplicationId = record.ApplicationId,
+                                DiscoveryUrl = discoveryUrl
+                            });
                     }
                 }
 
@@ -171,7 +189,12 @@ namespace Opc.Ua.Gds.Server.Database
                 {
                     foreach (var applicationName in application.ApplicationNames)
                     {
-                        ApplicationNames.Add(new ApplicationName() { ApplicationId = record.ApplicationId, Locale = applicationName.Locale, Text = applicationName.Text });
+                        ApplicationNames.Add(new ApplicationName()
+                        {
+                            ApplicationId = record.ApplicationId,
+                            Locale = applicationName.Locale,
+                            Text = applicationName.Text
+                        });
                     }
                 }
 
@@ -181,143 +204,9 @@ namespace Opc.Ua.Gds.Server.Database
             }
         }
 
-        public override NodeId CreateCertificateRequest(
-            NodeId applicationId,
-            byte[] certificate,
-            byte[] privateKey,
-            string authorityId)
+
+        public override void UnregisterApplication(NodeId applicationId)
         {
-            Guid id = GetNodeIdGuid(applicationId);
-
-            lock (Lock)
-            {
-                var application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
-
-                if (application == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
-
-                var request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
-
-                bool isNew = false;
-
-                if (request == null)
-                {
-                    request = new CertificateRequest() { RequestId = Guid.NewGuid(), AuthorityId = authorityId };
-                    isNew = true;
-                }
-
-                request.State = (int)CertificateRequestState.New;
-                request.Certificate = certificate;
-                request.PrivateKey = privateKey;
-                request.ApplicationId = id;
-
-                if (isNew)
-                {
-                    CertificateRequests.Add(request);
-                }
-
-                SaveChanges();
-
-                return new NodeId(request.RequestId, NamespaceIndex);
-            }
-
-        }
-
-        public override void ApproveCertificateRequest(
-            NodeId requestId,
-            bool isRejected
-            )
-        {
-            Guid id = GetNodeIdGuid(requestId);
-
-            lock (Lock)
-            {
-                var request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
-
-                request.State = (int)((isRejected) ? CertificateRequestState.Rejected : CertificateRequestState.Approved);
-                SaveChanges();
-            }
-
-        }
-
-        public override bool CompleteCertificateRequest(
-            NodeId applicationId,
-            NodeId requestId,
-            out byte[] certificate,
-            out byte[] privateKey)
-        {
-            certificate = null;
-            privateKey = null;
-            Guid reqId = GetNodeIdGuid(requestId);
-            Guid appId = GetNodeIdGuid(applicationId);
-
-            lock (Lock)
-            {
-                var request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
-
-                if (request.State == (int)CertificateRequestState.New)
-                {
-                    return false;
-                }
-
-                if (request.State == (int)CertificateRequestState.Rejected)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "The certificate request has been rejected by the administrator.");
-                }
-
-                certificate = request.Certificate;
-                privateKey = request.PrivateKey;
-
-                if (request.State == (int)CertificateRequestState.Approved)
-                {
-                    var application = (
-                        from ii in Applications
-                        where ii.ApplicationId == request.ApplicationId
-                        select ii).SingleOrDefault();
-
-                    if (application == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                    }
-
-                    if (request.AuthorityId != "https")
-                    {
-                        application.Certificate = certificate;
-                    }
-                    else
-                    {
-                        application.HttpsCertificate = certificate;
-                    }
-
-                    request.State = (int)CertificateRequestState.Accepted;
-                }
-
-                SaveChanges();
-                return true;
-            }
-
-        }
-
-        public override void UnregisterApplication(
-            NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
-        {
-            certificate = null;
-            httpsCertificate = null;
-
             Guid id = GetNodeIdGuid(applicationId);
 
             List<byte[]> certificates = new List<byte[]>();
@@ -332,9 +221,6 @@ namespace Opc.Ua.Gds.Server.Database
                 {
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
-
-                certificate = application.Certificate;
-                httpsCertificate = application.HttpsCertificate;
 
                 var certificateRequests =
                     from ii in CertificateRequests
@@ -496,6 +382,143 @@ namespace Opc.Ua.Gds.Server.Database
                 return records.ToArray();
             }
         }
+        public override ApplicationDescription[] QueryApplications(
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
+            uint applicationType,
+            string productUri,
+            string[] serverCapabilities,
+            out DateTime lastCounterResetTime,
+            out uint nextRecordId)
+        {
+            lastCounterResetTime = DateTime.MinValue;
+            nextRecordId = 0;
+            var records = new List<ApplicationDescription>();
+
+
+            lock (Lock)
+            {
+                var results = from x in Applications
+                              where ((int)startingRecordId == 0 || (int)startingRecordId <= x.ID)
+                              select x;
+
+                lastCounterResetTime = queryCounterResetTime;
+                uint lastID = 0;
+
+                foreach (var result in results)
+                {
+
+                    if (!String.IsNullOrEmpty(applicationName))
+                    {
+                        if (!Match(result.ApplicationName, applicationName))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!String.IsNullOrEmpty(applicationUri))
+                    {
+                        if (!Match(result.ApplicationUri, applicationUri))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!String.IsNullOrEmpty(productUri))
+                    {
+                        if (!Match(result.ProductUri, productUri))
+                        {
+                            continue;
+                        }
+                    }
+
+                    string[] capabilities = null;
+                    if (!String.IsNullOrEmpty(result.ServerCapabilities))
+                    {
+                        capabilities = result.ServerCapabilities.Split(',');
+                    }
+
+                    if (serverCapabilities != null && serverCapabilities.Length > 0)
+                    {
+                        bool match = true;
+
+                        for (int ii = 0; ii < serverCapabilities.Length; ii++)
+                        {
+                            if (capabilities == null || !capabilities.Contains(serverCapabilities[ii]))
+                            {
+                                match = false;
+                                break;
+                            }
+                        }
+
+                        if (!match)
+                        {
+                            continue;
+                        }
+                    }
+
+                    // type filter, 0 and 3 returns all
+                    // filter for servers
+                    if (applicationType == 1 &&
+                        result.ApplicationType == (int)ApplicationType.Client)
+                    {
+                        continue;
+                    }
+                    else // filter for clients
+                    if (applicationType == 2 &&
+                        result.ApplicationType != (int)ApplicationType.Client &&
+                        result.ApplicationType != (int)ApplicationType.ClientAndServer)
+                    {
+                        continue;
+                    }
+
+                    var endpoints = from ii in ServerEndpoints
+                                    where ii.ApplicationId == result.ApplicationId
+                                    select ii;
+
+                    var discoveryUrls = new StringCollection();
+                    if (endpoints != null)
+                    {
+
+                        foreach (var endpoint in endpoints)
+                        {
+                            discoveryUrls.Add(endpoint.DiscoveryUrl);
+                        }
+                    }
+
+                    if (lastID == 0)
+                    {
+                        lastID = result.ID;
+                    }
+                    else
+                    {
+                        if (maxRecordsToReturn != 0 &&
+                            records.Count >= maxRecordsToReturn)
+                        {
+                            break;
+                        }
+
+                        lastID = result.ID;
+                    }
+
+                    records.Add(new ApplicationDescription()
+                    {
+                        ApplicationUri = result.ApplicationUri,
+                        ProductUri = result.ProductUri,
+                        ApplicationName = result.ApplicationName,
+                        ApplicationType = (ApplicationType)result.ApplicationType,
+                        GatewayServerUri = null,
+                        DiscoveryProfileUri = null,
+                        DiscoveryUrls = discoveryUrls
+                    });
+                    nextRecordId = (uint)lastID + 1;
+
+                }
+                return records.ToArray();
+            }
+        }
 
         public override ServerOnNetwork[] QueryServers(
             uint startingRecordId,
@@ -512,11 +535,11 @@ namespace Opc.Ua.Gds.Server.Database
 
                 var results = from x in ServerEndpoints
                               join y in Applications on x.ApplicationId equals y.ApplicationId
-                              where x.ID >= startingRecordId
-                              orderby x.ID
+                              where y.ID >= startingRecordId
+                              orderby y.ID
                               select new
                               {
-                                  x.ID,
+                                  y.ID,
                                   y.ApplicationName,
                                   y.ApplicationUri,
                                   y.ProductUri,
@@ -525,6 +548,7 @@ namespace Opc.Ua.Gds.Server.Database
                               };
 
                 List<ServerOnNetwork> records = new List<ServerOnNetwork>();
+                uint lastID = 0;
 
                 foreach (var result in results)
                 {
@@ -553,8 +577,7 @@ namespace Opc.Ua.Gds.Server.Database
                     }
 
                     string[] capabilities = null;
-
-                    if (result.ServerCapabilities != null)
+                    if (!String.IsNullOrEmpty(result.ServerCapabilities))
                     {
                         capabilities = result.ServerCapabilities.Split(',');
                     }
@@ -578,6 +601,17 @@ namespace Opc.Ua.Gds.Server.Database
                         }
                     }
 
+                    if (lastID != 0)
+                    {
+                        if (maxRecordsToReturn != 0 &&
+                            lastID != result.ID &&
+                            records.Count >= maxRecordsToReturn)
+                        {
+                            break;
+                        }
+                    }
+                    lastID = result.ID;
+
                     records.Add(new ServerOnNetwork()
                     {
                         RecordId = result.ID,
@@ -586,11 +620,6 @@ namespace Opc.Ua.Gds.Server.Database
                         ServerCapabilities = capabilities
                     });
 
-                    if (maxRecordsToReturn != 0 &&
-                        records.Count >= maxRecordsToReturn)
-                    {
-                        break;
-                    }
                 }
 
                 return records.ToArray();
@@ -631,6 +660,36 @@ namespace Opc.Ua.Gds.Server.Database
             }
 
             return true;
+        }
+
+        public override void GetApplicationCertificates(
+            NodeId applicationId,
+            out byte[] certificate,
+            out byte[] httpsCertificate)
+        {
+            certificate = null;
+            httpsCertificate = null;
+
+            Guid id = GetNodeIdGuid(applicationId);
+
+            List<byte[]> certificates = new List<byte[]>();
+
+            lock (Lock)
+            {
+                var application = (from ii in Applications
+                                   where ii.ApplicationId == id
+                                   select ii).SingleOrDefault();
+
+                if (application == null)
+                {
+                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
+                }
+
+                certificate = application.Certificate;
+                httpsCertificate = application.HttpsCertificate;
+
+                SaveChanges();
+            }
         }
 
         public override bool SetApplicationTrustLists(
@@ -683,6 +742,278 @@ namespace Opc.Ua.Gds.Server.Database
             return true;
         }
         #endregion
+        #region ICertificateRequest
+        public NodeId StartSigningRequest(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            byte[] certificateRequest,
+            string authorityId)
+        {
+            Guid id = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
+
+                if (application == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
+
+                var request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
+
+                bool isNew = false;
+
+                if (request == null)
+                {
+                    request = new CertificateRequest() { RequestId = Guid.NewGuid(), AuthorityId = authorityId };
+                    isNew = true;
+                }
+
+                request.State = (int)CertificateRequestState.New;
+                request.CertificateGroupId = certificateGroupId;
+                request.CertificateTypeId = certificateTypeId;
+                request.SubjectName = null;
+                request.DomainNames = null;
+                request.PrivateKeyFormat = null;
+                request.PrivateKeyPassword = null;
+                request.CertificateSigningRequest = certificateRequest;
+                request.ApplicationId = id;
+
+                if (isNew)
+                {
+                    CertificateRequests.Add(request);
+                }
+
+                SaveChanges();
+
+                return new NodeId(request.RequestId, NamespaceIndex);
+            }
+
+        }
+
+        public NodeId StartNewKeyPairRequest(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            string[] domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            string authorityId)
+        {
+            Guid id = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
+
+                if (application == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
+
+                var request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
+
+                bool isNew = false;
+
+                if (request == null)
+                {
+                    request = new CertificateRequest()
+                    {
+                        RequestId = Guid.NewGuid(),
+                        AuthorityId = authorityId
+                    };
+                    isNew = true;
+                }
+
+                request.State = (int)CertificateRequestState.New;
+                request.CertificateGroupId = certificateGroupId;
+                request.CertificateTypeId = certificateTypeId;
+                request.SubjectName = subjectName;
+                request.DomainNames = domainNames;
+                request.PrivateKeyFormat = privateKeyFormat;
+                request.PrivateKeyPassword = privateKeyPassword;
+                request.CertificateSigningRequest = null;
+                request.ApplicationId = id;
+
+                if (isNew)
+                {
+                    CertificateRequests.Add(request);
+                }
+
+                SaveChanges();
+
+                return new NodeId(request.RequestId, NamespaceIndex);
+            }
+
+        }
+
+        public void ApproveRequest(
+            NodeId requestId,
+            bool isRejected
+            )
+        {
+            Guid id = GetNodeIdGuid(requestId);
+
+            lock (Lock)
+            {
+                var request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
+
+                if (isRejected)
+                {
+                    request.State = (int)CertificateRequestState.Rejected;
+                    // erase information which is ot required anymore
+                    request.CertificateSigningRequest = null;
+                    request.PrivateKeyPassword = null;
+                }
+                else
+                {
+                    request.State = (int)CertificateRequestState.Approved;
+                }
+
+                SaveChanges();
+            }
+
+        }
+
+        public void AcceptRequest(
+            NodeId requestId,
+            byte[] signedCertificate)
+        {
+            Guid id = GetNodeIdGuid(requestId);
+
+            lock (Lock)
+            {
+                var request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
+
+                request.State = (int)CertificateRequestState.Accepted;
+
+                // save certificate for audit trail
+                request.Certificate = signedCertificate;
+
+                // erase information which is ot required anymore
+                request.CertificateSigningRequest = null;
+                request.PrivateKeyPassword = null;
+
+                SaveChanges();
+            }
+
+        }
+
+        public CertificateRequestState FinishRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
+            out byte[] signedCertificate,
+            out byte[] privateKey
+            )
+        {
+            certificateGroupId = null;
+            certificateTypeId = null;
+            signedCertificate = null;
+            privateKey = null;
+            Guid reqId = GetNodeIdGuid(requestId);
+            Guid appId = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                switch (request.State)
+                {
+                    case (int)CertificateRequestState.New:
+                        return CertificateRequestState.New;
+                    case (int)CertificateRequestState.Rejected:
+                        return CertificateRequestState.Rejected;
+                    case (int)CertificateRequestState.Accepted:
+                        return CertificateRequestState.Accepted;
+                    case (int)CertificateRequestState.Approved:
+                        break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                certificateGroupId = request.CertificateGroupId;
+                certificateTypeId = request.CertificateTypeId;
+
+                return CertificateRequestState.Approved;
+            }
+        }
+
+        public CertificateRequestState ReadRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            out NodeId certificateGroupId,
+            out NodeId certificateTypeId,
+            out byte[] certificateRequest,
+            out string subjectName,
+            out string[] domainNames,
+            out string privateKeyFormat,
+            out string privateKeyPassword)
+        {
+            certificateGroupId = null;
+            certificateTypeId = null;
+            certificateRequest = null;
+            subjectName = null;
+            domainNames = null;
+            privateKeyFormat = null;
+            privateKeyPassword = null;
+            Guid reqId = GetNodeIdGuid(requestId);
+            Guid appId = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
+
+                if (request == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                switch (request.State)
+                {
+                    case (int)CertificateRequestState.New:
+                        return CertificateRequestState.New;
+                    case (int)CertificateRequestState.Rejected:
+                        return CertificateRequestState.Rejected;
+                    case (int)CertificateRequestState.Accepted:
+                        return CertificateRequestState.Accepted;
+                    case (int)CertificateRequestState.Approved:
+                        break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
+                certificateGroupId = request.CertificateGroupId;
+                certificateTypeId = request.CertificateTypeId;
+                certificateRequest = request.CertificateSigningRequest;
+                subjectName = request.SubjectName;
+                domainNames = request.DomainNames;
+                privateKeyFormat = request.PrivateKeyFormat;
+                privateKeyPassword = request.PrivateKeyPassword;
+
+                return CertificateRequestState.Approved;
+            }
+        }
+        #endregion
         #region Public Members
         public virtual void Save()
         {
@@ -694,15 +1025,18 @@ namespace Opc.Ua.Gds.Server.Database
             lock (Lock)
             {
                 queryCounterResetTime = DateTime.UtcNow;
-                uint queryCounter = 0;
-                foreach (var application in Applications)
+                // assign IDs to new apps
+                var queryNewApps = from x in Applications
+                                   where x.ID == 0
+                                   select x;
+                if (Applications.Count > 0)
                 {
-                    application.ID = queryCounter++;
-                }
-                queryCounter = 0;
-                foreach (var serverEndpoint in ServerEndpoints)
-                {
-                    serverEndpoint.ID = queryCounter++;
+                    uint appMax = Applications.Max(a => a.ID);
+                    foreach (var application in queryNewApps)
+                    {
+                        appMax++;
+                        application.ID = appMax;
+                    }
                 }
                 Save();
             }

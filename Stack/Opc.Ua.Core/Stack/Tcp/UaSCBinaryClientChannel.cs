@@ -600,9 +600,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
 
-                string implementation = g_ImplementationString + 
-                    m_socketFactory.Implementation + " " +
-                    Utils.GetAssemblySoftwareVersion();
+                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -1438,7 +1436,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_StartHandshake;
         private AsyncCallback m_HandshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblySoftwareVersion();
+        private string g_ImplementationString = ".NetStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 }
