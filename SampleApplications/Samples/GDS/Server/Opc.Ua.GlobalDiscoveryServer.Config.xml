@@ -12,23 +12,23 @@
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/own</StorePath>
+      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/pki/own</StorePath>
       <SubjectName>CN=Global Discovery Server, O=somecompany, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/issuers</StorePath>
+      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/pki/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/trusted</StorePath>
+      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/PKI/rejected</StorePath>
+      <StorePath>%CommonApplicationData%/OPC Foundation/GDS/pki/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- The GDS server must accept connections from any client -->

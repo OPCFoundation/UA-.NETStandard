@@ -12,23 +12,23 @@
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/GDS/own</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
       <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/GDS/issuers</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/pki/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/GDS/trusted</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/GDS/rejected</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/pki/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
