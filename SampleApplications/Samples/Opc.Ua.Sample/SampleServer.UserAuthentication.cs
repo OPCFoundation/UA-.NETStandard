@@ -136,15 +136,6 @@ namespace Opc.Ua.Sample
                 {
                     CertificateValidator.Validate(certificate);
                 }
-
-                // determine if self-signed.
-                bool isSelfSigned = Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
-
-                // do not allow self signed application certs as user token
-                if (isSelfSigned && Utils.HasApplicationURN(certificate))
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed);
-                }
             }
             catch (Exception e)
             {
