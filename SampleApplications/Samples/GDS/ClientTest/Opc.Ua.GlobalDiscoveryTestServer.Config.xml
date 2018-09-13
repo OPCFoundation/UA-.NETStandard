@@ -12,7 +12,7 @@
   <SecurityConfiguration>
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/GDS/own</StorePath>
       <SubjectName>CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
