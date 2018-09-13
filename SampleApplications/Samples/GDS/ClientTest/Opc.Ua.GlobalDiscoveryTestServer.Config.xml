@@ -18,17 +18,17 @@
 
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/pki/issuers</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/GDS/issuers</StorePath>
     </TrustedIssuerCertificates>
 
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/pki/trusted</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/GDS/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC/pki/rejected</StorePath>
+      <StorePath>%LocalApplicationData%/OPC/GDS/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
