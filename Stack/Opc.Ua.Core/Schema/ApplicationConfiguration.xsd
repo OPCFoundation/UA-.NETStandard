@@ -52,6 +52,10 @@
       <xs:element name="MinimumCertificateKeySize" type="xs:unsignedShort" minOccurs="0" />
       <xs:element name="AddAppCertToTrustedStore" type="xs:boolean" minOccurs="0" />
       <xs:element name="SendCertificateChain" type="xs:boolean" minOccurs="0" />
+      <xs:element name="UserIssuerCertificates" type="CertificateTrustList" minOccurs="0" />
+      <xs:element name="TrustedUserCertificates" type="CertificateTrustList" minOccurs="0" />
+      <xs:element name="HttpsIssuerCertificates" type="CertificateTrustList" minOccurs="0" />
+      <xs:element name="TrustedHttpsCertificates" type="CertificateTrustList" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   

@@ -53,7 +53,7 @@
          specify the certificate for each trusted certification authority. -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\UA Certificate Authorities</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\pki\issuer</StorePath>
     </TrustedIssuerCertificates>
     
     <!-- The list of trusted certificates. 
@@ -72,7 +72,7 @@
          -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\UA Applications</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\pki\trusted</StorePath>
     </TrustedPeerCertificates>
     
     <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
@@ -81,7 +81,7 @@
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalFolder%\OPC Foundation\CertificateStores\RejectedCertificates</StorePath>
+      <StorePath>%LocalFolder%\OPC Foundation\pki\rejected</StorePath>
     </RejectedCertificateStore>
   
 </SecurityConfiguration>

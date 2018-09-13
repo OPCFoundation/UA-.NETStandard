@@ -14,26 +14,26 @@
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
-      <StorePath>./OPC Foundation/PKI/own</StorePath>
+      <StorePath>./OPC Foundation/pki/own</StorePath>
       <SubjectName>CN=UA Xamarin Sample Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>./OPC Foundation/PKI/issuer</StorePath>
+      <StorePath>./OPC Foundation/pki/issuer</StorePath>
     </TrustedIssuerCertificates>
 
     <!-- Where the trust list is stored (UA Applications) -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>./OPC Foundation/PKI/trusted</StorePath>
+      <StorePath>./OPC Foundation/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
     <!-- The directory used to store invalid certficates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>./OPC Foundation/PKI/rejected</StorePath>
+      <StorePath>./OPC Foundation/pki/rejected</StorePath>
     </RejectedCertificateStore>
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
