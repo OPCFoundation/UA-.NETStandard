@@ -314,6 +314,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with a body of Byte-array.
+        /// </summary>
+        /// <param name="body">The body of the object: Byte-array</param>
+        public ExtensionObject(Byte[] body)
+        {
+            Body = body;
+        }
+
+        /// <summary>
         /// Initializes the object with a body.
         /// </summary>
         /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
