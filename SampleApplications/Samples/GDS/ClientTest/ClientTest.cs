@@ -659,6 +659,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             ConnectGDS(true);
             bool requestBusy;
+            DateTime now = DateTime.UtcNow;
             do
             {
                 requestBusy = false;
@@ -666,37 +667,56 @@ namespace NUnit.Opc.Ua.Gds.Test
                 {
                     if (application.CertificateRequestId != null)
                     {
-                        byte[] certificate = _gdsClient.GDSClient.FinishRequest(
-                            application.ApplicationRecord.ApplicationId,
-                            application.CertificateRequestId,
-                            out byte[] privateKey,
-                            out byte[][] issuerCertificates
-                            );
-
-                        if (certificate != null)
+                        try
                         {
-                            application.CertificateRequestId = null;
+                            byte[] certificate = _gdsClient.GDSClient.FinishRequest(
+                                application.ApplicationRecord.ApplicationId,
+                                application.CertificateRequestId,
+                                out byte[] privateKey,
+                                out byte[][] issuerCertificates
+                                );
 
-                            Assert.NotNull(certificate);
-                            Assert.NotNull(privateKey);
-                            Assert.NotNull(issuerCertificates);
-                            application.Certificate = certificate;
-                            application.PrivateKey = privateKey;
-                            application.IssuerCertificates = issuerCertificates;
-                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            if (certificate != null)
+                            {
+                                application.CertificateRequestId = null;
+
+                                Assert.NotNull(certificate);
+                                Assert.NotNull(privateKey);
+                                Assert.NotNull(issuerCertificates);
+                                application.Certificate = certificate;
+                                application.PrivateKey = privateKey;
+                                application.IssuerCertificates = issuerCertificates;
+                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            }
+                            else
+                            {
+                                requestBusy = true;
+                            }
                         }
-                        else
+                        catch (ServiceResultException sre)
                         {
-                            requestBusy = true;
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                                now.AddMinutes(5) > DateTime.UtcNow)
+                            {
+                                requestBusy = true;
+                                Thread.Sleep(1000);
+                            }
+                            else
+                            {
+                                throw sre;
+                            }
                         }
+
                     }
                 }
 
                 if (requestBusy)
                 {
-                    Thread.Sleep(500);
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
                 }
+
             } while (requestBusy);
         }
 
@@ -756,6 +776,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             ConnectGDS(true);
             bool requestBusy;
+            DateTime now = DateTime.UtcNow;
             do
             {
                 requestBusy = false;
@@ -764,34 +785,52 @@ namespace NUnit.Opc.Ua.Gds.Test
                 {
                     if (application.CertificateRequestId != null)
                     {
-                        var certificate = _gdsClient.GDSClient.FinishRequest(
-                            application.ApplicationRecord.ApplicationId,
-                            application.CertificateRequestId,
-                            out byte[] privateKey,
-                            out byte[][] issuerCertificates
-                            );
-
-                        if (certificate != null)
+                        try
                         {
-                            application.CertificateRequestId = null;
+                            var certificate = _gdsClient.GDSClient.FinishRequest(
+                                application.ApplicationRecord.ApplicationId,
+                                application.CertificateRequestId,
+                                out byte[] privateKey,
+                                out byte[][] issuerCertificates
+                                );
 
-                            Assert.Null(privateKey);
-                            Assert.NotNull(issuerCertificates);
-                            application.Certificate = certificate;
-                            application.IssuerCertificates = issuerCertificates;
-                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            if (certificate != null)
+                            {
+                                application.CertificateRequestId = null;
+
+                                Assert.Null(privateKey);
+                                Assert.NotNull(issuerCertificates);
+                                application.Certificate = certificate;
+                                application.IssuerCertificates = issuerCertificates;
+                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            }
+                            else
+                            {
+                                requestBusy = true;
+                            }
                         }
-                        else
+                        catch (ServiceResultException sre)
                         {
-                            requestBusy = true;
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                                now.AddMinutes(5) > DateTime.UtcNow)
+                            {
+                                requestBusy = true;
+                                Thread.Sleep(1000);
+                            }
+                            else
+                            {
+                                throw sre;
+                            }
                         }
+
                     }
                 }
 
                 if (requestBusy)
                 {
-                    Thread.Sleep(500);
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
                 }
             } while (requestBusy);
 

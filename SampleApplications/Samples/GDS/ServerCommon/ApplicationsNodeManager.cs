@@ -56,7 +56,8 @@ namespace Opc.Ua.Gds.Server
             ApplicationConfiguration configuration,
             IApplicationsDatabase database,
             ICertificateRequest request,
-            ICertificateGroup certificateGroup
+            ICertificateGroup certificateGroup,
+            bool autoApprove = false
             )
             : base(server, configuration)
         {
@@ -90,7 +91,7 @@ namespace Opc.Ua.Gds.Server
             DefaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
             DefaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
 
-            m_autoApprove = true;
+            m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
             m_certificateGroupFactory = certificateGroup;
@@ -827,7 +828,14 @@ namespace Opc.Ua.Gds.Server
 
             if (m_autoApprove)
             {
-                m_request.ApproveRequest(requestId, false);
+                try
+                {
+                    m_request.ApproveRequest(requestId, false);
+                }
+                catch
+                {
+                    // ignore error as user may not have authorization to approve requests
+                }
             }
 
             return ServiceResult.Good;
@@ -891,7 +899,14 @@ namespace Opc.Ua.Gds.Server
 
             if (m_autoApprove)
             {
-                m_request.ApproveRequest(requestId, false);
+                try
+                {
+                    m_request.ApproveRequest(requestId, false);
+                }
+                catch
+                {
+                    // ignore error as user may not have authorization to approve requests
+                }
             }
 
             return ServiceResult.Good;
