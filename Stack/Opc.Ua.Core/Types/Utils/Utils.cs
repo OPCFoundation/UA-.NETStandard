@@ -1845,6 +1845,17 @@ namespace Opc.Ua
                 }
             }
 
+            //try to find the Clone method by reflection.
+            MethodInfo cloneMethod = type.GetMethod("Clone", BindingFlags.Public | BindingFlags.Instance);
+            if (cloneMethod != null)
+            {
+                object clone = cloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
+
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
