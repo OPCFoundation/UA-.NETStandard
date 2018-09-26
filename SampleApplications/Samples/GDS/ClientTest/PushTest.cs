@@ -360,19 +360,33 @@ namespace NUnit.Opc.Ua.Gds.Test
                 null,
                 csr);
             Assert.NotNull(requestId);
-            byte[] privateKey;
-            byte[] certificate;
-            byte[][] issuerCertificates;
-            int i = 0;
+            byte[] privateKey = null;
+            byte[] certificate = null;
+            byte[][] issuerCertificates = null;
+            DateTime now = DateTime.UtcNow;
             do
             {
-                Thread.Sleep(500);
-                certificate = _gdsClient.GDSClient.FinishRequest(
-                    _applicationRecord.ApplicationId,
-                    requestId,
-                    out privateKey,
-                    out issuerCertificates);
-                Assert.LessOrEqual(i++, 5);
+                try
+                {
+                    certificate = _gdsClient.GDSClient.FinishRequest(
+                        _applicationRecord.ApplicationId,
+                        requestId,
+                        out privateKey,
+                        out issuerCertificates);
+                }
+                catch (ServiceResultException sre)
+                {
+                    // wait if GDS requires manual approval of cert request
+                    if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                        now.AddMinutes(5) > DateTime.UtcNow)
+                    {
+                        Thread.Sleep(10000);
+                    }
+                    else
+                    {
+                        throw sre;
+                    }
+                }
             } while (certificate == null);
             Assert.NotNull(issuerCertificates);
             Assert.IsNull(privateKey);
@@ -488,19 +502,35 @@ namespace NUnit.Opc.Ua.Gds.Test
                 null);
 
             Assert.NotNull(requestId);
-            byte[] privateKey;
-            byte[] certificate;
-            byte[][] issuerCertificates;
+            byte[] privateKey = null;
+            byte[] certificate = null;
+            byte[][] issuerCertificates = null;
             int i = 0;
+            DateTime now = DateTime.UtcNow;
             do
             {
-                Thread.Sleep(500);
-                certificate = _gdsClient.GDSClient.FinishRequest(
-                    _applicationRecord.ApplicationId,
-                    requestId,
-                    out privateKey,
-                    out issuerCertificates);
-                Assert.LessOrEqual(i++, 5);
+                try
+                {
+                    Thread.Sleep(500);
+                    certificate = _gdsClient.GDSClient.FinishRequest(
+                        _applicationRecord.ApplicationId,
+                        requestId,
+                        out privateKey,
+                        out issuerCertificates);
+                }
+                catch (ServiceResultException sre)
+                {
+                    // wait if GDS requires manual approval of cert request
+                    if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                        now.AddMinutes(5) > DateTime.UtcNow)
+                    {
+                        Thread.Sleep(10000);
+                    }
+                    else
+                    {
+                        throw sre;
+                    }
+                }
             } while (certificate == null);
             Assert.NotNull(issuerCertificates);
             Assert.NotNull(privateKey);
