@@ -12,6 +12,7 @@
 
 using System;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -43,14 +44,24 @@ namespace Opc.Ua
         public const string Basic256 = BaseUri + "Basic256";
 
         /// <summary>
-        /// The URI for the Https security policy.
+        /// The URI for the Aes128_Sha256_RsaOaep security policy.
         /// </summary>
-        public const string Https = BaseUri + "Https";
+        public const string Aes128_Sha256_RsaOaep = BaseUri + "Aes128_Sha256_RsaOaep";
 
         /// <summary>
         /// The URI for the Basic256Sha256 security policy.
         /// </summary>
         public const string Basic256Sha256 = BaseUri + "Basic256Sha256";
+
+        /// <summary>
+        /// The URI for the Aes256_Sha256_RsaPss security policy.
+        /// </summary>
+        public const string Aes256_Sha256_RsaPss = BaseUri + "Aes256_Sha256_RsaPss";
+
+        /// <summary>
+        /// The URI for the Https security policy.
+        /// </summary>
+        public const string Https = BaseUri + "Https";
         #endregion
 
         #region Static Methods
@@ -108,7 +119,7 @@ namespace Opc.Ua
 
             return names;
         }
-        
+
         /// <summary>
         /// Encrypts the text using the SecurityPolicyUri and returns the result.
         /// </summary>
@@ -136,16 +147,24 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     {
                         encryptedData.Algorithm = SecurityAlgorithms.RsaOaep;
-                        encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, true);
+                        encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.OaepSHA1);
                         break;
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                    encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
-                        encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, false);
+                        encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
+                        encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.Pkcs1);
+                        break;
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;
+                        encryptedData.Data = RsaUtils.Encrypt(plainText, certificate, RsaUtils.Padding.OaepSHA256);
                         break;
                     }
 
@@ -188,22 +207,30 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     {
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
                         {
-                            return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, true);
+                            return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, RsaUtils.Padding.OaepSHA1);
                         }
-
                         break;
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                    if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
+                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
                         {
-                            return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, false);
+                            return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, RsaUtils.Padding.Pkcs1);
                         }
+                        break;
+                    }
 
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaepSha256)
+                        {
+                            return RsaUtils.Decrypt(new ArraySegment<byte>(dataToDecrypt.Data), certificate, RsaUtils.Padding.OaepSHA256);
+                        }
                         break;
                     }
 
@@ -213,7 +240,6 @@ namespace Opc.Ua
                         {
                             return dataToDecrypt.Data;
                         }
-
                         break;
                     }
 
@@ -227,7 +253,7 @@ namespace Opc.Ua
             }
 
             throw ServiceResultException.Create(
-                StatusCodes.BadIdentityTokenInvalid, 
+                StatusCodes.BadIdentityTokenInvalid,
                 "Unexpected encryption algorithm : {0}",
                 dataToDecrypt.Algorithm);
         }
@@ -258,14 +284,22 @@ namespace Opc.Ua
                 case SecurityPolicies.Basic128Rsa15:
                     {
                         signatureData.Algorithm = SecurityAlgorithms.RsaSha1;
-                        signatureData.Signature = RsaUtils.RsaPkcs15Sha1_Sign(new ArraySegment<byte>(dataToSign), certificate);
+                        signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                         break;
                     }
 
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
                         signatureData.Algorithm = SecurityAlgorithms.RsaSha256;
-                        signatureData.Signature = RsaUtils.RsaPkcs15Sha256_Sign(new ArraySegment<byte>(dataToSign), certificate);
+                        signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                        break;
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
+                        signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                         break;
                     }
 
@@ -313,19 +347,27 @@ namespace Opc.Ua
                     {
                         if (signature.Algorithm == SecurityAlgorithms.RsaSha1)
                         {
-                            return RsaUtils.RsaPkcs15Sha1_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate);
+                            return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                         }
-
                         break;
                     }
 
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
                         if (signature.Algorithm == SecurityAlgorithms.RsaSha256)
                         {
-                            return RsaUtils.RsaPkcs15Sha256_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate);
+                            return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                         }
+                        break;
+                    }
 
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        if (signature.Algorithm == SecurityAlgorithms.RsaPssSha256)
+                        {
+                            return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+                        }
                         break;
                     }
 

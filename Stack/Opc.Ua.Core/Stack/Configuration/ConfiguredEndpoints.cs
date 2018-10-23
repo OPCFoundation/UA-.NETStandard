@@ -815,7 +815,7 @@ namespace Opc.Ua
                 {
                     m_description.EndpointUrl = url.ToString();
                     m_description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                    m_description.SecurityPolicyUri = SecurityPolicies.Basic128Rsa15;
+                    m_description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                     m_description.UserIdentityTokens.Add(new UserTokenPolicy(UserTokenType.Anonymous));
 
                     if (url.Scheme == Utils.UriSchemeHttps)

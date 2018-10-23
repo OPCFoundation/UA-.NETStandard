@@ -653,62 +653,26 @@ namespace Opc.Ua
                 return 0;
             }
 
+            byte result = 0;
             switch (policyUri)
             {
+                case SecurityPolicies.Basic128Rsa15: result = 2; break;
+                case SecurityPolicies.Basic256: result = 4; break;
+                case SecurityPolicies.Basic256Sha256: result = 6; break;
+                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
+                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
                 case SecurityPolicies.None:
-                {
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic128Rsa15:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 1;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 4;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 2;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 5;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256Sha256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 3;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 6;
-                    }
-
-                    return 0;
-                }
-
-                default:
-                {
-                    return 0;
-                }
+                default: return 0;
             }
+
+            if (mode == MessageSecurityMode.SignAndEncrypt)
+            {
+                result += 100;
+            }
+
+            return result;
         }
-        
+
         /// <summary>
         /// Specifies whether the messages are signed and encrypted or simply signed
         /// </summary>

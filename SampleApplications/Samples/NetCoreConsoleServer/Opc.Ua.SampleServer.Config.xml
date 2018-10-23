@@ -6,7 +6,7 @@
 >
   <ApplicationName>UA Core Sample Server</ApplicationName>
   <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UA/SampleServer</ProductUri>
+  <ProductUri>http://opcfoundation.org/UA/CoreSampleServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
 
   <SecurityConfiguration>
@@ -79,6 +79,10 @@
     -->
 
     <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
       <!--Removing no secuirty option from the configuration as this is a security risk
         <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
@@ -89,8 +93,20 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 
@@ -195,7 +211,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.SampleServer.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.CoreSampleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
@@ -208,7 +224,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <TraceMasks>519</TraceMasks>
+    <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
 
   <!-- Disables the hi-res clock if the QueryPerformanceCounter does work on a particular machine. -->

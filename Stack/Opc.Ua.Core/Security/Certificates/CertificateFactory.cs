@@ -1291,7 +1291,7 @@ public class CertificateFactory
         RSA rsaPrivateKey)
     {
         Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
         byte[] testBlock = new byte[blockSize];
         randomSource.NextBytes(testBlock, 0, blockSize);
         byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
@@ -1308,11 +1308,11 @@ public class CertificateFactory
         RSA rsaPrivateKey)
     {
         Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, true);
+        int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
         byte[] testBlock = new byte[blockSize];
         randomSource.NextBytes(testBlock, 0, blockSize);
-        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+        return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
     }
 
 
