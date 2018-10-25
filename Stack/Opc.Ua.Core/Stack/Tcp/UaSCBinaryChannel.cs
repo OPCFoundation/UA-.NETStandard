@@ -614,7 +614,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        protected IMessageSocket Socket
+        protected internal IMessageSocket Socket
         {
             get { return m_socket; }
 
