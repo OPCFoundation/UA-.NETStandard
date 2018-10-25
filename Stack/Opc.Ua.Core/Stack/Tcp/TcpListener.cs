@@ -22,7 +22,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
-    public class UaTcpChannelListener : ITransportListener, ITcpServerChannelListener
+    public class UaTcpChannelListener : ITransportListener, ITcpChannelListener
     {
         #region Constructors
         /// <summary>

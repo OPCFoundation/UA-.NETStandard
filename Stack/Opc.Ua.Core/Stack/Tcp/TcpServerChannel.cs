@@ -19,43 +19,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 
-namespace Opc.Ua.Bindings
-{
-    /// <summary>
-    /// Interface between listener and UA TCP channel
-    /// </summary>
-    public interface ITcpServerChannelListener
-    {
-        /// <summary>
-        /// The endpoint url of the listener
-        /// </summary>
-        Uri EndpointUrl { get; }
-
-        /// <summary>
-        /// Binds a new socket to an existing channel.
-        /// </summary>
-        /// <param name="socket"></param>
-        /// <param name="requestId"></param>
-        /// <param name="sequenceNumber"></param>
-        /// <param name="channelId"></param>
-        /// <param name="clientCertificate"></param>
-        /// <param name="token"></param>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        bool ReconnectToExistingChannel(
-            IMessageSocket socket,
-            uint requestId,
-            uint sequenceNumber,
-            uint channelId,
-            X509Certificate2 clientCertificate,
-            ChannelToken token,
-            OpenSecureChannelRequest request);
-
-        /// <summary>
-        /// Called when a channel closes.
-        /// </summary>
-        void ChannelClosed(uint channelId);
-    }
+namespace Opc.Ua.Bindings {
 
     /// <summary>
     /// Manages the server side of a UA TCP channel.
@@ -67,7 +31,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpServerChannel(
             string contextId,
-            ITcpServerChannelListener listener,
+            ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
@@ -83,7 +47,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpServerChannel(
             string contextId,
-            ITcpServerChannelListener listener,
+            ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
@@ -1247,7 +1211,7 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private TcpChannelRequestEventHandler m_RequestReceived;
         private long m_lastTokenId;
-        private ITcpServerChannelListener m_listener;
+        private ITcpChannelListener m_listener;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private Timer m_cleanupTimer;
         private bool m_responseRequired;
