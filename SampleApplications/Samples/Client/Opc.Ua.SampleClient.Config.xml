@@ -165,6 +165,10 @@
          
          The first policy in the list is assigned to base address. -->
     <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
       <!--Removing no security option from the configuration as this is a security risk
         <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
@@ -172,27 +176,11 @@
       </ServerSecurityPolicy>-->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 

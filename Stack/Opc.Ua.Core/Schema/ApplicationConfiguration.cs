@@ -1246,7 +1246,13 @@ namespace Opc.Ua
                     {
                         if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
                         {
-                            newPolicies.Add(securityPolicy);
+                            if (newPolicies.Where(s =>
+                                s.SecurityMode == securityPolicy.SecurityMode &&
+                                String.Compare(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri) == 0
+                                ).FirstOrDefault() == null)
+                            {
+                                newPolicies.Add(securityPolicy);
+                            }
                             break;
                         }
                     }
