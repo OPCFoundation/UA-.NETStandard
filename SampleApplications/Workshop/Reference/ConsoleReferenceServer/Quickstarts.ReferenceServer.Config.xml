@@ -50,13 +50,13 @@
     <!-- Where the User issuer certificates are stored -->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuerUser</StorePath>
     </UserIssuerCertificates>
 
     <!-- Where the User trust list is stored-->
     <TrustedUserCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
   
@@ -105,7 +105,11 @@
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
       <!-- deprecated security policies for reference only
       <ServerSecurityPolicy>
@@ -125,22 +129,6 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
       -->
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
-      </ServerSecurityPolicy>
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>

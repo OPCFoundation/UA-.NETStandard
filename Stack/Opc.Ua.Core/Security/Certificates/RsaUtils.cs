@@ -380,6 +380,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Lazy helper to allow runtime to check for Pss support.
+        /// </summary>
+        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
+            using (var rsa = RSA.Create())
+            {
+                return RsaUtils.TryVerifyRSAPssSign(rsa, rsa);
+            }
+        });
+
+        /// <summary>
         /// Dispose RSA object only if not running on Mono runtime.
         /// Workaround due to a Mono bug in the X509Certificate2 implementation of RSA.
         /// see also: https://github.com/mono/mono/issues/6306

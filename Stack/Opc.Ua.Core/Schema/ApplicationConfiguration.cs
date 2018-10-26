@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -1209,6 +1210,49 @@ namespace Opc.Ua
         public void Initialize(StreamingContext context)
         {
             Initialize();
+        }
+
+        /// <summary>
+        /// Remove unsupported security policies and expand wild cards.
+        /// </summary>
+        [OnDeserialized()]
+        private void ValidateSecurityPolicyCollection(StreamingContext context)
+        {
+            var supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
+            var newPolicies = new ServerSecurityPolicyCollection();
+            foreach (var securityPolicy in m_securityPolicies)
+            {
+                if (String.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
+                {
+                    // add wild card policies
+                    foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
+                    {
+                        var newPolicy = new ServerSecurityPolicy() {
+                            SecurityMode = securityPolicy.SecurityMode,
+                            SecurityPolicyUri = policyUri
+                        };
+                        if (newPolicies.Where(s =>
+                            s.SecurityMode == newPolicy.SecurityMode &&
+                            String.Compare(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri) == 0
+                            ).FirstOrDefault() == null)
+                        {
+                            newPolicies.Add(newPolicy);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < supportedPolicies.Length; i++)
+                    {
+                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
+                        {
+                            newPolicies.Add(securityPolicy);
+                            break;
+                        }
+                    }
+                }
+            }
+            m_securityPolicies = newPolicies;
         }
         #endregion
 
