@@ -349,7 +349,12 @@ namespace Opc.Ua
                         {
                             return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                         }
-                        break;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Unexpected signature algorithm for Basic256/Basic128Rsa15: {0}\n" +
+                            "Expected signature algorithm: {1}",
+                            signature.Algorithm,
+                            SecurityAlgorithms.RsaSha1);
                     }
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
@@ -359,7 +364,12 @@ namespace Opc.Ua
                         {
                             return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                         }
-                        break;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Unexpected signature algorithm for Basic256Sha256/Aes128_Sha256_RsaOaep: {0}\n" +
+                            "Expected signature algorithm: {1}",
+                            signature.Algorithm,
+                            SecurityAlgorithms.RsaSha256);
                     }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
@@ -368,7 +378,12 @@ namespace Opc.Ua
                         {
                             return RsaUtils.Rsa_Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                         }
-                        break;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Unexpected signature algorithm for Aes256_Sha256_RsaPss: {0}\n"+
+                            "Expected signature algorithm : {1}",
+                            signature.Algorithm,
+                            SecurityAlgorithms.RsaPssSha256);
                     }
 
                 // always accept signatures if security is not used.
@@ -388,8 +403,8 @@ namespace Opc.Ua
 
             throw ServiceResultException.Create(
                 StatusCodes.BadSecurityChecksFailed,
-                "Unexpected signature algorithm : {0}",
-                signature.Algorithm);
+                "Unexpected security policy Uri: {0}",
+                securityPolicyUri);
         }
         #endregion
     }

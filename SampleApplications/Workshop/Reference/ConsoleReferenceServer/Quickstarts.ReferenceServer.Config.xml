@@ -44,7 +44,20 @@
     The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
+    <SendCertificateChain>true</SendCertificateChain>
 
+    <!-- Where the User issuer certificates are stored -->
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+    </UserIssuerCertificates>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+    </TrustedUserCertificates>
   </SecurityConfiguration>
   
   <TransportConfigurations></TransportConfigurations>
@@ -60,9 +73,32 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
+      <ua:String>https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
     </BaseAddresses>
+    <!-- 
+    These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
+    used to communicate with the server. The URL used by the client when calling
+    FindServers/GetEndpoints or CreateSession will be used to filter the list of
+    endpoints returned by checking for alternate base addresses that have a domain
+    that matches the domain in the url provided by the client.
+    
+    Note that any additional domains should be listed in the server's certificate. If they
+    are left out the client make refuse to connect because it has no way to know if the 
+    alternate domain was authorized by the server administrator.
+    -->
+    <!--
+    <AlternateBaseAddresses>
+      <ua:String>http://AlternateHostName/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>http://10.10.103.150/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>http://[2a01::626d]/Quickstarts/ReferenceServer</ua:String>
+    </AlternateBaseAddresses>
+    -->
     <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
@@ -71,9 +107,39 @@
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
+      <!-- deprecated security policies for reference only
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      -->
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 

@@ -39,9 +39,9 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-  
+
   </SecurityConfiguration>
-  
+
   <TransportConfigurations />
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -73,11 +73,27 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+      </ServerSecurityPolicy>
     </SecurityPolicies>
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
-    
+
     <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
       <!-- Allows anonymous users -->
@@ -99,8 +115,8 @@
         <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
-     </UserTokenPolicies>
-    
+    </UserTokenPolicies>
+
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
@@ -118,7 +134,7 @@
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
     <AvailableSamplingRates />
-    
+
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
       <ua:Server>
@@ -132,7 +148,7 @@
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
-    
+
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
     <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>

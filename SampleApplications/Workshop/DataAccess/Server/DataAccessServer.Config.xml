@@ -8,7 +8,7 @@
   <ApplicationUri>urn:localhost:UA:DataAccessServer</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/DataAccessServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-  
+
   <SecurityConfiguration>
 
     <!-- Where the application instance certificate is stored (MachineDefault) -->
@@ -36,9 +36,9 @@
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
     </RejectedCertificateStore>
   </SecurityConfiguration>
-  
+
   <TransportConfigurations></TransportConfigurations>
-  
+
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -66,6 +66,22 @@
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
     <UserTokenPolicies>
@@ -151,5 +167,5 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
-  
+
 </ApplicationConfiguration>
