@@ -11,9 +11,9 @@
 */
 
 using System;
-using System.Text;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Opc.Ua.Bindings
 {
@@ -23,26 +23,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken CurrentToken
-        {
-            get { return m_currentToken; }
-        }
+        protected ChannelToken CurrentToken => m_currentToken;
 
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken PreviousToken
-        {
-            get { return m_previousToken; }
-        }
+        protected ChannelToken PreviousToken => m_previousToken;
 
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected ChannelToken RenewedToken
-        {
-            get { return m_renewedToken; }
-        }
+        protected ChannelToken RenewedToken => m_renewedToken;
 
         /// <summary>
         /// Creates a new token.
@@ -100,18 +91,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
         /// </summary>
-        private int SymmetricSignatureSize
-        {
-            get { return m_hmacHashSize; }
-        }
+        private int SymmetricSignatureSize => m_hmacHashSize;
 
         /// <summary>
         /// The byte length the encryption blocks.
         /// </summary>
-        private int EncryptionBlockSize
-        {
-            get { return m_encryptionBlockSize; }
-        }
+        private int EncryptionBlockSize => m_encryptionBlockSize;
 
         /// <summary>
         /// Calculates the symmetric key sizes based on the current security policy.

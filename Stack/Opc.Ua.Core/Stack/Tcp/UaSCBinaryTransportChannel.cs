@@ -27,12 +27,13 @@ namespace Opc.Ua.Bindings
             m_messageSocketFactory = messageSocketFactory;
         }
         #endregion
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -49,7 +50,7 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        #region IBinaryTransportChannel Members
+        #region IMessageSocketChannel Members
         /// <summary>
         /// Returns the channel's underlying message socket if connected / available.
         /// </summary>
@@ -63,41 +64,29 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
-        public TransportChannelFeatures SupportedFeatures
-        {
-            get { return TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest; }
-        }
+        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest;
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
         /// </summary>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_settings.Description; }
-        }
+        public EndpointDescription EndpointDescription => m_settings.Description;
 
         /// <summary>
         /// Gets the configuration for the channel.
         /// </summary>
-        public EndpointConfiguration EndpointConfiguration
-        {
-            get { return m_settings.Configuration; }
-        }
+        public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
 
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        public ServiceMessageContext MessageContext
-        {
-            get { return m_quotas.MessageContext; }
-        }
+        public ServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
         public int OperationTimeout
         {
-            get { return m_operationTimeout;  }
+            get { return m_operationTimeout; }
             set { m_operationTimeout = value; }
         }
 
@@ -182,7 +171,7 @@ namespace Opc.Ua.Bindings
                 // if this happens the new channel is shutdown because of a security violation.
                 UaSCUaBinaryClientChannel channel = m_channel;
                 m_channel = null;
-                
+
                 // reconnect.
                 OpenOnDemand();
 

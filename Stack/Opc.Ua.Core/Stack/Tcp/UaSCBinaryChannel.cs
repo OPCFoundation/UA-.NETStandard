@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -53,8 +53,15 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
-            if (quotas == null) throw new ArgumentNullException(nameof(quotas));
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
+
+            if (quotas == null)
+            {
+                throw new ArgumentNullException(nameof(quotas));
+            }
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -72,7 +79,10 @@ namespace Opc.Ua.Bindings
 
             if (securityMode != MessageSecurityMode.None)
             {
-                if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
+                if (serverCertificate == null)
+                {
+                    throw new ArgumentNullException(nameof(serverCertificate));
+                }
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
@@ -580,7 +590,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageType & 0x000000FF));
             buffer[offset++] = (byte)((messageType & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageType & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageType & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageType & 0xFF000000) >> 24);
         }
 
         /// <summary>
@@ -598,7 +608,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageSize & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
         }
         #endregion
 
@@ -606,10 +616,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
-        protected object DataLock
-        {
-            get { return m_lock; }
-        }
+        protected object DataLock => m_lock;
 
         /// <summary>
         /// The socket for the channel.
@@ -627,18 +634,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The buffer manager for the channel.
         /// </summary>
-        protected BufferManager BufferManager
-        {
-            get { return m_bufferManager; }
-        }
+        protected BufferManager BufferManager => m_bufferManager;
 
         /// <summary>
         /// The resource quotas for the channel.
         /// </summary>
-        protected ChannelQuotas Quotas
-        {
-            get { return m_quotas; }
-        }
+        protected ChannelQuotas Quotas => m_quotas;
 
         /// <summary>
         /// The size of the receive buffer.
