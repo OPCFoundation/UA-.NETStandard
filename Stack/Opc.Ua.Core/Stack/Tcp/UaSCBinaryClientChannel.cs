@@ -958,23 +958,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            BinaryDecoder decoder = new BinaryDecoder(new ArraySegmentStream(chunksToProcess), Quotas.MessageContext);
-
-            try
+            IServiceResponse response = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceResponse;
+            if (response == null)
             {
-                IServiceResponse response = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceResponse;
-
-                if (response == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
-                }
-
-                return response;
+                throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
             }
-            finally
-            {
-                decoder.Close();
-            }
+            return response;
         }
 
         /// <summary>
