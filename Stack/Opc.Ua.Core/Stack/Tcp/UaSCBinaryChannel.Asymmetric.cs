@@ -349,6 +349,9 @@ namespace Opc.Ua.Bindings
             return headerSize;
         }
 
+        /// <summary>
+        /// Get asymmetric header size
+        /// </summary>
         protected int GetAsymmetricHeaderSize(
             string securityPolicyUri,
             X509Certificate2 senderCertificate,
@@ -853,7 +856,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets to endpoint according to the endpoint url.
         /// </summary>
-        protected bool SetEndpointUrl(string endpointUrl)
+        protected virtual bool SetEndpointUrl(string endpointUrl)
         {
             Uri url = Utils.ParseUri(endpointUrl);
 
@@ -1073,7 +1076,7 @@ namespace Opc.Ua.Bindings
         /// Adds an asymmetric signature to the end of the buffer.
         /// </summary>
         /// <remarks>
-        /// Start and count specify the block of data to be signed. 
+        /// Start and count specify the block of data to be signed.
         /// The padding and signature must be written to the stream wrapped by the encoder.
         /// </remarks>
         protected byte[] Sign(
@@ -1105,7 +1108,7 @@ namespace Opc.Ua.Bindings
         /// Verifies an asymmetric signature at the end of the buffer.
         /// </summary>
         /// <remarks>
-        /// Start and count specify the block of data including the signature and padding. 
+        /// Start and count specify the block of data including the signature and padding.
         /// The current security policy uri and sender certificate specify the size of the signature.
         /// This call also verifies that the padding is correct.
         /// </remarks>
@@ -1146,7 +1149,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Start and count specify the block of data to be encrypted.
         /// The caller must ensure that count is a multiple of the input block size for the current cipher.
-        /// The header specifies unencrypted data that must be copied to the output. 
+        /// The header specifies unencrypted data that must be copied to the output.
         /// </remarks>
         protected ArraySegment<byte> Encrypt(
             ArraySegment<byte> dataToEncrypt,
@@ -1183,7 +1186,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// Start and count specify the block of data to be decrypted.
-        /// The header specifies unencrypted data that must be copied to the output. 
+        /// The header specifies unencrypted data that must be copied to the output.
         /// </remarks>
         protected ArraySegment<byte> Decrypt(
             ArraySegment<byte> dataToDecrypt,
@@ -1216,7 +1219,7 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        #region Private Fields 
+        #region Private Fields
         private EndpointDescriptionCollection m_endpoints;
         private MessageSecurityMode m_securityMode;
         private string m_securityPolicyUri;
