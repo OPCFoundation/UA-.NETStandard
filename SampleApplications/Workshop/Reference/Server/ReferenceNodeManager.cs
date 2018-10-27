@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 using System.Threading;
+using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -226,6 +227,15 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "Variant", "Variant", BuiltInType.Variant, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.Scalar));
+
+                    BaseDataVariableState decimalVariable = CreateVariable(staticFolder, scalarStatic + "Decimal", "Decimal", DataTypeIds.DecimalDataType, ValueRanks.Scalar);
+                    // Set an arbitrary precision decimal value.
+                    BigInteger largeInteger = BigInteger.Parse("1234567890123546789012345678901234567890123456789012345");
+                    DecimalDataType decimalValue = new DecimalDataType();
+                    decimalValue.Scale = 100;
+                    decimalValue.Value = largeInteger.ToByteArray();
+                    decimalVariable.Value = decimalValue;
+                    variables.Add(decimalVariable);
                     #endregion
 
                     #region Scalar_Static_Arrays
@@ -2542,10 +2552,12 @@ namespace Quickstarts.ReferenceServer
             }
 
             object value = null;
+            int retryCount = 0;
 
-            while (value == null)
+            while (value == null && retryCount < 10)
             {
                 value = m_generator.GetRandom(variable.DataType, variable.ValueRank, new uint[] { 10 }, Server.TypeTree);
+                retryCount++;
             }
 
             return value;

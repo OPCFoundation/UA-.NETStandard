@@ -17,9 +17,10 @@
 
   <ItemGroup>
     <Compile Include="..\Server\AggregationNodeManager.cs;..\Server\AggregationServer.cs;..\Server\AggregationServerConfiguration.cs;..\Server\AggregatedTypeCache.cs;..\Server\NamespaceMapper.cs;..\Server\Browser.cs;..\Server\Model\AggregationModel.Classes.cs;..\Server\Model\AggregationModel.Constants.cs;..\Server\Model\AggregationModel.DataTypes.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
-    <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes">
-      <Link>AggregationServer/Model/AggregationModel.PredefinedNodes.uanodes</Link>
-    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes" Link="Model\AggregationModel.PredefinedNodes.uanodes" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +28,16 @@
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Model\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Quickstarts.AggregationServer.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

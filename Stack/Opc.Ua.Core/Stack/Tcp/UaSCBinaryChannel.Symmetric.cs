@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
         #region Symmetric Cryptography Functions
         /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
-        /// </summary>        
+        /// </summary>
         private int SymmetricSignatureSize
         {
             get { return m_hmacHashSize; }
@@ -107,7 +107,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// The byte length the encryption blocks.
-        /// </summary>  
+        /// </summary>
         private int EncryptionBlockSize
         {
             get { return m_encryptionBlockSize; }
@@ -216,7 +216,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
-                        // create encryptors. 
+                        // create encryptors.
                         SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
                         AesCbcEncryptorProvider.Mode = CipherMode.CBC;
                         AesCbcEncryptorProvider.Padding = PaddingMode.None;
