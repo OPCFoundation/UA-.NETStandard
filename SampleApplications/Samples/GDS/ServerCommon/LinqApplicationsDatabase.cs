@@ -45,6 +45,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     [Serializable]
     class Application
     {
+        public Application()
+        {
+            Certificate = new Dictionary<string, byte[]>();
+            TrustListId = new Dictionary<string, Guid>();
+        }
         public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
         public string ApplicationUri { get; set; }
@@ -52,10 +57,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public int ApplicationType { get; set; }
         public string ProductUri { get; set; }
         public string ServerCapabilities { get; set; }
-        public byte[] Certificate { get; set; }
-        public byte[] HttpsCertificate { get; set; }
-        public Guid? TrustListId { get; set; }
-        public Guid? HttpsTrustListId { get; set; }
+        public Dictionary<string, byte[]> Certificate { get; }
+        public Dictionary<string, Guid> TrustListId { get; }
     }
     [Serializable]
     class CertificateRequest
@@ -63,8 +66,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public Guid RequestId { get; set; }
         public Guid ApplicationId { get; set; }
         public int State { get; set; }
-        public NodeId CertificateGroupId { get; set; }
-        public NodeId CertificateTypeId { get; set; }
+        public string CertificateGroupId { get; set; }
+        public string CertificateTypeId { get; set; }
         public byte[] CertificateSigningRequest { get; set; }
         public string SubjectName { get; set; }
         public string[] DomainNames { get; set; }
@@ -628,8 +631,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override bool SetApplicationCertificate(
             NodeId applicationId,
-            byte[] certificate,
-            bool isHttpsCertificate
+            string certificateType,
+            byte[] certificate
             )
         {
             Guid id = GetNodeIdGuid(applicationId);
@@ -647,14 +650,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     return false;
                 }
 
-                if (isHttpsCertificate)
-                {
-                    result.HttpsCertificate = certificate;
-                }
-                else
-                {
-                    result.Certificate = certificate;
-                }
+                result.Certificate[certificateType] = certificate;
 
                 SaveChanges();
             }
@@ -662,13 +658,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             return true;
         }
 
-        public override void GetApplicationCertificates(
+        public override bool GetApplicationCertificate(
             NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+            string certificateType,
+            out byte[] certificate)
         {
             certificate = null;
-            httpsCertificate = null;
 
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -685,19 +680,51 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
 
-                certificate = application.Certificate;
-                httpsCertificate = application.HttpsCertificate;
-
-                SaveChanges();
+                if (!application.Certificate.TryGetValue(certificateType, out certificate))
+                {
+                    return false;
+                }
             }
+            return true;
         }
 
         public override bool SetApplicationTrustLists(
             NodeId applicationId,
-            NodeId trustListId,
-            NodeId httpsTrustListId
+            string certificateType,
+            string trustListId
             )
         {
+            Guid id = GetNodeIdGuid(applicationId);
+
+            lock (Lock)
+            {
+                var result = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
+                if (result == null)
+                {
+                    return false;
+                }
+
+                if (trustListId != null)
+                {
+                    var result2 = (from x in CertificateStores where x.Path == trustListId select x).SingleOrDefault();
+                    if (result2 != null)
+                    {
+                        result.TrustListId[certificateType] = result2.TrustListId;
+                    }
+                }
+                SaveChanges();
+            }
+
+            return true;
+        }
+
+        public override bool GetApplicationTrustLists(
+            NodeId applicationId,
+            string certificateType,
+            out string trustListId
+            )
+        {
+            trustListId = null;
             Guid id = GetNodeIdGuid(applicationId);
 
             lock (Lock)
@@ -709,44 +736,26 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     return false;
                 }
 
-                result.TrustListId = null;
-                result.HttpsTrustListId = null;
-
-                if (trustListId != null)
+                Guid trustListGuid;
+                if (result.TrustListId.TryGetValue(certificateType, out trustListGuid))
                 {
-                    string storePath = trustListId.ToString();
-
-                    var result2 = (from x in CertificateStores where x.Path == storePath select x).SingleOrDefault();
-
+                    var result2 = (from x in CertificateStores where x.TrustListId == trustListGuid select x).SingleOrDefault();
                     if (result2 != null)
                     {
-                        result.TrustListId = result2.TrustListId;
+                        trustListId = result2.Path;
+                        return true;
                     }
                 }
-
-                if (httpsTrustListId != null)
-                {
-                    string storePath = httpsTrustListId.ToString();
-
-                    var result2 = (from x in CertificateStores where x.Path == storePath select x).SingleOrDefault();
-
-                    if (result2 != null)
-                    {
-                        result.HttpsTrustListId = result2.TrustListId;
-                    }
-                }
-
-                SaveChanges();
             }
 
-            return true;
+            return false;
         }
         #endregion
         #region ICertificateRequest
         public NodeId StartSigningRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             byte[] certificateRequest,
             string authorityId)
         {
@@ -795,8 +804,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public NodeId StartNewKeyPairRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
@@ -915,8 +924,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] signedCertificate,
             out byte[] privateKey
             )
@@ -961,8 +970,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] certificateRequest,
             out string subjectName,
             out string[] domainNames,

@@ -50,15 +50,15 @@ namespace Opc.Ua.Gds.Server
 
         NodeId StartSigningRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             byte[] certificateRequest,
             string authorityId);
 
         NodeId StartNewKeyPairRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
@@ -76,8 +76,8 @@ namespace Opc.Ua.Gds.Server
         CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] signedCertificate,
             out byte[] privateKey
             );
@@ -85,8 +85,8 @@ namespace Opc.Ua.Gds.Server
         CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] certificateRequest,
             out string subjectName,
             out string[] domainNames,

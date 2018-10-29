@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Newtonsoft.Json;
 
 namespace Opc.Ua.Gds.Server.Database.Sql
 {
@@ -555,11 +555,16 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
         public override bool SetApplicationCertificate(
             NodeId applicationId,
-            byte[] certificate,
-            bool isHttpsCertificate
-            )
+            string certificateTypeId,
+            byte[] certificate)
         {
             Guid id = GetNodeIdGuid(applicationId);
+
+            if (certificateTypeId.Equals(nameof(Ua.ObjectTypeIds.UserCredentialCertificateType), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             using (gdsdbEntities entities = new gdsdbEntities())
             {
                 var results = from x in entities.Applications
@@ -573,7 +578,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                     return false;
                 }
 
-                if (isHttpsCertificate)
+                if (certificateTypeId.Equals(nameof(Ua.ObjectTypeIds.HttpsCertificateType), StringComparison.OrdinalIgnoreCase))
                 {
                     result.HttpsCertificate = certificate;
                 }
@@ -588,17 +593,21 @@ namespace Opc.Ua.Gds.Server.Database.Sql
             return true;
         }
 
-        public override void GetApplicationCertificates(
+        public override bool GetApplicationCertificate(
             NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+            string certificateTypeId,
+            out byte[] certificate)
         {
             certificate = null;
-            httpsCertificate = null;
 
             Guid id = GetNodeIdGuid(applicationId);
 
             List<byte[]> certificates = new List<byte[]>();
+
+            if (certificateTypeId.Equals(nameof(Ua.ObjectTypeIds.UserCredentialCertificateType), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
 
             using (gdsdbEntities entities = new gdsdbEntities())
             {
@@ -611,16 +620,24 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
 
-                certificate = result.Certificate;
-                httpsCertificate = result.HttpsCertificate;
+                if (certificateTypeId.Equals(nameof(Ua.ObjectTypeIds.HttpsCertificateType), StringComparison.OrdinalIgnoreCase))
+                {
+                    certificate = result.HttpsCertificate;
+                }
+                else
+                {
+                    certificate = result.Certificate;
+                }
             }
+
+            return certificate != null;
         }
 
 
         public override bool SetApplicationTrustLists(
             NodeId applicationId,
-            NodeId trustListId,
-            NodeId httpsTrustListId
+            string trustListId,
+            string httpsTrustListId
             )
         {
             Guid id = GetNodeIdGuid(applicationId);
@@ -638,9 +655,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
                 if (trustListId != null)
                 {
-                    string storePath = trustListId.ToString();
-
-                    var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
+                    var result2 = (from x in entities.CertificateStores where x.Path == trustListId select x).SingleOrDefault();
 
                     if (result2 != null)
                     {
@@ -650,9 +665,7 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
                 if (httpsTrustListId != null)
                 {
-                    string storePath = httpsTrustListId.ToString();
-
-                    var result2 = (from x in entities.CertificateStores where x.Path == storePath select x).SingleOrDefault();
+                    var result2 = (from x in entities.CertificateStores where x.Path == httpsTrustListId select x).SingleOrDefault();
 
                     if (result2 != null)
                     {
@@ -670,8 +683,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
         #region ICertificateRequest
         public NodeId StartSigningRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             byte[] certificateRequest,
             string authorityId)
         {
@@ -697,8 +710,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                 }
 
                 request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId.ToString();
-                request.CertificateTypeId = certificateTypeId.ToString();
+                request.CertificateGroupId = certificateGroupId;
+                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = null;
                 request.DomainNames = null;
                 request.PrivateKeyFormat = null;
@@ -718,8 +731,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
 
         public NodeId StartNewKeyPairRequest(
             NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
+            string certificateGroupId,
+            string certificateTypeId,
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
@@ -748,8 +761,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                 }
 
                 request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId.ToString();
-                request.CertificateTypeId = certificateTypeId.ToString();
+                request.CertificateGroupId = certificateGroupId;
+                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = subjectName;
                 request.DomainNames = JsonConvert.SerializeObject(domainNames);
                 request.PrivateKeyFormat = privateKeyFormat;
@@ -826,8 +839,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
         public CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] signedCertificate,
             out byte[] privateKey)
         {
@@ -861,8 +874,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
 
-                certificateGroupId = new NodeId(request.CertificateGroupId);
-                certificateTypeId = new NodeId(request.CertificateTypeId);
+                certificateGroupId = request.CertificateGroupId;
+                certificateTypeId = request.CertificateTypeId;
 
                 entities.SaveChanges();
                 return CertificateRequestState.Approved;
@@ -872,8 +885,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
         public CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,
-            out NodeId certificateGroupId,
-            out NodeId certificateTypeId,
+            out string certificateGroupId,
+            out string certificateTypeId,
             out byte[] certificateRequest,
             out string subjectName,
             out string[] domainNames,
@@ -913,8 +926,8 @@ namespace Opc.Ua.Gds.Server.Database.Sql
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
 
-                certificateGroupId = new NodeId(request.CertificateGroupId);
-                certificateTypeId = new NodeId(request.CertificateTypeId);
+                certificateGroupId = request.CertificateGroupId;
+                certificateTypeId = request.CertificateTypeId;
                 certificateRequest = request.CertificateSigningRequest;
                 subjectName = request.SubjectName;
                 domainNames = request.DomainNames != null ? JsonConvert.DeserializeObject<string[]>(request.DomainNames) : null;

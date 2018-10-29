@@ -505,7 +505,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
-            int i = 0;
             DateTime now = DateTime.UtcNow;
             do
             {
