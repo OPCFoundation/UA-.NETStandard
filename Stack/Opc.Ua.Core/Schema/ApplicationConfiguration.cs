@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -653,62 +654,26 @@ namespace Opc.Ua
                 return 0;
             }
 
+            byte result = 0;
             switch (policyUri)
             {
+                case SecurityPolicies.Basic128Rsa15: result = 2; break;
+                case SecurityPolicies.Basic256: result = 4; break;
+                case SecurityPolicies.Basic256Sha256: result = 6; break;
+                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
+                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
                 case SecurityPolicies.None:
-                {
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic128Rsa15:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 1;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 4;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 2;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 5;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256Sha256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 3;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 6;
-                    }
-
-                    return 0;
-                }
-
-                default:
-                {
-                    return 0;
-                }
+                default: return 0;
             }
+
+            if (mode == MessageSecurityMode.SignAndEncrypt)
+            {
+                result += 100;
+            }
+
+            return result;
         }
-        
+
         /// <summary>
         /// Specifies whether the messages are signed and encrypted or simply signed
         /// </summary>
@@ -1245,6 +1210,55 @@ namespace Opc.Ua
         public void Initialize(StreamingContext context)
         {
             Initialize();
+        }
+
+        /// <summary>
+        /// Remove unsupported security policies and expand wild cards.
+        /// </summary>
+        [OnDeserialized()]
+        private void ValidateSecurityPolicyCollection(StreamingContext context)
+        {
+            var supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
+            var newPolicies = new ServerSecurityPolicyCollection();
+            foreach (var securityPolicy in m_securityPolicies)
+            {
+                if (String.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
+                {
+                    // add wild card policies
+                    foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
+                    {
+                        var newPolicy = new ServerSecurityPolicy() {
+                            SecurityMode = securityPolicy.SecurityMode,
+                            SecurityPolicyUri = policyUri
+                        };
+                        if (newPolicies.Where(s =>
+                            s.SecurityMode == newPolicy.SecurityMode &&
+                            String.Compare(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri) == 0
+                            ).FirstOrDefault() == null)
+                        {
+                            newPolicies.Add(newPolicy);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < supportedPolicies.Length; i++)
+                    {
+                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
+                        {
+                            if (newPolicies.Where(s =>
+                                s.SecurityMode == securityPolicy.SecurityMode &&
+                                String.Compare(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri) == 0
+                                ).FirstOrDefault() == null)
+                            {
+                                newPolicies.Add(securityPolicy);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            m_securityPolicies = newPolicies;
         }
         #endregion
 

@@ -8,7 +8,7 @@
   <ApplicationUri>urn:localhost:opcfoundation.org:AggregationServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:AggregationServer</ProductUri>
   <ApplicationType>ClientAndServer_2</ApplicationType>
-  
+
   <SecurityConfiguration>
 
     <!-- Where the application instance certificate is stored (MachineDefault) -->
@@ -37,9 +37,9 @@
     </RejectedCertificateStore>
 
   </SecurityConfiguration>
-  
+
   <TransportConfigurations></TransportConfigurations>
-  
+
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -56,19 +56,23 @@
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
-    
+
     <UserTokenPolicies>
       <!-- Allows anonymous users -->
       <ua:UserTokenPolicy>
@@ -89,7 +93,7 @@
         <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
-      
+
     </UserTokenPolicies>
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
@@ -221,5 +225,5 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
-  
+
 </ApplicationConfiguration>

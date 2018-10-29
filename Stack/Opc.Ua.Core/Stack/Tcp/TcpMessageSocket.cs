@@ -79,14 +79,8 @@ namespace Opc.Ua.Bindings
             m_args.SetBuffer(buffer, offset, count);
         }
 
-        public bool IsSocketError
-        {
-            get { return m_args.SocketError != SocketError.Success; }
-        }
-        public string SocketErrorString
-        {
-            get { return m_args.SocketError.ToString(); }
-        }
+        public bool IsSocketError => m_args.SocketError != SocketError.Success;
+        public string SocketErrorString => m_args.SocketError.ToString();
 
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
@@ -104,19 +98,17 @@ namespace Opc.Ua.Bindings
 
         protected void OnComplete(object sender, SocketAsyncEventArgs e)
         {
-            if (e.UserToken == null) return;
+            if (e.UserToken == null)
+            {
+                return;
+            }
+
             m_internalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
         }
 
-        public int BytesTransferred
-        {
-            get { return m_args.BytesTransferred; }
-        }
+        public int BytesTransferred => m_args.BytesTransferred;
 
-        public byte[] Buffer
-        {
-            get { return m_args.Buffer; }
-        }
+        public byte[] Buffer => m_args.Buffer;
 
         public BufferCollection BufferList
         {
@@ -159,15 +151,9 @@ namespace Opc.Ua.Bindings
             throw new NotImplementedException();
         }
 
-        public bool IsSocketError
-        {
-            get { return m_socketError != SocketError.Success; }
-        }
+        public bool IsSocketError => m_socketError != SocketError.Success;
 
-        public string SocketErrorString
-        {
-            get { return m_socketError.ToString(); }
-        }
+        public string SocketErrorString => m_socketError.ToString();
 
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
@@ -181,15 +167,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        public int BytesTransferred
-        {
-            get { return 0; }
-        }
+        public int BytesTransferred => 0;
 
-        public byte[] Buffer
-        {
-            get { return null; }
-        }
+        public byte[] Buffer => null;
 
         public BufferCollection BufferList
         {
@@ -227,7 +207,7 @@ namespace Opc.Ua.Bindings
         /// Gets the implementation description.
         /// </summary>
         /// <value>The implementation string.</value>
-        public string Implementation { get { return "UA-TCP"; } }
+        public string Implementation => "UA-TCP";
 
     }
 
@@ -246,7 +226,10 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (bufferManager == null) throw new ArgumentNullException("bufferManager");
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
 
             m_sink = sink;
             m_socket = null;
@@ -265,8 +248,15 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (socket == null) throw new ArgumentNullException("socket");
-            if (bufferManager == null) throw new ArgumentNullException("bufferManager");
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
+
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
 
             m_sink = sink;
             m_socket = socket;
@@ -321,7 +311,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task<bool> BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
         {
-            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            if (endpointUrl == null)
+            {
+                throw new ArgumentNullException(nameof(endpointUrl));
+            }
 
             if (m_socket != null)
             {
@@ -367,11 +360,19 @@ namespace Opc.Ua.Bindings
                 lock (m_socketLock)
                 {
                     if (addressesV6.Length > arrayV6Index)
+                    {
                         m_socketResponses++;
+                    }
+
                     if (addressesV4.Length > arrayV4Index)
+                    {
                         m_socketResponses++;
+                    }
+
                     if (m_tcs.Task.IsCompleted)
+                    {
                         m_tcs = new TaskCompletionSource<SocketError>();
+                    }
                 }
 
                 if (addressesV6.Length > arrayV6Index && m_socket == null)
@@ -414,7 +415,7 @@ namespace Opc.Ua.Bindings
                 }
             } while (moreAddresses);
 
-         ErrorExit:
+            ErrorExit:
             doCallback(error);
 
             return false;
@@ -781,7 +782,7 @@ namespace Opc.Ua.Bindings
             TcpMessageSocketAsyncEventArgs eventArgs = args as TcpMessageSocketAsyncEventArgs;
             if (eventArgs == null)
             {
-                throw new ArgumentNullException("args");
+                throw new ArgumentNullException(nameof(args));
             }
             if (m_socket == null)
             {

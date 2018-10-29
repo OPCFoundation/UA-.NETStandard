@@ -11,9 +11,9 @@
 */
 
 using System;
-using System.Text;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Opc.Ua.Bindings
 {
@@ -23,26 +23,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken CurrentToken
-        {
-            get { return m_currentToken; }
-        }
+        protected ChannelToken CurrentToken => m_currentToken;
 
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken PreviousToken
-        {
-            get { return m_previousToken; }
-        }
+        protected ChannelToken PreviousToken => m_previousToken;
 
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected ChannelToken RenewedToken
-        {
-            get { return m_renewedToken; }
-        }
+        protected ChannelToken RenewedToken => m_renewedToken;
 
         /// <summary>
         /// Creates a new token.
@@ -52,9 +43,9 @@ namespace Opc.Ua.Bindings
             ChannelToken token = new ChannelToken();
 
             token.ChannelId = m_channelId;
-            token.TokenId   = 0;
+            token.TokenId = 0;
             token.CreatedAt = DateTime.UtcNow;
-            token.Lifetime  = (int)Quotas.SecurityTokenLifetime;
+            token.Lifetime = (int)Quotas.SecurityTokenLifetime;
 
             Utils.Trace("Token #{0} created. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
 
@@ -70,8 +61,8 @@ namespace Opc.Ua.Bindings
             ComputeKeys(token);
 
             m_previousToken = m_currentToken;
-            m_currentToken  = token;
-            m_renewedToken  = null;
+            m_currentToken = token;
+            m_renewedToken = null;
 
             Utils.Trace("Token #{0} activated. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
         }
@@ -92,7 +83,7 @@ namespace Opc.Ua.Bindings
         protected void DiscardTokens()
         {
             m_previousToken = null;
-            m_currentToken  = null;
+            m_currentToken = null;
         }
         #endregion
 
@@ -100,18 +91,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
         /// </summary>
-        private int SymmetricSignatureSize
-        {
-            get { return m_hmacHashSize; }
-        }
+        private int SymmetricSignatureSize => m_hmacHashSize;
 
         /// <summary>
         /// The byte length the encryption blocks.
         /// </summary>
-        private int EncryptionBlockSize
-        {
-            get { return m_encryptionBlockSize; }
-        }
+        private int EncryptionBlockSize => m_encryptionBlockSize;
 
         /// <summary>
         /// Calculates the symmetric key sizes based on the current security policy.
@@ -121,22 +106,22 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                {
-                    m_hmacHashSize = 20;
-                    m_signatureKeySize = 16;
-                    m_encryptionKeySize = 16;
-                    m_encryptionBlockSize = 16;
-                    break;
-                }
+                    {
+                        m_hmacHashSize = 20;
+                        m_signatureKeySize = 16;
+                        m_encryptionKeySize = 16;
+                        m_encryptionBlockSize = 16;
+                        break;
+                    }
 
                 case SecurityPolicies.Basic256:
-                {
-                    m_hmacHashSize = 20;
-                    m_signatureKeySize = 24;
-                    m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 16;
-                    break;
-                }
+                    {
+                        m_hmacHashSize = 20;
+                        m_signatureKeySize = 24;
+                        m_encryptionKeySize = 32;
+                        m_encryptionBlockSize = 16;
+                        break;
+                    }
 
                 case SecurityPolicies.Basic256Sha256:
                     {
@@ -147,15 +132,33 @@ namespace Opc.Ua.Bindings
                         break;
                     }
 
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    {
+                        m_hmacHashSize = 32;
+                        m_signatureKeySize = 32;
+                        m_encryptionKeySize = 16;
+                        m_encryptionBlockSize = 16;
+                        break;
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        m_hmacHashSize = 32;
+                        m_signatureKeySize = 32;
+                        m_encryptionKeySize = 32;
+                        m_encryptionBlockSize = 16;
+                        break;
+                    }
+
                 default:
                 case SecurityPolicies.None:
-                {
-                    m_hmacHashSize = 0;
-                    m_signatureKeySize = 0;
-                    m_encryptionKeySize = 0;
-                    m_encryptionBlockSize = 1;
-                    break;
-                }
+                    {
+                        m_hmacHashSize = 0;
+                        m_signatureKeySize = 0;
+                        m_encryptionKeySize = 0;
+                        m_encryptionBlockSize = 1;
+                        break;
+                    }
             }
         }
 
@@ -169,7 +172,9 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
+            if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
+                SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
+                SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
             {
                 token.ClientSigningKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, 0, m_signatureKeySize);
                 token.ClientEncryptingKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
@@ -193,6 +198,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
                         // create encryptors.
                         SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
@@ -210,7 +217,9 @@ namespace Opc.Ua.Bindings
                         token.ServerEncryptor = AesCbcDecryptorProvider;
 
                         // create HMACs.
-                        if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
+                        if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
+                            SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
+                            SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
                         {
                             // SHA256
                             token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
@@ -236,12 +245,12 @@ namespace Opc.Ua.Bindings
         /// Secures the message using the security token.
         /// </summary>
         protected BufferCollection WriteSymmetricMessage(
-            uint            messageType,
-            uint            requestId,
-            ChannelToken    token,
-            object          messageBody,
-            bool            isRequest,
-            out bool        limitsExceeded)
+            uint messageType,
+            uint requestId,
+            ChannelToken token,
+            object messageBody,
+            bool isRequest,
+            out bool limitsExceeded)
         {
             limitsExceeded = false;
             bool success = false;
@@ -251,10 +260,10 @@ namespace Opc.Ua.Bindings
             {
                 // calculate chunk sizes.
                 int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
-                int maxCipherBlocks   = maxCipherTextSize/EncryptionBlockSize;
-                int maxPlainTextSize  = maxCipherBlocks*EncryptionBlockSize;
-                int maxPayloadSize    = maxPlainTextSize - SymmetricSignatureSize - 1 - TcpMessageLimits.SequenceHeaderSize;
-                int headerSize        = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
+                int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
+                int maxPayloadSize = maxPlainTextSize - SymmetricSignatureSize - 1 - TcpMessageLimits.SequenceHeaderSize;
+                int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
 
                 // write the body to stream.
                 ArraySegmentStream ostrm = new ArraySegmentStream(
@@ -315,7 +324,7 @@ namespace Opc.Ua.Bindings
                     BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext);
 
                     // check if the message needs to be aborted.
-                    if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii+1))
+                    if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
                     {
                         encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
@@ -326,7 +335,7 @@ namespace Opc.Ua.Bindings
                             chunkToProcess.Count,
                             Quotas.MessageContext);
 
-                        WriteErrorMessageBody(errorEncoder, (isRequest)?StatusCodes.BadRequestTooLarge:StatusCodes.BadResponseTooLarge);
+                        WriteErrorMessageBody(errorEncoder, (isRequest) ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
 
                         int size = errorEncoder.Close();
                         chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
@@ -335,7 +344,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     // check if the message is complete.
-                    else if (ii == chunksToProcess.Count-1)
+                    else if (ii == chunksToProcess.Count - 1)
                     {
                         encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
                     }
@@ -360,9 +369,9 @@ namespace Opc.Ua.Bindings
                         // reserve one byte for the padding size.
                         count++;
 
-                        if (count%EncryptionBlockSize != 0)
+                        if (count % EncryptionBlockSize != 0)
                         {
-                            padding = EncryptionBlockSize - (count%EncryptionBlockSize);
+                            padding = EncryptionBlockSize - (count % EncryptionBlockSize);
                         }
 
                         count += padding;
@@ -408,7 +417,7 @@ namespace Opc.Ua.Bindings
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
                         // encrypt the data.
-                        ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position-TcpMessageLimits.SymmetricHeaderSize);
+                        ArraySegment<byte> dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
                         Encrypt(token, dataToEncrypt, isRequest);
                     }
 
@@ -437,18 +446,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageType"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageSize")]
         protected ArraySegment<byte> ReadSymmetricMessage(
-            ArraySegment<byte>  buffer,
-            bool                isRequest,
-            out ChannelToken    token,
-            out uint            requestId,
-            out uint            sequenceNumber)
+            ArraySegment<byte> buffer,
+            bool isRequest,
+            out ChannelToken token,
+            out uint requestId,
+            out uint sequenceNumber)
         {
             BinaryDecoder decoder = new BinaryDecoder(buffer.Array, buffer.Offset, buffer.Count, Quotas.MessageContext);
 
             uint messageType = decoder.ReadUInt32(null);
             uint messageSize = decoder.ReadUInt32(null);
-            uint channelId   = decoder.ReadUInt32(null);
-            uint tokenId     = decoder.ReadUInt32(null);
+            uint channelId = decoder.ReadUInt32(null);
+            uint tokenId = decoder.ReadUInt32(null);
 
             // ensure the channel is valid.
             if (channelId != ChannelId)
@@ -491,7 +500,7 @@ namespace Opc.Ua.Bindings
                     channelId,
                     tokenId,
                     currentToken.TokenId,
-                    (PreviousToken != null)?(int)PreviousToken.TokenId:-1);
+                    (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
             }
 
             token = currentToken;
@@ -523,7 +532,7 @@ namespace Opc.Ua.Bindings
 
                 for (int ii = 0; ii < SymmetricSignatureSize; ii++)
                 {
-                    signature[ii] = buffer.Array[buffer.Offset+buffer.Count-SymmetricSignatureSize+ii];
+                    signature[ii] = buffer.Array[buffer.Offset + buffer.Count - SymmetricSignatureSize + ii];
                 }
 
                 // verify the signature.
@@ -532,7 +541,7 @@ namespace Opc.Ua.Bindings
                     Utils.Trace("Could not verify signature on message.");
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                 }
-             }
+            }
 
             int paddingCount = 0;
 
@@ -560,7 +569,7 @@ namespace Opc.Ua.Bindings
 
             // return an the data contained in the message.
             int startOfBody = buffer.Offset + TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
-            int sizeOfBody  = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
+            int sizeOfBody = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
 
             return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
         }
@@ -574,16 +583,18 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                {
-                    return null;
-                }
+                    {
+                        return null;
+                    }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
                         return SymmetricSign(token, dataToSign, useClientKeys);
-                }
+                    }
             }
         }
 
@@ -591,30 +602,32 @@ namespace Opc.Ua.Bindings
         /// Returns the symmetric signature for the data.
         /// </summary>
         protected bool Verify(
-            ChannelToken       token,
-            byte[]             signature,
+            ChannelToken token,
+            byte[] signature,
             ArraySegment<byte> dataToVerify,
-            bool               useClientKeys)
+            bool useClientKeys)
         {
             // verify signature.
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                {
-                    return true;
-                }
+                    {
+                        return true;
+                    }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
                         return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
-                }
+                    }
 
                 default:
-                {
-                    return false;
-                }
+                    {
+                        return false;
+                    }
             }
         }
 
@@ -627,17 +640,19 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
-                {
-                    SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
-                    break;
-                }
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
+                        break;
+                    }
             }
         }
 
@@ -650,17 +665,19 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
-                {
-                    SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
-                    break;
-                }
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
+                        break;
+                    }
             }
         }
 
@@ -686,13 +703,13 @@ namespace Opc.Ua.Bindings
         /// Verifies a HMAC for a message.
         /// </summary>
         private static bool SymmetricVerify(
-            ChannelToken       token,
-            byte[]             signature,
+            ChannelToken token,
+            byte[] signature,
             ArraySegment<byte> dataToVerify,
-            bool               useClientKeys)
+            bool useClientKeys)
         {
             // get HMAC object.
-            HMAC hmac = (useClientKeys)?token.ClientHmac:token.ServerHmac;
+            HMAC hmac = (useClientKeys) ? token.ClientHmac : token.ServerHmac;
 
             // compute hash.
             MemoryStream istrm = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, false);
@@ -705,7 +722,7 @@ namespace Opc.Ua.Bindings
                 if (computedSignature[ii] != signature[ii])
                 {
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
-                    int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset+4);
+                    int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string expectedSignature = Utils.ToHexString(computedSignature);
                     string actualSignature = Utils.ToHexString(signature);
 
@@ -729,11 +746,11 @@ namespace Opc.Ua.Bindings
         /// Encrypts a message using a symmetric algorithm.
         /// </summary>
         private static void SymmetricEncrypt(
-            ChannelToken       token,
+            ChannelToken token,
             ArraySegment<byte> dataToEncrypt,
-            bool               useClientKeys)
+            bool useClientKeys)
         {
-             SymmetricAlgorithm encryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
+            SymmetricAlgorithm encryptingKey = (useClientKeys) ? token.ClientEncryptor : token.ServerEncryptor;
 
             if (encryptingKey == null)
             {
@@ -762,10 +779,10 @@ namespace Opc.Ua.Bindings
         private static void SymmetricDecrypt(
             ChannelToken token,
             ArraySegment<byte> dataToDecrypt,
-            bool               useClientKeys)
+            bool useClientKeys)
         {
             // get the decrypting key.
-            SymmetricAlgorithm decryptingKey = (useClientKeys)?token.ClientEncryptor:token.ServerEncryptor;
+            SymmetricAlgorithm decryptingKey = (useClientKeys) ? token.ClientEncryptor : token.ServerEncryptor;
 
             if (decryptingKey == null)
             {

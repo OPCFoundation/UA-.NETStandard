@@ -888,10 +888,11 @@ namespace Opc.Ua.Client.Controls
             // set all available security policies.
             if (m_showAllOptions)
             {
-                SecurityPolicyCB.Items.Add(SecurityPolicies.GetDisplayName(SecurityPolicies.None));
-                SecurityPolicyCB.Items.Add(SecurityPolicies.GetDisplayName(SecurityPolicies.Basic128Rsa15));
-                SecurityPolicyCB.Items.Add(SecurityPolicies.GetDisplayName(SecurityPolicies.Basic256));
-                SecurityPolicyCB.Items.Add(SecurityPolicies.GetDisplayName(SecurityPolicies.Basic256Sha256));
+                var securityPolicies = SecurityPolicies.GetDisplayNames();
+                foreach (var policy in securityPolicies)
+                {
+                    SecurityPolicyCB.Items.Add(policy);
+                }
             }
 
             // find all unique security policies.    

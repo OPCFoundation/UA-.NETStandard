@@ -83,7 +83,11 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
     </RejectedCertificateStore>
-
+    
+    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    
     <!-- Specifies whether the complete certificate chain should be sent for CA signed certificates. -->
     <SendCertificateChain>false</SendCertificateChain>
 
@@ -165,13 +169,13 @@
     are left out the client make refuse to connect because it has no way to know if the 
     alternate domain was authorized by the server administrator.
     -->
-    
+
     <!--
     <AlternateBaseAddresses>
       <ua:String>http://mycompany.com:40000/UA/SampleClient</ua:String>
     </AlternateBaseAddresses>
     -->
-    
+
     <!-- The security policies supported by the server.
          
          The SDK combines these with the base address to create as many EndpointDescriptions as required.
@@ -180,18 +184,22 @@
          
          The first policy in the list is assigned to base address. -->
     <SecurityPolicies>
-      <!--Removing no secuirty option from the configuration as this is a security risk-->
-        <ServerSecurityPolicy>
-        <SecurityMode>None_1</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
-      </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <!--Removing no security option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
+        <SecurityMode>None_1</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
+      </ServerSecurityPolicy>-->
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
     </SecurityPolicies>
 

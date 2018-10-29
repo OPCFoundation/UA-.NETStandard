@@ -13,7 +13,8 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opc.Ua.Bindings {
+namespace Opc.Ua.Bindings
+{
 
     /// <summary>
     /// Interface between listener and UA TCP channel

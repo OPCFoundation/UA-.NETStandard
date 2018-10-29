@@ -12,14 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Opc.Ua.Bindings {
+namespace Opc.Ua.Bindings
+{
 
     /// <summary>
     /// Manages the server side of a UA TCP channel.
@@ -95,7 +96,10 @@ namespace Opc.Ua.Bindings {
         /// </summary>
         public void Attach(uint channelId, Socket socket)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -128,7 +132,10 @@ namespace Opc.Ua.Bindings {
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -177,7 +184,10 @@ namespace Opc.Ua.Bindings {
         /// </summary>
         public void SendResponse(uint requestId, IServiceResponse response)
         {
-            if (response == null) throw new ArgumentNullException(nameof(response));
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
 
             lock (DataLock)
             {
