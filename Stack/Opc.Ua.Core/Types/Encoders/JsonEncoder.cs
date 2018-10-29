@@ -248,7 +248,7 @@ namespace Opc.Ua
         /// </summary>
         public EncodingType EncodingType
         {
-            get { return EncodingType.Xml; }
+            get { return EncodingType.Json; }
         }
 
         /// <summary>

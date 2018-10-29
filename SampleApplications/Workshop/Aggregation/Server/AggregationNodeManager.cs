@@ -1501,7 +1501,9 @@ namespace AggregationServer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "AggregationServer.Model.AggregationModel.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            var assy = this.GetType().GetTypeInfo().Assembly;
+            var name = assy.GetName().Name + ".Model.AggregationModel.PredefinedNodes.uanodes";
+            predefinedNodes.LoadFromBinaryResource(context, name, assy, true);
             return predefinedNodes;
         }
         #endregion
