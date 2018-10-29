@@ -1214,20 +1214,24 @@ namespace Opc.Ua.Client
 
             if (ServiceResult.IsBad(result))
             {
-                throw new ServiceResultException(result);
+                Utils.Trace("FetchNamespaceTables: Cannot read NamespaceArray node: {0} " + result.StatusCode);
             }
-
-            m_namespaceUris.Update((string[])values[0].Value);
+            else
+            {
+                m_namespaceUris.Update((string[])values[0].Value);
+            }
 
             // validate server array.
             result = ValidateDataValue(values[1], typeof(string[]), 1, diagnosticInfos, responseHeader);
 
             if (ServiceResult.IsBad(result))
             {
-                throw new ServiceResultException(result);
+                Utils.Trace("FetchNamespaceTables: Cannot read ServerArray node: {0} " + result.StatusCode);
             }
-
-            m_serverUris.Update((string[])values[1].Value);
+            else
+            {
+                m_serverUris.Update((string[])values[1].Value);
+            } 
         }
 
         /// <summary>
