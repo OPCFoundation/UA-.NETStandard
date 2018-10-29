@@ -27,14 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -343,6 +344,17 @@ namespace Opc.Ua.Gds.Server
                         throw e;
                     }
                 }
+
+                m_certTypeMap = new Dictionary<NodeId, string>
+                {
+                    // list of supported cert type mappings (V1.04)
+                    { Ua.ObjectTypeIds.HttpsCertificateType, nameof(Ua.ObjectTypeIds.HttpsCertificateType) },
+                    { Ua.ObjectTypeIds.UserCredentialCertificateType, nameof(Ua.ObjectTypeIds.UserCredentialCertificateType) },
+                    { Ua.ObjectTypeIds.ApplicationCertificateType, nameof(Ua.ObjectTypeIds.ApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.RsaMinApplicationCertificateType, nameof(Ua.ObjectTypeIds.RsaMinApplicationCertificateType) },
+                    { Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) }
+                };
+
             }
         }
 
@@ -539,21 +551,26 @@ namespace Opc.Ua.Gds.Server
 
             Utils.Trace(Utils.TraceMasks.Information, "OnUnregisterApplication: {0}", applicationId.ToString());
 
-            byte[] certificate;
-            byte[] httpsCertificate;
-            m_database.GetApplicationCertificates(applicationId, out certificate, out httpsCertificate);
+            foreach (var certType in m_certTypeMap)
+            {
+                try
+                {
+                    byte[] certificate;
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out certificate))
+                    {
+                        if (certificate != null)
+                        {
+                            RevokeCertificateAsync(certificate).Wait();
+                        }
+                    }
+                }
+                catch
+                {
+                    Utils.Trace(Utils.TraceMasks.Error, "Failed to revoke: {0}", certType.Value);
+                }
+            }
+
             m_database.UnregisterApplication(applicationId);
-
-            // TODO: revoke per trust list
-            if (certificate != null)
-            {
-                RevokeCertificateAsync(certificate).Wait();
-            }
-
-            if (httpsCertificate != null)
-            {
-                RevokeCertificateAsync(httpsCertificate).Wait();
-            }
 
             return ServiceResult.Good;
         }
@@ -770,6 +787,12 @@ namespace Opc.Ua.Gds.Server
                 certificateTypeId = certificateGroup.CertificateType;
             }
 
+            string certificateTypeNameId;
+            if (!m_certTypeMap.TryGetValue(certificateTypeId, out certificateTypeNameId))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateType is invalid.");
+            }
+
             if (!String.IsNullOrEmpty(subjectName))
             {
                 subjectName = GetSubjectName(application, certificateGroup, subjectName);
@@ -818,13 +841,13 @@ namespace Opc.Ua.Gds.Server
 
             requestId = m_request.StartNewKeyPairRequest(
                 applicationId,
-                certificateGroupId,
-                certificateTypeId,
+                certificateGroup.Configuration.Id,
+                certificateTypeNameId,
                 subjectName,
                 domainNames,
                 privateKeyFormat,
                 privateKeyPassword,
-                certificateGroup.Configuration.Id);
+                context.UserIdentity?.DisplayName);
 
             if (m_autoApprove)
             {
@@ -883,6 +906,13 @@ namespace Opc.Ua.Gds.Server
                 certificateTypeId = certificateGroup.CertificateType;
             }
 
+            string certificateTypeNameId;
+            if (!m_certTypeMap.TryGetValue(certificateTypeId, out certificateTypeNameId))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateType is invalid.");
+            }
+
+
             // verify the CSR integrity for the application
             certificateGroup.VerifySigningRequestAsync(
                 application,
@@ -892,10 +922,10 @@ namespace Opc.Ua.Gds.Server
             // store request in the queue for approval
             requestId = m_request.StartSigningRequest(
                 applicationId,
-                certificateGroupId,
-                certificateTypeId,
+                certificateGroup.Configuration.Id,
+                certificateTypeNameId,
                 certificateRequest,
-                certificateGroup.Configuration.Id);
+                context.UserIdentity?.DisplayName);
 
             if (m_autoApprove)
             {
@@ -933,8 +963,8 @@ namespace Opc.Ua.Gds.Server
                 return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
             }
 
-            NodeId certificateGroupId;
-            NodeId certificateTypeId;
+            string certificateGroupId;
+            string certificateTypeId;
 
             var state = m_request.FinishRequest(
                 applicationId,
@@ -951,15 +981,31 @@ namespace Opc.Ua.Gds.Server
             }
 
             CertificateGroup certificateGroup = null;
-            if (NodeId.IsNull(certificateGroupId) ||
-                !m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
+            if (!String.IsNullOrWhiteSpace(certificateGroupId))
+            {
+                foreach (var group in m_certificateGroups)
+                {
+                    if (String.Compare(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        certificateGroup = group.Value;
+                        break;
+                    }
+                }
+            }
+
+            if (certificateGroup == null)
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId does not refer to a supported certificate group.");
             }
 
-            if (!NodeId.IsNull(certificateTypeId))
+            NodeId certificateTypeNodeId;
+            certificateTypeNodeId = m_certTypeMap.Where(
+                pair => pair.Value.Equals(certificateTypeId, StringComparison.OrdinalIgnoreCase))
+                .Select(pair => pair.Key).SingleOrDefault();
+
+            if (!NodeId.IsNull(certificateTypeNodeId))
             {
-                if (!Server.TypeTree.IsTypeOf(certificateGroup.CertificateType, certificateTypeId))
+                if (!Server.TypeTree.IsTypeOf(certificateGroup.CertificateType, certificateTypeNodeId))
                 {
                     return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateTypeId is not supported by the certificateGroup.");
                 }
@@ -1061,7 +1107,7 @@ namespace Opc.Ua.Gds.Server
                 store.Add(certificate).Wait();
             }
 
-            m_database.SetApplicationCertificate(applicationId, signedCertificate, certificateGroup.Id.Identifier as string == "https");
+            m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
 
             m_request.AcceptRequest(requestId, signedCertificate);
 
@@ -1332,6 +1378,7 @@ namespace Opc.Ua.Gds.Server
         private ICertificateRequest m_request;
         private ICertificateGroup m_certificateGroupFactory;
         private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
+        private Dictionary<NodeId, string> m_certTypeMap;
         #endregion
     }
 }

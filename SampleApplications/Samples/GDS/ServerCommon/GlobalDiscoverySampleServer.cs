@@ -134,7 +134,7 @@ namespace Opc.Ua.Gds.Server
                     TranslationInfo info = new TranslationInfo(
                         "NoWriteAllowed",
                         "en-US",
-                        "Must provide a valid windows user before calling write.");
+                        "Must provide a valid user before calling write.");
 
                     // create an exception with a vendor defined sub-code.
                     throw new ServiceResultException(new ServiceResult(
@@ -242,15 +242,6 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 CertificateValidator.Validate(certificate);
-
-                // determine if self-signed.
-                bool isSelfSigned = Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
-
-                // do not allow self signed application certs as user token
-                if (isSelfSigned && Utils.HasApplicationURN(certificate))
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed);
-                }
             }
             catch (Exception e)
             {

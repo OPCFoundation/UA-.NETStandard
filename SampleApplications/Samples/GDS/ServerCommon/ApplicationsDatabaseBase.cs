@@ -193,37 +193,38 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
-            byte[] certificate,
-            bool isHttpsCertificate)
+            string certificateType,
+            byte[] certificate
+            )
         {
             ValidateApplicationNodeId(applicationId);
             return false;
         }
-        public virtual void GetApplicationCertificates(
+
+        public virtual bool GetApplicationCertificate(
             NodeId applicationId,
-            out byte[] certificate,
-            out byte[] httpsCertificate)
+            string certificateTypeId,
+            out byte[] certificate)
         {
             certificate = null;
-            httpsCertificate = null;
             ValidateApplicationNodeId(applicationId);
+            return false;
         }
 
         public virtual bool SetApplicationTrustLists(
             NodeId applicationId,
-            NodeId trustListId,
-            NodeId httpsTrustListId)
+            string certificateTypeId,
+            string trustListId)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
         }
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
-            out NodeId trustListId,
-            out NodeId httpsTrustListId)
+            string certificateTypeId,
+            out string trustListId)
         {
             trustListId = null;
-            httpsTrustListId = null;
             ValidateApplicationNodeId(applicationId);
             return false;
         }
@@ -381,7 +382,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ArgumentNullException(nameof(nodeId));
             }
 
-            if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) || 
+            if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
                 NamespaceIndex != nodeId.NamespaceIndex)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
