@@ -703,8 +703,7 @@ public class CertificateFactory
                 signatureFactory,
                 new CertificateFactoryX509Name(false, certificate.Subject),
                 publicKey,
-                attributes,
-                signingKey);
+                attributes);
 
             return pkcs10CertificationRequest.GetEncoded();
         }
