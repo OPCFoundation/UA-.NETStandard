@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Xml;
 using System.Text;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace Opc.Ua
@@ -1992,6 +1993,16 @@ namespace Opc.Ua
         /// </summary>
         public NodeStateChangedHandler OnStateChanged;
 
+        /// <summary>
+        /// Called when a reference gets added to the node
+        /// </summary>
+        public NodeStateReferenceAdded OnReferenceAdded;
+
+        /// <summary>
+        /// Called when a reference gets removed from the node
+        /// </summary>
+        public NodeStateReferenceRemoved OnReferenceRemoved;
+        
         /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
@@ -4150,6 +4161,8 @@ namespace Opc.Ua
 
             m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId), null);
             m_changeMasks |= NodeStateChangeMasks.References;
+
+            OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
         }
 
         /// <summary>
@@ -4174,6 +4187,7 @@ namespace Opc.Ua
             if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
             {
                 m_changeMasks |= NodeStateChangeMasks.References;
+                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
                 return true;
             }
 
@@ -4198,6 +4212,7 @@ namespace Opc.Ua
                 if (!m_references.ContainsKey(references[ii]))
                 {
                     m_references.Add(references[ii], null);
+                    OnReferenceAdded?.Invoke(this, references[ii].ReferenceTypeId, references[ii].IsInverse, references[ii].TargetId);
                 }
             }
 
@@ -4220,7 +4235,14 @@ namespace Opc.Ua
                 return false;
             }
 
-            return m_references.RemoveAll(referenceTypeId, isInverse);
+            var refsToRemove = m_references
+                .Select(r => r.Key)
+                .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
+                .ToList();
+            
+            refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
+
+            return refsToRemove.Any();
         }
         #endregion
 
@@ -4435,6 +4457,24 @@ namespace Opc.Ua
         ISystemContext context,
         NodeState node,
         NodeStateChangeMasks changes);
+    
+    /// <summary>
+    /// Used to receive notifications when a reference get added to the node
+    /// </summary>
+    public delegate void NodeStateReferenceAdded(
+        NodeState node,
+        NodeId referenceTypeId,
+        bool isInverse,
+        ExpandedNodeId targetId);
+    
+    /// <summary>
+    /// Used to receive notifications when a reference get removed to the node
+    /// </summary>
+    public delegate void NodeStateReferenceRemoved(
+        NodeState node,
+        NodeId referenceTypeId,
+        bool isInverse,
+        ExpandedNodeId targetId);
 
     /// <summary>
     /// Used to receive notifications when a node produces an event.
