@@ -22,7 +22,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
-    public partial class UaTcpChannelListener : ITransportListener
+    public class UaTcpChannelListener : ITransportListener, ITcpChannelListener
     {
         #region Constructors
         /// <summary>
@@ -54,29 +54,13 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_listeningSocket != null)
                     {
-                        try
-                        {
-                            m_listeningSocket.Dispose();
-                        }
-                        catch
-                        {
-                            // ignore errors.
-                        }
-
+                        Utils.SilentDispose(m_listeningSocket);
                         m_listeningSocket = null;
                     }
 
                     if (m_listeningSocketIPv6 != null)
                     {
-                        try
-                        {
-                            m_listeningSocketIPv6.Dispose();
-                        }
-                        catch
-                        {
-                            // ignore errors.
-                        }
-
+                        Utils.SilentDispose(m_listeningSocketIPv6);
                         m_listeningSocketIPv6 = null;
                     }
 
@@ -151,16 +135,54 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        #region Public Methods
+        #region ITcpChannelListener
         /// <summary>
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl
+        public Uri EndpointUrl => m_uri;
+        /// <summary>
+        /// Binds a new socket to an existing channel.
+        /// </summary>
+        public bool ReconnectToExistingChannel(
+            IMessageSocket socket,
+            uint requestId,
+            uint sequenceNumber,
+            uint channelId,
+            X509Certificate2 clientCertificate,
+            ChannelToken token,
+            OpenSecureChannelRequest request)
         {
-            get { return m_uri; }
+            TcpServerChannel channel = null;
+
+            lock (m_lock)
+            {
+                if (!m_channels.TryGetValue(channelId, out channel))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel referenced in the OpenSecureChannel request.");
+                }
+            }
+
+            channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            Utils.Trace("Channel {0} reconnected", channelId);
+            return true;
         }
 
+        /// <summary>
+        /// Called when a channel closes.
+        /// </summary>
+        public void ChannelClosed(uint channelId)
+        {
+            lock (m_lock)
+            {
+                m_channels.Remove(channelId);
+            }
+
+            Utils.Trace("Channel {0} closed", channelId);
+        }
+        #endregion
+
+        #region Public Methods
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
@@ -250,45 +272,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary>
-        /// Binds a new socket to an existing channel.
-        /// </summary>
-        internal bool ReconnectToExistingChannel(
-            IMessageSocket socket,
-            uint requestId,
-            uint sequenceNumber,
-            uint channelId,
-            X509Certificate2 clientCertificate,
-            ChannelToken token,
-            OpenSecureChannelRequest request)
-        {
-            TcpServerChannel channel = null;
-
-            lock (m_lock)
-            {
-                if (!m_channels.TryGetValue(channelId, out channel))
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel referenced in the OpenSecureChannel request.");
-                }
-            }
-
-            channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
-            Utils.Trace("Channel {0} reconnected", channelId);
-            return true;
-        }
-
-        /// <summary>
-        /// Called when a channel closes.
-        /// </summary>
-        internal void ChannelClosed(uint channelId)
-        {
-            lock (m_lock)
-            {
-                m_channels.Remove(channelId);
-            }
-
-            Utils.Trace("Channel {0} closed", channelId);
-        }
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>

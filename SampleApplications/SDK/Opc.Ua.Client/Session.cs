@@ -756,14 +756,11 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        /// <summary>
-        /// Gets the Instance Certificate
-        /// </summary>
         public X509Certificate2 InstanceCertificate
         {
             get
             {
-                return m_instanceCertificate;
+                return  m_instanceCertificate;
             }
         }
         #endregion
@@ -1224,20 +1221,24 @@ namespace Opc.Ua.Client
 
             if (ServiceResult.IsBad(result))
             {
-                throw new ServiceResultException(result);
+                Utils.Trace("FetchNamespaceTables: Cannot read NamespaceArray node: {0} " + result.StatusCode);
             }
-
-            m_namespaceUris.Update((string[])values[0].Value);
+            else
+            {
+                m_namespaceUris.Update((string[])values[0].Value);
+            }
 
             // validate server array.
             result = ValidateDataValue(values[1], typeof(string[]), 1, diagnosticInfos, responseHeader);
 
             if (ServiceResult.IsBad(result))
             {
-                throw new ServiceResultException(result);
+                Utils.Trace("FetchNamespaceTables: Cannot read ServerArray node: {0} " + result.StatusCode);
             }
-
-            m_serverUris.Update((string[])values[1].Value);
+            else
+            {
+                m_serverUris.Update((string[])values[1].Value);
+            } 
         }
 
         /// <summary>
@@ -2004,6 +2005,14 @@ namespace Opc.Ua.Client
 
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
+            // catch security policies which are not supported by core
+            if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The chosen security policy is not supported by the client to connect to the server.");
+            }
+
             // get the identity token.
             if (identity == null)
             {
@@ -2478,7 +2487,7 @@ namespace Opc.Ua.Client
             byte[]  dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
-            // choose a default token.            
+            // choose a default token.
             if (identity == null)
             {
                 identity = new UserIdentity();
@@ -2500,6 +2509,14 @@ namespace Opc.Ua.Client
             if (String.IsNullOrEmpty(securityPolicyUri))
             {
                 securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+
+            bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+
+            // validate the server certificate before encrypting tokens.
+            if (m_serverCertificate != null && requireEncryption && identity.TokenType != UserTokenType.Anonymous)
+            {
+                m_configuration.CertificateValidator.Validate(m_serverCertificate);
             }
 
             // sign data with user token.

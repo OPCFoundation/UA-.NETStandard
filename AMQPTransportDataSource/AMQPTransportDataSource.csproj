@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataSource\DataSource.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Amqp.Net">
+      <HintPath>lib\Amqp.Net.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

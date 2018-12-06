@@ -929,7 +929,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message = datachange.Message;
 
-            if (message != null)
+            if (message == null)
             {
                 return null;
             }
@@ -951,7 +951,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message = eventFields.Message;
 
-            if (message != null)
+            if (message == null)
             {
                 return null;
             }

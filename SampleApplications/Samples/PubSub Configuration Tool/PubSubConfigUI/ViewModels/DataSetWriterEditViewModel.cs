@@ -346,15 +346,19 @@ namespace PubSubConfigurationUI.ViewModels
 
             TransportSetting = DataSetWriterDefinition.TransportSetting;
             MessageSetting = DataSetWriterDefinition.MessageSetting;
-
+            IsDatagramTransport = Visibility.Visible;
+            IsBrokerTransport = Visibility.Collapsed;
             if (TransportSetting == 1)
             {
+
                 QueueName = DataSetWriterDefinition.QueueName;
                 MetadataQueueName = DataSetWriterDefinition.MetadataQueueName;
                 MetadataUpdataTime = DataSetWriterDefinition.MetadataUpdataTime;
                 ResourceUri = DataSetWriterDefinition.ResourceUri;
                 RequestedDeliveryGuarantee = DataSetWriterDefinition.RequestedDeliveryGuarantee;
                 AuthenticationProfileUri = DataSetWriterDefinition.AuthenticationProfileUri;
+                IsDatagramTransport = Visibility.Collapsed;
+                IsBrokerTransport = Visibility.Visible;
             }
             if (MessageSetting == 0)
             {
@@ -362,10 +366,14 @@ namespace PubSubConfigurationUI.ViewModels
                 NetworkMessageNumber = DataSetWriterDefinition.NetworkMessageNumber;
                 DataSetOffset = DataSetWriterDefinition.DataSetOffset;
                 UadpDataSetMessageContentMask = DataSetWriterDefinition.UadpDataSetMessageContentMask;
+                IsDatagramMessage = Visibility.Visible;
+                IsBrokerMessage = Visibility.Collapsed;
             }
             else
             {
                 JsonDataSetMessageContentMask = DataSetWriterDefinition.JsonDataSetMessageContentMask;
+                IsDatagramMessage = Visibility.Collapsed;
+                IsBrokerMessage = Visibility.Visible;
             }
 
 

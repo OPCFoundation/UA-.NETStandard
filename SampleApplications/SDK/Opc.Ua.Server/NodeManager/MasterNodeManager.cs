@@ -2497,7 +2497,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
-        protected IList<INodeManager> NodeManagers
+        public IList<INodeManager> NodeManagers
         {
             get { return m_nodeManagers; }
         }

@@ -280,12 +280,51 @@ namespace Opc.Ua.Server
             return predefinedNodes;
         }
 
+        ServerObjectState _ServerObjectState = null;
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
             BaseObjectState passiveNode = predefinedNode as BaseObjectState;
+
+            if (passiveNode != null)
+            {
+                if(passiveNode.NodeId== ObjectIds.PublishSubscribe_PublishedDataSets)
+                {
+                    DataSetFolderState activeNode = new DataSetFolderState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    activeNode.AddPublishedDataItems = new AddPublishedDataItemsMethodState(activeNode);
+                   activeNode.AddPublishedDataItems.Create(SystemContext, new NodeId(activeNode.NodeId.Identifier + ".AddPublishedDataItems", 0), new QualifiedName("AddPublishedDataItems"), new LocalizedText("AddPublishedDataItems"), false);
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(SystemContext, activeNode);
+                    }
+                    return activeNode;
+                }
+                //if (passiveNode.NodeId.Identifier.ToString() == "17371")
+                //{
+                //    DataSetFolderState activeNode = new DataSetFolderState(passiveNode.Parent);
+                //    activeNode.Create(SystemContext, new NodeId(passiveNode.NodeId.Identifier, 2), new QualifiedName("PublishedDataSets"), new LocalizedText("PublishedDataSets"), false);
+
+                //    activeNode.AddPublishedDataItems = new AddPublishedDataItemsMethodState(activeNode);
+                //    activeNode.AddPublishedDataItems.Create(SystemContext, new NodeId(activeNode.NodeId.Identifier + ".AddPublishedDataItems", 2), new QualifiedName("AddPublishedDataItems"), new LocalizedText("AddPublishedDataItems"), false);
+                //    activeNode.AddPublishedDataItems.MethodDeclarationId = activeNode.AddPublishedDataItems.NodeId;
+                //    activeNode.ReplaceChild(SystemContext,activeNode.AddPublishedDataItems);
+
+                //    activeNode.RemovePublishedDataSet = new RemovePublishedDataSetMethodState(activeNode);
+                //    activeNode.RemovePublishedDataSet.Create(SystemContext, new NodeId(activeNode.NodeId.Identifier + ".RemovePublishedDataSet", 2), new QualifiedName("RemovePublishedDataSet"), new LocalizedText("RemovePublishedDataSet"), false);
+                //    activeNode.RemovePublishedDataSet.MethodDeclarationId = activeNode.RemovePublishedDataSet.NodeId;
+                //    activeNode.ReplaceChild(SystemContext, activeNode.RemovePublishedDataSet);
+
+                //    if (passiveNode.Parent != null)
+                //    {
+                //        passiveNode.Parent.ReplaceChild(SystemContext, activeNode);
+                //    }
+                //    return activeNode;
+                //}
+            }
 
             if (passiveNode == null)
             {
@@ -311,6 +350,26 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+                if (passiveMethod.NodeId == MethodIds.PublishSubscribe_AddConnection)
+                {
+                    AddConnectionMethodState activeNode = new AddConnectionMethodState(passiveMethod.Parent);
+                    activeNode.Create(SystemContext, passiveMethod);
+                    if (passiveMethod.Parent != null)
+                    {
+                        passiveMethod.Parent.ReplaceChild(SystemContext, activeNode);
+                    }
+                    return activeNode;
+                }
+                if (passiveMethod.NodeId == MethodIds.PublishSubscribe_RemoveConnection)
+                {
+                    RemoveConnectionMethodState activeNode = new RemoveConnectionMethodState(passiveMethod.Parent);
+                    activeNode.Create(SystemContext, passiveMethod);
+                    if (passiveMethod.Parent != null)
+                    {
+                        passiveMethod.Parent.ReplaceChild(SystemContext, activeNode);
+                    }
+                    return activeNode;
+                }
 
                 return predefinedNode;
             }
@@ -324,6 +383,8 @@ namespace Opc.Ua.Server
 
             switch ((uint)typeId.Identifier)
             {
+
+
                 case ObjectTypes.ServerType:
                     {
                         if (passiveNode is ServerObjectState)
@@ -342,12 +403,10 @@ namespace Opc.Ua.Server
                         {
                             passiveNode.Parent.ReplaceChild(context, activeNode);
                         }
-
+                        _ServerObjectState = activeNode;
                         return activeNode;
                     }
-
             }
-
             return predefinedNode;
         }
 

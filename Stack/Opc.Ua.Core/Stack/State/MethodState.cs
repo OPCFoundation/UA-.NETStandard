@@ -739,7 +739,7 @@ namespace Opc.Ua
 
             if (typeInfo == null)
             {
-                return StatusCodes.BadTypeMismatch;
+                //return StatusCodes.BadTypeMismatch;
             }
 
             return ServiceResult.Good;

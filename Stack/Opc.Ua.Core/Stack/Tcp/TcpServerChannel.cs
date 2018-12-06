@@ -12,15 +12,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
+
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
@@ -31,7 +32,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpServerChannel(
             string contextId,
-            UaTcpChannelListener listener,
+            ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
@@ -47,7 +48,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpServerChannel(
             string contextId,
-            UaTcpChannelListener listener,
+            ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
@@ -95,7 +96,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Attach(uint channelId, Socket socket)
         {
-            if (socket == null) throw new ArgumentNullException("socket");
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -128,11 +132,14 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            if (socket == null) throw new ArgumentNullException("socket");
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
-                // make sure the same client certificate is being used.     
+                // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
                 // check for replay attacks.
@@ -177,7 +184,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SendResponse(uint requestId, IServiceResponse response)
         {
-            if (response == null) throw new ArgumentNullException("response");
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
 
             lock (DataLock)
             {
@@ -258,7 +268,7 @@ namespace Opc.Ua.Bindings
                     if (messageType == TcpMessageType.Hello)
                     {
                         //Utils.Trace("Channel {0}: ProcessHelloMessage", ChannelId);
-                        return ProcessHelloMessage(messageType, messageChunk);
+                        return ProcessHelloMessage(messageChunk);
                     }
 
                     // process open secure channel repsonse.
@@ -368,7 +378,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts a timer that will clean up the channel if it is not opened/re-opened.
         /// </summary>
-        private void StartCleanupTimer(ServiceResult reason)
+        protected void StartCleanupTimer(ServiceResult reason)
         {
             CleanupTimer();
             m_cleanupTimer = new Timer(new TimerCallback(OnCleanup), reason, Quotas.ChannelLifetime, Timeout.Infinite);
@@ -617,9 +627,9 @@ namespace Opc.Ua.Bindings
         /// Processes a Hello message from the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
-        private bool ProcessHelloMessage(uint messageType, ArraySegment<byte> messageChunk)
+        private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected Hello message.");
@@ -1104,7 +1114,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessRequestMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected request message.");
@@ -1211,11 +1221,11 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private TcpChannelRequestEventHandler m_RequestReceived;
         private long m_lastTokenId;
-        private UaTcpChannelListener m_listener;
+        private ITcpChannelListener m_listener;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private Timer m_cleanupTimer;
         private bool m_responseRequired;
-        private string g_ImplementationString = "TcpServerChannel UA-TCP " + Utils.GetAssemblySoftwareVersion();
+        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 

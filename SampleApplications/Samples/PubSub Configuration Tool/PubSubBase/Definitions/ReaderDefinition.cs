@@ -51,7 +51,8 @@ namespace PubSubBase.Definitions
         private uint m_NetworkMessageNumber = 0;
         private uint m_dataSetOffset;
         private string m_metadataQueueName;
-
+        private uint m_KeyFrameCount;
+        private string m_HeaderLayoutUri;
         private int m_UadpNetworkMessageContentMask;
         private int m_UadpDataSetMessageContentMask;
         private int m_JsonNetworkMessageContentMask;
@@ -60,7 +61,16 @@ namespace PubSubBase.Definitions
         #endregion
 
         #region Public Properties
-
+        public uint  KeyFrameCount
+        {
+            get { return m_KeyFrameCount; }
+            set { m_KeyFrameCount = value; OnPropertyChanged("KeyFrameCount"); }
+        }
+        public string HeaderLayoutUri
+        {
+            get { return m_HeaderLayoutUri; }
+            set { m_HeaderLayoutUri = value; OnPropertyChanged("HeaderLayoutUri"); }
+        }
         public uint NetworkMessageNumber
         {
             get { return m_NetworkMessageNumber; }

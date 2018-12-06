@@ -29,7 +29,7 @@
 
 using Opc.Ua.Server;
 using System;
-using System.IdentityModel.Selectors;
+
 using System.Security.Cryptography.X509Certificates;
 using System.Xml;
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Sample
                     }
 
                     // trusts any certificate in the trusted people store.
-                    m_certificateValidator = CertificateValidator.GetChannelValidator();
+                   // m_certificateValidator = CertificateValidator.GetChannelValidator();
                 }
             }
         }
@@ -159,11 +159,11 @@ namespace Opc.Ua.Sample
         {        
             try
             {
-                if (m_certificateValidator != null)
-                {
-                    m_certificateValidator.Validate(certificate);
-                }
-                else
+                //if (m_certificateValidator != null)
+                //{
+                //    m_certificateValidator.Validate(certificate);
+                //}
+                //else
                 {
                     CertificateValidator.Validate(certificate);
                 }
@@ -213,7 +213,7 @@ namespace Opc.Ua.Sample
         #endregion
         
         #region Private Fields
-        private X509CertificateValidator m_certificateValidator; 
+      //  private System.IdentityModel.Selectors.X509CertificateValidator m_certificateValidator; 
         #endregion 
     }
 }

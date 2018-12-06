@@ -44,7 +44,8 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
@@ -152,8 +153,10 @@
                             <ComboBoxItem>AtMostOnce</ComboBoxItem>
                             <ComboBoxItem>ExactlyOnce</ComboBoxItem>
                         </ComboBox>
-
-                        <GroupBox x:Name="NetworkMessageGroupBox" IsEnabled="False" Visibility="{Binding IsDatagramMessage}" Grid.Row="22" Grid.Column="0"
+                    <Label x:Name="HeaderLayoutUrilbl" Grid.Row="22" Grid.Column="0" Content="Header Layout Uri"   Height="33"  Width="180"   />
+                    <TextBox x:Name="HeaderLayoutURI" IsEnabled="False" Grid.Row="22" Grid.Column="1" Margin="5,5,5,5"
+                              Text="{Binding HeaderLayoutUri}"   Width="210" Height="23" />
+                    <GroupBox x:Name="NetworkMessageGroupBox" IsEnabled="False" Visibility="{Binding IsDatagramMessage}" Grid.Row="23" Grid.Column="0"
                       Grid.ColumnSpan="3" Header="Uadp Network Message Content Mask" HorizontalAlignment="Left"
                       VerticalAlignment="Top">
                             <Grid  Height="100" Margin="0,5">
@@ -204,7 +207,7 @@
 
                         </GroupBox>
 
-                        <GroupBox Visibility="{Binding IsBrokerMessage}" IsEnabled="False" Grid.Row="23" Grid.Column="0" Grid.ColumnSpan="3"
+                        <GroupBox Visibility="{Binding IsBrokerMessage}" IsEnabled="False" Grid.Row="24" Grid.Column="0" Grid.ColumnSpan="3"
                               Header="Json Network Message Content Mask" HorizontalAlignment="Left"
                               VerticalAlignment="Top">
                             <Grid  Height="50" Margin="0,5">

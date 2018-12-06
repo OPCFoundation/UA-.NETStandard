@@ -27,11 +27,11 @@ namespace Opc.Ua.Bindings
         /// Initializes the object with a callback
         /// </summary>
         public ChannelAsyncOperation(int timeout, AsyncCallback callback, object asyncState)
-        {               
-            m_callback    = callback;
-            m_asyncState  = asyncState;
+        {
+            m_callback = callback;
+            m_asyncState = asyncState;
             m_synchronous = false;
-            m_completed   = false;
+            m_completed = false;
 
             if (timeout > 0 && timeout != Int32.MaxValue)
             {
@@ -39,13 +39,13 @@ namespace Opc.Ua.Bindings
             }
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) 
+            if (disposing)
             {
                 lock (m_lock)
                 {
@@ -80,7 +80,7 @@ namespace Opc.Ua.Bindings
         {
             return InternalComplete(true, response);
         }
-        
+
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Bindings
         {
             return InternalComplete(doNotBlock, response);
         }
-        
+
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Bindings
         {
             return InternalComplete(true, error);
         }
-        
+
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -104,7 +104,7 @@ namespace Opc.Ua.Bindings
         {
             return InternalComplete(doNotBlock, error);
         }
-        
+
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -112,7 +112,7 @@ namespace Opc.Ua.Bindings
         {
             return InternalComplete(true, ServiceResult.Create(code, format, args));
         }
-        
+
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -179,15 +179,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Stores additional state information associated with the operation.
         /// </summary>
-        public IDictionary<string,object> Properties
+        public IDictionary<string, object> Properties
         {
             get
-            {                
+            {
                 lock (m_lock)
                 {
                     if (m_properties == null)
                     {
-                        m_properties = new Dictionary<string,object>();
+                        m_properties = new Dictionary<string, object>();
                     }
 
                     return m_properties;
@@ -200,7 +200,7 @@ namespace Opc.Ua.Bindings
         /// <summary cref="IAsyncResult.AsyncState" />
         public object AsyncState
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -208,11 +208,11 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        
+
         /// <summary cref="IAsyncResult.AsyncWaitHandle" />
         public WaitHandle AsyncWaitHandle
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -225,11 +225,11 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        
+
         /// <summary cref="IAsyncResult.CompletedSynchronously" />
         public bool CompletedSynchronously
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -237,11 +237,11 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        
+
         /// <summary cref="IAsyncResult.IsCompleted" />
         public bool IsCompleted
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -250,7 +250,7 @@ namespace Opc.Ua.Bindings
             }
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Called when the operation times out.
@@ -320,11 +320,11 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
-                    
+
             return true;
         }
         #endregion
-        
+
         #region Private Fields
         private object m_lock = new object();
         private AsyncCallback m_callback;
@@ -335,7 +335,7 @@ namespace Opc.Ua.Bindings
         private T m_response;
         private ServiceResult m_error;
         private Timer m_timer;
-        private Dictionary<string,object> m_properties;
+        private Dictionary<string, object> m_properties;
         #endregion
     }
 }

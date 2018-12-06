@@ -5,13 +5,7 @@
     <AssemblyName>Opc.Ua.Client</AssemblyName>
     <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Client</PackageId>
-    <Version>1.03.352</Version>
-    <AssemblyVersion>1.03.352</AssemblyVersion>
-    <FileVersion>1.03.352.0</FileVersion>
-    <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
     <Description>OPC UA Client Class Library</Description>
-    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

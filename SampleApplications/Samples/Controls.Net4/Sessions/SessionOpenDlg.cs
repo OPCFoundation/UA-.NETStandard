@@ -32,6 +32,7 @@ using Opc.Ua.Client.Controls;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -159,7 +160,17 @@ namespace Opc.Ua.Sample.Controls
                 }
                 else if ((UserTokenType)UserIdentityTypeCB.SelectedItem == UserTokenType.Certificate)
                 {
-                    identity = new UserIdentity(m_session.InstanceCertificate);
+                    // load the certficate.
+                    //X509Certificate2 certificate = new X509Certificate2(
+                    //    UserNameCB.Text,
+                    //    PasswordTB.Text,
+                    //    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+
+                    // want to get error text for this call.
+                    m_session.ReturnDiagnostics = DiagnosticsMasks.All;
+
+                      identity = new UserIdentity(m_session.InstanceCertificate);
+                     
                 }
                 Cursor = Cursors.WaitCursor;
 

@@ -38,6 +38,7 @@ namespace PubSubConfigurationUI.ViewModels
         private string m_queueName = string.Empty;
         private string m_securityGroupId = "0";
         private int m_writerGroupId;
+        private string m_HeaderLayoutUri;
         private byte m_messageRepeatCount;
         private double m_messsageRepeatDelay;
         private string m_resourceUri;
@@ -254,7 +255,15 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("WriterGroupId");
             }
         }
-
+        public string HeaderLayoutUri
+        {
+            get { return m_HeaderLayoutUri; }
+            set
+            {
+                m_HeaderLayoutUri = value;
+                OnPropertyChanged("HeaderLayoutUri");
+            }
+        }
         /// <summary>
         /// defines message security mode
         /// </summary>

@@ -28,6 +28,7 @@ namespace PubSubBase.Definitions
         private NodeId m_publisherDataSetNodeId = new NodeId("0", 1);
         private string m_publisherDataSetId;
         private uint m_keyFrameCount;
+         
         private ushort m_dataSetWriterId;
         private string m_queueName;
         private string m_metadataQueueName;
@@ -43,7 +44,7 @@ namespace PubSubBase.Definitions
         private string m_authenticationProfileUri;
         private int m_requestedDeliveryGuarantee;
         private ushort m_configuredSize;
-        private int m_transportSetting;
+        private int m_transportSetting=0;
         private int m_messageSetting;
         private string m_datasetName;
         private ushort m_dataSetOffset;
@@ -164,6 +165,8 @@ namespace PubSubBase.Definitions
                 OnPropertyChanged("KeyFrameCount");
             }
         }
+         
+
 
         /// <summary>
         /// Defines the DataSet Writer ID

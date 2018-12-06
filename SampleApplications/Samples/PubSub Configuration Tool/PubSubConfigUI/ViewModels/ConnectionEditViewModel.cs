@@ -14,8 +14,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using PubSubBase.Definitions;
+using System;
 using System.Windows;
 
 namespace PubSubConfigurationUI.ViewModels

@@ -171,6 +171,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// </summary>
         public void Initialize( )
         {
+            
             Description = Definition.DataSetMetaDataType.Description.Text;
             DataSetClassId = Definition.DataSetMetaDataType.DataSetClassId.GuidString;
             MinorVersion = Definition.DataSetMetaDataType.ConfigurationVersion.MinorVersion;
@@ -213,7 +214,7 @@ namespace PubSubConfigurationUI.ViewModels
 
         private int m_buildInType = 1;
         private ObservableCollection< DataItemBinding > m_buildInTypes = new ObservableCollection< DataItemBinding >( );
-        private DataSetFieldFlags m_dataSetFieldFlags = DataSetFieldFlags.PromotedField;
+        private ushort m_dataSetFieldFlags = 0; 
 
         private ObservableCollection< DataItemBinding > m_dataTypesCollection =
         new ObservableCollection< DataItemBinding >( );
@@ -365,7 +366,7 @@ namespace PubSubConfigurationUI.ViewModels
         /// <summary>
         /// defines data set field flags for target definiton
         /// </summary>
-        public DataSetFieldFlags DataSetFieldFlags
+        public ushort DataSetFieldFlags
         {
             get { return m_dataSetFieldFlags; }
             set { m_dataSetFieldFlags = value; }

@@ -324,8 +324,14 @@ namespace Opc.Ua.Com.Client
             {
                 Da20ReadItemValues(requests);
             }
+            try
+            {
+                ReadPropertyValues(requests);
+            }
+            catch(Exception EX)
+            {
 
-            ReadPropertyValues(requests);
+            }
         }
 
         /// <summary>
@@ -427,13 +433,20 @@ namespace Opc.Ua.Com.Client
         {
             for (int ii = 0; ii < requests.Count; ii++)
             {
-                ReadRequest request = requests[ii];
-
-                if (request != null && request.PropertyIds != null)
+                try
                 {
-                    request.PropertyValues = ReadPropertyValues(
-                        request.ItemId,
-                        request.PropertyIds.ToArray());
+                    ReadRequest request = requests[ii];
+
+                    if (request != null && request.PropertyIds != null)
+                    {
+                        request.PropertyValues = ReadPropertyValues(
+                            request.ItemId,
+                            request.PropertyIds.ToArray());
+                    }
+                }
+                catch(Exception ex)
+                {
+
                 }
             }
         }

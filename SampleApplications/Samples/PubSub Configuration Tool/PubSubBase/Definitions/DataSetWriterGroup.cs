@@ -49,10 +49,22 @@ namespace PubSubBase.Definitions
         private uint m_groupVersion;
         private int m_networkMessageContentMask;
         private int m_jsonNetworkMessageContentMask;
+        private string m_HeaderLayoutUri;
         #endregion
 
         #region Public Properties
-
+        public string HeaderLayoutUri
+        {
+            get
+            {
+                return m_HeaderLayoutUri;
+            }
+            set
+            {
+                m_HeaderLayoutUri = value;
+                OnPropertyChanged("HeaderLayoutUri");
+            }
+        }
         /// <summary>
         /// defines network message content mask
         /// </summary>

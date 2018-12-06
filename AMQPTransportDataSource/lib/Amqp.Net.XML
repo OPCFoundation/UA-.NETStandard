@@ -1,0 +1,4076 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Amqp.Net</name>
+    </assembly>
+    <members>
+        <member name="T:Amqp.Address">
+            <summary>
+            Defines the address of an AMQP endpoint.
+            </summary>
+            <remarks>
+            An address has the following form:<para/>
+              amqp[s] :// [user:[password]@] domain[:port] [/[path]<para/>
+            Where domain can be:<para/>
+              host | ip | name<para/>
+            If "amqps" is specified, the connection uses TLS in the underlying transport.
+            When port is not specified, it is set to the standard based on scheme (amqp: 5672, amqps: 5671)
+            path is not used by the library.
+            Note that TLS Server Name Indication (SNI) is signaled only for "amqps" addresses where
+            the domain is host | name. SNI is not signaled when the domain is a numeric IP address.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Address.#ctor(System.String)">
+            <summary>
+            Initializes a new instance of the Address class from a string.
+            </summary>
+            <param name="address">The string representation of the address.</param>
+        </member>
+        <member name="M:Amqp.Address.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String)">
+            <summary>
+            Initializes a new instance of the Address class from individual components.
+            </summary>
+            <param name="host">The domain of the address.</param>
+            <param name="port">The port number of the address.</param>
+            <param name="user">User name for SASL PLAIN profile.</param>
+            <param name="password">Password for SASL PLAIN profile.</param>
+            <param name="path">The path of the address.</param>
+            <param name="scheme">Protocol scheme, which can be either "amqp" or "amqps".</param>
+        </member>
+        <member name="P:Amqp.Address.Scheme">
+            <summary>
+            Gets the protocol scheme.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.UseSsl">
+            <summary>
+            Gets a value indicating where TLS is enabled.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.Host">
+            <summary>
+            Gets the host of the address.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.Port">
+            <summary>
+            Gets the port number of the address.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.User">
+            <summary>
+            Gets the user name that is used for SASL PLAIN profile.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.Password">
+            <summary>
+            Gets the password that is used for SASL PLAIN profile.
+            </summary>
+        </member>
+        <member name="P:Amqp.Address.Path">
+            <summary>
+            Gets the path of the address.
+            </summary>
+        </member>
+        <member name="T:Amqp.AmqpBitConverter">
+            <summary>
+            Reads primitive values from a buffer or writes primitive values to a buffer in networking order.
+            </summary>
+        </member>
+        <member name="F:Amqp.AmqpBitConverter.IsLittleEndian">
+            <summary>
+            Indicates the byte order ("endianness") in which data is stored in this computer architecture.
+            </summary>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadByte(Amqp.ByteBuffer)">
+            <summary>
+            Reads a signed byte and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadUByte(Amqp.ByteBuffer)">
+            <summary>
+            Reads an unsigned byte and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadShort(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 16-bit signed integer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadUShort(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 16-bit unsigned integer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadInt(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 32-bit signed integer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadInt(System.Byte[],System.Int32)">
+            <summary>
+            Reads a 32-bit signed integer from the buffer at the specified offset.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <param name="offset">The offset in the buffer to start reading.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadUInt(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 32-bit unsigned integer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadLong(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 64-bit signed integer from the buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadULong(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 64-bit unsigned integer from the buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadFloat(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 32-bit floating-point value from the buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadDouble(Amqp.ByteBuffer)">
+            <summary>
+            Reads a 64-bit floating-point value from the buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadUuid(Amqp.ByteBuffer)">
+            <summary>
+            Reads a uuid (16-bytes) from the buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.ReadBytes(Amqp.ByteBuffer,System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Reads bytes from one buffer into another.
+            </summary>
+            <param name="buffer">Source buffer.</param>
+            <param name="data">Destination buffer</param>
+            <param name="offset">The start position to write.</param>
+            <param name="count">The number of bytes to read.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteByte(Amqp.ByteBuffer,System.SByte)">
+            <summary>
+            Writes a signed byte into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteUByte(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Writes an unsigned byte into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteShort(Amqp.ByteBuffer,System.Int16)">
+            <summary>
+            Writes a 16-bit signed integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteUShort(Amqp.ByteBuffer,System.UInt16)">
+            <summary>
+            Writes a 16-bit unsigned integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteInt(Amqp.ByteBuffer,System.Int32)">
+            <summary>
+            Writes a 32-bit signed integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteInt(System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Writes a 32-bit unsigned integer into the buffer at specified offset.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="offset">The offset of the buffer.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteUInt(Amqp.ByteBuffer,System.UInt32)">
+            <summary>
+            Writes a 32-bit unsigned integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteLong(Amqp.ByteBuffer,System.Int64)">
+            <summary>
+            Writes a 64-bit signed integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteULong(Amqp.ByteBuffer,System.UInt64)">
+            <summary>
+            Writes a 64-bit unsigned integer into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteFloat(Amqp.ByteBuffer,System.Single)">
+            <summary>
+            Writes a 32-bit floating-point value into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteDouble(Amqp.ByteBuffer,System.Double)">
+            <summary>
+            Writes a 64-bit floating-point value into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteUuid(Amqp.ByteBuffer,System.Guid)">
+            <summary>
+            Writes a uuid (16-bytes) into the buffer and advance the buffer write cursor.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="data">The data to write.</param>
+        </member>
+        <member name="M:Amqp.AmqpBitConverter.WriteBytes(Amqp.ByteBuffer,System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Writes bytes from one buffer into another.
+            </summary>
+            <param name="buffer">The destination buffer.</param>
+            <param name="data">The source buffer</param>
+            <param name="offset">The position in source buffer to start.</param>
+            <param name="count">The number of bytes to write.</param>
+        </member>
+        <member name="T:Amqp.AmqpException">
+            <summary>
+            The exception that is thrown when an AMQP error occurs.
+            </summary>
+        </member>
+        <member name="M:Amqp.AmqpException.#ctor(Amqp.Framing.Error)">
+            <summary>
+            Initializes a new instance of the AmqpException class with the AMQP error.
+            </summary>
+            <param name="error">The AMQP <see cref="P:Amqp.AmqpException.Error"/> object.</param>
+        </member>
+        <member name="M:Amqp.AmqpException.#ctor(System.String,System.String)">
+            <summary>
+            Initializes a new instance of the AmqpException class with the AMQP error.
+            </summary>
+            <param name="condition">The error condition.</param>
+            <param name="description">The error description.</param>
+        </member>
+        <member name="P:Amqp.AmqpException.Error">
+            <summary>
+            Gets the AMQP <see cref="P:Amqp.AmqpException.Error"/> stored in this exception.
+            </summary>
+        </member>
+        <member name="T:Amqp.ClosedCallback">
+            <summary>
+            The callback that is invoked when the AMQP object is closed.
+            </summary>
+            <param name="sender">The AMQP object.</param>
+            <param name="error">The AMQP <see cref="T:Amqp.Framing.Error"/>, if any.</param>
+        </member>
+        <member name="T:Amqp.AmqpObject">
+            <summary>
+            The base class of all AMQP objects.
+            <seealso cref="T:Amqp.Session"/>
+            <seealso cref="T:Amqp.SenderLink"/>
+            <seealso cref="T:Amqp.ReceiverLink"/>
+            </summary>
+        </member>
+        <member name="M:Amqp.AmqpObject.Close(System.Int32,Amqp.Framing.Error)">
+            <summary>
+            Closes the AMQP object, optionally with an error.
+            </summary>
+            <param name="waitUntilEnded">The number of milliseconds to block until a closing frame is
+            received from the peer. If it is 0, the call is non-blocking.</param>
+            <param name="error">The AMQP <see cref="P:Amqp.AmqpObject.Error"/> to send to the peer, indicating why the object is being closed.</param>
+        </member>
+        <member name="M:Amqp.AmqpObject.OnClose(Amqp.Framing.Error)">
+            <summary>
+            When overridden in a derived class, performs the actual close operation required by the object.
+            </summary>
+            <param name="error">The <see cref="P:Amqp.AmqpObject.Error"/> for closing the object.</param>
+            <returns>A boolean value indicating if the object has been fully closed.</returns>
+        </member>
+        <member name="E:Amqp.AmqpObject.Closed">
+            <summary>
+            Gets the event used to notify that the object is closed.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpObject.Error">
+            <summary>
+            Gets the last <see cref="P:Amqp.AmqpObject.Error"/>, if any, of the object.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpObject.IsClosed">
+            <summary>
+            Gets a boolean value indicating if the object has been closed.
+            </summary>
+        </member>
+        <member name="T:Amqp.ByteBuffer">
+            <summary>
+            A byte array wrapper that has a read and a write cursor.
+            </summary>
+        </member>
+        <member name="M:Amqp.ByteBuffer.#ctor(System.Byte[],System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Initializes a new buffer from a byte array.
+            </summary>
+            <param name="buffer">The byte array.</param>
+            <param name="offset">The start position.</param>
+            <param name="count">The number of bytes.</param>
+            <param name="capacity">The total size of the byte array from offset.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.#ctor(System.Int32,System.Boolean)">
+            <summary>
+            Initializes a new buffer of a specified size.
+            </summary>
+            <param name="size">The size in bytes.</param>
+            <param name="autoGrow">If the buffer should auto-grow when a write size is larger than the buffer size.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Validate(System.Boolean,System.Int32)">
+            <summary>
+            Verifies that if the buffer has enough bytes for read or enough room for write and grow the buffer if needed.
+            </summary>
+            <param name="write">Operation to verify. True for write and false for read.</param>
+            <param name="dataSize">The size to read or write.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Append(System.Int32)">
+            <summary>
+            Advances the write position. As a result, length is increased by size.
+            </summary>
+            <param name="size">Size to advance.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Complete(System.Int32)">
+            <summary>
+            Advances the read position.
+            </summary>
+            <param name="size">Size to advance.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Seek(System.Int32)">
+            <summary>
+            Sets the read position.
+            </summary>
+            <param name="seekPosition">Position to set.</param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Shrink(System.Int32)">
+            <summary>
+            Moves back the write position. As a result, length is decreased by size.
+            </summary>
+            <param name="size"></param>
+        </member>
+        <member name="M:Amqp.ByteBuffer.Reset">
+            <summary>
+            Resets read and write position to the initial state.
+            </summary>
+        </member>
+        <member name="M:Amqp.ByteBuffer.AdjustPosition(System.Int32,System.Int32)">
+            <summary>
+            Adjusts the read and write position.
+            </summary>
+            <param name="offset">Read position to set.</param>
+            <param name="length">Length from read position to set the write position.</param>
+        </member>
+        <member name="P:Amqp.ByteBuffer.Buffer">
+            <summary>
+            Gets the byte array.
+            </summary>
+        </member>
+        <member name="P:Amqp.ByteBuffer.Capacity">
+            <summary>
+            Gets the capacity.
+            </summary>
+        </member>
+        <member name="P:Amqp.ByteBuffer.Offset">
+            <summary>
+            Gets the current offset (read position).
+            </summary>
+        </member>
+        <member name="P:Amqp.ByteBuffer.Size">
+            <summary>
+            Gets the remaining size for write.
+            </summary>
+        </member>
+        <member name="P:Amqp.ByteBuffer.Length">
+            <summary>
+            Gets the available size for read.
+            </summary>
+        </member>
+        <member name="P:Amqp.ByteBuffer.WritePos">
+            <summary>
+            Gets the write position.
+            </summary>
+        </member>
+        <member name="T:Amqp.OnOpened">
+            <summary>
+            The callback that is invoked when an open frame is received from peer.
+            </summary>
+            <param name="connection">The connection.</param>
+            <param name="open">The received open frame.</param>
+        </member>
+        <member name="T:Amqp.Connection">
+            <summary>
+            The Connection class represents an AMQP connection.
+            </summary>
+        </member>
+        <member name="F:Amqp.Connection.DisableServerCertValidation">
+            <summary>
+            A flag to disable server certificate validation when TLS is used.
+            </summary>
+        </member>
+        <member name="M:Amqp.Connection.#ctor(Amqp.Address)">
+            <summary>
+            Initializes a connection from the address.
+            </summary>
+            <param name="address">The address.</param>
+            <remarks>
+            The connection initialization includes establishing the underlying transport,
+            which typically has blocking network I/O. Depending on the current synchronization
+            context, it may cause deadlock or UI freeze. Please use the ConnectionFactory.CreateAsync
+            method instead.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Connection.#ctor(Amqp.Address,Amqp.Sasl.SaslProfile,Amqp.Framing.Open,Amqp.OnOpened)">
+            <summary>
+            Initializes a connection with SASL profile, open and open callback.
+            </summary>
+            <param name="address">The address.</param>
+            <param name="saslProfile">The SASL profile to do authentication (optional). If it is
+            null and address has user info, SASL PLAIN profile is used.</param>
+            <param name="open">The open frame to send (optional). If not null, all mandatory
+            fields must be set. Ensure that other fields are set to desired values.</param>
+            <param name="onOpened">The callback to handle remote open frame (optional).</param>
+            <remarks>
+            The connection initialization includes establishing the underlying transport,
+            which typically has blocking network I/O. Depending on the current synchronization
+            context, it may cause deadlock or UI freeze. Please use the ConnectionFactory.CreateAsync
+            method instead.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Connection.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the connection.
+            </summary>
+            <param name="error"></param>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Connection.Factory">
+            <summary>
+            Gets a factory with default settings.
+            </summary>
+        </member>
+        <member name="T:Amqp.ITransport">
+            <summary>
+            The transport interface used by a connection for network I/O.
+            </summary>
+        </member>
+        <member name="M:Amqp.ITransport.Send(Amqp.ByteBuffer)">
+            <summary>
+            Sends a buffer.
+            </summary>
+            <param name="buffer">The buffer to send.</param>
+        </member>
+        <member name="M:Amqp.ITransport.Receive(System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Receives a buffer.
+            </summary>
+            <param name="buffer">The buffer to store the received bytes.</param>
+            <param name="offset">The start position.</param>
+            <param name="count">The number of bytes to receive.</param>
+            <returns>The number of bytes received. It may be less than <paramref name="count"/>.
+            A value of 0 means that the transport is closed.</returns>
+        </member>
+        <member name="M:Amqp.ITransport.Close">
+            <summary>
+            Closes the transport.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ContainerHost">
+             <summary>
+             The ContainerHost class hosts an AMQP container where connection
+             listeners can be created to accept client requests.
+             </summary>
+             <remarks>
+             A container has one or more connection endpoints where transport
+             listeners are created.
+             
+             Message-level Processing
+              * IMessageProcessor: message processors can be registered to accept
+                incoming messages (one-way incoming).
+              * IMessageSource: message sources can be registered to handle
+                receive requests (one-way outgoing).
+              * IRequestProcessor: request processors can be registered to
+                process request messages and send back response (two-way).
+             
+             Link-level Processing
+             Message level processing only deals with incoming and outgoing messages
+             without worrying about the links.
+              * ILinkProcessor: link processors can be registered to process received
+                attach performatives. This is useful when the application needs to
+                participate in link attach/detach for extra resource allocation/cleanup,
+                or perform additional validation and security enforcement at the link level.
+              * Link processors create LinkEndpoint objects which can be either message
+                sink or message source. Application can create custom LinkEndpoint class
+                to handle all link events (flow, transfer and disposition). However, it
+                is recommended to use the built-in LinkEndpoint classes.
+              * TargetLinkEndpoint: a TargetLinkEndpoint simply forwards the request
+                to the IMessgeProcessor.
+              * SourceLinkEndpoint: a SourceLinkEndpoint manages link credit and
+                transforms flow state into a receive loop on the IMessageSource. Delivery
+                acknowledgements are simply forwarded to the IMessageSource.
+             
+             When per-link handling is required, it is recommended to combine message
+             level processing with link level processing.
+              * An IMessageProcessor/Souce should be implemented.
+              * After the link attach is handled, wrap it in a Target/SourceLinkEndpoint
+                that works with the previously implemented message processor or source.
+            
+             Upon receiving an attach performative, the registered message level
+             processors (IMessageProcessor, IMessageSource, IRequestProcessor) are
+             checked first. If a processor matches the address on the received attach
+             performative, a link is automatically created and the send/receive requests
+             will be rounted to the associated processor.
+             Otherwise, the registered link processor, if any, is invoked to create a
+             LinkEndpoint, where subsequent send/receive requests will be routed.
+             When none is found, the link is detached with error "amqp:not-found".
+             </remarks>
+        </member>
+        <member name="T:Amqp.Listener.IContainer">
+            <summary>
+            Represents an AMQP container.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.IContainer.CreateMessage(Amqp.ByteBuffer)">
+            <summary>
+            Creates an AMQP message from the buffer. This is useful for brokers/listen applications
+            to create lightweight message objects without paying the full serialization cost. 
+            </summary>
+            <param name="buffer">The serialized message.</param>
+            <returns>A message object created from the buffer.</returns>
+        </member>
+        <member name="M:Amqp.Listener.IContainer.CreateLink(Amqp.Listener.ListenerConnection,Amqp.Listener.ListenerSession,Amqp.Framing.Attach)">
+            <summary>
+            Creates an AMQP link for the attach request.
+            </summary>
+            <param name="connection">The connection where attach was received.</param>
+            <param name="session">The session where attach was received.</param>
+            <param name="attach">The received attach frame.</param>
+            <returns>A Link object to be attached to the node specified by the attach performative.</returns>
+        </member>
+        <member name="M:Amqp.Listener.IContainer.AttachLink(Amqp.Listener.ListenerConnection,Amqp.Listener.ListenerSession,Amqp.Link,Amqp.Framing.Attach)">
+            <summary>
+            Attaches the link. Brokers/listen applications should perform necessary validations (security,
+            resource condition, etc). If return value is true, an attach is sent to peer by the library,
+            otherwise the implementation is responsible to send attach to move the link to attached state.
+            </summary>
+            <param name="connection">The connection where attach was received.</param>
+            <param name="session">The session where attach was received.</param>
+            <param name="link">The link created in CreateLink call.</param>
+            <param name="attach">The received attach frame.</param>
+            <returns>A boolean value indicating if attaching the link has completed.</returns>
+        </member>
+        <member name="P:Amqp.Listener.IContainer.ServiceCertificate">
+            <summary>
+            Gets the service certificate.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.IContainer.CustomTransports">
+            <summary>
+            Gets the collection of custom transport providers. Key is the address scheme.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.#ctor(System.Collections.Generic.IList{System.String})">
+            <summary>
+            Initializes a container host object with multiple address.
+            </summary>
+            <param name="addressList">The list of listen addresses.</param>
+            <remarks>
+            Transport and protocol settings (TCP, SSL, SASL and AMQP) can be
+            set on the listeners of the host after it is created.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.#ctor(System.Uri)">
+            <summary>
+            Initializes a container host object with one address.
+            </summary>
+            <param name="addressUri">The address Uri. Only the scheme, host and port parts are used.
+            Supported schemes are "amqp", "amqps", "ws" and "wss".</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.#ctor(System.Collections.Generic.IList{System.Uri},System.Security.Cryptography.X509Certificates.X509Certificate2,System.String)">
+            <summary>
+            Initializes a container host object with multiple address.
+            </summary>
+            <param name="addressUriList">The list of listen addresses.</param>
+            <param name="certificate">The service certificate for TLS.</param>
+            <param name="userInfo">The credentials required by SASL PLAIN authentication. It is of
+            form "user:password" (parts are URL encoded).</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.Open">
+            <summary>
+            Opens the container host object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.Close">
+            <summary>
+            Closes the container host object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.RegisterLinkProcessor(Amqp.Listener.ILinkProcessor)">
+            <summary>
+            Registers a link processor to handle received attach performatives.
+            </summary>
+            <param name="linkProcessor">The link processor to be registered.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.RegisterMessageProcessor(System.String,Amqp.Listener.IMessageProcessor)">
+            <summary>
+            Registers a message processor to accept incoming messages from the specified address.
+            When it is called, the container creates a node where the client can attach.
+            </summary>
+            <param name="address">The address.</param>
+            <param name="messageProcessor">The message processor to be registered.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.RegisterMessageSource(System.String,Amqp.Listener.IMessageSource)">
+            <summary>
+            Registers a message source at the specified address where client receives messages.
+            When it is called, the container creates a node where the client can attach.
+            </summary>
+            <param name="address">The address.</param>
+            <param name="messageSource">The message source to be registered.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.RegisterRequestProcessor(System.String,Amqp.Listener.IRequestProcessor)">
+            <summary>
+            Registers a request processor from the specified address.
+            </summary>
+            <param name="address">The address.</param>
+            <param name="requestProcessor">The request processor to be registered.</param>
+            <remarks>
+            Client must create a pair of links (sending and receiving) at the address. The
+            source.address on the sending link should contain an unique address in the client
+            and it should be specified in target.address on the receiving link.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.UnregisterMessageProcessor(System.String)">
+            <summary>
+            Unregisters a message processor at the specified address.
+            </summary>
+            <param name="address">The address.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.UnregisterMessageSource(System.String)">
+            <summary>
+            Unregisters a message source at the specified address.
+            </summary>
+            <param name="address">The address.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.UnregisterRequestProcessor(System.String)">
+            <summary>
+            Unregisters a request processor at the specified address.
+            </summary>
+            <param name="address">The address.</param>
+        </member>
+        <member name="M:Amqp.Listener.ContainerHost.UnregisterLinkProcessor(Amqp.Listener.ILinkProcessor)">
+            <summary>
+            Unregisters a link processor that was previously registered.
+            </summary>
+            <param name="linkProcessor">The link processor to unregister.</param>
+            <remarks>If the linkProcessor was not registered or is different
+            from the current registered one, an exception is thrown.</remarks>
+        </member>
+        <member name="P:Amqp.Listener.ContainerHost.CustomTransports">
+            <summary>
+            Gets the collection of custom transport providers. Key is the address scheme.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ContainerHost.Listeners">
+            <summary>
+            Gets a list of connection listeners in this container.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.AttachContext">
+            <summary>
+            Provides the context to an attach processor to process the received performative.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.AttachContext.Complete(Amqp.Listener.LinkEndpoint,System.Int32)">
+            <summary>
+            Completes the processing of the attach performative with success.
+            </summary>
+            <param name="linkEndpoint">The attached link endpoint.</param>
+            <param name="initialCredit">The initial credit to send to peer for a receiving link endpoint. It is ignored for a sending endpoint.</param>
+        </member>
+        <member name="M:Amqp.Listener.AttachContext.Complete(Amqp.Framing.Error)">
+            <summary>
+            Completes the processing of the attach performative with an error.
+            </summary>
+            <param name="error">The error to be sent to the remote peer.</param>
+        </member>
+        <member name="P:Amqp.Listener.AttachContext.Link">
+            <summary>
+            Gets the link associated with the context.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.AttachContext.Attach">
+            <summary>
+            Gets the attach performative associated with the context.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ContextState">
+            <summary>
+            The state of a concext.
+            </summary>
+        </member>
+        <member name="F:Amqp.Listener.ContextState.Active">
+            <summary>
+            The context is active.
+            </summary>
+        </member>
+        <member name="F:Amqp.Listener.ContextState.Completed">
+            <summary>
+            The context is completed.
+            </summary>
+        </member>
+        <member name="F:Amqp.Listener.ContextState.Aborted">
+            <summary>
+            The context is aborted due to transport errors.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.FlowContext">
+            <summary>
+            Provides the context to a link endpoint to process a received flow.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.FlowContext.Link">
+            <summary>
+            Gets the link associated with the context.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.FlowContext.Messages">
+            <summary>
+            Gets the number of messages allowed to send by the peer.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.FlowContext.Properties">
+            <summary>
+            Gets the properties associated with the flow performative.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.IMessageSource">
+            <summary>
+            Defines the property and methods of a message source.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.IMessageSource.GetMessageAsync(Amqp.Listener.ListenerLink)">
+            <summary>
+            Gets a message to send to the remote peer. The implementation may set
+            a UserToken object so that internal state can be found by the context later.
+            </summary>
+            <returns>The receive context for the outgoing delivery.</returns>
+            <remarks>
+            Implementation must not throw exception. If a null context is returned and there
+            are outstanding link credits, the library calls the method again.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.IMessageSource.DisposeMessage(Amqp.Listener.ReceiveContext,Amqp.Listener.DispositionContext)">
+            <summary>
+            Disposes the message by releasing any associated resources.
+            This is called when a disposition frame is received from the peer.
+            </summary>
+            <param name="receiveContext">The ReceiveContext object returned by the GetMessageAsync method.</param>
+            <param name="dispositionContext">The DispositionContext object containing the disposition information.</param>
+            <remarks>
+            The implementation typically performs the following actions in this event.
+            (1) release any internal state associated with the message found by receiveContext.UserToken.
+            (2) complete the delivery by calling dispositionContext.Complete().
+            </remarks>
+        </member>
+        <member name="T:Amqp.Listener.TargetLinkEndpoint">
+            <summary>
+            The AMQP link endpoint for a message target. Use this class to manage links
+            attached to an IMessageProcessor.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.LinkEndpoint">
+            <summary>
+            The base class of an AMQP link endpoint.
+            </summary>
+            <remarks>
+            A link endpoint represents a target or a source terminus of a node.
+            A target link endpoint is a message sink and is also called receiving
+            link endpoint. A source link endpoint is a message source and is also
+            called sending link endpoint in this document.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.LinkEndpoint.OnMessage(Amqp.Listener.MessageContext)">
+            <summary>
+            Processes a received message.
+            </summary>
+            <param name="messageContext">Context of the received message.</param>
+            <remarks>
+            A receiving endpoint must implement this method to process messages.
+            The endpoint should call messageContext.Complete to finish processing
+            the message. An Accepted outcome or a Rejected outcome with the
+            specified error will be sent to the client.
+            A sending endpoint never receives messages and should not override this
+            method.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.LinkEndpoint.OnFlow(Amqp.Listener.FlowContext)">
+            <summary>
+            Processes a received flow performative.
+            </summary>
+            <param name="flowContext">Context of the received flow performative.</param>
+            <remarks>
+            A sending endpoint should send messages per the requested message count.
+            A receiving endpoint may receive a flow if the sender wants to exchange flow
+            state or send custom properties.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.LinkEndpoint.OnDisposition(Amqp.Listener.DispositionContext)">
+            <summary>
+            Processes a received disposition performative.
+            </summary>
+            <param name="dispositionContext">Context of the received disposition performative.</param>
+            <remarks>
+            The endpoint should handle the delivery state and the message settlement.
+            The delivery state indicates the outcome of the delivery on the remote peer.
+              * Accepted: message is accepted and should be retied (e.g. removed from the queue or
+                          deleted from the storage).
+              * Released: message is no longer acquired and should be made available for redelivery.
+              * Rejected: message cannot be processed and required action (e.g. redelivery and
+                          deadlettering) should be taken.
+              * Modified: similar to Released except message can be modified by the outcome.
+            After the outcome is handled, the endpoint should call dispositionContext.Complete (with
+            an error if any). If the delivery is not settled (as indicated by dispositionContext.Settled
+            flag), an outcome is sent to the remote peer and the delivery is settled.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.LinkEndpoint.OnLinkClosed(Amqp.Listener.ListenerLink,Amqp.Framing.Error)">
+            <summary>
+            The method is called when the link is closed. Derived classes may override this method to
+            perform necessary cleanup work.
+            </summary>
+            <param name="link">The link that is being closed.</param>
+            <param name="error">The error, if any, that causes the link to be closed.</param>
+        </member>
+        <member name="M:Amqp.Listener.TargetLinkEndpoint.#ctor(Amqp.Listener.IMessageProcessor,Amqp.Listener.ListenerLink)">
+            <summary>
+            Initializes a TargetLinkEndpoint object
+            </summary>
+            <param name="messageProcessor">The associated message processor.</param>
+            <param name="link">The listener link.</param>
+        </member>
+        <member name="M:Amqp.Listener.TargetLinkEndpoint.OnMessage(Amqp.Listener.MessageContext)">
+            <summary>
+            Notifies the message processor to processe a received message.
+            </summary>
+            <param name="messageContext">Context of the received message.</param>
+        </member>
+        <member name="M:Amqp.Listener.TargetLinkEndpoint.OnFlow(Amqp.Listener.FlowContext)">
+            <summary>
+            Processes a received flow performative.
+            </summary>
+            <param name="flowContext">Context of the received flow performative.</param>
+        </member>
+        <member name="M:Amqp.Listener.TargetLinkEndpoint.OnDisposition(Amqp.Listener.DispositionContext)">
+            <summary>
+            Processes a received disposition performative.
+            </summary>
+            <param name="dispositionContext">Context of the received disposition performative.</param>
+        </member>
+        <member name="T:Amqp.Listener.SourceLinkEndpoint">
+            <summary>
+            The AMQP link endpoint for a message source. Use this class to attach a link
+            endpoint to an IMessageSource for sending outgoing messages. This class manages
+            the link credit (flow control).
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.SourceLinkEndpoint.#ctor(Amqp.Listener.IMessageSource,Amqp.Listener.ListenerLink)">
+            <summary>
+            Initializes a SourceLinkEndpoint object
+            </summary>
+            <param name="messageSource">The associated message source.</param>
+            <param name="link">The listener link.</param>
+        </member>
+        <member name="M:Amqp.Listener.SourceLinkEndpoint.OnFlow(Amqp.Listener.FlowContext)">
+            <summary>
+            Processes a received flow performative and start receiving from the
+            message source if required.
+            </summary>
+            <param name="flowContext">Context of the received flow performative.</param>
+        </member>
+        <member name="M:Amqp.Listener.SourceLinkEndpoint.OnDisposition(Amqp.Listener.DispositionContext)">
+            <summary>
+            Notifies the message source the delivery state of an outgoing message.
+            </summary>
+            <param name="dispositionContext">Context of the received disposition performative.</param>
+        </member>
+        <member name="T:Amqp.Listener.ReceiveContext">
+            <summary>
+            Provides the context of a receive request. It is created by a message source
+            to track the delivery of an outgoing message.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.Context">
+            <summary>
+            The base class of request context.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.Context.#ctor(Amqp.Listener.ListenerLink,Amqp.Message)">
+            <summary>
+            Initializes a context object.
+            </summary>
+            <param name="link">The link where the message was received.</param>
+            <param name="message">The received message.</param>
+        </member>
+        <member name="M:Amqp.Listener.Context.Dispose(Amqp.Framing.DeliveryState)">
+            <summary>
+            Disposes the request. If required, a disposition frame is sent to
+            the peer to acknowledge the message.
+            </summary>
+            <param name="deliveryState">The delivery state to send.</param>
+        </member>
+        <member name="P:Amqp.Listener.Context.Link">
+            <summary>
+            Gets the receiving link associated with the context.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.Context.Message">
+            <summary>
+            Gets the messages associated with the context.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.Context.State">
+            <summary>
+            Gets the state of the concext.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ReceiveContext.#ctor(Amqp.Listener.ListenerLink,Amqp.Message)">
+            <summary>
+            Initializes a ReceiveContext object.
+            </summary>
+            <param name="link">The listener link to send out the message.</param>
+            <param name="message">The message to send out.</param>
+        </member>
+        <member name="P:Amqp.Listener.ReceiveContext.UserToken">
+            <summary>
+            Gets or sets an object that is associated with the receive context.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.X509Identity">
+            <summary>
+            Represents an client identity established by SSL client certificate authentication.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.X509Identity.Certificate">
+            <summary>
+            Gets the client certificate.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.X509Identity.AuthenticationType">
+            <summary>
+            Gets the type of authentication used. ("X509").
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.X509Identity.IsAuthenticated">
+            <summary>
+            Gets a value that indicates whether the user has been authenticated.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.X509Identity.Name">
+            <summary>
+            Gets the name of the identity.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ILinkProcessor">
+            <summary>
+            Defines the property and methods of a link processor.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ILinkProcessor.Process(Amqp.Listener.AttachContext)">
+            <summary>
+            Processes a received attach performative to open a link endpoint. The
+            implementation must call attachContext.Complete to either accept or
+            reject the attach performative.
+            </summary>
+            <param name="attachContext">Context of the received attach performative.</param>
+        </member>
+        <member name="T:Amqp.Listener.DispositionContext">
+            <summary>
+            Provides the context to a link endpoint to process the received disposition.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.MessageContext">
+            <summary>
+            Provides the context to a message processor to process the received message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.MessageContext.Complete">
+            <summary>
+            Accepts the message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.MessageContext.Complete(Amqp.Framing.Error)">
+            <summary>
+            Rejects the message.
+            </summary>
+            <param name="error"></param>
+        </member>
+        <member name="P:Amqp.Listener.MessageContext.DeliveryState">
+            <summary>
+            Gets the delivery state associated with the message.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.DispositionContext.Settled">
+            <summary>
+            Gets the settled state sent in the disposition.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.RequestContext">
+            <summary>
+            Provides the context to a request processor to process the received request.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.RequestContext.Complete(Amqp.Message)">
+            <summary>
+            Completes the request and sends the response message to the peer.
+            </summary>
+            <param name="response">The response message to send.</param>
+        </member>
+        <member name="P:Amqp.Listener.RequestContext.ResponseLink">
+            <summary>
+            Gets the response (sending) link associated with the request context.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.IRequestProcessor">
+            <summary>
+            Defines the methods of a request processor.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.IRequestProcessor.Process(Amqp.Listener.RequestContext)">
+            <summary>
+            Processes a received request.
+            </summary>
+            <param name="requestContext">Context of the received request.</param>
+        </member>
+        <member name="T:Amqp.Listener.IMessageProcessor">
+            <summary>
+            Defines the property and methods of a message processor.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.IMessageProcessor.Process(Amqp.Listener.MessageContext)">
+            <summary>
+            Processes a received message.
+            </summary>
+            <param name="messageContext">Context of the received message.</param>
+        </member>
+        <member name="P:Amqp.Listener.IMessageProcessor.Credit">
+            <summary>
+            Gets the link credit to issue to the client.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ListenerLink">
+            <summary>
+            The listener link provides non-blocking methods that can be used by brokers/listener
+            applications.
+            </summary>
+        </member>
+        <member name="T:Amqp.Link">
+            <summary>
+            The Link class represents an AMQP link.
+            </summary>
+        </member>
+        <member name="M:Amqp.Link.#ctor(Amqp.Session,System.String,Amqp.OnAttached)">
+            <summary>
+            Initializes the link.
+            </summary>
+            <param name="session">The session.</param>
+            <param name="name">The link name.</param>
+            <param name="onAttached">The callback to handle received attach.</param>
+        </member>
+        <member name="M:Amqp.Link.OnAbort(Amqp.Framing.Error)">
+            <summary>
+            Aborts the link.
+            </summary>
+            <param name="error">The <see cref="T:Amqp.Framing.Error"/> for aborting the link.</param>
+        </member>
+        <member name="M:Amqp.Link.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the link.
+            </summary>
+            <param name="error">The <see cref="T:Amqp.Framing.Error"/> for closing the link.</param>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Link.Name">
+            <summary>
+            Gets the link name.
+            </summary>
+        </member>
+        <member name="P:Amqp.Link.Handle">
+            <summary>
+            Gets the link handle.
+            </summary>
+        </member>
+        <member name="P:Amqp.Link.Session">
+            <summary>
+            Gets the session where the link was created.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.#ctor(Amqp.Listener.ListenerSession,Amqp.Framing.Attach)">
+            <summary>
+            Initializes a listener link object.
+            </summary>
+            <param name="session">The session.</param>
+            <param name="attach">The received attach frame.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.InitializeReceiver(System.UInt32,System.Action{Amqp.Listener.ListenerLink,Amqp.Message,Amqp.Framing.DeliveryState,System.Object},System.Object)">
+            <summary>
+            Initializes the receiver state for the link.
+            </summary>
+            <param name="credit">The link credit to send to the peer.</param>
+            <param name="onMessage">The callback to be invoked for received messages.</param>
+            <param name="state">The user state attached to the link.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.InitializeSender(System.Action{System.Int32,System.Object},System.Action{Amqp.Message,Amqp.Framing.DeliveryState,System.Boolean,System.Object},System.Object)">
+            <summary>
+            Initializes the sender state for the link.
+            </summary>
+            <param name="onCredit">The callback to be invoked when delivery limit changes (by received flow performatives).</param>
+            <param name="onDispose">The callback to be invoked when disposition is received.</param>
+            <param name="state">The user state attached to the link.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.SendMessage(Amqp.Message)">
+            <summary>
+            Sends a message. This call is non-blocking and it does not wait for acknowledgments.
+            </summary>
+            <param name="message"></param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.SendMessage(Amqp.Message,Amqp.ByteBuffer)">
+            <summary>
+            Sends a message with an optional buffer as the message payload.
+            </summary>
+            <param name="message">The message to be sent.</param>
+            <param name="buffer">The serialized buffer of the message. It is null, the message is serialized.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.DisposeMessage(Amqp.Message,Amqp.Framing.DeliveryState,System.Boolean)">
+            <summary>
+            Sends a disposition for the message.
+            </summary>
+            <param name="message">The message to be disposed (a disposition performative will be sent for this message).</param>
+            <param name="deliveryState">The delivery state to set on disposition.</param>
+            <param name="settled">The settled flag on disposition.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.CompleteAttach(Amqp.Framing.Attach,Amqp.Framing.Error)">
+            <summary>
+            Completes the link attach request. This should be called when the IContainer.AttachLink implementation returns false
+            and the asynchronous processing completes. 
+            </summary>
+            <param name="attach">The attach to send back.</param>
+            <param name="error">The error, if any, for the link.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.SetCredit(System.Int32,System.Boolean,System.Boolean)">
+            <summary>
+            Sets a credit on the link. A flow is sent to the peer to update link flow control state.
+            </summary>
+            <param name="credit">The new link credit.</param>
+            <param name="drain">Sets the drain flag in the flow performative.</param>
+            <param name="autoRestore">If true, link credit is auto-restored when a message is accepted/rejected
+            by the caller. If false, caller is responsible for manage link credits.</param>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the link.
+            </summary>
+            <param name="error">The error</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Listener.ListenerLink.OnAbort(Amqp.Framing.Error)">
+            <summary>
+            Aborts the link.
+            </summary>
+            <param name="error">The error.</param>
+        </member>
+        <member name="P:Amqp.Listener.ListenerLink.Role">
+            <summary>
+            Gets the sender (false) or receiver (true) role of the link.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ListenerLink.SettleOnSend">
+            <summary>
+            Gets the settled flag. If it is true, messages are sent settled.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ListenerLink.State">
+            <summary>
+            Gets the user state attached to the link when it is initialized.
+            </summary>
+        </member>
+        <member name="T:Amqp.TransportProvider">
+            <summary>
+            The TransportProvider class provides transport implementation for given address schemes.
+            </summary>
+        </member>
+        <member name="M:Amqp.TransportProvider.CreateAsync(Amqp.Address)">
+            <summary>
+            Creates a transport for the given address.
+            </summary>
+            <param name="address">The address to connect.</param>
+            <returns>An IAsyncTransport object representing the transport.</returns>
+        </member>
+        <member name="M:Amqp.TransportProvider.Dispose">
+            <summary>
+            Disposes the provider and release any associated resources.
+            </summary>
+        </member>
+        <member name="P:Amqp.TransportProvider.AddressSchemes">
+            <summary>
+            Gets or sets the supported address schemes.
+            </summary>
+        </member>
+        <member name="T:Amqp.BufferManager">
+            <summary>
+            A BufferManager class manages pooled buffers (byte arrays) with different sizes.
+            It provides an implementation of the <see cref="T:Amqp.IBufferManager"/> interface.
+            </summary>
+        </member>
+        <member name="T:Amqp.IBufferManager">
+            <summary>
+            The interface defines the methods to manage buffers.
+            </summary>
+        </member>
+        <member name="M:Amqp.IBufferManager.TakeBuffer(System.Int32)">
+            <summary>
+            Takes a buffer from the buffer manager.
+            </summary>
+            <param name="bufferSize">the buffer size.</param>
+            <returns>
+            A segment of a byte array. The count should be the same, or larger
+            than the requested bufferSize.
+            </returns>
+        </member>
+        <member name="M:Amqp.IBufferManager.ReturnBuffer(System.ArraySegment{System.Byte})">
+            <summary>
+            Returns a buffer to the buffer manager.
+            </summary>
+            <param name="buffer">The buffer to return.</param>
+        </member>
+        <member name="M:Amqp.BufferManager.#ctor(System.Int32,System.Int32,System.Int64)">
+            <summary>
+            Initializes a new instance of the BufferManager class.
+            </summary>
+            <param name="minBufferSize">The minimum size in bytes of pooled buffers.</param>
+            <param name="maxBufferSize">The maximum size in bytes of pooled buffers.</param>
+            <param name="maxMemorySize">The maximum totoal size in bytes of pooled buffers.</param>
+        </member>
+        <member name="T:Amqp.WebSocketTransportFactory">
+            <summary>
+            The factory to create <see cref="T:Amqp.WebSocketTransport"/> client for address
+            scheme "ws" and "wss".
+            </summary>
+        </member>
+        <member name="M:Amqp.WebSocketTransportFactory.#ctor">
+            <summary>
+            Initializes a new WebSocketTransportFactory object.
+            </summary>
+        </member>
+        <member name="M:Amqp.WebSocketTransportFactory.CreateAsync(Amqp.Address)">
+            <summary>
+            Creates a WebSocket transport for the given address.
+            </summary>
+            <param name="address">The address to connect.</param>
+            <returns>An IAsyncTransport object representing the transport.</returns>
+        </member>
+        <member name="P:Amqp.WebSocketTransportFactory.Options">
+            <summary>
+            Gets or sets the delegate to update the ClientWebSocketOptions of the underlying WebSocket object.
+            </summary>
+        </member>
+        <member name="T:Amqp.TcpSettings">
+            <summary>
+            Contains the TCP settings of a connection.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.LingerOption">
+            <summary>
+            Specifies the LingerOption option of the TCP socket.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.NoDelay">
+            <summary>
+            Specifies the NoDelay option of the TCP socket.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.ReceiveBufferSize">
+            <summary>
+            Specifies the ReceiveBufferSize option of the TCP socket.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.ReceiveTimeout">
+            <summary>
+            Specifies the ReceiveTimeout option of the TCP socket.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.SendBufferSize">
+            <summary>
+            Specifies the SendBufferSize option of the TCP socket.
+            </summary>
+        </member>
+        <member name="P:Amqp.TcpSettings.SendTimeout">
+            <summary>
+            Specifies the SendTimeout option of the TCP socket.
+            </summary>
+        </member>
+        <member name="T:Amqp.AmqpSettings">
+            <summary>
+            Contains the AMQP settings for a <see cref="T:Amqp.Connection"/>.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.MaxFrameSize">
+            <summary>
+            Gets or sets the open.max-frame-size field.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.ContainerId">
+            <summary>
+            Gets or sets the open.container-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.HostName">
+            <summary>
+            Gets or sets the open.hostname field.
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.MaxSessionsPerConnection">
+            <summary>
+            Gets or sets the open.channel-max field (less by one).
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.MaxLinksPerSession">
+            <summary>
+            Gets or sets the begin.handle-max field (less by one).
+            </summary>
+        </member>
+        <member name="P:Amqp.AmqpSettings.IdleTimeout">
+            <summary>
+            Gets or sets the open.idle-time-out field.
+            </summary>
+        </member>
+        <member name="T:Amqp.ConnectionFactoryBase">
+            <summary>
+            The base class of connection factories.
+            </summary>
+        </member>
+        <member name="M:Amqp.ConnectionFactoryBase.#ctor">
+            <summary>
+            Constructor to create a connection factory.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactoryBase.BufferManager">
+            <summary>
+            Gets or sets a buffer manager used by the connection factory.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactoryBase.TCP">
+            <summary>
+            Gets the TCP settings on the factory.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactoryBase.AMQP">
+            <summary>
+            Gets the AMQP settings on the factory.
+            </summary>
+        </member>
+        <member name="T:Amqp.Sasl.SaslProfile">
+            <summary>
+            The SaslProfile is the base class of an SASL profile implementation. It provides
+            the basic support for frame exchange during SASL authentication.
+            </summary>
+        </member>
+        <member name="M:Amqp.Sasl.SaslProfile.UpgradeTransport(Amqp.ITransport)">
+            <summary>
+            If a profile needs to change the buffer (e.g. encryption), it should
+            create a new ITransport object. Otherwise, it can simply return the
+            same transport object.
+            </summary>
+            <param name="transport">The current transport.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Sasl.SaslProfile.GetStartCommand(System.String)">
+            <summary>
+            The start SASL command.
+            </summary>
+            <param name="hostname">The hostname of the remote peer.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Sasl.SaslProfile.OnCommand(Amqp.Types.DescribedList)">
+            <summary>
+            Processes the received command and returns a response. If returns
+            null, the SASL handshake completes.
+            </summary>
+            <param name="command"></param>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Sasl.SaslProfile.Anonymous">
+            <summary>
+            Gets a SASL ANONYMOUS profile.
+            </summary>
+        </member>
+        <member name="P:Amqp.Sasl.SaslProfile.External">
+            <summary>
+            Gets a SASL EXTERNAL profile.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ListenerSession">
+            <summary>
+            An AMQP session used by the listener.
+            </summary>
+        </member>
+        <member name="T:Amqp.Session">
+            <summary>
+            The Session class represents an AMQP session.
+            </summary>
+        </member>
+        <member name="M:Amqp.Session.#ctor(Amqp.Connection)">
+            <summary>
+            Initializes a session object.
+            </summary>
+            <param name="connection">The connection within which to create the session.</param>
+        </member>
+        <member name="M:Amqp.Session.#ctor(Amqp.Connection,Amqp.Framing.Begin,Amqp.OnBegin)">
+            <summary>
+            Initializes a session object with a custom Begin performative.
+            </summary>
+            <param name="connection">The connection in which the session will be created.</param>
+            <param name="begin">The Begin performative to be sent to the remote peer.</param>
+            <param name="onBegin">The callback to invoke when a begin is received from peer.</param>
+        </member>
+        <member name="M:Amqp.Session.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the session.
+            </summary>
+            <param name="error">The error.</param>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Session.Connection">
+            <summary>
+            Gets the connection where the session was created.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ListenerConnection">
+            <summary>
+            An AMQP connection used by the listener.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ListenerConnection.Principal">
+            <summary>
+            Gets a IPrincipal object for the connection. If the value is null,
+            the connection is not authenticated.
+            </summary>
+        </member>
+        <member name="T:Amqp.ConnectionFactory">
+            <summary>
+            The factory to create connections asynchronously.
+            </summary>
+        </member>
+        <member name="M:Amqp.ConnectionFactory.#ctor">
+            <summary>
+            Constructor to create a connection factory with default transport
+            implementations.
+            </summary>
+        </member>
+        <member name="M:Amqp.ConnectionFactory.#ctor(System.Collections.Generic.IEnumerable{Amqp.TransportProvider})">
+            <summary>
+            Creates a connection factory with a custom transport factory.
+            </summary>
+            <param name="providers">The custom transport providers.</param>
+            <remarks>The library provides built-in transport implementation for address schemes
+            "amqp", "amqps" (and "ws", "wss" on .Net framework). Application can replace or
+            extend it with custom implementations. When the built-in provider is replaced,
+            the TCP and SSL settings of the connection factory will not be applied to the
+            custom implementation.
+            </remarks>
+        </member>
+        <member name="M:Amqp.ConnectionFactory.CreateAsync(Amqp.Address)">
+            <summary>
+            Creates a new connection asynchronously.
+            </summary>
+            <param name="address">The address of remote endpoint to connect to.</param>
+            <returns>A task for the connection creation operation. On success, the result is an AMQP <see cref="T:Amqp.Connection"/></returns>
+        </member>
+        <member name="M:Amqp.ConnectionFactory.CreateAsync(Amqp.Address,Amqp.Framing.Open,Amqp.OnOpened)">
+            <summary>
+            Creates a new connection with a custom open frame and a callback to handle remote open frame.
+            </summary>
+            <param name="address">The address of remote endpoint to connect to.</param>
+            <param name="open">If specified, it is sent to open the connection, otherwise an open frame created from the AMQP settings property is sent.</param>
+            <param name="onOpened">If specified, it is invoked when an open frame is received from the remote peer.</param>
+            <returns>A task for the connection creation operation. On success, the result is an AMQP <see cref="T:Amqp.Connection"/></returns>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SSL">
+            <summary>
+            Gets the TLS/SSL settings on the factory.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SASL">
+            <summary>
+            Gets the SASL settings on the factory.
+            </summary>
+        </member>
+        <member name="T:Amqp.ConnectionFactory.SslSettings">
+            <summary>
+            Contains the TLS/SSL settings for a connection.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SslSettings.ClientCertificates">
+            <summary>
+            Client certificates to use for mutual authentication.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SslSettings.Protocols">
+            <summary>
+            Supported protocols to use.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SslSettings.CheckCertificateRevocation">
+            <summary>
+            Specifies whether certificate revocation should be performed during handshake.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SslSettings.RemoteCertificateValidationCallback">
+            <summary>
+            Gets or sets a certificate validation callback to validate remote certificate.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SslSettings.LocalCertificateSelectionCallback">
+            <summary>
+            Gets or sets a local certificate selection callback to select the certificate which should be used for authentication.
+            </summary>
+        </member>
+        <member name="T:Amqp.ConnectionFactory.SaslSettings">
+            <summary>
+            Contains the SASL settings for a connection.
+            </summary>
+        </member>
+        <member name="P:Amqp.ConnectionFactory.SaslSettings.Profile">
+            <summary>
+            The SASL profile to use for SASL negotiation.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ConnectionListener">
+            <summary>
+            The conneciton listener accepts AMQP connections from an address.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ConnectionListener.#ctor(System.String,Amqp.Listener.IContainer)">
+            <summary>
+            Initializes the connection listener object.
+            </summary>
+            <param name="address">The address to listen on.</param>
+            <param name="container">The IContainer implementation to handle client requests.</param>
+        </member>
+        <member name="M:Amqp.Listener.ConnectionListener.#ctor(System.Uri,System.String,Amqp.Listener.IContainer)">
+            <summary>
+            Initializes the connection listener object.
+            </summary>
+            <param name="addressUri">The address Uri to listen on.</param>
+            <param name="userInfo">The credentials for client authentication using SASL PLAIN mechanism.</param>
+            <param name="container">The IContainer implementation to handle client requests.</param>
+            <remarks>
+            This constructor is deprecated. To set user info, use ConnectionListener.SASL.EnablePlainMechanism method
+            after the connection listener is created.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Listener.ConnectionListener.Open">
+            <summary>
+            Opens the listener.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ConnectionListener.Close">
+            <summary>
+            Closes the listener.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.Container">
+            <summary>
+            Gets the AMQP container.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.Address">
+            <summary>
+            Gets the address the listener is listening on.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SSL">
+            <summary>
+            Gets the TLS/SSL settings on the listener.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SASL">
+            <summary>
+            Gets the SASL settings on the listener.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ConnectionListener.SslSettings">
+            <summary>
+            Contains the TLS/SSL settings for a connection.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SslSettings.Certificate">
+            <summary>
+            Gets or sets the listener certificate.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SslSettings.ClientCertificateRequired">
+            <summary>
+            Gets or sets a a Boolean value that specifies whether the client must supply a certificate for authentication.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SslSettings.Protocols">
+            <summary>
+            Gets or sets the supported protocols to use.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SslSettings.CheckCertificateRevocation">
+            <summary>
+            Specifies whether certificate revocation should be performed during handshake.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SslSettings.RemoteCertificateValidationCallback">
+            <summary>
+            Gets or sets a certificate validation callback to validate remote certificate.
+            </summary>
+        </member>
+        <member name="T:Amqp.Listener.ConnectionListener.SaslSettings">
+            <summary>
+            Contains the SASL settings for a connection.
+            </summary>
+        </member>
+        <member name="M:Amqp.Listener.ConnectionListener.SaslSettings.EnablePlainMechanism(System.String,System.String)">
+            <summary>
+            Enables SASL PLAIN mechanism.
+            </summary>
+            <param name="userName"></param>
+            <param name="password"></param>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SaslSettings.EnableAnonymousMechanism">
+            <summary>
+            Gets or sets a value indicating if SASL ANONYMOUS mechanism is enabled.
+            </summary>
+        </member>
+        <member name="P:Amqp.Listener.ConnectionListener.SaslSettings.EnableExternalMechanism">
+            <summary>
+            Gets or sets a value indicating if SASL EXTERNAL mechanism is enabled.
+            </summary>
+        </member>
+        <member name="T:Amqp.IAsyncTransport">
+            <summary>
+            Provides asynchronous I/O calls.
+            </summary>
+        </member>
+        <member name="M:Amqp.IAsyncTransport.SetConnection(Amqp.Connection)">
+            <summary>
+            Sets a connection to the transport.
+            </summary>
+            <param name="connection">The <see cref="T:Amqp.Connection"/> to attach to the transport.</param>
+        </member>
+        <member name="M:Amqp.IAsyncTransport.SendAsync(System.Collections.Generic.IList{Amqp.ByteBuffer},System.Int32)">
+            <summary>
+            Sends a list of buffers asynchronously.
+            </summary>
+            <param name="bufferList">The list of buffers to send.</param>
+            <param name="listSize">Number of bytes of all buffers in bufferList.</param>
+            <returns>A task for the send operation.</returns>
+        </member>
+        <member name="M:Amqp.IAsyncTransport.ReceiveAsync(System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Reads bytes into a buffer asynchronously.
+            </summary>
+            <param name="buffer">The buffer to store data.</param>
+            <param name="offset">The buffer offset where data starts.</param>
+            <param name="count">The number of bytes to read.</param>
+            <returns>A task for the receive operation. The result is the actual bytes
+            read from the transport.</returns>
+        </member>
+        <member name="T:Amqp.WebSocketTransport">
+            <summary>
+            The WebSocketTransport class allows applications to send and receive AMQP traffic
+            using the AMQP-WebSockets binding protocol.
+            </summary>
+        </member>
+        <member name="T:Amqp.TaskExtensions">
+            <summary>
+            Provides extension methods.
+            </summary>
+        </member>
+        <member name="M:Amqp.TaskExtensions.CloseAsync(Amqp.AmqpObject,System.Int32)">
+            <summary>
+            Closes an AMQP object asynchronously.
+            </summary>
+            <param name="amqpObject">The object to close.</param>
+            <param name="timeout">The timeout in milliseconds. Refer to AmqpObject.Close for details.</param>
+            <returns>A Task for the asynchronous close operation.</returns>
+        </member>
+        <member name="M:Amqp.TaskExtensions.SendAsync(Amqp.SenderLink,Amqp.Message)">
+            <summary>
+            Sends a message asynchronously.
+            </summary>
+            <param name="sender">The sender link.</param>
+            <param name="message">The message to send.</param>
+            <returns>A Task for the asynchronous send operation.</returns>
+        </member>
+        <member name="M:Amqp.TaskExtensions.ReceiveAsync(Amqp.ReceiverLink,System.TimeSpan)">
+            <summary>
+            Receives a message asynchronously.
+            </summary>
+            <param name="receiver">The receiver link.</param>
+            <param name="timeout">The timeout to wait for a message.</param>
+            <returns>A Task for the asynchronous receive operation. The result is a Message object
+            if available; otherwise a null value.</returns>
+        </member>
+        <member name="M:Amqp.TaskExtensions.ReceiveAsync(Amqp.ReceiverLink,System.Int32)">
+            <summary>
+            Receives a message asynchronously.
+            </summary>
+            <param name="receiver">The receiver link.</param>
+            <param name="timeout">The timeout in milliseconds to wait for a message.</param>
+            <returns>A Task for the asynchronous receive operation. The result is a Message object
+            if available; otherwise a null value.</returns>
+        </member>
+        <member name="T:Amqp.Framing.Accepted">
+            <summary>
+            The accepted outcome.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Outcome">
+            <summary>
+            Outcome is a terminal delivery-state of a delivery.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.DeliveryState">
+            <summary>
+            The Messaging layer defines a concrete set of delivery states which can be used
+            to indicate the state of the message at the receiver.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.DescribedList">
+            <summary>
+            The DescribedList class consist of a descriptor and an AMQP list.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.RestrictedDescribed">
+            <summary>
+            The RestrictedDescribed class is an AMQP described value, whose descriptor is
+            restricted to symbol or ulong.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.Described">
+            <summary>
+            A Described class represents an AMQP described value.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Described.Encode(Amqp.ByteBuffer)">
+            <summary>
+            Encodes the current described value into a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+        </member>
+        <member name="M:Amqp.Types.Described.Decode(Amqp.ByteBuffer)">
+            <summary>
+            Decodes the descriptor and the value of the current object from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+        </member>
+        <member name="M:Amqp.Types.RestrictedDescribed.#ctor(Amqp.Types.Descriptor)">
+            <summary>
+            Initializes a described value.
+            </summary>
+            <param name="descriptor">The descriptor of the value.</param>
+        </member>
+        <member name="P:Amqp.Types.RestrictedDescribed.Descriptor">
+            <summary>
+            Gets the descriptor.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.DescribedList.#ctor(Amqp.Types.Descriptor,System.Int32)">
+            <summary>
+            Initializes the described list object.
+            </summary>
+            <param name="descriptor">The descriptor of the concrete described list class.</param>
+            <param name="fieldCount">The number of fields of the concrete described list class.</param>
+        </member>
+        <member name="M:Amqp.Types.DescribedList.GetDebugString(System.String,System.Object[],System.Object[])">
+            <summary>
+            Returns a string representing the current object for tracing purpose.
+            </summary>
+            <param name="name">The object name.</param>
+            <param name="fieldNames">The field names.</param>
+            <param name="fieldValues">The field values.</param>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Types.DescribedList.Fields">
+            <summary>
+            Gets the array of all fields.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.DeliveryState.#ctor(Amqp.Types.Descriptor,System.Int32)">
+            <summary>
+            Initializes the delivery state object.
+            </summary>
+            <param name="descriptor">The descriptor of the concrete delivery state class.</param>
+            <param name="fieldCount">The number of fields of the concrete delivery state class.</param>
+        </member>
+        <member name="M:Amqp.Framing.Outcome.#ctor(Amqp.Types.Descriptor,System.Int32)">
+            <summary>
+            Initializes the outcome object.
+            </summary>
+            <param name="descriptor">The descriptor of the concrete outcome class.</param>
+            <param name="fieldCount">The number of fields of the concrete outcome class.</param>
+        </member>
+        <member name="M:Amqp.Framing.Accepted.#ctor">
+            <summary>
+            Initializes an accepted outcome.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Accepted.ToString">
+            <summary>
+            Returns a string that represents the current accepted outcome.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.ApplicationProperties">
+            <summary>
+            The class defines the application properties section of an AMQP messages.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.DescribedMap">
+            <summary>
+            The DescribedMap class consist of a descriptor and an AMQP map.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.DescribedMap.#ctor(Amqp.Types.Descriptor,System.Type)">
+            <summary>
+            Initializes the described map object.
+            </summary>
+            <param name="descriptor">The descriptor of the concrete described map class.</param>
+            <param name="keyType">The allowed key type.</param>
+        </member>
+        <member name="M:Amqp.Types.DescribedMap.ToString">
+            <summary>
+            Returns a string that represents the current map.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Types.DescribedMap.Map">
+            <summary>
+            Gets the map value.
+            </summary>
+        </member>
+        <member name="P:Amqp.Types.DescribedMap.Item(System.Object)">
+            <summary>
+            Gets the object associated with the key.
+            </summary>
+            <param name="key">The key.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Framing.ApplicationProperties.#ctor">
+            <summary>
+            Initializes the application properties section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.ApplicationProperties.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.Attach">
+            <summary>
+            The Attach class defines an attach frame to attach a Link Endpoint to the Session.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Attach.#ctor">
+            <summary>
+            Initializes an attach object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Attach.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Attach.LinkName">
+            <summary>
+            Gets or sets the name field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Handle">
+            <summary>
+            Gets or sets the handle field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Role">
+            <summary>
+            Gets or sets the role field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.SndSettleMode">
+            <summary>
+            Gets or sets the snd-settle-mode field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.RcvSettleMode">
+            <summary>
+            Gets or sets the rcv-settle-mode field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Source">
+            <summary>
+            Gets or sets the source field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Target">
+            <summary>
+            Gets or sets the target field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Unsettled">
+            <summary>
+            Gets or sets the unsettled field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.IncompleteUnsettled">
+            <summary>
+            Gets or sets the incomplete-unsettled field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.InitialDeliveryCount">
+            <summary>
+            Gets or sets the initial-delivery-count field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.MaxMessageSize">
+            <summary>
+            Gets or sets the max-message-size field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.OfferedCapabilities">
+            <summary>
+            Gets or sets the offered-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.DesiredCapabilities">
+            <summary>
+            Gets or sets the desired-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Attach.Properties">
+            <summary>
+            Gets or sets the properties field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Begin">
+            <summary>
+            The Begin class contains parameters to begin a session in a connection.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Begin.#ctor">
+            <summary>
+            Initializes a Begin object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Begin.ToString">
+            <summary>
+            Returns a string that represents the current begin object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.RemoteChannel">
+            <summary>
+            Gets or sets the remote-channel field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.NextOutgoingId">
+            <summary>
+            Gets or sets the next-outgoing-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.IncomingWindow">
+            <summary>
+            Gets or sets the incoming-window field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.OutgoingWindow">
+            <summary>
+            Gets or sets the outgoing-window field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.HandleMax">
+            <summary>
+            Gets or sets the handle-max field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.OfferedCapabilities">
+            <summary>
+            Gets or sets the offered-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.DesiredCapabilities">
+            <summary>
+            Gets or sets the desired-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Begin.Properties">
+            <summary>
+            Gets or sets the properties field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.AmqpValue">
+            <summary>
+            An amqp-value section contains a single AMQP value.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.AmqpValue.#ctor">
+            <summary>
+            Initializes an AmqpValue object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.AmqpValue.Value">
+            <summary>
+            Gets or sets the value in the body section.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.AmqpSequence">
+            <summary>
+            A sequence section contains an arbitrary number of structured data elements.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.AmqpSequence.#ctor">
+            <summary>
+            Initializes an AmqpSequence object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.AmqpSequence.List">
+            <summary>
+            Gets or sets the list (data elements) in the section.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Data">
+            <summary>
+            A data section contains opaque binary data.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Data.#ctor">
+            <summary>
+            Initializes a Data object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Data.Binary">
+            <summary>
+            Gets or sets the binary data in this section.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Data.Buffer">
+            <summary>
+            Gets or sets the binary data contained in a buffer in this section.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.DeliveryAnnotations">
+            <summary>
+            The delivery-annotations section is used for delivery-specific non-standard
+            properties at the head of the message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.DeliveryAnnotations.#ctor">
+            <summary>
+            Initializes a delivery annotations section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.DeliveryAnnotations.ToString">
+            <summary>
+            Returns a string that represents the current delivery annotations object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.Error">
+            <summary>
+            Defines the details of an error.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Error.#ctor">
+            <summary>
+            Initializes an error object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Error.ToString">
+            <summary>
+            Returns a string that represents the current error object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Error.Condition">
+            <summary>
+            Gets or sets a symbolic value indicating the error condition.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Error.Description">
+            <summary>
+            Gets or sets the descriptive text about the error condition.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Error.Info">
+            <summary>
+            Gets or sets the map carrying information about the error condition.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Footer">
+            <summary>
+            The Footer class represents the footer section of a message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Footer.#ctor">
+            <summary>
+            Initializes a footer section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Footer.ToString">
+            <summary>
+            Returns a string that represents the current footer object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.Header">
+            <summary>
+            The header section carries standard delivery details about the transfer of a
+            Message through the AMQP network.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Header.#ctor">
+            <summary>
+            Initializes a header object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Header.ToString">
+            <summary>
+            Returns a string that represents the current header object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Header.Durable">
+            <summary>
+            Gets or sets the durable field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Header.Priority">
+            <summary>
+            Gets or sets the priority field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Header.Ttl">
+            <summary>
+            Gets or sets the ttl field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Header.FirstAcquirer">
+            <summary>
+            Gets or sets the first-acquirer field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Header.DeliveryCount">
+            <summary>
+            Gets or sets the delivery-count field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.MessageAnnotations">
+            <summary>
+            The message-annotations section is used for properties of the message which are
+            aimed at the infrastructure and should be propagated across every delivery step.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.MessageAnnotations.#ctor">
+            <summary>
+            Initializes a message annotations section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.MessageAnnotations.ToString">
+            <summary>
+            Returns a string that represents the current message annotations object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.Modified">
+            <summary>
+            The Modified class defines the modified outcome.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Modified.#ctor">
+            <summary>
+            Initializes a modified outcome.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Modified.ToString">
+            <summary>
+            Returns a string that represents the current modified object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Modified.DeliveryFailed">
+            <summary>
+            Gets or sets the delivery-failed field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Modified.UndeliverableHere">
+            <summary>
+            Gets or sets the undeliverable-here field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Modified.MessageAnnotations">
+            <summary>
+            Gets or sets the message-annotations field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Open">
+            <summary>
+            The Open class defines the connection negotiation parameters.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Open.#ctor">
+            <summary>
+            Initializes the Open object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Open.ToString">
+            <summary>
+            Returns a string that represents the current open object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Open.ContainerId">
+            <summary>
+            Gets or sets the container-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.HostName">
+            <summary>
+            Gets or sets the hostname field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.MaxFrameSize">
+            <summary>
+            Gets or sets the max-frame-size field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.ChannelMax">
+            <summary>
+            Gets or sets the channel-max field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.IdleTimeOut">
+            <summary>
+            Gets or sets the idle-time-out field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.OutgoingLocales">
+            <summary>
+            Gets or sets the outgoing-locales field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.IncomingLocales">
+            <summary>
+            Gets or sets the incoming-locales field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.OfferedCapabilities">
+            <summary>
+            Gets or sets the offered-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.DesiredCapabilities">
+            <summary>
+            Gets or sets the desired-capabilities field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Open.Properties">
+            <summary>
+            Gets or sets the properties field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Properties">
+            <summary>
+            The Properties class defines the Immutable properties of the Message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Properties.#ctor">
+            <summary>
+            Initializes a properties section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Properties.ToString">
+            <summary>
+            Returns a string that represents the current properties object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Properties.MessageId">
+            <summary>
+            Gets or sets the message-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.UserId">
+            <summary>
+            Gets or sets the user-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.To">
+            <summary>
+            Gets or sets the to field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.Subject">
+            <summary>
+            Gets or sets the subject field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.ReplyTo">
+            <summary>
+            Gets or sets the reply-to field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.CorrelationId">
+            <summary>
+            Gets or sets the correlation-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.ContentType">
+            <summary>
+            Gets or sets the content-type field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.ContentEncoding">
+            <summary>
+            Gets or sets the content-encoding field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.AbsoluteExpiryTime">
+            <summary>
+            Gets or sets the absolute-expiry-time field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.CreationTime">
+            <summary>
+            Gets or sets the creation-time field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.GroupId">
+            <summary>
+            Gets or sets the group-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.GroupSequence">
+            <summary>
+            Gets or sets the group-sequence field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Properties.ReplyToGroupId">
+            <summary>
+            Gets or sets the reply-to-group-id field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.ReceiverSettleMode">
+            <summary>
+            Defines the settlement policy for a receiver.
+            </summary>
+        </member>
+        <member name="F:Amqp.Framing.ReceiverSettleMode.First">
+            <summary>
+            The Receiver will spontaneously settle all incoming transfers.
+            </summary>
+        </member>
+        <member name="F:Amqp.Framing.ReceiverSettleMode.Second">
+            <summary>
+            The receiver will only settle after sending the disposition to the sender and
+            receiving a disposition indicating settlement of the delivery from the sender.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Rejected">
+            <summary>
+            The rejected outcome is a terminal delivery state.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Rejected.#ctor">
+            <summary>
+            Initializes a rejected object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Rejected.ToString">
+            <summary>
+            Returns a string that represents the current rejected object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Rejected.Error">
+            <summary>
+            Gets or sets the error field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Released">
+            <summary>
+            The released outcome is a terminal delivery state.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Released.#ctor">
+            <summary>
+            Initializes a released object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Released.ToString">
+            <summary>
+            Returns a string that represents the current released object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Framing.SenderSettleMode">
+            <summary>
+            Defines the settlement policy for a sender.
+            </summary>
+        </member>
+        <member name="F:Amqp.Framing.SenderSettleMode.Unsettled">
+            <summary>
+            The Sender will send all deliveries initially unsettled to the receiver.
+            </summary>
+        </member>
+        <member name="F:Amqp.Framing.SenderSettleMode.Settled">
+            <summary>
+            The Sender will send all deliveries settled to the receiver.
+            </summary>
+        </member>
+        <member name="F:Amqp.Framing.SenderSettleMode.Mixed">
+            <summary>
+            The sender may send a mixture of settled and unsettled deliveries to the receiver.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Source">
+            <summary>
+            The source is comprised of an address coupled with properties that determine
+            message transfer behavior.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Source.#ctor">
+            <summary>
+            Initializes a source object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Source.ToString">
+            <summary>
+            Returns a string that represents the current source object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Address">
+            <summary>
+            Gets or sets the address field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Durable">
+            <summary>
+            Gets or sets the durable field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.ExpiryPolicy">
+            <summary>
+            Gets or sets the expiry-policy field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Timeout">
+            <summary>
+            Gets or sets the timeout field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Dynamic">
+            <summary>
+            Gets or sets the dynamic field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.DynamicNodeProperties">
+            <summary>
+            Gets or sets the dynamic-node-properties field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.DistributionMode">
+            <summary>
+            Gets or sets the distribution-mode field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.FilterSet">
+            <summary>
+            Gets or sets the filter field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.DefaultOutcome">
+            <summary>
+            Gets or sets the default-outcome field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Outcomes">
+            <summary>
+            Gets or sets the outcomes field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Source.Capabilities">
+            <summary>
+            Gets or sets the capabilities field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Framing.Target">
+            <summary>
+            The target is comprised of an address coupled with properties that determine
+            message transfer behavior.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Target.#ctor">
+            <summary>
+            Initializes a target object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Framing.Target.ToString">
+            <summary>
+            Returns a string that represents the current target object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Framing.Target.Address">
+            <summary>
+            Gets or sets the address field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.Durable">
+            <summary>
+            Gets or sets the durable field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.ExpiryPolicy">
+            <summary>
+            Gets or sets the expiry-policy field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.Timeout">
+            <summary>
+            Gets or sets the timeout field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.Dynamic">
+            <summary>
+            Gets or sets the dynamic field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.DynamicNodeProperties">
+            <summary>
+            Gets or sets the dynamic-node-properties field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Framing.Target.Capabilities">
+            <summary>
+            Gets or sets the capabilities field.
+            </summary>
+        </member>
+        <member name="T:Amqp.OnAttached">
+            <summary>
+            The callback that is invoked when an attach frame is received from the peer.
+            </summary>
+            <param name="link">The link object.</param>
+            <param name="attach">The received attach frame.</param>
+        </member>
+        <member name="T:Amqp.Message">
+            <summary>
+            The Message class represents an AMQP message.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.Header">
+            <summary>
+            The header section.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.DeliveryAnnotations">
+            <summary>
+            The delivery annotation section.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.MessageAnnotations">
+            <summary>
+            The message annotation section.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.Properties">
+            <summary>
+            The properties section.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.ApplicationProperties">
+            <summary>
+            The application properties section.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.BodySection">
+            <summary>
+            The body section. The library supports one section only.
+            </summary>
+        </member>
+        <member name="F:Amqp.Message.Footer">
+            <summary>
+            The footer section.
+            </summary>
+        </member>
+        <member name="M:Amqp.Message.#ctor">
+            <summary>
+            Initializes an empty message.
+            </summary>
+        </member>
+        <member name="M:Amqp.Message.#ctor(System.Object)">
+            <summary>
+            Initializes a message with an AmqpValue body. The body must be a defined AMQP type.
+            </summary>
+            <param name="body">the object stored in the AmqpValue section.</param>
+        </member>
+        <member name="M:Amqp.Message.GetBody``1">
+            <summary>
+            Gets an object of type T from the message body.
+            </summary>
+            <typeparam name="T">The object type.</typeparam>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Message.Encode">
+            <summary>
+            Encodes the message into a buffer.
+            </summary>
+            <returns>The buffer.</returns>
+        </member>
+        <member name="M:Amqp.Message.Decode(Amqp.ByteBuffer)">
+            <summary>
+            Decodes a message from a buffer and advance the buffer read cursor.
+            </summary>
+            <param name="buffer">The buffer.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Message.Dispose">
+            <summary>
+            Disposes the current message to release resources.
+            </summary>
+        </member>
+        <member name="P:Amqp.Message.Body">
+            <summary>
+            Gets the object from the body. The returned value depends on the type of the body section.
+            Use the BodySection field if the entire section is needed.
+            </summary>
+        </member>
+        <member name="P:Amqp.Message.DeliveryTag">
+            <summary>
+            Gets the delivery tag associated with the message.
+            </summary>
+        </member>
+        <member name="T:Amqp.Fx">
+            <summary>
+            Provides framework specific routines.
+            </summary>
+        </member>
+        <member name="M:Amqp.Fx.Assert(System.Boolean,System.String)">
+            <summary>
+            Asserts a condition is true.
+            </summary>
+            <param name="condition">A boolean value indicating the condition.</param>
+            <param name="message">The error message if condition is not met.</param>
+        </member>
+        <member name="M:Amqp.Fx.Format(System.String,System.Object[])">
+            <summary>
+            Formats a string from a format and an array of arguments.
+            </summary>
+            <param name="format">The format string.</param>
+            <param name="args">The arguments.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Fx.StartThread(System.Threading.ThreadStart)">
+            <summary>
+            Starts a new thread.
+            </summary>
+            <param name="threadStart">The thread start callback.</param>
+        </member>
+        <member name="T:Amqp.Types.List">
+            <summary>
+            A List class is an AMQP list.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.Map">
+            <summary>
+            A Map class is an AMQP map.
+            </summary>
+            <summary>
+            A Map class is an AMQP map.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Map.ToString">
+            <summary>
+            Returns a string that represents the current map object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Types.Map.Item(System.Object)">
+            <summary>
+            Gets or sets an item in the map.
+            </summary>
+            <param name="key">The key of the item.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.SRAmqp">
+            <summary>
+              A strongly-typed resource class, for looking up localized strings, etc.
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.ResourceManager">
+            <summary>
+              Returns the cached ResourceManager instance used by this class.
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.Culture">
+            <summary>
+              Overrides the current thread's CurrentUICulture property for all
+              resource lookups using this strongly typed resource class.
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpChannelNotFound">
+            <summary>
+              Looks up a localized string similar to The session channel &apos;{0}&apos; cannot be found..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpHandleExceeded">
+            <summary>
+              Looks up a localized string similar to Cannot allocate more handles. The maximum number of handles is {0}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpHandleInUse">
+            <summary>
+              Looks up a localized string similar to The handle &apos;{0}&apos; is already allocated for &apos;{1}&apos;..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpHandleNotFound">
+            <summary>
+              Looks up a localized string similar to The link handle &apos;{0}&apos; cannot be found in session &apos;{1}&apos;..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpIllegalOperationState">
+            <summary>
+              Looks up a localized string similar to Operation &apos;{0}&apos; is not valid under state: {1}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpInvalidFormatCode">
+            <summary>
+              Looks up a localized string similar to The format code &apos;{0}&apos; at frame buffer offset &apos;{1}&apos; is invalid..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpOperationNotSupported">
+            <summary>
+              Looks up a localized string similar to {0} is not supported over AMQP..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpTimeout">
+            <summary>
+              Looks up a localized string similar to The operation {0} did not complete within the allocated time {1} for object {2}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.AmqpUnknownDescriptor">
+            <summary>
+              Looks up a localized string similar to The descriptor {0} is unknown..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.DeliveryLimitExceeded">
+            <summary>
+              Looks up a localized string similar to There is no credit to accept a new delivery (id={0}) on the link..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.EncodingTypeNotSupported">
+            <summary>
+              Looks up a localized string similar to The type &apos;{0}&apos; is not a valid AMQP type and cannot be encoded..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidAddressFormat">
+            <summary>
+              Looks up a localized string similar to The address is not correctly formatted..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidDeliveryIdOnTransfer">
+            <summary>
+              Looks up a localized string similar to transfer.delivery-id {0} is invalid (expect: {1}).
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidFrameSize">
+            <summary>
+              Looks up a localized string similar to Invalid frame size:{0}, maximum frame size:{1}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidMapCount">
+            <summary>
+              Looks up a localized string similar to The map count {0} is invalid. It must be an even number..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidMapKeyType">
+            <summary>
+              Looks up a localized string similar to The key type {0} is invalid. The map key is restricted to {1}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.InvalidSequenceNumberComparison">
+            <summary>
+              Looks up a localized string similar to Comparison of {0} and {1} is invalid because the result is undefined..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.LinkNotFound">
+            <summary>
+              Looks up a localized string similar to The link name {0} in the received attach cannot be found..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.SaslNegoFailed">
+            <summary>
+              Looks up a localized string similar to Sasl negotiation failed with code {0}..
+            </summary>
+        </member>
+        <member name="P:Amqp.SRAmqp.WindowViolation">
+            <summary>
+              Looks up a localized string similar to There is no window to accept an incoming transfer (incoming-id={0})..
+            </summary>
+        </member>
+        <member name="T:Amqp.MessageCallback">
+            <summary>
+            A callback that is invoked when a message is received.
+            </summary>
+            <param name="receiver">The receiver link.</param>
+            <param name="message">The received message.</param>
+        </member>
+        <member name="T:Amqp.ReceiverLink">
+            <summary>
+            The ReceiverLink class represents a link that accepts incoming messages.
+            </summary>
+        </member>
+        <member name="M:Amqp.ReceiverLink.#ctor(Amqp.Session,System.String,System.String)">
+            <summary>
+            Initializes a receiver link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="address">The node address.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.#ctor(Amqp.Session,System.String,Amqp.Framing.Source,Amqp.OnAttached)">
+            <summary>
+            Initializes a receiver link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="source">The source on attach that specifies the message source.</param>
+            <param name="onAttached">The callback to invoke when an attach is received from peer.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.#ctor(Amqp.Session,System.String,Amqp.Framing.Attach,Amqp.OnAttached)">
+            <summary>
+            Initializes a receiver link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="attach">The attach frame to send for this link.</param>
+            <param name="onAttached">The callback to invoke when an attach is received from peer.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.Start(System.Int32,Amqp.MessageCallback)">
+            <summary>
+            Starts the message pump.
+            </summary>
+            <param name="credit">The link credit to issue.</param>
+            <param name="onMessage">If specified, the callback to invoke when messages are received.
+            If not specified, call Receive method to get the messages.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.SetCredit(System.Int32,System.Boolean)">
+            <summary>
+            Sets a credit on the link. A flow is sent to the peer to update link flow control state.
+            </summary>
+            <param name="credit">The new link credit.</param>
+            <param name="autoRestore">If true, link credit is auto-restored when a message is accepted
+            or rejected by the caller. If false, caller is responsible for manage link credits.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.Receive(System.Int32)">
+            <summary>
+            Receives a message. The call is blocked until the timeout duration expires or a message is available.
+            </summary>
+            <param name="timeout">Number of milliseconds to wait for a message.</param>
+            <returns>A Message object if available; otherwise a null value.</returns>
+        </member>
+        <member name="M:Amqp.ReceiverLink.Accept(Amqp.Message)">
+            <summary>
+            Accepts a message. It sends an accepted outcome to the peer.
+            </summary>
+            <param name="message">The message to accept.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.Release(Amqp.Message)">
+            <summary>
+            Releases a message. It sends a released outcome to the peer.
+            </summary>
+            <param name="message">The message to release.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.Reject(Amqp.Message,Amqp.Framing.Error)">
+            <summary>
+            Rejects a message. It sends a rejected outcome to the peer.
+            </summary>
+            <param name="message">The message to reject.</param>
+            <param name="error">The error, if any, for the rejection.</param>
+        </member>
+        <member name="M:Amqp.ReceiverLink.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the receiver link.
+            </summary>
+            <param name="error">The error for the closure.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.ReceiverLink.OnAbort(Amqp.Framing.Error)">
+            <summary>
+            Aborts the receiver link.
+            </summary>
+            <param name="error">The error for the abort.</param>
+        </member>
+        <member name="T:Amqp.OutcomeCallback">
+            <summary>
+            A callback that is invoked when an outcome is received from peer for an outgoing message.
+            </summary>
+            <param name="message">The outgoing message.</param>
+            <param name="outcome">The received message.</param>
+            <param name="state">The user object specified in the Send method.</param>
+        </member>
+        <member name="T:Amqp.SenderLink">
+            <summary>
+            The SenderLink represents a link that sends outgoing messages.
+            </summary>
+        </member>
+        <member name="M:Amqp.SenderLink.#ctor(Amqp.Session,System.String,System.String)">
+            <summary>
+            Initializes a sender link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="address">The node address.</param>
+        </member>
+        <member name="M:Amqp.SenderLink.#ctor(Amqp.Session,System.String,Amqp.Framing.Target,Amqp.OnAttached)">
+            <summary>
+            Initializes a sender link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="target">The target on attach that specifies the message target.</param>
+            <param name="onAttached">The callback to invoke when an attach is received from peer.</param>
+        </member>
+        <member name="M:Amqp.SenderLink.#ctor(Amqp.Session,System.String,Amqp.Framing.Attach,Amqp.OnAttached)">
+            <summary>
+            Initializes a sender link.
+            </summary>
+            <param name="session">The session within which to create the link.</param>
+            <param name="name">The link name.</param>
+            <param name="attach">The attach frame to send for this link.</param>
+            <param name="onAttached">The callback to invoke when an attach is received from peer.</param>
+        </member>
+        <member name="M:Amqp.SenderLink.Send(Amqp.Message,System.Int32)">
+            <summary>
+            Sends a message and synchronously waits for an acknowledgement.
+            </summary>
+            <param name="message">The message to send.</param>
+            <param name="millisecondsTimeout">The time in milliseconds to wait for the acknowledgement.</param>
+        </member>
+        <member name="M:Amqp.SenderLink.Send(Amqp.Message,Amqp.OutcomeCallback,System.Object)">
+            <summary>
+            Sends a message asynchronously. If callback is null, the message is sent without requesting for an acknowledgement (best effort).
+            </summary>
+            <param name="message">The message to send.</param>
+            <param name="callback">The callback to invoke when acknowledgement is received.</param>
+            <param name="state">The object that is passed back to the outcome callback.</param>
+        </member>
+        <member name="M:Amqp.SenderLink.OnClose(Amqp.Framing.Error)">
+            <summary>
+            Closes the sender link.
+            </summary>
+            <param name="error">The error for the closure.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.SenderLink.OnAbort(Amqp.Framing.Error)">
+            <summary>
+            Aborts the sender link.
+            </summary>
+            <param name="error">The error for the abort.</param>
+        </member>
+        <member name="T:Amqp.SequenceNumber">
+            <summary>
+            RFC1982: http://tools.ietf.org/html/rfc1982
+            </summary>
+        </member>
+        <member name="T:Amqp.Serialization.AmqpContractAttribute">
+            <summary>
+            Specifies that the type is serializable by the AMQP serializer.
+            </summary>
+            <remarks>
+            The object is serialized as an AMQP described list, a described map,
+            or a simple map, as determined by the Encoding property. The default value is List.
+            
+            The Name or Code property specifies the symbol descriptor or the ulong descriptor
+            of the described value, respectively. If both are set, the Code property
+            (ulong descriptor) takes precedence. If none is set, the class's full name is used
+            as the symbol descriptor. It is recommended to include a domain name/code in the
+            descriptor to avoid collision. For example, Name can be "com.microsoft:my-class",
+            and Code can be 0x0000013700000001 (domain code is the company number defined at
+            http://www.iana.org/assignments/enterprise-numbers/enterprise-numbers)
+            
+            List or Map encoding encodes the object as a described type, which contains the above
+            mentioned descriptor and the value (a list or a map). SimpleMap encodes the object
+            as a map value without a descriptor. How the value is encoded depends on EncodingType.
+            List: the value is encoded as an AMQP List that contains all fields/properties of
+            the class decorated with AmqpMemberAttribute. The Order property of the AmqpMember
+            attribute determines the relative positions of the members in the list. Duplicate
+            Order values are not allowed. If the class is derived from a base class, the
+            AmqpMember fields/properties of the base class, if any, are also included in the list.
+            The list is flatterned.
+            Map: the value is encoded as an AMQP map that contains all fields/properties of
+            the class decorated with AmqpMemberAttribute. The key type is AMQP symbol. The key
+            values are determined by the Name property of each AmqpMember attribute. If the class
+            is derived from a base class, the AmqpMember fields/properties of the base class,
+            if any, are also included in the map. Though the items in an AMQP map are ordered,
+            the serializer ignores the Order property of the AmqpMember attribute.
+            SimpleMap: value encoding is the same as Map except that the keys are AMQP string.
+            Because this encoding does not have descriptors, decoding an object with a base type
+            decorated with AmqpProvidesAttribute is not supported.
+            SimpleList: value encoding is the same as List except that no initial descriptor is
+            written. Because this encoding does not have descriptors, decoding an object with a
+            base type decorated with AmqpProvidesAttribute is not supported.
+            </remarks>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpContractAttribute.#ctor">
+            <summary>
+            Initializes a new instance of the AmqpContractAttribute class.
+            </summary>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpContractAttribute.Name">
+            <summary>
+            Gets or sets the descriptor name for the type.
+            </summary>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpContractAttribute.Code">
+            <summary>
+            Gets or sets the descriptor code for the type.
+            </summary>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpContractAttribute.Encoding">
+            <summary>
+            Gets or sets the encoding type for the type.
+            </summary>
+        </member>
+        <member name="T:Amqp.Serialization.AmqpSerializer">
+            <summary>
+            Serializes and deserializes an instance of an AMQP type.
+            The descriptor (name and code) is scoped to and must be
+            uniqueue within an instance of the serializer.
+            When the static Serialize and Deserialize methods are called,
+            the default instance is used.
+            </summary>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.#ctor">
+            <summary>
+            Initializes a new instance of the AmqpSerializer class.
+            </summary>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.Serialize(Amqp.ByteBuffer,System.Object)">
+            <summary>
+            Serializes an instance of an AMQP type into a buffer.
+            </summary>
+            <param name="buffer">The buffer.</param>
+            <param name="graph">The serializable AMQP object.</param>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.Deserialize``1(Amqp.ByteBuffer)">
+            <summary>
+            Deserializes an instance of an AMQP type from a buffer.
+            </summary>
+            <typeparam name="T">The serializable type.</typeparam>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.Deserialize``2(Amqp.ByteBuffer)">
+            <summary>
+            Deserializes an instance of an AMQP type from a buffer.
+            </summary>
+            <typeparam name="T">The serializable type.</typeparam>
+            <typeparam name="TAs">The return type of the deserialized object.</typeparam>
+            <param name="buffer">The buffer to read from.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.WriteObject(Amqp.ByteBuffer,System.Object)">
+            <summary>
+            Writes an serializable object into a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="graph">The serializable object.</param>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.ReadObject``1(Amqp.ByteBuffer)">
+            <summary>
+            Reads an serializable object from a buffer.
+            </summary>
+            <typeparam name="T">The type of the serializable object.</typeparam>
+            <param name="buffer">The buffer to read.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpSerializer.ReadObject``2(Amqp.ByteBuffer)">
+            <summary>
+            Reads an serializable object from a buffer.
+            </summary>
+            <typeparam name="T">The type of the serializable object.</typeparam>
+            <typeparam name="TAs">The return type of the deserialized object.</typeparam>
+            <param name="buffer">The buffer to read.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Serialization.AmqpMemberAttribute">
+            <summary>
+            Specifies that the member is part of an AMQP serializable type.
+            </summary>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpMemberAttribute.Name">
+            <summary>
+            Gets or sets the field name of the member.
+            </summary>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpMemberAttribute.Order">
+            <summary>
+            Gets or sets the order of the member in the list when encoding type is
+            set to list.
+            </summary>
+        </member>
+        <member name="T:Amqp.Serialization.AmqpProvidesAttribute">
+            <summary>
+            Specifies that the current type can be set to the provided type.
+            </summary>
+        </member>
+        <member name="M:Amqp.Serialization.AmqpProvidesAttribute.#ctor(System.Type)">
+            <summary>
+            Initializes the attribute object.
+            </summary>
+            <param name="type">The provided type.</param>
+        </member>
+        <member name="P:Amqp.Serialization.AmqpProvidesAttribute.Type">
+            <summary>
+            Gets the provided type.
+            </summary>
+        </member>
+        <member name="T:Amqp.Serialization.IAmqpSerializable">
+            <summary>
+            Specifies that a type is serializable by the AMQP serializer.
+            </summary>
+        </member>
+        <member name="M:Amqp.Serialization.IAmqpSerializable.Encode(Amqp.ByteBuffer)">
+            <summary>
+            Encodes the serializable object into a buffer.
+            </summary>
+            <param name="buffer"></param>
+        </member>
+        <member name="M:Amqp.Serialization.IAmqpSerializable.Decode(Amqp.ByteBuffer)">
+            <summary>
+            Decodes and initializes the serializable object from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+        </member>
+        <member name="P:Amqp.Serialization.IAmqpSerializable.EncodeSize">
+            <summary>
+            Gets the encode size in bytes of an instance.
+            </summary>
+        </member>
+        <member name="T:Amqp.Serialization.EncodingType">
+            <summary>
+            Defines the encoding type of an AMQP serializable type.
+            </summary>
+        </member>
+        <member name="F:Amqp.Serialization.EncodingType.List">
+            <summary>
+            The type is encoded as an AMQP described list.
+            </summary>
+        </member>
+        <member name="F:Amqp.Serialization.EncodingType.Map">
+            <summary>
+            The type is encoded as an AMQP described map.
+            </summary>
+        </member>
+        <member name="F:Amqp.Serialization.EncodingType.SimpleMap">
+            <summary>
+            The type is encoded as an AMQP map with string keys.
+            </summary>
+        </member>
+        <member name="F:Amqp.Serialization.EncodingType.SimpleList">
+            <summary>
+            The type is encoded as an AMQP list with no descriptor.
+            </summary>
+        </member>
+        <member name="T:Amqp.OnBegin">
+            <summary>
+            The callback that is invoked when a begin performative is received from peer.
+            </summary>
+            <param name="session">The session.</param>
+            <param name="begin">The received begin performative.</param>
+        </member>
+        <member name="T:Amqp.TraceLevel">
+            <summary>
+            Defines the traces levels. Except Frame, levels are forward inclusive.
+            For example, Information level includes the Error and Warning levels.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Error">
+            <summary>
+            Specifies that error events should be traced.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Warning">
+            <summary>
+            Specifies that warning events should be traced.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Information">
+            <summary>
+            Specifies that informational events should be traced.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Verbose">
+            <summary>
+            Specifies that verbose events should be traced.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Frame">
+            <summary>
+            Specifies that AMQP frames should be traced.
+            </summary>
+        </member>
+        <member name="F:Amqp.TraceLevel.Output">
+            <summary>
+            Specifies that application output should be traced.
+            </summary>
+        </member>
+        <member name="T:Amqp.WriteTrace">
+            <summary>
+            The callback to invoke to write traces.
+            </summary>
+            <param name="format"></param>
+            <param name="args"></param>
+        </member>
+        <member name="T:Amqp.Trace">
+            <summary>
+            The Trace class for writing traces.
+            </summary>
+        </member>
+        <member name="F:Amqp.Trace.TraceLevel">
+            <summary>
+            Gets or sets the trace level.
+            </summary>
+        </member>
+        <member name="F:Amqp.Trace.TraceListener">
+            <summary>
+            Gets or sets the trace callback.
+            </summary>
+        </member>
+        <member name="M:Amqp.Trace.Debug(System.String,System.Object[])">
+            <summary>
+            Writes a debug trace.
+            </summary>
+            <param name="format">The format string.</param>
+            <param name="args">The argument list.</param>
+        </member>
+        <member name="M:Amqp.Trace.WriteLine(Amqp.TraceLevel,System.String)">
+            <summary>
+            Writes a trace if the specified level is enabled.
+            </summary>
+            <param name="level">The trace level.</param>
+            <param name="format">The content to trace.</param>
+        </member>
+        <member name="M:Amqp.Trace.WriteLine(Amqp.TraceLevel,System.String,System.Object)">
+            <summary>
+            Writes a trace if the specified level is enabled.
+            </summary>
+            <param name="level">The trace level.</param>
+            <param name="format">The format string.</param>
+            <param name="arg1">The first argument.</param>
+        </member>
+        <member name="M:Amqp.Trace.WriteLine(Amqp.TraceLevel,System.String,System.Object,System.Object)">
+            <summary>
+            Writes a trace if the specified level is enabled.
+            </summary>
+            <param name="level">The trace level.</param>
+            <param name="format">The format string.</param>
+            <param name="arg1">The first argument.</param>
+            <param name="arg2">The second argument.</param>
+        </member>
+        <member name="M:Amqp.Trace.WriteLine(Amqp.TraceLevel,System.String,System.Object,System.Object,System.Object)">
+            <summary>
+            Writes a trace if the specified level is enabled.
+            </summary>
+            <param name="level">The trace level.</param>
+            <param name="format">The format string.</param>
+            <param name="arg1">The first argument.</param>
+            <param name="arg2">The second argument.</param>
+            <param name="arg3">The third argument.</param>
+        </member>
+        <member name="T:Amqp.Transactions.Coordinator">
+            <summary>
+            Defines the target for communicating with a transaction coordinator.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Coordinator.#ctor">
+            <summary>
+            Initializes a coordinator object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Coordinator.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Transactions.Coordinator.Capabilities">
+            <summary>
+            Gets or sets the capabilities field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Transactions.Declare">
+            <summary>
+            Message body for declaring a transaction id.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Declare.#ctor">
+            <summary>
+            Initializes a declare object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Declare.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Transactions.Declare.GlobalId">
+            <summary>
+            Gets or sets the global-id field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Transactions.Declared">
+            <summary>
+            Indicates that a transaction identifier has successfully been allocated.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Declared.#ctor">
+            <summary>
+            Initializes a declared object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Declared.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Transactions.Declared.TxnId">
+            <summary>
+            Gets or sets the txn-id field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Transactions.Discharge">
+            <summary>
+            Message body for discharging a transaction.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Discharge.#ctor">
+            <summary>
+            Initializes a discharge object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.Discharge.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Transactions.Discharge.TxnId">
+            <summary>
+            Gets or sets the txn-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Transactions.Discharge.Fail">
+            <summary>
+            Gets or sets the fail field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Transactions.TransactionalState">
+            <summary>
+            The state of a transactional message transfer.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.TransactionalState.#ctor">
+            <summary>
+            Initializes a transactional state object.
+            </summary>
+        </member>
+        <member name="M:Amqp.Transactions.TransactionalState.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Transactions.TransactionalState.TxnId">
+            <summary>
+            Gets or sets the txn-id field.
+            </summary>
+        </member>
+        <member name="P:Amqp.Transactions.TransactionalState.Outcome">
+            <summary>
+            Gets or sets the outcome field.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.Fields">
+            <summary>
+            A mapping from field name to value. The keys are restricted to be of type symbol.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Fields.From(System.Object[],System.Int32)">
+            <summary>
+            Creates a field object from an object in the array at the specified index.
+            </summary>
+            <param name="array">The object array.</param>
+            <param name="index">The index of the object in the array.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Types.DescribedValue">
+            <summary>
+            A described value consist of a descriptor and a value. Both of them are valid
+            AMQP types.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.DescribedValue.#ctor(System.Object,System.Object)">
+            <summary>
+            Initializes a described value.
+            </summary>
+            <param name="descriptor">The descriptor object.</param>
+            <param name="value">The value object.</param>
+        </member>
+        <member name="M:Amqp.Types.DescribedValue.ToString">
+            <summary>
+            Returns a string that represents the current object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Amqp.Types.DescribedValue.Descriptor">
+            <summary>
+            Gets the descriptor object.
+            </summary>
+        </member>
+        <member name="P:Amqp.Types.DescribedValue.Value">
+            <summary>
+            Gets the value object.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.Descriptor">
+            <summary>
+            The descriptor of a described type.
+            </summary>
+        </member>
+        <member name="F:Amqp.Types.Descriptor.Name">
+            <summary>
+            The descriptor name.
+            </summary>
+        </member>
+        <member name="F:Amqp.Types.Descriptor.Code">
+            <summary>
+            The descriptor code.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Descriptor.#ctor(System.UInt64,System.String)">
+            <summary>
+            Initializes a descriptor object.
+            </summary>
+            <param name="code">The descriptor code.</param>
+            <param name="name">The descriptor name.</param>
+        </member>
+        <member name="M:Amqp.Types.Descriptor.ToString">
+            <summary>
+            Returns a string that represents the current descriptor object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Types.CreateDescribed">
+            <summary>
+            The delegate to create a decribed object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Amqp.Types.Encoder">
+            <summary>
+            Encodes or decodes AMQP types.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Encoder.AddKnownDescribed(Amqp.Types.Descriptor,Amqp.Types.CreateDescribed)">
+            <summary>
+            Adds a factory for a custom described type, usually for decoding.
+            </summary>
+            <param name="descriptor">The descriptor of the type.</param>
+            <param name="ctor">The delegate to invoke to create the object.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.DateTimeToTimestamp(System.DateTime)">
+            <summary>
+            Converts a DateTime value to AMQP timestamp (milliseconds from Unix epoch)
+            </summary>
+            <param name="dateTime">The DateTime value to convert.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Encoder.TimestampToDateTime(System.Int64)">
+            <summary>
+            Converts an AMQP timestamp ((milliseconds from Unix epoch)) to a DateTime.
+            </summary>
+            <param name="timestamp">The AMQP timestamp to convert.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteObject(Amqp.ByteBuffer,System.Object,System.Boolean)">
+            <summary>
+            Writes an AMQP object to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The AMQP value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteBoolean(Amqp.ByteBuffer,System.Boolean,System.Boolean)">
+            <summary>
+            Writes a boolean value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The boolean value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteUByte(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Writes an unsigned byte value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The unsigned byte value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteUShort(Amqp.ByteBuffer,System.UInt16)">
+            <summary>
+            Writes an unsigned 16-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The unsigned 16-bit integer value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteUInt(Amqp.ByteBuffer,System.UInt32,System.Boolean)">
+            <summary>
+            Writes an unsigned 32-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The unsigned 32-bit integer value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteULong(Amqp.ByteBuffer,System.UInt64,System.Boolean)">
+            <summary>
+            Writes an unsigned 64-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The unsigned 64-bit integer value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteByte(Amqp.ByteBuffer,System.SByte)">
+            <summary>
+            Writes a signed byte value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The signed byte value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteShort(Amqp.ByteBuffer,System.Int16)">
+            <summary>
+            Writes a signed 16-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The signed 16-bit integer value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteInt(Amqp.ByteBuffer,System.Int32,System.Boolean)">
+            <summary>
+            Writes a signed 32-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The signed 32-bit integer value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteLong(Amqp.ByteBuffer,System.Int64,System.Boolean)">
+            <summary>
+            Writes a signed 64-bit integer value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The signed 64-bit integer value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteChar(Amqp.ByteBuffer,System.Char)">
+            <summary>
+            Writes a char value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The char value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteFloat(Amqp.ByteBuffer,System.Single)">
+            <summary>
+            Writes a 32-bit floating-point value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The 32-bit floating-point value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteDouble(Amqp.ByteBuffer,System.Double)">
+            <summary>
+            Writes a 64-bit floating-point value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The 64-bit floating-point value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteTimestamp(Amqp.ByteBuffer,System.DateTime)">
+            <summary>
+            Writes a timestamp value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The timestamp value which is the milliseconds since UNIX epoch.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteUuid(Amqp.ByteBuffer,System.Guid)">
+            <summary>
+            Writes a uuid value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The uuid value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteBinary(Amqp.ByteBuffer,System.Byte[],System.Boolean)">
+            <summary>
+            Writes a binary value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The binary value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteString(Amqp.ByteBuffer,System.String,System.Boolean)">
+            <summary>
+            Writes a string value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The string value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteSymbol(Amqp.ByteBuffer,Amqp.Types.Symbol,System.Boolean)">
+            <summary>
+            Writes a symbol value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The symbol value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteList(Amqp.ByteBuffer,System.Collections.IList,System.Boolean)">
+            <summary>
+            Writes a list value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The list value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteArray(Amqp.ByteBuffer,System.Array)">
+            <summary>
+            Writes an array value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The array value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.WriteMap(Amqp.ByteBuffer,Amqp.Types.Map,System.Boolean)">
+            <summary>
+            Writes a map value to a buffer.
+            </summary>
+            <param name="buffer">The buffer to write.</param>
+            <param name="value">The map value.</param>
+            <param name="smallEncoding">if true, try using small encoding if possible.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadObject(Amqp.ByteBuffer)">
+            <summary>
+            Reads an object from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadObject(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an object from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadDescribed(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a described value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadBoolean(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a boolean value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadUByte(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an unsigned byte value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadUShort(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an unsigned 16-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadUInt(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an unsigned 32-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadULong(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an unsigned 64-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadByte(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a signed byte from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadShort(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a signed 16-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadInt(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a signed 32-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadLong(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a signed 64-bit integer from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadChar(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a char value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadFloat(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a 32-bit floating-point value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadDouble(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a 64-bit floating-point value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadTimestamp(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a timestamp value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadUuid(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a uuid value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadBinary(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a binary value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadString(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a string value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadSymbol(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a symbol value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadList(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a list value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadArray(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads an array value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="M:Amqp.Types.Encoder.ReadMap(Amqp.ByteBuffer,System.Byte)">
+            <summary>
+            Reads a map value from a buffer.
+            </summary>
+            <param name="buffer">The buffer to read.</param>
+            <param name="formatCode">The format code of the value.</param>
+        </member>
+        <member name="T:Amqp.ErrorCode">
+            <summary>
+            Defines the conditions of AMQP errors.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.InternalError">
+            <summary>
+            An internal error occurred. Operator intervention may be required to resume
+            normal operation.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.NotFound">
+            <summary>
+            A peer attempted to work with a remote entity that does not exist.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.UnauthorizedAccess">
+            <summary>
+            A peer attempted to work with a remote entity to which it has no access
+            due to security settings.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.DecodeError">
+            <summary>
+            Data could not be decoded.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ResourceLimitExceeded">
+            <summary>
+            Data could not be decoded.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.NotAllowed">
+            <summary>
+            The peer tried to use a frame in a manner that is inconsistent with
+            the semantics defined in the specification.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.InvalidField">
+            <summary>
+            An invalid field was passed in a frame body, and the operation could not proceed.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.NotImplemented">
+            <summary>
+            The peer tried to use functionality that is not implemented in its partner.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ResourceLocked">
+            <summary>
+            The client attempted to work with a server entity to which it has no access
+            because another client is working with it.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.PreconditionFailed">
+            <summary>
+            The client made a request that was not allowed because some precondition failed.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ResourceDeleted">
+            <summary>
+            A server entity the client is working with has been deleted.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.IllegalState">
+            <summary>
+            The peer sent a frame that is not permitted in the current state of the Session.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.FrameSizeTooSmall">
+            <summary>
+            The peer cannot send a frame because the smallest encoding of the performative
+            with the currently valid values would be too large to fit within a frame of
+            the agreed maximum frame size. 
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ConnectionForced">
+            <summary>
+            An operator intervened to close the Connection for some reason.
+            The client may retry at some later date.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.FramingError">
+            <summary>
+            A valid frame header cannot be formed from the incoming byte stream.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ConnectionRedirect">
+            <summary>
+            The container is no longer available on the current connection. 
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.WindowViolation">
+            <summary>
+            The peer violated incoming window for the session.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.ErrantLink">
+            <summary>
+            Input was received for a link that was detached with an error.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.HandleInUse">
+            <summary>
+            An attach was received using a handle that is already in use for an attached Link.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.UnattachedHandle">
+            <summary>
+            A frame (other than attach) was received referencing a handle which is not currently
+            in use of an attached Link.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.DetachForced">
+            <summary>
+            An operator intervened to detach for some reason.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.TransferLimitExceeded">
+            <summary>
+            The peer sent more Message transfers than currently allowed on the link.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.MessageSizeExceeded">
+            <summary>
+            The peer sent a larger message than is supported on the link.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.LinkRedirect">
+            <summary>
+            The address provided cannot be resolved to a terminus at the current container.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.Stolen">
+            <summary>
+            The link has been attached elsewhere, causing the existing attachment
+            to be forcibly closed.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.TransactionUnknownId">
+            <summary>
+            The specified txn-id does not exist.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.TransactionRollback">
+            <summary>
+            The transaction was rolled back for an unspecified reason.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.TransactionTimeout">
+            <summary>
+            The work represented by this transaction took too long.
+            </summary>
+        </member>
+        <member name="F:Amqp.ErrorCode.MessageReleased">
+            <summary>
+            The message has been released by the peer.
+            </summary>
+        </member>
+        <member name="T:Amqp.Types.Symbol">
+            <summary>
+            Defines symbolic values from a constrained domain.
+            </summary>
+        </member>
+        <member name="M:Amqp.Types.Symbol.#ctor(System.String)">
+            <summary>
+            Initializes a symbol value.
+            </summary>
+            <param name="value">The string value./</param>
+        </member>
+        <member name="M:Amqp.Types.Symbol.op_Implicit(System.String)~Amqp.Types.Symbol">
+            <summary>
+            Converts a string value to a symbol implicitly.
+            </summary>
+            <param name="value">The string value.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Symbol.op_Implicit(Amqp.Types.Symbol)~System.String">
+            <summary>
+            Converts a symbol to a string value implicitly.
+            </summary>
+            <param name="value">the symbol value.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Symbol.Equals(System.Object)">
+            <summary>
+            Compares equality of an object with the current symbol.
+            </summary>
+            <param name="obj">The object to compare.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Symbol.GetHashCode">
+            <summary>
+            Gets the hash code of the symbol object.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Amqp.Types.Symbol.ToString">
+            <summary>
+            Returns a string that represents the current map object.
+            </summary>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

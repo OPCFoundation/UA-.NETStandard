@@ -14,6 +14,10 @@
     <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net46|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;NET_STANDARD;NET46</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="TestData\TestData.PredefinedNodes.uanodes;MemoryBuffer\MemoryBuffer.PredefinedNodes.uanodes;Boiler\Boiler.PredefinedNodes.uanodes" />
   </ItemGroup>
@@ -24,13 +28,20 @@
     <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
+   
 
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+   
+
+  <ItemGroup>
+    <Reference Include="System.IdentityModel">
+      <HintPath>bin\Debug\net46\System.IdentityModel.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IdentityModel.Selectors">
+      <HintPath>bin\Debug\net46\System.IdentityModel.Selectors.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

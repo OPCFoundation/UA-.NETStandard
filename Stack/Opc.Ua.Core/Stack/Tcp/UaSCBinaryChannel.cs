@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -53,8 +53,15 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (bufferManager == null) throw new ArgumentNullException("bufferManager");
-            if (quotas == null) throw new ArgumentNullException("quotas");
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
+
+            if (quotas == null)
+            {
+                throw new ArgumentNullException(nameof(quotas));
+            }
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -72,13 +79,16 @@ namespace Opc.Ua.Bindings
 
             if (securityMode != MessageSecurityMode.None)
             {
-                if (serverCertificate == null) throw new ArgumentNullException("serverCertificate");
+                if (serverCertificate == null)
+                {
+                    throw new ArgumentNullException(nameof(serverCertificate));
+                }
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
                     throw new ArgumentException(
                         Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
-                        "serverCertificate");
+                            nameof(serverCertificate));
                 }
             }
 
@@ -86,7 +96,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentException(
                     Utils.Format("UTF-8 form of the security policy URI may not be more than {0} bytes.", TcpMessageLimits.MaxSecurityPolicyUriSize),
-                    "securityPolicyUri");
+                        nameof(securityPolicyUri));
             }
 
             m_bufferManager = bufferManager;
@@ -426,7 +436,7 @@ namespace Opc.Ua.Bindings
                         HandleWriteComplete(null, state, args.BytesTransferred, error);
                         args.Dispose();
                     }
-                    else 
+                    else
                     {
                         // success, call Complete
                         OnWriteComplete(null, args);
@@ -580,7 +590,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageType & 0x000000FF));
             buffer[offset++] = (byte)((messageType & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageType & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageType & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageType & 0xFF000000) >> 24);
         }
 
         /// <summary>
@@ -590,7 +600,7 @@ namespace Opc.Ua.Bindings
         {
             if (offset >= Int32.MaxValue - 4)
             {
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
             offset += 4;
@@ -598,7 +608,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageSize & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
         }
         #endregion
 
@@ -606,15 +616,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
-        protected object DataLock
-        {
-            get { return m_lock; }
-        }
+        protected object DataLock => m_lock;
 
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        internal IMessageSocket Socket
+        protected internal IMessageSocket Socket
         {
             get { return m_socket; }
 
@@ -627,18 +634,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The buffer manager for the channel.
         /// </summary>
-        protected BufferManager BufferManager
-        {
-            get { return m_bufferManager; }
-        }
+        protected BufferManager BufferManager => m_bufferManager;
 
         /// <summary>
         /// The resource quotas for the channel.
         /// </summary>
-        protected ChannelQuotas Quotas
-        {
-            get { return m_quotas; }
-        }
+        protected ChannelQuotas Quotas => m_quotas;
 
         /// <summary>
         /// The size of the receive buffer.

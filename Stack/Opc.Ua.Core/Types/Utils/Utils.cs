@@ -116,12 +116,7 @@ namespace Opc.Ua
             /// <summary>
             /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
             /// </summary>
-            DebugAndFile = 2,
-
-            /// <summary>
-            /// Write to trace listeners and a file (if specified).
-            /// </summary>
-            StdOutAndFile = 3
+            DebugAndFile = 2
         }
 
         /// <summary>
@@ -1844,6 +1839,17 @@ namespace Opc.Ua
             if (memberwiseCloneMethod != null)
             {
                 object clone = memberwiseCloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
+
+            //try to find the Clone method by reflection.
+            MethodInfo cloneMethod = type.GetMethod("Clone", BindingFlags.Public | BindingFlags.Instance);
+            if (cloneMethod != null)
+            {
+                object clone = cloneMethod.Invoke(value, null);
                 if (clone != null)
                 {
                     return clone;

@@ -82,33 +82,47 @@ namespace PubSubConfigurationUI.ViewModels
         /// <param name="_CurrentReferenceDescription"></param>
         private void BrowseChildNodes( ReferenceDescription _CurrentReferenceDescription )
         {
-            var referenceDescriptionCollection =
-            m_OPCUAClientAdaptor.Browse( ( NodeId ) _CurrentReferenceDescription.NodeId );
-            if ( referenceDescriptionCollection != null )
-                foreach ( var _ReferenceDescription in referenceDescriptionCollection )
-                {
-                    if ( _ReferenceDescription.TypeDefinition == Constants.PubSubStateTypeId )
+            try
+            {
+                var referenceDescriptionCollection =
+                m_OPCUAClientAdaptor.Browse((NodeId)_CurrentReferenceDescription.NodeId);
+                if (referenceDescriptionCollection != null)
+                    foreach (var _ReferenceDescription in referenceDescriptionCollection)
                     {
-                        var node = new MonitorNode( );
-                        node.ParentNodeId = ( NodeId ) _ReferenceDescription.NodeId;
-                        var refDescriptionCollection =
-                        m_OPCUAClientAdaptor.Browse( ( NodeId ) _ReferenceDescription.NodeId );
-                        foreach ( var _RefDescription in refDescriptionCollection )
+                        try
                         {
-                            if ( _RefDescription.BrowseName.Name == "State" )
+                            if (_ReferenceDescription.TypeDefinition == Constants.PubSubStateTypeId)
                             {
-                                node.Id = _RefDescription.NodeId.ToString( );
-                                node.DisplayName = _RefDescription.NodeId.Identifier.ToString( );
-                                CreateMonitoredItem( node, m_subscription, node.DisplayName );
+                                var node = new MonitorNode();
+                                node.ParentNodeId = (NodeId)_ReferenceDescription.NodeId;
+                                var refDescriptionCollection =
+                                m_OPCUAClientAdaptor.Browse((NodeId)_ReferenceDescription.NodeId);
+                                foreach (var _RefDescription in refDescriptionCollection)
+                                {
+                                    if (_RefDescription.BrowseName.Name == "State")
+                                    {
+                                        node.Id = _RefDescription.NodeId.ToString();
+                                        node.DisplayName = _RefDescription.NodeId.Identifier.ToString();
+                                        CreateMonitoredItem(node, m_subscription, node.DisplayName);
+                                    }
+                                    if (_RefDescription.BrowseName.Name == "Enable")
+                                        node.EnableNodeId = (NodeId)_RefDescription.NodeId;
+                                    if (_RefDescription.BrowseName.Name == "Disable")
+                                        node.DisableNodeId = (NodeId)_RefDescription.NodeId;
+                                }
                             }
-                            if ( _RefDescription.BrowseName.Name == "Enable" )
-                                node.EnableNodeId = ( NodeId ) _RefDescription.NodeId;
-                            if ( _RefDescription.BrowseName.Name == "Disable" )
-                                node.DisableNodeId = ( NodeId ) _RefDescription.NodeId;
+                            BrowseChildNodes(_ReferenceDescription);
+                        }
+                        catch (Exception ex)
+                        {
+
                         }
                     }
-                    BrowseChildNodes( _ReferenceDescription );
-                }
+            }
+            catch(Exception ex)
+            {
+
+            }
         }
 
         /// <summary>
@@ -254,27 +268,34 @@ namespace PubSubConfigurationUI.ViewModels
             if ( referenceDescriptionCollection != null )
                 foreach ( var referenceDescription in referenceDescriptionCollection )
                 {
-                    if ( referenceDescription.TypeDefinition == Constants.PubSubStateTypeId )
+                    try
                     {
-                        var node = new MonitorNode( );
-                        node.ParentNodeId = ( NodeId ) referenceDescription.NodeId;
-                        var _RefDescriptionCollection =
-                        m_OPCUAClientAdaptor.Browse( ( NodeId ) referenceDescription.NodeId );
-                        foreach ( var _RefDescription in _RefDescriptionCollection )
+                        if (referenceDescription.TypeDefinition == Constants.PubSubStateTypeId)
                         {
-                            if ( _RefDescription.BrowseName.Name == "State" )
+                            var node = new MonitorNode();
+                            node.ParentNodeId = (NodeId)referenceDescription.NodeId;
+                            var _RefDescriptionCollection =
+                            m_OPCUAClientAdaptor.Browse((NodeId)referenceDescription.NodeId);
+                            foreach (var _RefDescription in _RefDescriptionCollection)
                             {
-                                node.Id = _RefDescription.NodeId.ToString( );
-                                node.DisplayName = _RefDescription.NodeId.Identifier.ToString( );
-                                CreateMonitoredItem( node, m_subscription, node.DisplayName );
+                                if (_RefDescription.BrowseName.Name == "State")
+                                {
+                                    node.Id = _RefDescription.NodeId.ToString();
+                                    node.DisplayName = _RefDescription.NodeId.Identifier.ToString();
+                                    CreateMonitoredItem(node, m_subscription, node.DisplayName);
+                                }
+                                if (_RefDescription.BrowseName.Name == "Enable")
+                                    node.EnableNodeId = (NodeId)_RefDescription.NodeId;
+                                if (_RefDescription.BrowseName.Name == "Disable")
+                                    node.DisableNodeId = (NodeId)_RefDescription.NodeId;
                             }
-                            if ( _RefDescription.BrowseName.Name == "Enable" )
-                                node.EnableNodeId = ( NodeId ) _RefDescription.NodeId;
-                            if ( _RefDescription.BrowseName.Name == "Disable" )
-                                node.DisableNodeId = ( NodeId ) _RefDescription.NodeId;
                         }
+                        BrowseChildNodes(referenceDescription);
                     }
-                    BrowseChildNodes( referenceDescription );
+                    catch(Exception ex)
+                    {
+
+                    }
                 }
         }
 
