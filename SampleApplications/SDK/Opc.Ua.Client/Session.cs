@@ -1415,6 +1415,11 @@ namespace Opc.Ua.Client
             attributes.Add(Attributes.InverseName, null);
             attributes.Add(Attributes.Symmetric, null);
             attributes.Add(Attributes.ContainsNoLoops, null);
+            attributes.Add(Attributes.DataTypeDefinition, null);
+            attributes.Add(Attributes.RolePermissions, null);
+            attributes.Add(Attributes.UserRolePermissions, null);
+            attributes.Add(Attributes.AccessRestrictions, null);
+            attributes.Add(Attributes.AccessLevelEx, null);
 
             // build list of values to read.
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
@@ -1607,6 +1612,14 @@ namespace Opc.Ua.Client
                             variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value);
                         }
 
+                        // AccessLevelEx Attribute
+                        value = attributes[Attributes.AccessLevelEx];
+
+                        if (value != null)
+                        {
+                            variableNode.AccessLevelEx = (uint)attributes[Attributes.AccessLevelEx].GetValue(typeof(uint));
+                        }
+
                         node = variableNode;
                         break;
                     }
@@ -1698,6 +1711,14 @@ namespace Opc.Ua.Client
                         }
 
                         dataTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                        // DataTypeDefinition Attribute
+                        value = attributes[Attributes.DataTypeDefinition];
+
+                        if (value != null)
+                        {
+                            dataTypeNode.DataTypeDefinition = new ExtensionObject(attributes[Attributes.DataTypeDefinition].Value);
+                        }
 
                         node = dataTypeNode;
                         break;
@@ -1821,6 +1842,30 @@ namespace Opc.Ua.Client
             if (value != null)
             {
                 node.WriteMask = (uint)attributes[Attributes.UserWriteMask].GetValue(typeof(uint));
+            }
+
+            // RolePermissions Attribute
+            value = attributes[Attributes.RolePermissions];
+
+            if (value != null)
+            {
+                node.RolePermissions = (RolePermissionTypeCollection)attributes[Attributes.RolePermissions].GetValue(typeof(RolePermissionTypeCollection));
+            }
+
+            // UserRolePermissions Attribute
+            value = attributes[Attributes.UserRolePermissions];
+
+            if (value != null)
+            {
+                node.UserRolePermissions = (RolePermissionTypeCollection)attributes[Attributes.UserRolePermissions].GetValue(typeof(RolePermissionTypeCollection));
+            }
+
+            // AccessRestrictions Attribute
+            value = attributes[Attributes.AccessRestrictions];
+
+            if (value != null)
+            {
+                node.AccessRestrictions = (ushort)attributes[Attributes.AccessRestrictions].GetValue(typeof(ushort));
             }
 
             return node;
