@@ -1849,7 +1849,17 @@ namespace Opc.Ua.Client
 
             if (value != null)
             {
-                node.RolePermissions = (RolePermissionTypeCollection)attributes[Attributes.RolePermissions].GetValue(typeof(RolePermissionTypeCollection));
+                ExtensionObject[] rolePermissions = attributes[Attributes.RolePermissions].Value as ExtensionObject[];
+
+                if (rolePermissions != null)
+                {
+                    node.RolePermissions = new RolePermissionTypeCollection();
+
+                    foreach (ExtensionObject rolePermission in rolePermissions)
+                    {
+                        node.RolePermissions.Add(rolePermission.Body as RolePermissionType);
+                    }
+                }
             }
 
             // UserRolePermissions Attribute
@@ -1857,7 +1867,17 @@ namespace Opc.Ua.Client
 
             if (value != null)
             {
-                node.UserRolePermissions = (RolePermissionTypeCollection)attributes[Attributes.UserRolePermissions].GetValue(typeof(RolePermissionTypeCollection));
+                ExtensionObject[] userRolePermissions = attributes[Attributes.UserRolePermissions].Value as ExtensionObject[];
+
+                if (userRolePermissions != null)
+                {
+                    node.UserRolePermissions = new RolePermissionTypeCollection();
+
+                    foreach (ExtensionObject rolePermission in userRolePermissions)
+                    {
+                        node.UserRolePermissions.Add(rolePermission.Body as RolePermissionType);
+                    }
+                }
             }
 
             // AccessRestrictions Attribute
