@@ -360,6 +360,72 @@ namespace Opc.Ua
                 m_userWriteMask = value;
             }
         }
+
+        /// <summary>
+        /// Specifies  a list of permissions for the node assigned to roles.
+        /// </summary>
+        /// <value>The Permissions that apply to the node.</value>
+        public RolePermissionTypeCollection RolePermissions
+        {
+            get
+            {
+                return m_rolePermissions;
+            }
+
+            set
+            {
+                if (m_rolePermissions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_rolePermissions = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies  a list of permissions for the node assigned to roles for the current user.
+        /// </summary>
+        /// <value>The Permissions that apply to the node for the current user.</value>
+        public RolePermissionTypeCollection UserRolePermissions
+        {
+            get
+            {
+                return m_userRolePermissions;
+            }
+
+            set
+            {
+                if (m_userRolePermissions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_userRolePermissions = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies  a mask indicating any access restrictions that apply to the node.
+        /// </summary>
+        /// <value>The server specific access restrictions of the node.</value>
+        public AccessRestrictionType AccessRestrictions
+        {
+            get
+            {
+                return m_accessRestrictions;
+            }
+
+            set
+            {
+                if (m_accessRestrictions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_accessRestrictions = value;
+            }
+        }
         #endregion
 
         #region Serialization Methods
@@ -2081,6 +2147,36 @@ namespace Opc.Ua
         /// Called when the UserWriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask> OnWriteUserWriteMask;
+
+        /// <summary>
+        /// Called when the RolePermissions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadRolePermissions;
+
+        /// <summary>
+        /// Called when the RolePermissions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteRolePermissions;
+
+        /// <summary>
+        /// Called when the UserRolePermissions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadUserRolePermissions;
+
+        /// <summary>
+        /// Called when the UserRolePermissions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteUserRolePermissions;
+
+        /// <summary>
+        /// Called when the AccessRestrictions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<AccessRestrictionType> OnReadAccessRestrictions;
+
+        /// <summary>
+        /// Called when the AccessRestrictions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<AccessRestrictionType> OnWriteAccessRestrictions;
         #endregion
 
         #region Public Methods
@@ -3356,6 +3452,57 @@ namespace Opc.Ua
 
                     return result;
                 }
+
+                case Attributes.RolePermissions:
+                {
+                    RolePermissionTypeCollection rolePermissions = m_rolePermissions;
+
+                    if (OnReadRolePermissions != null)
+                    {
+                        result = OnReadRolePermissions(context, this, ref rolePermissions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = rolePermissions;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.UserRolePermissions:
+                {
+                    RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
+
+                    if (OnReadUserRolePermissions != null)
+                    {
+                        result = OnReadUserRolePermissions(context, this, ref userRolePermissions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = userRolePermissions;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.AccessRestrictions:
+                {
+                    AccessRestrictionType accessRestrictions = m_accessRestrictions;
+
+                    if (OnReadAccessRestrictions != null)
+                    {
+                        result = OnReadAccessRestrictions(context, this, ref accessRestrictions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = (ushort)m_accessRestrictions;
+                    }
+
+                    return result;
+                }
             }
 
             return StatusCodes.BadAttributeIdInvalid;
@@ -4376,6 +4523,9 @@ namespace Opc.Ua
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
+        private RolePermissionTypeCollection m_rolePermissions;
+        private RolePermissionTypeCollection m_userRolePermissions;
+        private AccessRestrictionType m_accessRestrictions;
         protected List<BaseInstanceState> m_children;
         private IReferenceDictionary<object> m_references;
         protected NodeStateChangeMasks m_changeMasks;
