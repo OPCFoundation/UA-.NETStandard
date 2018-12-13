@@ -11,11 +11,11 @@
 */
 
 using System;
-using System.Text;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
 using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace Opc.Ua.Bindings
 {
@@ -52,10 +52,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The certificate for the server.
         /// </summary>
-        protected X509Certificate2 ServerCertificate
-        {
-            get { return m_serverCertificate; }
-        }
+        protected X509Certificate2 ServerCertificate => m_serverCertificate;
 
         /// <summary>
         /// The server certificate chain.
@@ -69,29 +66,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The security mode used with the channel.
         /// </summary>
-        protected MessageSecurityMode SecurityMode
-        {
-            get { return m_securityMode; }
-        }
+        protected MessageSecurityMode SecurityMode => m_securityMode;
 
         /// <summary>
         /// The security policy used with the channel.
         /// </summary>
-        protected string SecurityPolicyUri
-        {
-            get { return m_securityPolicyUri; }
-        }
+        protected string SecurityPolicyUri => m_securityPolicyUri;
 
         /// <summary>
         /// Whether the channel is restricted to discovery operations.
         /// </summary>
-        protected bool DiscoveryOnly
-        {
-            get
-            {
-                return m_discoveryOnly;
-            }
-        }
+        protected bool DiscoveryOnly => m_discoveryOnly;
 
         /// <summary>
         /// The certificate for the client.
@@ -218,6 +203,8 @@ namespace Opc.Ua.Bindings
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
                         return 32;
                     }
@@ -268,13 +255,19 @@ namespace Opc.Ua.Bindings
             {
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     {
-                        return RsaUtils.GetPlainTextBlockSize(receiverCertificate, true);
+                        return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA256);
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                        return RsaUtils.GetPlainTextBlockSize(receiverCertificate, false);
+                        return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
                     }
 
                 default:
@@ -294,13 +287,19 @@ namespace Opc.Ua.Bindings
             {
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     {
-                        return RsaUtils.GetCipherTextBlockSize(receiverCertificate, true);
+                        return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA256);
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                        return RsaUtils.GetCipherTextBlockSize(receiverCertificate, false);
+                        return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
                     }
 
                 default:
@@ -349,6 +348,9 @@ namespace Opc.Ua.Bindings
             return headerSize;
         }
 
+        /// <summary>
+        /// Get asymmetric header size
+        /// </summary>
         protected int GetAsymmetricHeaderSize(
             string securityPolicyUri,
             X509Certificate2 senderCertificate,
@@ -395,6 +397,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                     {
                         return RsaUtils.GetSignatureLength(senderCertificate);
                     }
@@ -425,8 +429,8 @@ namespace Opc.Ua.Bindings
                 messageType,
                 secureChannelId,
                 securityPolicyUri,
-                senderCertificate, 
-                null, 
+                senderCertificate,
+                null,
                 receiverCertificate,
                 out senderCertificateSize);
         }
@@ -454,7 +458,7 @@ namespace Opc.Ua.Bindings
 
             if (SecurityMode != MessageSecurityMode.None)
             {
-                if (senderCertificateChain != null && senderCertificateChain.Count >0)
+                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
                     X509Certificate2 currentCertificate = senderCertificateChain[0];
                     int maxSenderCertificateSize = GetMaxSenderCertificateSize(currentCertificate, securityPolicyUri);
@@ -559,7 +563,7 @@ namespace Opc.Ua.Bindings
                 BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
                 int headerSize = 0;
 
-                if (senderCertificateChain != null && senderCertificateChain.Count >0)
+                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
                     int senderCertificateSize = 0;
 
@@ -746,7 +750,7 @@ namespace Opc.Ua.Bindings
         protected void ReadAsymmetricMessageHeader(
             BinaryDecoder decoder,
             X509Certificate2 receiverCertificate,
-            out uint secureChannelId, 
+            out uint secureChannelId,
             out X509Certificate2Collection senderCertificateChain,
             out string securityPolicyUri)
         {
@@ -853,7 +857,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets to endpoint according to the endpoint url.
         /// </summary>
-        protected bool SetEndpointUrl(string endpointUrl)
+        protected virtual bool SetEndpointUrl(string endpointUrl)
         {
             Uri url = Utils.ParseUri(endpointUrl);
 
@@ -1073,7 +1077,7 @@ namespace Opc.Ua.Bindings
         /// Adds an asymmetric signature to the end of the buffer.
         /// </summary>
         /// <remarks>
-        /// Start and count specify the block of data to be signed. 
+        /// Start and count specify the block of data to be signed.
         /// The padding and signature must be written to the stream wrapped by the encoder.
         /// </remarks>
         protected byte[] Sign(
@@ -1091,12 +1095,18 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                        return RsaPkcs15_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA1);
+                        return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                     }
 
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
-                        return RsaPkcs15_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
+                        return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                     }
             }
         }
@@ -1105,7 +1115,7 @@ namespace Opc.Ua.Bindings
         /// Verifies an asymmetric signature at the end of the buffer.
         /// </summary>
         /// <remarks>
-        /// Start and count specify the block of data including the signature and padding. 
+        /// Start and count specify the block of data including the signature and padding.
         /// The current security policy uri and sender certificate specify the size of the signature.
         /// This call also verifies that the padding is correct.
         /// </remarks>
@@ -1125,12 +1135,18 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                     {
-                        return RsaPkcs15_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA1);
+                        return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                     }
 
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
-                        return RsaPkcs15_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256);
+                        return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                     }
 
                 default:
@@ -1146,7 +1162,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Start and count specify the block of data to be encrypted.
         /// The caller must ensure that count is a multiple of the input block size for the current cipher.
-        /// The header specifies unencrypted data that must be copied to the output. 
+        /// The header specifies unencrypted data that must be copied to the output.
         /// </remarks>
         protected ArraySegment<byte> Encrypt(
             ArraySegment<byte> dataToEncrypt,
@@ -1165,15 +1181,22 @@ namespace Opc.Ua.Bindings
 
                         return new ArraySegment<byte>(encryptedBuffer, 0, dataToEncrypt.Count + headerToCopy.Count);
                     }
+
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
-                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, true);
+                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA256);
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, false);
+                        return Rsa_Encrypt(dataToEncrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.Pkcs1);
                     }
             }
         }
@@ -1183,7 +1206,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// Start and count specify the block of data to be decrypted.
-        /// The header specifies unencrypted data that must be copied to the output. 
+        /// The header specifies unencrypted data that must be copied to the output.
         /// </remarks>
         protected ArraySegment<byte> Decrypt(
             ArraySegment<byte> dataToDecrypt,
@@ -1202,21 +1225,28 @@ namespace Opc.Ua.Bindings
 
                         return new ArraySegment<byte>(decryptedBuffer, 0, dataToDecrypt.Count + headerToCopy.Count);
                     }
+
                 case SecurityPolicies.Basic256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     {
-                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, true);
+                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA1);
+                    }
+
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    {
+                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.OaepSHA256);
                     }
 
                 case SecurityPolicies.Basic128Rsa15:
                     {
-                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, false);
+                        return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.Pkcs1);
                     }
             }
         }
         #endregion
 
-        #region Private Fields 
+        #region Private Fields
         private EndpointDescriptionCollection m_endpoints;
         private MessageSecurityMode m_securityMode;
         private string m_securityPolicyUri;

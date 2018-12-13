@@ -209,7 +209,8 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="10" />
@@ -229,7 +230,7 @@
                                  Margin="5,5,5,5" Width="210" PreviewTextInput="Receiveoffset_PreviewTextInput" Height="23" />
 
                         <Label x:Name="DataSetWriterIdlbl" Grid.Row="3" Grid.Column="0" Content="Data Set Writer Id" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="DataSetWriterId" Grid.Row="3" Grid.Column="3" Margin="5,5,5,5" Width="210"
+                        <TextBox x:Name="DataSetWriterId" IsEnabled="False" Grid.Row="3" Grid.Column="3" Margin="5,5,5,5" Width="210"
                                  Height="23" />
 
                         <!--<Label x:Name="PublisherDataTypelbl" Grid.Row="4" Grid.Column="0" Content="Publisher DataType" Grid.ColumnSpan="3" />
@@ -248,15 +249,20 @@
 
 
                         <Label x:Name="PublishingItervallbl" Grid.Row="24" Grid.Column="0" Content="Publishing Interval (mSec)" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="PublishingIterval"  Grid.Row="24" Grid.Column="3" Margin="5,5,5,5"
+                        <TextBox x:Name="PublishingIterval" IsEnabled="False" Grid.Row="24" Grid.Column="3" Margin="5,5,5,5"
                                  Width="210" Height="23" />
-
+                        <Label x:Name="HeaderLayoutUrilbl" Grid.Row="25" Grid.Column="0" Content="Header Layout Uri" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="HeaderLayoutURI" IsEnabled="False" Grid.Row="25" Grid.Column="3" Margin="5,5,5,5"
+                                 Width="210" Height="23" />
+                        <Label x:Name="KeyFrameCountlbl" Grid.Row="26" Grid.Column="0" Content="Key Frame Count" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="KeyFrameCount" IsEnabled="False" Grid.Row="26" Grid.Column="3" Margin="5,5,5,5"
+                                 Width="210" Height="23" />
                         <Label Grid.Row="6" Grid.Column="0" Content="View DataSetMetaData" Grid.ColumnSpan="3" />
                         <Button Content="..." Height="23" Width="30" HorizontalAlignment="Left" Margin="5,0"
                                 Grid.Row="6" Grid.Column="3" Click="ViewDataSetMeta_Click" />
 
                         <Label x:Name="WriterGroupIdlbl" Grid.Row="7" Grid.Column="0" Content="Writer GroupId" Grid.ColumnSpan="3" />
-                        <TextBox x:Name="WriterGroupId"  Grid.Row="7" Grid.Column="3" Margin="5,5,5,5"
+                        <TextBox x:Name="WriterGroupId" IsEnabled="False" Grid.Row="7" Grid.Column="3" Margin="5,5,5,5"
                                  Width="210" Height="23" />
 
                         <Label x:Name="MessageSecurityModelbl" Grid.Row="8" Grid.Column="0" Content="Security Mode" Grid.ColumnSpan="3" />
@@ -317,7 +323,7 @@
                      Margin="0,5" Width="210" Height="23" />
 
                         <Label x:Name="Groupversionlbl" Grid.Row="20" Visibility="Collapsed" Grid.Column="0" Content="Group Version" Grid.ColumnSpan="3" />
-                        <TextBox Grid.Row="20" x:Name="Groupversion" Visibility="Collapsed" PreviewTextInput="Receiveoffset_PreviewTextInput" Text="{Binding GroupVersion}" Grid.Column="3"
+                        <TextBox Grid.Row="20" x:Name="Groupversion" IsEnabled="False" Visibility="Collapsed" PreviewTextInput="Receiveoffset_PreviewTextInput" Text="{Binding GroupVersion}" Grid.Column="3"
                      Margin="0,5" Width="210" Height="23" />
 
                         <Label x:Name="datasetoffsetlbl" Grid.Row="21" Visibility="Collapsed" Grid.Column="0" Content="DataSet Offset *" Grid.ColumnSpan="3" />
@@ -336,7 +342,7 @@
                         <TextBox Grid.Row="18" x:Name="Processingoffset" PreviewTextInput="Receiveoffset_PreviewTextInput" Visibility="Collapsed" Text="0" Grid.Column="3"
                      Margin="0,5" Width="210" Height="23" />
 
-                        <GroupBox Margin="0,5,0,0" Grid.Row="29"  Grid.ColumnSpan="4" Header="Data Set Field Content Mask"
+                        <GroupBox Margin="0,5,0,0" Grid.Row="31"  Grid.ColumnSpan="4" Header="Data Set Field Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="50" Margin="0,5">
@@ -371,7 +377,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox x:Name="UadpDatasetMask" Margin="0,5,0,0" Grid.Row="25" Visibility="Collapsed"  Grid.ColumnSpan="4" Header="Uadp DataSet Message Content Mask"
+                        <GroupBox x:Name="UadpDatasetMask" Margin="0,5,0,0" Grid.Row="27" Visibility="Collapsed"  Grid.ColumnSpan="4" Header="Uadp DataSet Message Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="50" Margin="0,5">
@@ -406,7 +412,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox x:Name="JsonDatasetMask" Margin="0,5,0,0" Grid.Row="26" Grid.ColumnSpan="4" Visibility="Collapsed"  Header="Json DataSet Message Content Mask"
+                        <GroupBox x:Name="JsonDatasetMask" Margin="0,5,0,0" Grid.Row="28" Grid.ColumnSpan="4" Visibility="Collapsed"  Header="Json DataSet Message Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="50" Margin="0,5">
@@ -438,7 +444,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox x:Name="UadpNetworkmask" Grid.Row="27" Grid.Column="0" Grid.ColumnSpan="4"
+                        <GroupBox x:Name="UadpNetworkmask" Grid.Row="29" Grid.Column="0" Grid.ColumnSpan="4"
                                   Header="Uadp Network Message Content Mask" Visibility="Collapsed" HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="100" Margin="0,5">
@@ -489,7 +495,7 @@
 
                         </GroupBox>
 
-                        <GroupBox x:Name="JsonNetworkMessage" Grid.Row="28" Grid.Column="0" Grid.ColumnSpan="4"
+                        <GroupBox x:Name="JsonNetworkMessage" Grid.Row="30" Grid.Column="0" Grid.ColumnSpan="4"
                                   Header="Json Network Message Content Mask" Visibility="Collapsed" HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="50" Margin="0,5">

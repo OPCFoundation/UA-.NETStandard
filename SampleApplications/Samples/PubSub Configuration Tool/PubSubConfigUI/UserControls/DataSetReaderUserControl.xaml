@@ -55,6 +55,8 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -185,8 +187,14 @@
                         <Label Grid.Row="18" Visibility="{Binding IsDatagramMessage}" Grid.Column="0" Content="Processing Offset" Grid.ColumnSpan="3" />
                         <TextBox Grid.Row="18" Visibility="{Binding IsDatagramMessage}"  IsEnabled="False"  Text="{Binding ProcessingOffset}" Grid.Column="3"
                      Margin="0,5" Width="210" Height="23" />
+                        <Label x:Name="HeaderLayoutUrilbl" Grid.Row="25" Grid.Column="0" Content="Header Layout Uri" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="HeaderLayoutURI" IsEnabled="False" Grid.Row="25" Grid.Column="3" Margin="5,5,5,5" Text="{Binding HeaderLayoutUri}"
+                                 Width="210" Height="23" />
+                        <Label x:Name="KeyFrameCountlbl" Grid.Row="26" Grid.Column="0" Content="Key Frame Count" Grid.ColumnSpan="3" />
+                        <TextBox x:Name="KeyFrameCount" IsEnabled="False" Grid.Row="26" Grid.Column="3" Margin="5,5,5,5" Text="{Binding KeyFrameCount}"
+                                 Width="210" Height="23" />
 
-                        <GroupBox Margin="0,5,0,0" Grid.Row="29"  IsEnabled="False"  Grid.ColumnSpan="4" Header="Data Set Field Content Mask"
+                        <GroupBox Margin="0,5,0,0" Grid.Row="31"  IsEnabled="False"  Grid.ColumnSpan="4" Header="Data Set Field Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid  Height="50" Margin="0,5">
@@ -221,7 +229,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Margin="0,5,0,0" Grid.Row="25"  IsEnabled="False"  Visibility="{Binding IsDatagramMessage}" Grid.ColumnSpan="4" Header="Uadp DataSet Message Content Mask"
+                        <GroupBox Margin="0,5,0,0" Grid.Row="27"  IsEnabled="False"  Visibility="{Binding IsDatagramMessage}" Grid.ColumnSpan="4" Header="Uadp DataSet Message Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Height="50" Margin="0,5">
@@ -256,7 +264,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Margin="0,5,0,0" Grid.Row="26"  IsEnabled="False"   Visibility="{Binding IsBrokerMessage}"  Grid.ColumnSpan="4" Header="Json DataSet Message Content Mask"
+                        <GroupBox Margin="0,5,0,0" Grid.Row="28"  IsEnabled="False"   Visibility="{Binding IsBrokerMessage}"  Grid.ColumnSpan="4" Header="Json DataSet Message Content Mask"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid  Height="50" Margin="0,5">
@@ -288,7 +296,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Grid.Row="27" Grid.Column="0" Grid.ColumnSpan="4"
+                        <GroupBox Grid.Row="29" Grid.Column="0" Grid.ColumnSpan="4"
                                   Header="Uadp Network Message Content Mask"  IsEnabled="False"  Visibility="{Binding IsDatagramMessage}" HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid Width="460" Height="100" Margin="0,5">
@@ -339,7 +347,7 @@
 
                         </GroupBox>
 
-                        <GroupBox Grid.Row="28" Grid.Column="0" Grid.ColumnSpan="4"
+                        <GroupBox Grid.Row="30" Grid.Column="0" Grid.ColumnSpan="4"
                                   Header="Json Network Message Content Mask"  IsEnabled="False"  Visibility="{Binding IsBrokerMessage}" HorizontalAlignment="Left"
                                   VerticalAlignment="Top">
                             <Grid  Height="50" Margin="0,5">

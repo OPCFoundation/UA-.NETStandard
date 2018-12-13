@@ -248,7 +248,7 @@ namespace Opc.Ua
         /// </summary>
         public EncodingType EncodingType
         {
-            get { return EncodingType.Xml; }
+            get { return EncodingType.Json; }
         }
 
         /// <summary>
@@ -275,7 +275,7 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private void PushStructure(string fieldName)
+        public void PushStructure(string fieldName)
         {
             if (m_commaRequired)
             {
@@ -311,7 +311,7 @@ namespace Opc.Ua
             m_writer.Write("[");
         }
 
-        private void PopStructure()
+        public void PopStructure()
         {
             m_writer.Write("}");
             m_commaRequired = true;
@@ -805,7 +805,7 @@ namespace Opc.Ua
 
             if (UseReversibleEncoding)
             {
-                WriteSimpleField("Name", value.Name.ToString(), false);
+                WriteString("Name", value.Name);
 
                 if (value.NamespaceIndex > 0)
                 {
@@ -814,7 +814,7 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSimpleField("Name", value.Name.ToString(), false);
+                WriteString("Name", value.Name);
                 WriteNamespaceIndex(value.NamespaceIndex);
             }
 
@@ -836,18 +836,18 @@ namespace Opc.Ua
             {
                 PushStructure(fieldName);
 
-                WriteSimpleField("Text", value.Text.ToString(), true);
+                WriteString("Text", value.Text);
 
                 if (!String.IsNullOrEmpty(value.Locale))
                 {
-                    WriteSimpleField("Locale", value.Locale.ToString(), true);
+                    WriteString("Locale", value.Locale);
                 }
 
                 PopStructure();
             }
             else
             {
-                WriteSimpleField(fieldName, value.Text, true);
+                WriteString(fieldName, value.Text);
             }
         }
 

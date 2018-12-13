@@ -40,6 +40,7 @@ namespace PubSubConfigurationUI.ViewModels
         private int m_samplingOffset;
         private string m_QueueName = string.Empty;
         private string m_securityGroupId;
+        private string m_HeaderLayoutUri;
         private int m_writerGroupId;
         private Visibility m_isDatagramTransport = Visibility.Visible;
         private Visibility m_isBrokerTransport = Visibility.Collapsed;
@@ -257,7 +258,15 @@ namespace PubSubConfigurationUI.ViewModels
                 OnPropertyChanged("WriterGroupId");
             }
         }
-
+        public string HeaderLayoutUri
+        {
+            get { return m_HeaderLayoutUri; }
+            set
+            {
+                m_HeaderLayoutUri = value;
+                OnPropertyChanged("HeaderLayoutUri");
+            }
+        }
 
         /// <summary>
         /// defines message security mode of target definition
@@ -398,7 +407,7 @@ namespace PubSubConfigurationUI.ViewModels
             SecurityGroupId = DataSetWriterGroup.SecurityGroupId;
             MaxNetworkMessageSize = DataSetWriterGroup.MaxNetworkMessageSize;
             WriterGroupId = DataSetWriterGroup.WriterGroupId;
-
+            HeaderLayoutUri = DataSetWriterGroup.HeaderLayoutUri;
             TransportSetting = DataSetWriterGroup.TransportSetting;
             if (TransportSetting == 0)
             {

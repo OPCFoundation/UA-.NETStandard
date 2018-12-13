@@ -58,7 +58,8 @@ namespace PubSubConfigurationUI.ViewModels
         private string m_queueName;
         private string m_metadataQueueName;
         private string m_securityGroupId = "0";
-
+        private uint m_KeyFrameCount;
+        private string m_HeaderLayoutUri;
         private DataSetMetaDataType m_dataSetMetaDataType = new DataSetMetaDataType();
         private Visibility m_isDatagramTransport = Visibility.Visible;
         private Visibility m_isBrokerTransport = Visibility.Collapsed;
@@ -67,7 +68,16 @@ namespace PubSubConfigurationUI.ViewModels
         #endregion
 
         #region Public Properties
-
+        public uint KeyFrameCount
+        {
+            get { return m_KeyFrameCount; }
+            set { m_KeyFrameCount = value; OnPropertyChanged("KeyFrameCount"); }
+        }
+        public string HeaderLayoutUri
+        {
+            get { return m_HeaderLayoutUri; }
+            set { m_HeaderLayoutUri = value; OnPropertyChanged("HeaderLayoutUri"); }
+        }
         public int PublisherType
         {
             get { return m_publisherType; }
@@ -411,7 +421,8 @@ namespace PubSubConfigurationUI.ViewModels
             SecurityMode = ReaderDefinition.MessageSecurityMode;
             TransportSetting = ReaderDefinition.TransportSetting;
             MessageSetting = ReaderDefinition.MessageSetting;
-
+            KeyFrameCount = ReaderDefinition.KeyFrameCount;
+            HeaderLayoutUri = ReaderDefinition.HeaderLayoutUri;
             if (TransportSetting == 1)
             {
                 QueueName = ReaderDefinition.QueueName;

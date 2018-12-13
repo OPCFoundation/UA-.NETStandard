@@ -74,6 +74,30 @@ namespace PubSubConfigurationUI.Views
                     }
                 }
             }
+            if (TransportSelect.SelectedIndex == 0)
+            {
+                _dataSetWriterViewModel.TransportSetting = 0;
+                _dataSetWriterViewModel.IsBrokerTransport = Visibility.Collapsed;
+                _dataSetWriterViewModel.IsDatagramTransport = Visibility.Visible;
+            }
+            else
+            {
+                _dataSetWriterViewModel.TransportSetting = 1;
+                _dataSetWriterViewModel.IsBrokerTransport = Visibility.Visible;
+                _dataSetWriterViewModel.IsDatagramTransport = Visibility.Collapsed;
+            }
+            if (MessageSelect.SelectedIndex == 0)
+            {
+                _dataSetWriterViewModel.MessageSetting = 0;
+                _dataSetWriterViewModel.IsDatagramMessage = Visibility.Visible;
+                _dataSetWriterViewModel.IsBrokerMessage = Visibility.Collapsed;
+            }
+            else
+            {
+                _dataSetWriterViewModel.MessageSetting = 1;
+                _dataSetWriterViewModel.IsDatagramMessage = Visibility.Collapsed;
+                _dataSetWriterViewModel.IsBrokerMessage = Visibility.Visible;
+            }
             _dataSetWriterViewModel.DataSetContentMask = _dataSetContentMask;
             _dataSetWriterViewModel.UadpDataSetMessageContentMask = _uadpdataSetMessageContentMask;
             _dataSetWriterViewModel.JsonDataSetMessageContentMask = _jsondataSetMessageContentMask;

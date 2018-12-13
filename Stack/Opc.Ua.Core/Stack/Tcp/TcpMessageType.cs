@@ -28,7 +28,7 @@ namespace Opc.Ua.Bindings
         /// An intermediate chunk for a message.
         /// </summary>
         public const uint Intermediate = 0x43000000;
-        
+
         /// <summary>
         /// A final chunk for a message which indicates that the message has been aborted by the sender.
         /// </summary>
@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings
         /// A mask used to select the chunk type portion of the message id.
         /// </summary>
         public const uint ChunkTypeMask = 0xFF000000;
-                       
+
         /// <summary>
         /// A chunk for a generic message.
         /// </summary>
@@ -73,7 +73,7 @@ namespace Opc.Ua.Bindings
         /// An error message.
         /// </summary>
         public const uint Error = 0x46525245;
-        
+
         /// <summary>
         /// Returns true if the message type is equal to the expected type.
         /// </summary>
@@ -97,7 +97,7 @@ namespace Opc.Ua.Bindings
         {
             return ((messageType & ChunkTypeMask) == Abort);
         }
-        
+
         /// <summary>
         /// Returns true if the message type is recognized.
         /// </summary>
@@ -108,11 +108,11 @@ namespace Opc.Ua.Bindings
                 case Hello:
                 case Acknowledge:
                 case Error:
-                {
-                    return true;
-                }
+                    {
+                        return true;
+                    }
             }
-                    
+
             if (((messageType & ChunkTypeMask) != Final) && ((messageType & ChunkTypeMask) != Intermediate))
             {
                 return false;
@@ -123,16 +123,16 @@ namespace Opc.Ua.Bindings
                 case Message:
                 case Open:
                 case Close:
-                {
-                    break;
-                }
-                    
+                    {
+                        break;
+                    }
+
                 default:
-                {
-                    return false;
-                }
+                    {
+                        return false;
+                    }
             }
-            
+
             return true;
         }
     }
@@ -160,13 +160,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The minimum send or receive buffer size.
         /// </summary>
-        public const int MaxBufferSize = 8192*18;
+        public const int MaxBufferSize = 8192 * 18;
 
         /// <summary>
         /// The maximum length for the reason in an error message.
         /// </summary>
         public const int MaxErrorReasonLength = 4096;
-        
+
         /// <summary>
         /// The maximum length for the endpoint url in the hello message.
         /// </summary>
@@ -181,27 +181,27 @@ namespace Opc.Ua.Bindings
         /// The maximum length for an a security policy uri.
         /// </summary>
         public const int MaxSecurityPolicyUriSize = 256;
-                
+
         /// <summary>
         /// The length of the base message header.
         /// </summary>
         public const int BaseHeaderSize = 12;
-                
+
         /// <summary>
         /// The length of the message header use with symmetric cryptography.
         /// </summary>
         public const int SymmetricHeaderSize = 16;
-                
+
         /// <summary>
         /// The length of the sequence message header.
         /// </summary>
         public const int SequenceHeaderSize = 8;
-                
+
         /// <summary>
         /// The length a X509 certificate thumbprint.
         /// </summary>
         public const int CertificateThumbprintSize = 20;
-                
+
         /// <summary>
         /// The number of bytes required to specify the length of an encoding string or bytestring.
         /// </summary>
@@ -216,7 +216,7 @@ namespace Opc.Ua.Bindings
         /// The first sequence number after a rollover must be less than this value.
         /// </summary>
         public const uint MaxRolloverSequenceNumber = 1024;
-        
+
         /// <summary>
         /// The default buffer size to use for communication.
         /// </summary>
@@ -225,12 +225,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default maximum message size.
         /// </summary>
-        public const int DefaultMaxMessageSize = 16*65535;
+        public const int DefaultMaxMessageSize = 16 * 65535;
 
         /// <summary>
         /// How long a connection will remain in the server after it goes into a faulted state.
         /// </summary>
-        public const int DefaultChannelLifetime = 60000;        
+        public const int DefaultChannelLifetime = 60000;
 
         /// <summary>
         /// How long a security token lasts before it needs to be renewed.
@@ -241,12 +241,12 @@ namespace Opc.Ua.Bindings
         /// The minimum lifetime for a security token lasts before it needs to be renewed.
         /// </summary>
         public const int MinSecurityTokenLifeTime = 60000;
-                
+
         /// <summary>
         /// The minimum time interval between reconnect attempts.
         /// </summary>
         public const int MinTimeBetweenReconnects = 0;
-        
+
         /// <summary>
         /// The maximum time interval between reconnect attempts.
         /// </summary>

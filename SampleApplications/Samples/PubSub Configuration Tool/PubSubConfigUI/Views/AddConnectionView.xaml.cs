@@ -88,33 +88,33 @@ namespace PubSubConfigurationUI.Views
 
             if (ConnectionTypeCmb.SelectedIndex == 1)
             {
-                if (string.IsNullOrWhiteSpace(ResourceUritext.Text))
-                {
-                    ShowErrorMessage("Resource Uri cannot be empty.", "Add Connection");
-                    return;
-                }
+                //if (string.IsNullOrWhiteSpace(ResourceUritext.Text))
+                //{
+                //    ShowErrorMessage("Resource Uri cannot be empty.", "Add Connection");
+                //    return;
+                //}
 
-                if (string.IsNullOrWhiteSpace(authenticationProfileUriText.Text))
-                {
-                    ShowErrorMessage("Authentication Profile Uri cannot be empty.", "Add Connection");
-                    return;
-                }
+                //if (string.IsNullOrWhiteSpace(authenticationProfileUriText.Text))
+                //{
+                //    ShowErrorMessage("Authentication Profile Uri cannot be empty.", "Add Connection");
+                //    return;
+                //}
                 ResourceUri = ResourceUritext.Text;
                 AuthenticationProfileUri = authenticationProfileUriText.Text;
             }
 
             if (ConnectionTypeCmb.SelectedIndex == 0)
             {
-                if (string.IsNullOrWhiteSpace(DiscoveryAddressTxt.Text))
-                {
-                    ShowErrorMessage("Discovery Address cannot be empty.", "Add Connection");
-                    return;
-                }
-                if (string.IsNullOrWhiteSpace(DiscoveryNetworkInterfaceText.Text))
-                {
-                    ShowErrorMessage("Discovery Network Interface cannot be empty.", "Add Connection");
-                    return;
-                }
+                //if (string.IsNullOrWhiteSpace(DiscoveryAddressTxt.Text))
+                //{
+                //    ShowErrorMessage("Discovery Address cannot be empty.", "Add Connection");
+                //    return;
+                //}
+                //if (string.IsNullOrWhiteSpace(DiscoveryNetworkInterfaceText.Text))
+                //{
+                //    ShowErrorMessage("Discovery Network Interface cannot be empty.", "Add Connection");
+                //    return;
+                //}
                 DiscoveryUrl = DiscoveryAddressTxt.Text;
                 DiscoveryNetworkInterface = DiscoveryNetworkInterfaceText.Text;
             }

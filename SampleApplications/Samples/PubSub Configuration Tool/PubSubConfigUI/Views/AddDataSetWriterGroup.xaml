@@ -34,6 +34,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -140,8 +141,10 @@
                 <ComboBoxItem>AtMostOnce</ComboBoxItem>
                 <ComboBoxItem>ExactlyOnce</ComboBoxItem>
             </ComboBox>
-
-            <GroupBox x:Name="NetworkMessageGroupBox" Visibility="{Binding IsDatagramMessage}" Grid.Row="22" Grid.Column="0"
+            <Label x:Name="HeaderLayoutUrilbl" Grid.Row="22" Grid.Column="0" Content="Header Layout Uri"   Height="33"  Width="180"   />
+            <TextBox x:Name="HeaderLayoutURI"   Grid.Row="22" Grid.Column="1" Margin="5,5,5,5"
+                              Text="{Binding HeaderLayoutUri}"   Width="210" Height="23" />
+            <GroupBox x:Name="NetworkMessageGroupBox" Visibility="{Binding IsDatagramMessage}" Grid.Row="23" Grid.Column="0"
                       Grid.ColumnSpan="3" Header="Uadp Network Message Content Mask" HorizontalAlignment="Left"
                       VerticalAlignment="Top">
                 <Grid  Height="100" Margin="0,5">
@@ -192,7 +195,7 @@
 
             </GroupBox>
 
-            <GroupBox Visibility="{Binding IsBrokerMessage}" Grid.Row="23" Grid.Column="0" Grid.ColumnSpan="3"
+            <GroupBox Visibility="{Binding IsBrokerMessage}" Grid.Row="24" Grid.Column="0" Grid.ColumnSpan="3"
                               Header="Json Network Message Content Mask" HorizontalAlignment="Left"
                               VerticalAlignment="Top">
                 <Grid  Height="50" Margin="0,5">
@@ -227,7 +230,7 @@
                 </Grid>
             </GroupBox>
 
-            <StackPanel Grid.Row="24" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,7" Orientation="Horizontal"
+            <StackPanel Grid.Row="25" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,7" Orientation="Horizontal"
                         VerticalAlignment="Bottom" HorizontalAlignment="Center">
                 <Button Width="100" Content="Apply" Height="23" VerticalAlignment="Center" Click="AddApplyClick" />
                 <Button Width="100" Margin="5,0" Content="Cancel" Height="23" VerticalAlignment="Center"

@@ -68,13 +68,16 @@ namespace Opc.Ua.Bindings
         {
             if (endpoint != null && endpoint.SecurityMode != MessageSecurityMode.None)
             {
-                if (clientCertificate == null) throw new ArgumentNullException("clientCertificate");
+                if (clientCertificate == null)
+                {
+                    throw new ArgumentNullException(nameof(clientCertificate));
+                }
 
                 if (clientCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
                     throw new ArgumentException(
                         Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
-                        "clientCertificate");
+                        nameof(clientCertificate));
                 }
 
                 ClientCertificate = clientCertificate;
@@ -119,8 +122,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IAsyncResult BeginConnect(Uri url, int timeout, AsyncCallback callback, object state)
         {
-            if (url == null) throw new ArgumentNullException("url");
-            if (timeout <= 0) throw new ArgumentException("Timeout must be greater than zero.", "timeout");
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+
+            if (timeout <= 0)
+            {
+                throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
+            }
 
             Task task;
             lock (DataLock)
@@ -163,7 +173,7 @@ namespace Opc.Ua.Bindings
 
             if (operation == null)
             {
-                throw new ArgumentNullException("result");
+                throw new ArgumentNullException(nameof(result));
             }
 
             try
@@ -253,8 +263,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IAsyncResult BeginSendRequest(IServiceRequest request, int timeout, AsyncCallback callback, object state)
         {
-            if (request == null) throw new ArgumentNullException("request");
-            if (timeout <= 0) throw new ArgumentException("Timeout must be greater than zero.", "timeout");
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (timeout <= 0)
+            {
+                throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
+            }
 
             lock (DataLock)
             {
@@ -313,7 +330,7 @@ namespace Opc.Ua.Bindings
 
             if (operation == null)
             {
-                throw new ArgumentNullException("result");
+                throw new ArgumentNullException(nameof(result));
             }
 
             try
@@ -600,9 +617,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
 
-                string implementation = g_ImplementationString + 
-                    m_socketFactory.Implementation + " " +
-                    Utils.GetAssemblySoftwareVersion();
+                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -745,7 +760,10 @@ namespace Opc.Ua.Bindings
 
             // dual stack ConnectAsync may call in with null UserToken if 
             // one connection attempt timed out but the other succeeded
-            if (operation == null) return;
+            if (operation == null)
+            {
+                return;
+            }
 
             if (e.IsSocketError)
             {
@@ -845,7 +863,7 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run( async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation));
+                    task = Task.Run(async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation));
                 }
             }
             catch (Exception e)
@@ -960,23 +978,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            BinaryDecoder decoder = new BinaryDecoder(new ArraySegmentStream(chunksToProcess), Quotas.MessageContext);
-
-            try
+            IServiceResponse response = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceResponse;
+            if (response == null)
             {
-                IServiceResponse response = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceResponse;
-
-                if (response == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
-                }
-
-                return response;
+                throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
             }
-            finally
-            {
-                decoder.Close();
-            }
+            return response;
         }
 
         /// <summary>
@@ -1438,7 +1445,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_StartHandshake;
         private AsyncCallback m_HandshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblySoftwareVersion();
+        private string g_ImplementationString = ".NetStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 }

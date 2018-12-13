@@ -440,7 +440,7 @@ namespace Opc.Ua
         public const uint BadContentFilterInvalid = 0x80480000;
 
         /// <summary>
-        /// An unregognized operator was provided in a filter.
+        /// An unrecognized operator was provided in a filter.
         /// </summary>
         public const uint BadFilterOperatorInvalid = 0x80C10000;
 
@@ -480,7 +480,7 @@ namespace Opc.Ua
         public const uint BadNoContinuationPoints = 0x804B0000;
 
         /// <summary>
-        /// The operation could not be processed because all continuation points have been allocated.
+        /// The reference type id does not refer to a valid reference type node.
         /// </summary>
         public const uint BadReferenceTypeIdInvalid = 0x804C0000;
 
@@ -755,7 +755,7 @@ namespace Opc.Ua
         public const uint BadNotExecutable = 0x81110000;
 
         /// <summary>
-        /// The server has reached its  maximum number of subscriptions.
+        /// The server has reached its maximum number of subscriptions.
         /// </summary>
         public const uint BadTooManySubscriptions = 0x80770000;
 
@@ -1080,7 +1080,7 @@ namespace Opc.Ua
         public const uint BadAggregateConfigurationRejected = 0x80DA0000;
 
         /// <summary>
-        /// The request pecifies fields which are not valid for the EventType or cannot be saved by the historian.
+        /// The request specifies fields which are not valid for the EventType or cannot be saved by the historian.
         /// </summary>
         public const uint GoodDataIgnored = 0x00D90000;
 

@@ -240,6 +240,16 @@ namespace Opc.Ua
         public const uint KeyValuePair = 14533;
 
         /// <summary>
+        /// The identifier for the AdditionalParametersType DataType.
+        /// </summary>
+        public const uint AdditionalParametersType = 16313;
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType DataType.
+        /// </summary>
+        public const uint EphemeralKeyType = 17548;
+
+        /// <summary>
         /// The identifier for the EndpointType DataType.
         /// </summary>
         public const uint EndpointType = 15528;
@@ -988,6 +998,16 @@ namespace Opc.Ua
         /// The identifier for the IssuedIdentityToken DataType.
         /// </summary>
         public const uint IssuedIdentityToken = 938;
+
+        /// <summary>
+        /// The identifier for the RsaEncryptedSecret DataType.
+        /// </summary>
+        public const uint RsaEncryptedSecret = 17545;
+
+        /// <summary>
+        /// The identifier for the EccEncryptedSecret DataType.
+        /// </summary>
+        public const uint EccEncryptedSecret = 17546;
 
         /// <summary>
         /// The identifier for the ActivateSessionRequest DataType.
@@ -1990,14 +2010,14 @@ namespace Opc.Ua
         public const uint OPCUANamespaceMetadata_NamespaceFile_SetPosition = 15984;
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole Method.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole Method.
         /// </summary>
-        public const uint ServerType_ServerCapabilities_Roles_AddRole = 16290;
+        public const uint ServerType_ServerCapabilities_RoleSet_AddRole = 16290;
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_RemoveRole Method.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_RemoveRole Method.
         /// </summary>
-        public const uint ServerType_ServerCapabilities_Roles_RemoveRole = 16293;
+        public const uint ServerType_ServerCapabilities_RoleSet_RemoveRole = 16293;
 
         /// <summary>
         /// The identifier for the ServerType_GetMonitoredItems Method.
@@ -2020,14 +2040,14 @@ namespace Opc.Ua
         public const uint ServerType_RequestServerStateChange = 12883;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole Method.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole Method.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles_AddRole = 16296;
+        public const uint ServerCapabilitiesType_RoleSet_AddRole = 16296;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_RemoveRole Method.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_RemoveRole Method.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles_RemoveRole = 16299;
+        public const uint ServerCapabilitiesType_RoleSet_RemoveRole = 16299;
 
         /// <summary>
         /// The identifier for the FileType_Open Method.
@@ -2125,14 +2145,14 @@ namespace Opc.Ua
         public const uint NamespacesType_NamespaceIdentifier_Placeholder_NamespaceFile_SetPosition = 11672;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole Method.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole Method.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles_AddRole = 16301;
+        public const uint Server_ServerCapabilities_RoleSet_AddRole = 16301;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_RemoveRole Method.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_RemoveRole Method.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles_RemoveRole = 16304;
+        public const uint Server_ServerCapabilities_RoleSet_RemoveRole = 16304;
 
         /// <summary>
         /// The identifier for the Server_GetMonitoredItems Method.
@@ -3510,6 +3530,16 @@ namespace Opc.Ua
         public const uint ServerConfiguration_GetRejectedList = 12777;
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential Method.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_CreateCredential = 17522;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey Method.
+        /// </summary>
+        public const uint KeyCredentialConfigurationType_GetEncryptingKey = 17534;
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_UpdateCredential Method.
         /// </summary>
         public const uint KeyCredentialConfigurationType_UpdateCredential = 18006;
@@ -4060,9 +4090,9 @@ namespace Opc.Ua
         public const uint ServerCapabilitiesType_AggregateFunctions = 2754;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles Object.
+        /// The identifier for the ServerCapabilitiesType_RoleSet Object.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles = 16295;
+        public const uint ServerCapabilitiesType_RoleSet = 16295;
 
         /// <summary>
         /// The identifier for the ServerDiagnosticsType_SessionsDiagnosticsSummary Object.
@@ -4115,9 +4145,9 @@ namespace Opc.Ua
         public const uint Server_ServerCapabilities_AggregateFunctions = 2997;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles Object.
+        /// The identifier for the Server_ServerCapabilities_RoleSet Object.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles = 15606;
+        public const uint Server_ServerCapabilities_RoleSet = 15606;
 
         /// <summary>
         /// The identifier for the Server_ServerDiagnostics Object.
@@ -4603,6 +4633,11 @@ namespace Opc.Ua
         /// The identifier for the ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList Object.
         /// </summary>
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList = 14123;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder Object.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder = 17511;
 
         /// <summary>
         /// The identifier for the KeyCredentialConfiguration Object.
@@ -5288,6 +5323,16 @@ namespace Opc.Ua
         /// The identifier for the KeyValuePair_Encoding_DefaultBinary Object.
         /// </summary>
         public const uint KeyValuePair_Encoding_DefaultBinary = 14846;
+
+        /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint AdditionalParametersType_Encoding_DefaultBinary = 17537;
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint EphemeralKeyType_Encoding_DefaultBinary = 17549;
 
         /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultBinary Object.
@@ -6705,6 +6750,16 @@ namespace Opc.Ua
         public const uint KeyValuePair_Encoding_DefaultXml = 14802;
 
         /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint AdditionalParametersType_Encoding_DefaultXml = 17541;
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint EphemeralKeyType_Encoding_DefaultXml = 17553;
+
+        /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint EndpointType_Encoding_DefaultXml = 15949;
@@ -8118,6 +8173,16 @@ namespace Opc.Ua
         /// The identifier for the KeyValuePair_Encoding_DefaultJson Object.
         /// </summary>
         public const uint KeyValuePair_Encoding_DefaultJson = 15041;
+
+        /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint AdditionalParametersType_Encoding_DefaultJson = 17547;
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint EphemeralKeyType_Encoding_DefaultJson = 17557;
 
         /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultJson Object.
@@ -10240,6 +10305,11 @@ namespace Opc.Ua
         public const uint CertificateUpdatedAuditEventType = 12620;
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType ObjectType.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType = 17496;
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfigurationType ObjectType.
         /// </summary>
         public const uint KeyCredentialConfigurationType = 18001;
@@ -10658,6 +10728,26 @@ namespace Opc.Ua
         /// The identifier for the HasHistoricalConfiguration ReferenceType.
         /// </summary>
         public const uint HasHistoricalConfiguration = 56;
+
+        /// <summary>
+        /// The identifier for the HasArgumentDescription ReferenceType.
+        /// </summary>
+        public const uint HasArgumentDescription = 129;
+
+        /// <summary>
+        /// The identifier for the HasInputArgumentDescription ReferenceType.
+        /// </summary>
+        public const uint HasInputArgumentDescription = 130;
+
+        /// <summary>
+        /// The identifier for the HasOptionalInputArgumentDescription ReferenceType.
+        /// </summary>
+        public const uint HasOptionalInputArgumentDescription = 131;
+
+        /// <summary>
+        /// The identifier for the HasOutputArgumentDescription ReferenceType.
+        /// </summary>
+        public const uint HasOutputArgumentDescription = 132;
 
         /// <summary>
         /// The identifier for the HasTrueSubState ReferenceType.
@@ -11135,19 +11225,19 @@ namespace Opc.Ua
         public const uint ServerType_ServerCapabilities_SoftwareCertificates = 3092;
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public const uint ServerType_ServerCapabilities_Roles_AddRole_InputArguments = 16291;
+        public const uint ServerType_ServerCapabilities_RoleSet_AddRole_InputArguments = 16291;
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public const uint ServerType_ServerCapabilities_Roles_AddRole_OutputArguments = 16292;
+        public const uint ServerType_ServerCapabilities_RoleSet_AddRole_OutputArguments = 16292;
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public const uint ServerType_ServerCapabilities_Roles_RemoveRole_InputArguments = 16294;
+        public const uint ServerType_ServerCapabilities_RoleSet_RemoveRole_InputArguments = 16294;
 
         /// <summary>
         /// The identifier for the ServerType_ServerDiagnostics_ServerDiagnosticsSummary Variable.
@@ -11325,19 +11415,19 @@ namespace Opc.Ua
         public const uint ServerCapabilitiesType_VendorCapability_Placeholder = 11562;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles_AddRole_InputArguments = 16297;
+        public const uint ServerCapabilitiesType_RoleSet_AddRole_InputArguments = 16297;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles_AddRole_OutputArguments = 16298;
+        public const uint ServerCapabilitiesType_RoleSet_AddRole_OutputArguments = 16298;
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public const uint ServerCapabilitiesType_Roles_RemoveRole_InputArguments = 16300;
+        public const uint ServerCapabilitiesType_RoleSet_RemoveRole_InputArguments = 16300;
 
         /// <summary>
         /// The identifier for the ServerDiagnosticsType_ServerDiagnosticsSummary Variable.
@@ -13830,6 +13920,11 @@ namespace Opc.Ua
         public const uint Server_EstimatedReturnTime = 12885;
 
         /// <summary>
+        /// The identifier for the Server_LocalTime Variable.
+        /// </summary>
+        public const uint Server_LocalTime = 17634;
+
+        /// <summary>
         /// The identifier for the Server_ServerCapabilities_ServerProfileArray Variable.
         /// </summary>
         public const uint Server_ServerCapabilities_ServerProfileArray = 2269;
@@ -13940,19 +14035,19 @@ namespace Opc.Ua
         public const uint Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall = 11714;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles_AddRole_InputArguments = 16302;
+        public const uint Server_ServerCapabilities_RoleSet_AddRole_InputArguments = 16302;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles_AddRole_OutputArguments = 16303;
+        public const uint Server_ServerCapabilities_RoleSet_AddRole_OutputArguments = 16303;
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public const uint Server_ServerCapabilities_Roles_RemoveRole_InputArguments = 16305;
+        public const uint Server_ServerCapabilities_RoleSet_RemoveRole_InputArguments = 16305;
 
         /// <summary>
         /// The identifier for the Server_ServerDiagnostics_ServerDiagnosticsSummary Variable.
@@ -14078,11 +14173,6 @@ namespace Opc.Ua
         /// The identifier for the Server_RequestServerStateChange_InputArguments Variable.
         /// </summary>
         public const uint Server_RequestServerStateChange_InputArguments = 12887;
-
-        /// <summary>
-        /// The identifier for the Server_CurrentTimeZone Variable.
-        /// </summary>
-        public const uint Server_CurrentTimeZone = 16313;
 
         /// <summary>
         /// The identifier for the Server_ServerRedundancy_CurrentServerId Variable.
@@ -15308,6 +15398,36 @@ namespace Opc.Ua
         /// The identifier for the AnalogItemType_EngineeringUnits Variable.
         /// </summary>
         public const uint AnalogItemType_EngineeringUnits = 2371;
+
+        /// <summary>
+        /// The identifier for the EUItemType_InstrumentRange Variable.
+        /// </summary>
+        public const uint EUItemType_InstrumentRange = 17500;
+
+        /// <summary>
+        /// The identifier for the EUItemType_EURange Variable.
+        /// </summary>
+        public const uint EUItemType_EURange = 17501;
+
+        /// <summary>
+        /// The identifier for the EUItemType_EngineeringUnits Variable.
+        /// </summary>
+        public const uint EUItemType_EngineeringUnits = 17502;
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_InstrumentRange Variable.
+        /// </summary>
+        public const uint AnalogUnitItemType_InstrumentRange = 17506;
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_EURange Variable.
+        /// </summary>
+        public const uint AnalogUnitItemType_EURange = 17509;
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_EngineeringUnits Variable.
+        /// </summary>
+        public const uint AnalogUnitItemType_EngineeringUnits = 17510;
 
         /// <summary>
         /// The identifier for the TwoStateDiscreteType_FalseState Variable.
@@ -20530,6 +20650,41 @@ namespace Opc.Ua
         public const uint ServerConfiguration_GetRejectedList_OutputArguments = 12778;
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = 17512;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ProfileUri Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ProfileUri = 17513;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_InputArguments = 17517;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_OutputArguments = 17518;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_UpdateCredential_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_ServiceName_Placeholder_UpdateCredential_InputArguments = 17520;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_CreateCredential_InputArguments = 17523;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential_OutputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationFolderType_CreateCredential_OutputArguments = 17524;
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_ResourceUri Variable.
         /// </summary>
         public const uint KeyCredentialConfiguration_ServiceName_Placeholder_ResourceUri = 18157;
@@ -20540,9 +20695,29 @@ namespace Opc.Ua
         public const uint KeyCredentialConfiguration_ServiceName_Placeholder_ProfileUri = 18164;
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_InputArguments = 17526;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_OutputArguments = 17527;
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_UpdateCredential_InputArguments Variable.
         /// </summary>
         public const uint KeyCredentialConfiguration_ServiceName_Placeholder_UpdateCredential_InputArguments = 18162;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_CreateCredential_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfiguration_CreateCredential_InputArguments = 17529;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_CreateCredential_OutputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfiguration_CreateCredential_OutputArguments = 17530;
 
         /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_ResourceUri Variable.
@@ -20563,6 +20738,16 @@ namespace Opc.Ua
         /// The identifier for the KeyCredentialConfigurationType_ServiceStatus Variable.
         /// </summary>
         public const uint KeyCredentialConfigurationType_ServiceStatus = 18005;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationType_GetEncryptingKey_InputArguments = 17535;
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public const uint KeyCredentialConfigurationType_GetEncryptingKey_OutputArguments = 17536;
 
         /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_UpdateCredential_InputArguments Variable.
@@ -23260,6 +23445,11 @@ namespace Opc.Ua
         public const uint PubSubConnectionType_WriterGroupName_Placeholder_LocaleIds = 17322;
 
         /// <summary>
+        /// The identifier for the PubSubConnectionType_WriterGroupName_Placeholder_HeaderLayoutUri Variable.
+        /// </summary>
+        public const uint PubSubConnectionType_WriterGroupName_Placeholder_HeaderLayoutUri = 17558;
+
+        /// <summary>
         /// The identifier for the PubSubConnectionType_WriterGroupName_Placeholder_Diagnostics_DiagnosticsLevel Variable.
         /// </summary>
         public const uint PubSubConnectionType_WriterGroupName_Placeholder_Diagnostics_DiagnosticsLevel = 19108;
@@ -24230,6 +24420,11 @@ namespace Opc.Ua
         public const uint WriterGroupType_LocaleIds = 17740;
 
         /// <summary>
+        /// The identifier for the WriterGroupType_HeaderLayoutUri Variable.
+        /// </summary>
+        public const uint WriterGroupType_HeaderLayoutUri = 17559;
+
+        /// <summary>
         /// The identifier for the WriterGroupType_DataSetWriterName_Placeholder_DataSetWriterId Variable.
         /// </summary>
         public const uint WriterGroupType_DataSetWriterName_Placeholder_DataSetWriterId = 17744;
@@ -24870,6 +25065,16 @@ namespace Opc.Ua
         public const uint ReaderGroupType_DataSetReaderName_Placeholder_MessageReceiveTimeout = 18082;
 
         /// <summary>
+        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_KeyFrameCount Variable.
+        /// </summary>
+        public const uint ReaderGroupType_DataSetReaderName_Placeholder_KeyFrameCount = 17560;
+
+        /// <summary>
+        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_HeaderLayoutUri Variable.
+        /// </summary>
+        public const uint ReaderGroupType_DataSetReaderName_Placeholder_HeaderLayoutUri = 17562;
+
+        /// <summary>
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_DataSetReaderProperties Variable.
         /// </summary>
         public const uint ReaderGroupType_DataSetReaderName_Placeholder_DataSetReaderProperties = 17492;
@@ -25163,16 +25368,6 @@ namespace Opc.Ua
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel Variable.
         /// </summary>
         public const uint ReaderGroupType_DataSetReaderName_Placeholder_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel = 21005;
-
-        /// <summary>
-        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_DataSetMetaData Variable.
-        /// </summary>
-        public const uint ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_DataSetMetaData = 21007;
-
-        /// <summary>
-        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_MessageReceiveTimeout Variable.
-        /// </summary>
-        public const uint ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_MessageReceiveTimeout = 21008;
 
         /// <summary>
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_CreateTargetVariables_InputArguments Variable.
@@ -25815,6 +26010,16 @@ namespace Opc.Ua
         public const uint DataSetReaderType_MessageReceiveTimeout = 21102;
 
         /// <summary>
+        /// The identifier for the DataSetReaderType_KeyFrameCount Variable.
+        /// </summary>
+        public const uint DataSetReaderType_KeyFrameCount = 17563;
+
+        /// <summary>
+        /// The identifier for the DataSetReaderType_HeaderLayoutUri Variable.
+        /// </summary>
+        public const uint DataSetReaderType_HeaderLayoutUri = 17564;
+
+        /// <summary>
         /// The identifier for the DataSetReaderType_SecurityMode Variable.
         /// </summary>
         public const uint DataSetReaderType_SecurityMode = 15932;
@@ -26125,16 +26330,6 @@ namespace Opc.Ua
         public const uint DataSetReaderType_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel = 19676;
 
         /// <summary>
-        /// The identifier for the DataSetReaderType_SubscribedDataSet_DataSetMetaData Variable.
-        /// </summary>
-        public const uint DataSetReaderType_SubscribedDataSet_DataSetMetaData = 15317;
-
-        /// <summary>
-        /// The identifier for the DataSetReaderType_SubscribedDataSet_MessageReceiveTimeout Variable.
-        /// </summary>
-        public const uint DataSetReaderType_SubscribedDataSet_MessageReceiveTimeout = 15318;
-
-        /// <summary>
         /// The identifier for the DataSetReaderType_CreateTargetVariables_InputArguments Variable.
         /// </summary>
         public const uint DataSetReaderType_CreateTargetVariables_InputArguments = 17387;
@@ -26153,16 +26348,6 @@ namespace Opc.Ua
         /// The identifier for the DataSetReaderType_CreateDataSetMirror_OutputArguments Variable.
         /// </summary>
         public const uint DataSetReaderType_CreateDataSetMirror_OutputArguments = 17391;
-
-        /// <summary>
-        /// The identifier for the SubscribedDataSetType_DataSetMetaData Variable.
-        /// </summary>
-        public const uint SubscribedDataSetType_DataSetMetaData = 15109;
-
-        /// <summary>
-        /// The identifier for the SubscribedDataSetType_MessageReceiveTimeout Variable.
-        /// </summary>
-        public const uint SubscribedDataSetType_MessageReceiveTimeout = 15110;
 
         /// <summary>
         /// The identifier for the TargetVariablesType_TargetVariables Variable.
@@ -28425,6 +28610,16 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_KeyValuePair = 14873;
 
         /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_AdditionalParametersType Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_AdditionalParametersType = 17538;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_EphemeralKeyType Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_EphemeralKeyType = 17550;
+
+        /// <summary>
         /// The identifier for the OpcUa_BinarySchema_EndpointType Variable.
         /// </summary>
         public const uint OpcUa_BinarySchema_EndpointType = 15734;
@@ -29028,6 +29223,16 @@ namespace Opc.Ua
         /// The identifier for the OpcUa_XmlSchema_KeyValuePair Variable.
         /// </summary>
         public const uint OpcUa_XmlSchema_KeyValuePair = 14829;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_AdditionalParametersType Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_AdditionalParametersType = 17542;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_EphemeralKeyType Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_EphemeralKeyType = 17554;
 
         /// <summary>
         /// The identifier for the OpcUa_XmlSchema_EndpointType Variable.
@@ -29755,6 +29960,16 @@ namespace Opc.Ua
         public const uint AnalogItemType = 2368;
 
         /// <summary>
+        /// The identifier for the EUItemType VariableType.
+        /// </summary>
+        public const uint EUItemType = 17497;
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType VariableType.
+        /// </summary>
+        public const uint AnalogUnitItemType = 17503;
+
+        /// <summary>
         /// The identifier for the DiscreteItemType VariableType.
         /// </summary>
         public const uint DiscreteItemType = 2372;
@@ -30038,6 +30253,16 @@ namespace Opc.Ua
         /// The identifier for the KeyValuePair DataType.
         /// </summary>
         public static readonly NodeId KeyValuePair = new NodeId(Opc.Ua.DataTypes.KeyValuePair);
+
+        /// <summary>
+        /// The identifier for the AdditionalParametersType DataType.
+        /// </summary>
+        public static readonly NodeId AdditionalParametersType = new NodeId(Opc.Ua.DataTypes.AdditionalParametersType);
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType DataType.
+        /// </summary>
+        public static readonly NodeId EphemeralKeyType = new NodeId(Opc.Ua.DataTypes.EphemeralKeyType);
 
         /// <summary>
         /// The identifier for the EndpointType DataType.
@@ -30788,6 +31013,16 @@ namespace Opc.Ua
         /// The identifier for the IssuedIdentityToken DataType.
         /// </summary>
         public static readonly NodeId IssuedIdentityToken = new NodeId(Opc.Ua.DataTypes.IssuedIdentityToken);
+
+        /// <summary>
+        /// The identifier for the RsaEncryptedSecret DataType.
+        /// </summary>
+        public static readonly NodeId RsaEncryptedSecret = new NodeId(Opc.Ua.DataTypes.RsaEncryptedSecret);
+
+        /// <summary>
+        /// The identifier for the EccEncryptedSecret DataType.
+        /// </summary>
+        public static readonly NodeId EccEncryptedSecret = new NodeId(Opc.Ua.DataTypes.EccEncryptedSecret);
 
         /// <summary>
         /// The identifier for the ActivateSessionRequest DataType.
@@ -31790,14 +32025,14 @@ namespace Opc.Ua
         public static readonly NodeId OPCUANamespaceMetadata_NamespaceFile_SetPosition = new NodeId(Opc.Ua.Methods.OPCUANamespaceMetadata_NamespaceFile_SetPosition);
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole Method.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole Method.
         /// </summary>
-        public static readonly NodeId ServerType_ServerCapabilities_Roles_AddRole = new NodeId(Opc.Ua.Methods.ServerType_ServerCapabilities_Roles_AddRole);
+        public static readonly NodeId ServerType_ServerCapabilities_RoleSet_AddRole = new NodeId(Opc.Ua.Methods.ServerType_ServerCapabilities_RoleSet_AddRole);
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_RemoveRole Method.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_RemoveRole Method.
         /// </summary>
-        public static readonly NodeId ServerType_ServerCapabilities_Roles_RemoveRole = new NodeId(Opc.Ua.Methods.ServerType_ServerCapabilities_Roles_RemoveRole);
+        public static readonly NodeId ServerType_ServerCapabilities_RoleSet_RemoveRole = new NodeId(Opc.Ua.Methods.ServerType_ServerCapabilities_RoleSet_RemoveRole);
 
         /// <summary>
         /// The identifier for the ServerType_GetMonitoredItems Method.
@@ -31820,14 +32055,14 @@ namespace Opc.Ua
         public static readonly NodeId ServerType_RequestServerStateChange = new NodeId(Opc.Ua.Methods.ServerType_RequestServerStateChange);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole Method.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole Method.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles_AddRole = new NodeId(Opc.Ua.Methods.ServerCapabilitiesType_Roles_AddRole);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet_AddRole = new NodeId(Opc.Ua.Methods.ServerCapabilitiesType_RoleSet_AddRole);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_RemoveRole Method.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_RemoveRole Method.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles_RemoveRole = new NodeId(Opc.Ua.Methods.ServerCapabilitiesType_Roles_RemoveRole);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet_RemoveRole = new NodeId(Opc.Ua.Methods.ServerCapabilitiesType_RoleSet_RemoveRole);
 
         /// <summary>
         /// The identifier for the FileType_Open Method.
@@ -31925,14 +32160,14 @@ namespace Opc.Ua
         public static readonly NodeId NamespacesType_NamespaceIdentifier_Placeholder_NamespaceFile_SetPosition = new NodeId(Opc.Ua.Methods.NamespacesType_NamespaceIdentifier_Placeholder_NamespaceFile_SetPosition);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole Method.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole Method.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles_AddRole = new NodeId(Opc.Ua.Methods.Server_ServerCapabilities_Roles_AddRole);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet_AddRole = new NodeId(Opc.Ua.Methods.Server_ServerCapabilities_RoleSet_AddRole);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_RemoveRole Method.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_RemoveRole Method.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles_RemoveRole = new NodeId(Opc.Ua.Methods.Server_ServerCapabilities_Roles_RemoveRole);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet_RemoveRole = new NodeId(Opc.Ua.Methods.Server_ServerCapabilities_RoleSet_RemoveRole);
 
         /// <summary>
         /// The identifier for the Server_GetMonitoredItems Method.
@@ -33310,6 +33545,16 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_GetRejectedList = new NodeId(Opc.Ua.Methods.ServerConfiguration_GetRejectedList);
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential Method.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationFolderType_CreateCredential);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey Method.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationType_GetEncryptingKey = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationType_GetEncryptingKey);
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_UpdateCredential Method.
         /// </summary>
         public static readonly NodeId KeyCredentialConfigurationType_UpdateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationType_UpdateCredential);
@@ -33860,9 +34105,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerCapabilitiesType_AggregateFunctions = new NodeId(Opc.Ua.Objects.ServerCapabilitiesType_AggregateFunctions);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles Object.
+        /// The identifier for the ServerCapabilitiesType_RoleSet Object.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles = new NodeId(Opc.Ua.Objects.ServerCapabilitiesType_Roles);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet = new NodeId(Opc.Ua.Objects.ServerCapabilitiesType_RoleSet);
 
         /// <summary>
         /// The identifier for the ServerDiagnosticsType_SessionsDiagnosticsSummary Object.
@@ -33915,9 +34160,9 @@ namespace Opc.Ua
         public static readonly NodeId Server_ServerCapabilities_AggregateFunctions = new NodeId(Opc.Ua.Objects.Server_ServerCapabilities_AggregateFunctions);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles Object.
+        /// The identifier for the Server_ServerCapabilities_RoleSet Object.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles = new NodeId(Opc.Ua.Objects.Server_ServerCapabilities_Roles);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet = new NodeId(Opc.Ua.Objects.Server_ServerCapabilities_RoleSet);
 
         /// <summary>
         /// The identifier for the Server_ServerDiagnostics Object.
@@ -34403,6 +34648,11 @@ namespace Opc.Ua
         /// The identifier for the ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList Object.
         /// </summary>
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList = new NodeId(Opc.Ua.Objects.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder Object.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder = new NodeId(Opc.Ua.Objects.KeyCredentialConfigurationFolderType_ServiceName_Placeholder);
 
         /// <summary>
         /// The identifier for the KeyCredentialConfiguration Object.
@@ -35088,6 +35338,16 @@ namespace Opc.Ua
         /// The identifier for the KeyValuePair_Encoding_DefaultBinary Object.
         /// </summary>
         public static readonly NodeId KeyValuePair_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.KeyValuePair_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId AdditionalParametersType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AdditionalParametersType_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId EphemeralKeyType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.EphemeralKeyType_Encoding_DefaultBinary);
 
         /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultBinary Object.
@@ -36505,6 +36765,16 @@ namespace Opc.Ua
         public static readonly NodeId KeyValuePair_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.KeyValuePair_Encoding_DefaultXml);
 
         /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId AdditionalParametersType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AdditionalParametersType_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId EphemeralKeyType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EphemeralKeyType_Encoding_DefaultXml);
+
+        /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly NodeId EndpointType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EndpointType_Encoding_DefaultXml);
@@ -37918,6 +38188,16 @@ namespace Opc.Ua
         /// The identifier for the KeyValuePair_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly NodeId KeyValuePair_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.KeyValuePair_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the AdditionalParametersType_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId AdditionalParametersType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AdditionalParametersType_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the EphemeralKeyType_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId EphemeralKeyType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EphemeralKeyType_Encoding_DefaultJson);
 
         /// <summary>
         /// The identifier for the EndpointType_Encoding_DefaultJson Object.
@@ -40040,6 +40320,11 @@ namespace Opc.Ua
         public static readonly NodeId CertificateUpdatedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.CertificateUpdatedAuditEventType);
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType ObjectType.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType = new NodeId(Opc.Ua.ObjectTypes.KeyCredentialConfigurationFolderType);
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfigurationType ObjectType.
         /// </summary>
         public static readonly NodeId KeyCredentialConfigurationType = new NodeId(Opc.Ua.ObjectTypes.KeyCredentialConfigurationType);
@@ -40458,6 +40743,26 @@ namespace Opc.Ua
         /// The identifier for the HasHistoricalConfiguration ReferenceType.
         /// </summary>
         public static readonly NodeId HasHistoricalConfiguration = new NodeId(Opc.Ua.ReferenceTypes.HasHistoricalConfiguration);
+
+        /// <summary>
+        /// The identifier for the HasArgumentDescription ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasArgumentDescription = new NodeId(Opc.Ua.ReferenceTypes.HasArgumentDescription);
+
+        /// <summary>
+        /// The identifier for the HasInputArgumentDescription ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasInputArgumentDescription = new NodeId(Opc.Ua.ReferenceTypes.HasInputArgumentDescription);
+
+        /// <summary>
+        /// The identifier for the HasOptionalInputArgumentDescription ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasOptionalInputArgumentDescription = new NodeId(Opc.Ua.ReferenceTypes.HasOptionalInputArgumentDescription);
+
+        /// <summary>
+        /// The identifier for the HasOutputArgumentDescription ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasOutputArgumentDescription = new NodeId(Opc.Ua.ReferenceTypes.HasOutputArgumentDescription);
 
         /// <summary>
         /// The identifier for the HasTrueSubState ReferenceType.
@@ -40935,19 +41240,19 @@ namespace Opc.Ua
         public static readonly NodeId ServerType_ServerCapabilities_SoftwareCertificates = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_SoftwareCertificates);
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerType_ServerCapabilities_Roles_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_Roles_AddRole_InputArguments);
+        public static readonly NodeId ServerType_ServerCapabilities_RoleSet_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_RoleSet_AddRole_InputArguments);
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerType_ServerCapabilities_Roles_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_Roles_AddRole_OutputArguments);
+        public static readonly NodeId ServerType_ServerCapabilities_RoleSet_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_RoleSet_AddRole_OutputArguments);
 
         /// <summary>
-        /// The identifier for the ServerType_ServerCapabilities_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the ServerType_ServerCapabilities_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerType_ServerCapabilities_Roles_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_Roles_RemoveRole_InputArguments);
+        public static readonly NodeId ServerType_ServerCapabilities_RoleSet_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerType_ServerCapabilities_RoleSet_RemoveRole_InputArguments);
 
         /// <summary>
         /// The identifier for the ServerType_ServerDiagnostics_ServerDiagnosticsSummary Variable.
@@ -41125,19 +41430,19 @@ namespace Opc.Ua
         public static readonly NodeId ServerCapabilitiesType_VendorCapability_Placeholder = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_VendorCapability_Placeholder);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_Roles_AddRole_InputArguments);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_RoleSet_AddRole_InputArguments);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_Roles_AddRole_OutputArguments);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_RoleSet_AddRole_OutputArguments);
 
         /// <summary>
-        /// The identifier for the ServerCapabilitiesType_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the ServerCapabilitiesType_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId ServerCapabilitiesType_Roles_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_Roles_RemoveRole_InputArguments);
+        public static readonly NodeId ServerCapabilitiesType_RoleSet_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.ServerCapabilitiesType_RoleSet_RemoveRole_InputArguments);
 
         /// <summary>
         /// The identifier for the ServerDiagnosticsType_ServerDiagnosticsSummary Variable.
@@ -43630,6 +43935,11 @@ namespace Opc.Ua
         public static readonly NodeId Server_EstimatedReturnTime = new NodeId(Opc.Ua.Variables.Server_EstimatedReturnTime);
 
         /// <summary>
+        /// The identifier for the Server_LocalTime Variable.
+        /// </summary>
+        public static readonly NodeId Server_LocalTime = new NodeId(Opc.Ua.Variables.Server_LocalTime);
+
+        /// <summary>
         /// The identifier for the Server_ServerCapabilities_ServerProfileArray Variable.
         /// </summary>
         public static readonly NodeId Server_ServerCapabilities_ServerProfileArray = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_ServerProfileArray);
@@ -43740,19 +44050,19 @@ namespace Opc.Ua
         public static readonly NodeId Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole_InputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_Roles_AddRole_InputArguments);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet_AddRole_InputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_RoleSet_AddRole_InputArguments);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_AddRole_OutputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_AddRole_OutputArguments Variable.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_Roles_AddRole_OutputArguments);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet_AddRole_OutputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_RoleSet_AddRole_OutputArguments);
 
         /// <summary>
-        /// The identifier for the Server_ServerCapabilities_Roles_RemoveRole_InputArguments Variable.
+        /// The identifier for the Server_ServerCapabilities_RoleSet_RemoveRole_InputArguments Variable.
         /// </summary>
-        public static readonly NodeId Server_ServerCapabilities_Roles_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_Roles_RemoveRole_InputArguments);
+        public static readonly NodeId Server_ServerCapabilities_RoleSet_RemoveRole_InputArguments = new NodeId(Opc.Ua.Variables.Server_ServerCapabilities_RoleSet_RemoveRole_InputArguments);
 
         /// <summary>
         /// The identifier for the Server_ServerDiagnostics_ServerDiagnosticsSummary Variable.
@@ -43878,11 +44188,6 @@ namespace Opc.Ua
         /// The identifier for the Server_RequestServerStateChange_InputArguments Variable.
         /// </summary>
         public static readonly NodeId Server_RequestServerStateChange_InputArguments = new NodeId(Opc.Ua.Variables.Server_RequestServerStateChange_InputArguments);
-
-        /// <summary>
-        /// The identifier for the Server_CurrentTimeZone Variable.
-        /// </summary>
-        public static readonly NodeId Server_CurrentTimeZone = new NodeId(Opc.Ua.Variables.Server_CurrentTimeZone);
 
         /// <summary>
         /// The identifier for the Server_ServerRedundancy_CurrentServerId Variable.
@@ -45108,6 +45413,36 @@ namespace Opc.Ua
         /// The identifier for the AnalogItemType_EngineeringUnits Variable.
         /// </summary>
         public static readonly NodeId AnalogItemType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogItemType_EngineeringUnits);
+
+        /// <summary>
+        /// The identifier for the EUItemType_InstrumentRange Variable.
+        /// </summary>
+        public static readonly NodeId EUItemType_InstrumentRange = new NodeId(Opc.Ua.Variables.EUItemType_InstrumentRange);
+
+        /// <summary>
+        /// The identifier for the EUItemType_EURange Variable.
+        /// </summary>
+        public static readonly NodeId EUItemType_EURange = new NodeId(Opc.Ua.Variables.EUItemType_EURange);
+
+        /// <summary>
+        /// The identifier for the EUItemType_EngineeringUnits Variable.
+        /// </summary>
+        public static readonly NodeId EUItemType_EngineeringUnits = new NodeId(Opc.Ua.Variables.EUItemType_EngineeringUnits);
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_InstrumentRange Variable.
+        /// </summary>
+        public static readonly NodeId AnalogUnitItemType_InstrumentRange = new NodeId(Opc.Ua.Variables.AnalogUnitItemType_InstrumentRange);
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_EURange Variable.
+        /// </summary>
+        public static readonly NodeId AnalogUnitItemType_EURange = new NodeId(Opc.Ua.Variables.AnalogUnitItemType_EURange);
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType_EngineeringUnits Variable.
+        /// </summary>
+        public static readonly NodeId AnalogUnitItemType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogUnitItemType_EngineeringUnits);
 
         /// <summary>
         /// The identifier for the TwoStateDiscreteType_FalseState Variable.
@@ -50330,6 +50665,41 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_GetRejectedList_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_GetRejectedList_OutputArguments);
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ResourceUri);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ProfileUri Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ProfileUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_ProfileUri);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_OutputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_GetEncryptingKey_OutputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_ServiceName_Placeholder_UpdateCredential_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_ServiceName_Placeholder_UpdateCredential_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_ServiceName_Placeholder_UpdateCredential_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_CreateCredential_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationFolderType_CreateCredential_OutputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential_OutputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationFolderType_CreateCredential_OutputArguments);
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_ResourceUri Variable.
         /// </summary>
         public static readonly NodeId KeyCredentialConfiguration_ServiceName_Placeholder_ResourceUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_ServiceName_Placeholder_ResourceUri);
@@ -50340,9 +50710,29 @@ namespace Opc.Ua
         public static readonly NodeId KeyCredentialConfiguration_ServiceName_Placeholder_ProfileUri = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_ServiceName_Placeholder_ProfileUri);
 
         /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_OutputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_ServiceName_Placeholder_GetEncryptingKey_OutputArguments);
+
+        /// <summary>
         /// The identifier for the KeyCredentialConfiguration_ServiceName_Placeholder_UpdateCredential_InputArguments Variable.
         /// </summary>
         public static readonly NodeId KeyCredentialConfiguration_ServiceName_Placeholder_UpdateCredential_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_ServiceName_Placeholder_UpdateCredential_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_CreateCredential_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfiguration_CreateCredential_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_CreateCredential_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfiguration_CreateCredential_OutputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfiguration_CreateCredential_OutputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfiguration_CreateCredential_OutputArguments);
 
         /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_ResourceUri Variable.
@@ -50363,6 +50753,16 @@ namespace Opc.Ua
         /// The identifier for the KeyCredentialConfigurationType_ServiceStatus Variable.
         /// </summary>
         public static readonly NodeId KeyCredentialConfigurationType_ServiceStatus = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_ServiceStatus);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey_InputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationType_GetEncryptingKey_InputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_GetEncryptingKey_InputArguments);
+
+        /// <summary>
+        /// The identifier for the KeyCredentialConfigurationType_GetEncryptingKey_OutputArguments Variable.
+        /// </summary>
+        public static readonly NodeId KeyCredentialConfigurationType_GetEncryptingKey_OutputArguments = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_GetEncryptingKey_OutputArguments);
 
         /// <summary>
         /// The identifier for the KeyCredentialConfigurationType_UpdateCredential_InputArguments Variable.
@@ -53060,6 +53460,11 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConnectionType_WriterGroupName_Placeholder_LocaleIds = new NodeId(Opc.Ua.Variables.PubSubConnectionType_WriterGroupName_Placeholder_LocaleIds);
 
         /// <summary>
+        /// The identifier for the PubSubConnectionType_WriterGroupName_Placeholder_HeaderLayoutUri Variable.
+        /// </summary>
+        public static readonly NodeId PubSubConnectionType_WriterGroupName_Placeholder_HeaderLayoutUri = new NodeId(Opc.Ua.Variables.PubSubConnectionType_WriterGroupName_Placeholder_HeaderLayoutUri);
+
+        /// <summary>
         /// The identifier for the PubSubConnectionType_WriterGroupName_Placeholder_Diagnostics_DiagnosticsLevel Variable.
         /// </summary>
         public static readonly NodeId PubSubConnectionType_WriterGroupName_Placeholder_Diagnostics_DiagnosticsLevel = new NodeId(Opc.Ua.Variables.PubSubConnectionType_WriterGroupName_Placeholder_Diagnostics_DiagnosticsLevel);
@@ -54030,6 +54435,11 @@ namespace Opc.Ua
         public static readonly NodeId WriterGroupType_LocaleIds = new NodeId(Opc.Ua.Variables.WriterGroupType_LocaleIds);
 
         /// <summary>
+        /// The identifier for the WriterGroupType_HeaderLayoutUri Variable.
+        /// </summary>
+        public static readonly NodeId WriterGroupType_HeaderLayoutUri = new NodeId(Opc.Ua.Variables.WriterGroupType_HeaderLayoutUri);
+
+        /// <summary>
         /// The identifier for the WriterGroupType_DataSetWriterName_Placeholder_DataSetWriterId Variable.
         /// </summary>
         public static readonly NodeId WriterGroupType_DataSetWriterName_Placeholder_DataSetWriterId = new NodeId(Opc.Ua.Variables.WriterGroupType_DataSetWriterName_Placeholder_DataSetWriterId);
@@ -54670,6 +55080,16 @@ namespace Opc.Ua
         public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_MessageReceiveTimeout = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_MessageReceiveTimeout);
 
         /// <summary>
+        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_KeyFrameCount Variable.
+        /// </summary>
+        public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_KeyFrameCount = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_KeyFrameCount);
+
+        /// <summary>
+        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_HeaderLayoutUri Variable.
+        /// </summary>
+        public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_HeaderLayoutUri = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_HeaderLayoutUri);
+
+        /// <summary>
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_DataSetReaderProperties Variable.
         /// </summary>
         public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_DataSetReaderProperties = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_DataSetReaderProperties);
@@ -54963,16 +55383,6 @@ namespace Opc.Ua
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel Variable.
         /// </summary>
         public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel);
-
-        /// <summary>
-        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_DataSetMetaData Variable.
-        /// </summary>
-        public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_DataSetMetaData = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_DataSetMetaData);
-
-        /// <summary>
-        /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_MessageReceiveTimeout Variable.
-        /// </summary>
-        public static readonly NodeId ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_MessageReceiveTimeout = new NodeId(Opc.Ua.Variables.ReaderGroupType_DataSetReaderName_Placeholder_SubscribedDataSet_MessageReceiveTimeout);
 
         /// <summary>
         /// The identifier for the ReaderGroupType_DataSetReaderName_Placeholder_CreateTargetVariables_InputArguments Variable.
@@ -55615,6 +56025,16 @@ namespace Opc.Ua
         public static readonly NodeId DataSetReaderType_MessageReceiveTimeout = new NodeId(Opc.Ua.Variables.DataSetReaderType_MessageReceiveTimeout);
 
         /// <summary>
+        /// The identifier for the DataSetReaderType_KeyFrameCount Variable.
+        /// </summary>
+        public static readonly NodeId DataSetReaderType_KeyFrameCount = new NodeId(Opc.Ua.Variables.DataSetReaderType_KeyFrameCount);
+
+        /// <summary>
+        /// The identifier for the DataSetReaderType_HeaderLayoutUri Variable.
+        /// </summary>
+        public static readonly NodeId DataSetReaderType_HeaderLayoutUri = new NodeId(Opc.Ua.Variables.DataSetReaderType_HeaderLayoutUri);
+
+        /// <summary>
         /// The identifier for the DataSetReaderType_SecurityMode Variable.
         /// </summary>
         public static readonly NodeId DataSetReaderType_SecurityMode = new NodeId(Opc.Ua.Variables.DataSetReaderType_SecurityMode);
@@ -55925,16 +56345,6 @@ namespace Opc.Ua
         public static readonly NodeId DataSetReaderType_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel = new NodeId(Opc.Ua.Variables.DataSetReaderType_Diagnostics_LiveValues_TimeToNextTokenID_DiagnosticsLevel);
 
         /// <summary>
-        /// The identifier for the DataSetReaderType_SubscribedDataSet_DataSetMetaData Variable.
-        /// </summary>
-        public static readonly NodeId DataSetReaderType_SubscribedDataSet_DataSetMetaData = new NodeId(Opc.Ua.Variables.DataSetReaderType_SubscribedDataSet_DataSetMetaData);
-
-        /// <summary>
-        /// The identifier for the DataSetReaderType_SubscribedDataSet_MessageReceiveTimeout Variable.
-        /// </summary>
-        public static readonly NodeId DataSetReaderType_SubscribedDataSet_MessageReceiveTimeout = new NodeId(Opc.Ua.Variables.DataSetReaderType_SubscribedDataSet_MessageReceiveTimeout);
-
-        /// <summary>
         /// The identifier for the DataSetReaderType_CreateTargetVariables_InputArguments Variable.
         /// </summary>
         public static readonly NodeId DataSetReaderType_CreateTargetVariables_InputArguments = new NodeId(Opc.Ua.Variables.DataSetReaderType_CreateTargetVariables_InputArguments);
@@ -55953,16 +56363,6 @@ namespace Opc.Ua
         /// The identifier for the DataSetReaderType_CreateDataSetMirror_OutputArguments Variable.
         /// </summary>
         public static readonly NodeId DataSetReaderType_CreateDataSetMirror_OutputArguments = new NodeId(Opc.Ua.Variables.DataSetReaderType_CreateDataSetMirror_OutputArguments);
-
-        /// <summary>
-        /// The identifier for the SubscribedDataSetType_DataSetMetaData Variable.
-        /// </summary>
-        public static readonly NodeId SubscribedDataSetType_DataSetMetaData = new NodeId(Opc.Ua.Variables.SubscribedDataSetType_DataSetMetaData);
-
-        /// <summary>
-        /// The identifier for the SubscribedDataSetType_MessageReceiveTimeout Variable.
-        /// </summary>
-        public static readonly NodeId SubscribedDataSetType_MessageReceiveTimeout = new NodeId(Opc.Ua.Variables.SubscribedDataSetType_MessageReceiveTimeout);
 
         /// <summary>
         /// The identifier for the TargetVariablesType_TargetVariables Variable.
@@ -58225,6 +58625,16 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_KeyValuePair = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_KeyValuePair);
 
         /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_AdditionalParametersType Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_AdditionalParametersType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AdditionalParametersType);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_EphemeralKeyType Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_EphemeralKeyType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EphemeralKeyType);
+
+        /// <summary>
         /// The identifier for the OpcUa_BinarySchema_EndpointType Variable.
         /// </summary>
         public static readonly NodeId OpcUa_BinarySchema_EndpointType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EndpointType);
@@ -58828,6 +59238,16 @@ namespace Opc.Ua
         /// The identifier for the OpcUa_XmlSchema_KeyValuePair Variable.
         /// </summary>
         public static readonly NodeId OpcUa_XmlSchema_KeyValuePair = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_KeyValuePair);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_AdditionalParametersType Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_AdditionalParametersType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AdditionalParametersType);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_EphemeralKeyType Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_EphemeralKeyType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_EphemeralKeyType);
 
         /// <summary>
         /// The identifier for the OpcUa_XmlSchema_EndpointType Variable.
@@ -59555,6 +59975,16 @@ namespace Opc.Ua
         public static readonly NodeId AnalogItemType = new NodeId(Opc.Ua.VariableTypes.AnalogItemType);
 
         /// <summary>
+        /// The identifier for the EUItemType VariableType.
+        /// </summary>
+        public static readonly NodeId EUItemType = new NodeId(Opc.Ua.VariableTypes.EUItemType);
+
+        /// <summary>
+        /// The identifier for the AnalogUnitItemType VariableType.
+        /// </summary>
+        public static readonly NodeId AnalogUnitItemType = new NodeId(Opc.Ua.VariableTypes.AnalogUnitItemType);
+
+        /// <summary>
         /// The identifier for the DiscreteItemType VariableType.
         /// </summary>
         public static readonly NodeId DiscreteItemType = new NodeId(Opc.Ua.VariableTypes.DiscreteItemType);
@@ -59772,6 +60202,11 @@ namespace Opc.Ua
         /// The BrowseName for the AdditionalGroup_Placeholder component.
         /// </summary>
         public const string AdditionalGroup_Placeholder = "<AdditionalGroup>";
+
+        /// <summary>
+        /// The BrowseName for the AdditionalParametersType component.
+        /// </summary>
+        public const string AdditionalParametersType = "AdditionalParametersType";
 
         /// <summary>
         /// The BrowseName for the AddNodesCount component.
@@ -60157,6 +60592,11 @@ namespace Opc.Ua
         /// The BrowseName for the AnalogItemType component.
         /// </summary>
         public const string AnalogItemType = "AnalogItemType";
+
+        /// <summary>
+        /// The BrowseName for the AnalogUnitItemType component.
+        /// </summary>
+        public const string AnalogUnitItemType = "AnalogUnitItemType";
 
         /// <summary>
         /// The BrowseName for the Annotation component.
@@ -61124,6 +61564,11 @@ namespace Opc.Ua
         public const string CreateClientName = "CreateClientName";
 
         /// <summary>
+        /// The BrowseName for the CreateCredential component.
+        /// </summary>
+        public const string CreateCredential = "CreateCredential";
+
+        /// <summary>
         /// The BrowseName for the CreateDataSetMirror component.
         /// </summary>
         public const string CreateDataSetMirror = "CreateDataSetMirror";
@@ -61262,11 +61707,6 @@ namespace Opc.Ua
         /// The BrowseName for the CurrentTime component.
         /// </summary>
         public const string CurrentTime = "CurrentTime";
-
-        /// <summary>
-        /// The BrowseName for the CurrentTimeZone component.
-        /// </summary>
-        public const string CurrentTimeZone = "CurrentTimeZone";
 
         /// <summary>
         /// The BrowseName for the DataChangeFilter component.
@@ -61839,6 +62279,11 @@ namespace Opc.Ua
         public const string DurationString = "DurationString";
 
         /// <summary>
+        /// The BrowseName for the EccEncryptedSecret component.
+        /// </summary>
+        public const string EccEncryptedSecret = "EccEncryptedSecret";
+
+        /// <summary>
         /// The BrowseName for the EffectiveDisplayName component.
         /// </summary>
         public const string EffectiveDisplayName = "EffectiveDisplayName";
@@ -61964,6 +62409,11 @@ namespace Opc.Ua
         public const string EnumValueType = "EnumValueType";
 
         /// <summary>
+        /// The BrowseName for the EphemeralKeyType component.
+        /// </summary>
+        public const string EphemeralKeyType = "EphemeralKeyType";
+
+        /// <summary>
         /// The BrowseName for the Error component.
         /// </summary>
         public const string Error = "Error";
@@ -61982,6 +62432,11 @@ namespace Opc.Ua
         /// The BrowseName for the EUInformation component.
         /// </summary>
         public const string EUInformation = "EUInformation";
+
+        /// <summary>
+        /// The BrowseName for the EUItemType component.
+        /// </summary>
+        public const string EUItemType = "EUItemType";
 
         /// <summary>
         /// The BrowseName for the EURange component.
@@ -62279,6 +62734,11 @@ namespace Opc.Ua
         public const string GenericAttributeValue = "GenericAttributeValue";
 
         /// <summary>
+        /// The BrowseName for the GetEncryptingKey component.
+        /// </summary>
+        public const string GetEncryptingKey = "GetEncryptingKey";
+
+        /// <summary>
         /// The BrowseName for the GetEndpointsRequest component.
         /// </summary>
         public const string GetEndpointsRequest = "GetEndpointsRequest";
@@ -62357,6 +62817,11 @@ namespace Opc.Ua
         /// The BrowseName for the HasAlarmSuppressionGroup component.
         /// </summary>
         public const string HasAlarmSuppressionGroup = "HasAlarmSuppressionGroup";
+
+        /// <summary>
+        /// The BrowseName for the HasArgumentDescription component.
+        /// </summary>
+        public const string HasArgumentDescription = "HasArgumentDescription";
 
         /// <summary>
         /// The BrowseName for the HasCause component.
@@ -62439,6 +62904,11 @@ namespace Opc.Ua
         public const string HasHistoricalConfiguration = "HasHistoricalConfiguration";
 
         /// <summary>
+        /// The BrowseName for the HasInputArgumentDescription component.
+        /// </summary>
+        public const string HasInputArgumentDescription = "HasInputArgumentDescription";
+
+        /// <summary>
         /// The BrowseName for the HasModellingRule component.
         /// </summary>
         public const string HasModellingRule = "HasModellingRule";
@@ -62449,9 +62919,19 @@ namespace Opc.Ua
         public const string HasNotifier = "HasNotifier";
 
         /// <summary>
+        /// The BrowseName for the HasOptionalInputArgumentDescription component.
+        /// </summary>
+        public const string HasOptionalInputArgumentDescription = "HasOptionalInputArgumentDescription";
+
+        /// <summary>
         /// The BrowseName for the HasOrderedComponent component.
         /// </summary>
         public const string HasOrderedComponent = "HasOrderedComponent";
+
+        /// <summary>
+        /// The BrowseName for the HasOutputArgumentDescription component.
+        /// </summary>
+        public const string HasOutputArgumentDescription = "HasOutputArgumentDescription";
 
         /// <summary>
         /// The BrowseName for the HasProperty component.
@@ -62482,6 +62962,11 @@ namespace Opc.Ua
         /// The BrowseName for the HasTypeDefinition component.
         /// </summary>
         public const string HasTypeDefinition = "HasTypeDefinition";
+
+        /// <summary>
+        /// The BrowseName for the HeaderLayoutUri component.
+        /// </summary>
+        public const string HeaderLayoutUri = "HeaderLayoutUri";
 
         /// <summary>
         /// The BrowseName for the HierarchicalReferences component.
@@ -62887,6 +63372,11 @@ namespace Opc.Ua
         /// The BrowseName for the KeyCredentialConfiguration component.
         /// </summary>
         public const string KeyCredentialConfiguration = "KeyCredentialConfiguration";
+
+        /// <summary>
+        /// The BrowseName for the KeyCredentialConfigurationFolderType component.
+        /// </summary>
+        public const string KeyCredentialConfigurationFolderType = "KeyCredentialConfigurationFolderType";
 
         /// <summary>
         /// The BrowseName for the KeyCredentialConfigurationType component.
@@ -64869,9 +65359,9 @@ namespace Opc.Ua
         public const string RolePermissionType = "RolePermissionType";
 
         /// <summary>
-        /// The BrowseName for the Roles component.
+        /// The BrowseName for the RoleSet component.
         /// </summary>
-        public const string Roles = "Roles";
+        public const string RoleSet = "RoleSet";
 
         /// <summary>
         /// The BrowseName for the RoleSetType component.
@@ -64887,6 +65377,11 @@ namespace Opc.Ua
         /// The BrowseName for the RootFolder component.
         /// </summary>
         public const string RootFolder = "Root";
+
+        /// <summary>
+        /// The BrowseName for the RsaEncryptedSecret component.
+        /// </summary>
+        public const string RsaEncryptedSecret = "RsaEncryptedSecret";
 
         /// <summary>
         /// The BrowseName for the RsaMinApplicationCertificateType component.

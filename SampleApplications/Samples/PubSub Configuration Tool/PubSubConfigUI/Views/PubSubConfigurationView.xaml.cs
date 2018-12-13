@@ -470,6 +470,9 @@ namespace PubSubConfigurationUI.Views
                     addDataSetWriter._dataSetWriterViewModel.IsDatagramMessage = Visibility.Collapsed;
                     addDataSetWriter._dataSetWriterViewModel.IsBrokerMessage = Visibility.Visible;
                     addDataSetWriter._dataSetWriterViewModel.MessageSetting = 1;
+                    addDataSetWriter._dataSetWriterViewModel.QueueName = dataSetWriterGroup.QueueName;
+                    addDataSetWriter._dataSetWriterViewModel.AuthenticationProfileUri = dataSetWriterGroup.AuthenticationProfileUri;
+                    addDataSetWriter._dataSetWriterViewModel.ResourceUri = dataSetWriterGroup.ResourceUri;
                 }
                 else if (connection != null)
                 {
@@ -519,8 +522,10 @@ namespace PubSubConfigurationUI.Views
                 dataSetWriterDefinition.KeyFrameCount = addDataSetWriter._dataSetWriterViewModel.KeyFrameCount;
                 dataSetWriterDefinition.DataSetContentMask = addDataSetWriter._dataSetContentMask;
                 dataSetWriterDefinition.DataSetName = addDataSetWriter._dataSetWriterViewModel.DataSetName;
+                dataSetWriterDefinition.TransportSetting = addDataSetWriter._dataSetWriterViewModel.TransportSetting;
                 if (addDataSetWriter._dataSetWriterViewModel.TransportSetting == 1)
                 {
+                    dataSetWriterDefinition.TransportSetting = 1;
                     dataSetWriterDefinition.QueueName = addDataSetWriter._dataSetWriterViewModel.QueueName;
                     dataSetWriterDefinition.MetadataQueueName = addDataSetWriter._dataSetWriterViewModel.MetadataQueueName;
                     dataSetWriterDefinition.MetadataUpdataTime = addDataSetWriter._dataSetWriterViewModel.MetadataUpdataTime;
@@ -528,8 +533,10 @@ namespace PubSubConfigurationUI.Views
                     dataSetWriterDefinition.RequestedDeliveryGuarantee = addDataSetWriter._dataSetWriterViewModel.RequestedDeliveryGuarantee;
                     dataSetWriterDefinition.AuthenticationProfileUri = addDataSetWriter._dataSetWriterViewModel.AuthenticationProfileUri;
                 }
+                dataSetWriterDefinition.MessageSetting= addDataSetWriter._dataSetWriterViewModel.MessageSetting;
                 if (addDataSetWriter._dataSetWriterViewModel.MessageSetting == 0)
                 {
+                    dataSetWriterDefinition.MessageSetting = 0;
                     dataSetWriterDefinition.ConfiguredSize = addDataSetWriter._dataSetWriterViewModel.ConfiguredSize;
                     dataSetWriterDefinition.NetworkMessageNumber = addDataSetWriter._dataSetWriterViewModel.NetworkMessageNumber;
                     dataSetWriterDefinition.DataSetOffset = addDataSetWriter._dataSetWriterViewModel.DataSetOffset;
@@ -537,6 +544,7 @@ namespace PubSubConfigurationUI.Views
                 }
                 else
                 {
+                    dataSetWriterDefinition.MessageSetting = 1;
                     dataSetWriterDefinition.JsonDataSetMessageContentMask = addDataSetWriter._jsondataSetMessageContentMask;
                 }
 
@@ -604,6 +612,7 @@ namespace PubSubConfigurationUI.Views
                 // dataSetWriterGroup.PublishingOffset = addDataSetWriterGroup._dataSetGroupViewModel.PublishingOffset;
                 dataSetWriterGroup.Priority = (byte)addDataSetWriterGroup._dataSetGroupViewModel.Priority;
                 dataSetWriterGroup.WriterGroupId = addDataSetWriterGroup._dataSetGroupViewModel.WriterGroupId;
+                dataSetWriterGroup.HeaderLayoutUri = addDataSetWriterGroup._dataSetGroupViewModel.HeaderLayoutUri;
                 dataSetWriterGroup.SecurityGroupId = addDataSetWriterGroup._dataSetGroupViewModel.SecurityGroupId;
                 dataSetWriterGroup.MaxNetworkMessageSize =
                 addDataSetWriterGroup._dataSetGroupViewModel.MaxNetworkMessageSize;
@@ -716,6 +725,9 @@ namespace PubSubConfigurationUI.Views
                 dataSetReaderDefinition.DataSetMetaDataType = addDataSetReader.DataSetMetaDataType;
                 dataSetReaderDefinition.MessageSecurityMode = addDataSetReader._messageSecurityMode;
                 dataSetReaderDefinition.SecurityGroupId = addDataSetReader.SecurityGroupid;
+                dataSetReaderDefinition.HeaderLayoutUri = addDataSetReader.HeaderLayoutUri;
+                dataSetReaderDefinition.KeyFrameCount = addDataSetReader.KeyFramecount;
+                dataSetReaderDefinition.TransportSetting = addDataSetReader.TransportSetting;
                 if (addDataSetReader.TransportSetting == 1)
                 {
                     dataSetReaderDefinition.QueueName = addDataSetReader.QueueName;
@@ -724,13 +736,15 @@ namespace PubSubConfigurationUI.Views
                     dataSetReaderDefinition.RequestedDeliveryGuarantee = addDataSetReader.RequestedDeliveryGuarantee;
                     dataSetReaderDefinition.MetadataQueueName = addDataSetReader.MetaDataQueueName;
                 }
+                dataSetReaderDefinition.PublishingInterval = addDataSetReader._publishingInterval;
+                dataSetReaderDefinition.MessageSetting = addDataSetReader.MessageSetting;
                 if (addDataSetReader.MessageSetting == 0)
                 {
                     dataSetReaderDefinition.GroupVersion = addDataSetReader.GroupVersion;
                     dataSetReaderDefinition.NetworkMessageNumber = addDataSetReader.NetworkMessageNumber;
                     dataSetReaderDefinition.DataSetOffset = addDataSetReader.DataSetOffset;
                     //dataSetReaderDefinition.DataSetClassId = addDataSetReader.DataSetMetaDataType.DataSetClassId;
-                    dataSetReaderDefinition.PublishingInterval = addDataSetReader._publishingInterval;
+                    
                     dataSetReaderDefinition.Receiveoffset = addDataSetReader._receiveOffset;
                     dataSetReaderDefinition.ProcessingOffset = addDataSetReader.ProcessingOffset;
                     dataSetReaderDefinition.UadpDataSetMessageContentMask = addDataSetReader._uadpDatasetMessageContentMask;
@@ -946,6 +960,22 @@ namespace PubSubConfigurationUI.Views
                                 writeValueCollection.Add(writeValue);
                             }
                         }
+                        else if (referenceDescription.BrowseName.Name == "HeaderLayoutUri")
+                        {
+                            if (_dataSetWriterGroupUserControl
+                                 .DataSetWriterGroupEditViewModel.DataSetWriterGroup.HeaderLayoutUri !=
+                                 _dataSetWriterGroupUserControl.DataSetWriterGroupEditViewModel.HeaderLayoutUri)
+                            {
+                                var writeValue =
+                                CreateOPCWriteValue((NodeId)referenceDescription.NodeId,
+                                                     new DataValue(
+                                                         new Variant(
+                                                             Convert.ToString(
+                                                                 _dataSetWriterGroupUserControl
+                                                                 .DataSetWriterGroupEditViewModel.HeaderLayoutUri))));
+                                writeValueCollection.Add(writeValue);
+                            }
+                        }
                         else if (referenceDescription.BrowseName.Name == "MaxNetworkMessageSize")
                         {
                             if (_dataSetWriterGroupUserControl
@@ -1039,6 +1069,9 @@ namespace PubSubConfigurationUI.Views
                             else if (referenceDescription.BrowseName.Name == "WriterGroupId")
                                 oldConfiguration.WriterGroupId =
                                 Convert.ToInt32(ViewModel.ReadValue((NodeId)referenceDescription.NodeId));
+                            else if (referenceDescription.BrowseName.Name == "HeaderLayoutUri")
+                                oldConfiguration.HeaderLayoutUri =
+                                Convert.ToString(ViewModel.ReadValue((NodeId)referenceDescription.NodeId));
                             else if (referenceDescription.BrowseName.Name == "MaxNetworkMessageSize")
                                 oldConfiguration.MaxNetworkMessageSize =
                                 Convert.ToUInt32(ViewModel.ReadValue((NodeId)referenceDescription.NodeId));

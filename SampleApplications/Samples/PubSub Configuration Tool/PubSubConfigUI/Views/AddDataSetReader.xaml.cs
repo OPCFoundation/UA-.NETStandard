@@ -78,6 +78,10 @@ namespace PubSubConfigurationUI.Views
                     PublisherId.Text = _connectionPublisherId.ToString();
                     WriterGroupid = (selectedDataSetWriterDefinition.ParentNode as DataSetWriterGroup).WriterGroupId;
                     WriterGroupId.Text = WriterGroupid.ToString();
+                    HeaderLayoutUri= (selectedDataSetWriterDefinition.ParentNode as DataSetWriterGroup).HeaderLayoutUri;
+                    HeaderLayoutURI.Text = HeaderLayoutUri;
+                    KeyFramecount = (selectedDataSetWriterDefinition).KeyFrameCount;
+                    KeyFrameCount.Text = KeyFramecount.ToString();
                     SecurityGroupid = (selectedDataSetWriterDefinition.ParentNode as DataSetWriterGroup).SecurityGroupId;
                     SecurityGroupId.Text = SecurityGroupid;
                     DataSetWriterId.Text = selectedDataSetWriterDefinition.DataSetWriterId.ToString();
@@ -90,11 +94,11 @@ namespace PubSubConfigurationUI.Views
                     {
                         ChangeVisibilityofBrokerTransportControls();
                         TransportSelect.SelectedIndex = 1;
-                        QueueName = selectedDataSetWriterDefinition.QueueName;
-                        ResourceUri = selectedDataSetWriterDefinition.ResourceUri;
-                        AuthenticationProfileUri = selectedDataSetWriterDefinition.AuthenticationProfileUri;
-                        RequestedDeliveryGuarantee = selectedDataSetWriterDefinition.RequestedDeliveryGuarantee;
-                        MetaDataQueueName = selectedDataSetWriterDefinition.MetadataQueueName;
+                        Queuename.Text = selectedDataSetWriterDefinition.QueueName;
+                        Resourceuri.Text = selectedDataSetWriterDefinition.ResourceUri;
+                        Authenticationprofileuri.Text = selectedDataSetWriterDefinition.AuthenticationProfileUri;
+                        Requesteddeliveryguarantee.SelectedIndex = selectedDataSetWriterDefinition.RequestedDeliveryGuarantee;
+                        MetadataQueuename.Text = selectedDataSetWriterDefinition.MetadataQueueName;
                     }
                     if (MessageSetting == 0)
                     {
@@ -153,7 +157,7 @@ namespace PubSubConfigurationUI.Views
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
             //Validate here
-            if (string.IsNullOrWhiteSpace(DataSetWriterId.Text) || string.IsNullOrWhiteSpace(DataSetReaderName.Text) || string.IsNullOrWhiteSpace(MessageReceiveTimeout.Text) || string.IsNullOrWhiteSpace(Processingoffset.Text) || string.IsNullOrWhiteSpace(Receiveoffset.Text) || string.IsNullOrWhiteSpace(datasetoffset.Text))
+            if (string.IsNullOrWhiteSpace(DataSetWriterId.Text) || string.IsNullOrWhiteSpace(DataSetReaderName.Text) || string.IsNullOrWhiteSpace(MessageReceiveTimeout.Text) || string.IsNullOrWhiteSpace(Processingoffset.Text) || string.IsNullOrWhiteSpace(Receiveoffset.Text)) //|| string.IsNullOrWhiteSpace(datasetoffset.Text)
             {
                 MessageBox.Show("Mandatory fields cannot be empty.", "Add DataSet Reader");
                 return;
@@ -175,8 +179,8 @@ namespace PubSubConfigurationUI.Views
 
                 GroupVersion = Convert.ToUInt32(Groupversion.Text);
                 NetworkMessageNumber = Convert.ToUInt16(Networkmessagenumber.Text);
-
-                DataSetOffset = Convert.ToUInt16(datasetoffset.Text);
+                UInt16 DataSetOffset = 0;
+                 UInt16.TryParse(datasetoffset.Text,out DataSetOffset);
 
                 _receiveOffset = Convert.ToInt16(Receiveoffset.Text);
                 ProcessingOffset = Convert.ToInt16(Processingoffset.Text);
@@ -534,7 +538,8 @@ namespace PubSubConfigurationUI.Views
         public bool _isApplied;
         public int WriterGroupid;
         public string SecurityGroupid;
-
+        public string HeaderLayoutUri;
+        public uint KeyFramecount;
         public int TransportSetting;
         public int MessageSetting;
         public int _publishingInterval;

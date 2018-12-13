@@ -248,6 +248,16 @@
     <opc:Field Name="Value" TypeName="ua:Variant" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="AdditionalParametersType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="NoOfParameters" TypeName="opc:Int32" />
+    <opc:Field Name="Parameters" TypeName="tns:KeyValuePair" LengthField="NoOfParameters" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="EphemeralKeyType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="PublicKey" TypeName="opc:ByteString" />
+    <opc:Field Name="Signature" TypeName="opc:ByteString" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="EndpointType" BaseType="ua:ExtensionObject">
     <opc:Field Name="EndpointUrl" TypeName="opc:String" />
     <opc:Field Name="SecurityMode" TypeName="tns:MessageSecurityMode" />
@@ -392,7 +402,8 @@
     <opc:Field Name="Properties" TypeName="tns:KeyValuePair" LengthField="NoOfProperties" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="DataSetFieldFlags" LengthInBits="32">
+  <opc:EnumeratedType Name="DataSetFieldFlags" LengthInBits="16" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="PromotedField" Value="1" />
   </opc:EnumeratedType>
 
@@ -438,7 +449,8 @@
     <opc:Field Name="Filter" TypeName="tns:ContentFilter" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="DataSetFieldContentMask" LengthInBits="32">
+  <opc:EnumeratedType Name="DataSetFieldContentMask" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="StatusCode" Value="1" />
     <opc:EnumeratedValue Name="SourceTimestamp" Value="2" />
     <opc:EnumeratedValue Name="ServerTimestamp" Value="4" />
@@ -494,6 +506,7 @@
     <opc:Field Name="Priority" TypeName="opc:Byte" />
     <opc:Field Name="NoOfLocaleIds" TypeName="opc:Int32" />
     <opc:Field Name="LocaleIds" TypeName="opc:String" LengthField="NoOfLocaleIds" />
+    <opc:Field Name="HeaderLayoutUri" TypeName="opc:String" />
     <opc:Field Name="TransportSettings" TypeName="ua:ExtensionObject" />
     <opc:Field Name="MessageSettings" TypeName="ua:ExtensionObject" />
     <opc:Field Name="NoOfDataSetWriters" TypeName="opc:Int32" />
@@ -564,6 +577,8 @@
     <opc:Field Name="DataSetMetaData" TypeName="tns:DataSetMetaDataType" />
     <opc:Field Name="DataSetFieldContentMask" TypeName="tns:DataSetFieldContentMask" />
     <opc:Field Name="MessageReceiveTimeout" TypeName="opc:Double" />
+    <opc:Field Name="KeyFrameCount" TypeName="opc:UInt32" />
+    <opc:Field Name="HeaderLayoutUri" TypeName="opc:String" />
     <opc:Field Name="SecurityMode" TypeName="tns:MessageSecurityMode" />
     <opc:Field Name="SecurityGroupId" TypeName="opc:String" />
     <opc:Field Name="NoOfSecurityKeyServices" TypeName="opc:Int32" />
@@ -625,7 +640,8 @@
     <opc:EnumeratedValue Name="AscendingWriterIdSingle" Value="2" />
   </opc:EnumeratedType>
 
-  <opc:EnumeratedType Name="UadpNetworkMessageContentMask" LengthInBits="32">
+  <opc:EnumeratedType Name="UadpNetworkMessageContentMask" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="PublisherId" Value="1" />
     <opc:EnumeratedValue Name="GroupHeader" Value="2" />
     <opc:EnumeratedValue Name="WriterGroupId" Value="4" />
@@ -648,7 +664,8 @@
     <opc:Field Name="PublishingOffset" TypeName="opc:Double" LengthField="NoOfPublishingOffset" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="UadpDataSetMessageContentMask" LengthInBits="32">
+  <opc:EnumeratedType Name="UadpDataSetMessageContentMask" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="Timestamp" Value="1" />
     <opc:EnumeratedValue Name="PicoSeconds" Value="2" />
     <opc:EnumeratedValue Name="Status" Value="4" />
@@ -676,7 +693,8 @@
     <opc:Field Name="ProcessingOffset" TypeName="opc:Double" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="JsonNetworkMessageContentMask" LengthInBits="32">
+  <opc:EnumeratedType Name="JsonNetworkMessageContentMask" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="NetworkMessageHeader" Value="1" />
     <opc:EnumeratedValue Name="DataSetMessageHeader" Value="2" />
     <opc:EnumeratedValue Name="SingleDataSetMessage" Value="4" />
@@ -689,7 +707,8 @@
     <opc:Field Name="NetworkMessageContentMask" TypeName="tns:JsonNetworkMessageContentMask" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="JsonDataSetMessageContentMask" LengthInBits="32">
+  <opc:EnumeratedType Name="JsonDataSetMessageContentMask" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="DataSetWriterId" Value="1" />
     <opc:EnumeratedValue Name="MetaDataVersion" Value="2" />
     <opc:EnumeratedValue Name="SequenceNumber" Value="4" />
@@ -739,6 +758,7 @@
     <opc:Field Name="QueueName" TypeName="opc:String" />
     <opc:Field Name="ResourceUri" TypeName="opc:String" />
     <opc:Field Name="AuthenticationProfileUri" TypeName="opc:String" />
+    <opc:Field Name="RequestedDeliveryGuarantee" TypeName="tns:BrokerTransportQualityOfService" />
     <opc:Field Name="MetaDataQueueName" TypeName="opc:String" />
     <opc:Field Name="MetaDataUpdateTime" TypeName="opc:Double" />
   </opc:StructuredType>
@@ -785,30 +805,53 @@
     <opc:EnumeratedValue Name="View" Value="128" />
   </opc:EnumeratedType>
 
-  <opc:EnumeratedType Name="AccessLevelType" LengthInBits="32">
+  <opc:EnumeratedType Name="PermissionType" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Browse" Value="1" />
+    <opc:EnumeratedValue Name="ReadRolePermissions" Value="2" />
+    <opc:EnumeratedValue Name="WriteAttribute" Value="4" />
+    <opc:EnumeratedValue Name="WriteRolePermissions" Value="8" />
+    <opc:EnumeratedValue Name="WriteHistorizing" Value="16" />
+    <opc:EnumeratedValue Name="Read" Value="32" />
+    <opc:EnumeratedValue Name="Write" Value="64" />
+    <opc:EnumeratedValue Name="ReadHistory" Value="128" />
+    <opc:EnumeratedValue Name="InsertHistory" Value="256" />
+    <opc:EnumeratedValue Name="ModifyHistory" Value="512" />
+    <opc:EnumeratedValue Name="DeleteHistory" Value="1024" />
+    <opc:EnumeratedValue Name="ReceiveEvents" Value="2048" />
+    <opc:EnumeratedValue Name="Call" Value="4096" />
+    <opc:EnumeratedValue Name="AddReference" Value="8192" />
+    <opc:EnumeratedValue Name="RemoveReference" Value="16384" />
+    <opc:EnumeratedValue Name="DeleteNode" Value="32768" />
+    <opc:EnumeratedValue Name="AddNode" Value="65536" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="AccessLevelType" LengthInBits="8" IsOptionSet="true">
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="CurrentRead" Value="1" />
     <opc:EnumeratedValue Name="CurrentWrite" Value="2" />
     <opc:EnumeratedValue Name="HistoryRead" Value="4" />
-    <opc:EnumeratedValue Name="HistoryWrite" Value="16" />
+    <opc:EnumeratedValue Name="HistoryWrite" Value="8" />
+    <opc:EnumeratedValue Name="SemanticChange" Value="16" />
     <opc:EnumeratedValue Name="StatusWrite" Value="32" />
     <opc:EnumeratedValue Name="TimestampWrite" Value="64" />
   </opc:EnumeratedType>
 
-  <opc:EnumeratedType Name="AccessLevelExType" LengthInBits="32">
+  <opc:EnumeratedType Name="AccessLevelExType" LengthInBits="32" IsOptionSet="true">
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="CurrentRead" Value="1" />
     <opc:EnumeratedValue Name="CurrentWrite" Value="2" />
     <opc:EnumeratedValue Name="HistoryRead" Value="4" />
-    <opc:EnumeratedValue Name="HistoryWrite" Value="16" />
+    <opc:EnumeratedValue Name="HistoryWrite" Value="8" />
+    <opc:EnumeratedValue Name="SemanticChange" Value="16" />
     <opc:EnumeratedValue Name="StatusWrite" Value="32" />
     <opc:EnumeratedValue Name="TimestampWrite" Value="64" />
-    <opc:EnumeratedValue Name="NonatomicRead" Value="65536" />
-    <opc:EnumeratedValue Name="NonatomicWrite" Value="131072" />
-    <opc:EnumeratedValue Name="WriteFullArrayOnly" Value="262144" />
+    <opc:EnumeratedValue Name="NonatomicRead" Value="256" />
+    <opc:EnumeratedValue Name="NonatomicWrite" Value="512" />
+    <opc:EnumeratedValue Name="WriteFullArrayOnly" Value="1024" />
   </opc:EnumeratedType>
 
-  <opc:EnumeratedType Name="EventNotifierType" LengthInBits="32">
+  <opc:EnumeratedType Name="EventNotifierType" LengthInBits="8" IsOptionSet="true">
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="SubscribeToEvents" Value="1" />
     <opc:EnumeratedValue Name="HistoryRead" Value="4" />
@@ -817,7 +860,7 @@
 
   <opc:StructuredType Name="RolePermissionType" BaseType="ua:ExtensionObject">
     <opc:Field Name="RoleId" TypeName="ua:NodeId" />
-    <opc:Field Name="Permissions" TypeName="opc:UInt32" />
+    <opc:Field Name="Permissions" TypeName="tns:PermissionType" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="StructureType" LengthInBits="32">
@@ -1491,6 +1534,12 @@
     <opc:Field Name="EncryptionAlgorithm" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:OpaqueType Name="RsaEncryptedSecret">
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="EccEncryptedSecret">
+  </opc:OpaqueType>
+
   <opc:StructuredType Name="ActivateSessionRequest" BaseType="ua:ExtensionObject">
     <opc:Documentation>Activates a session with the server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
@@ -1802,7 +1851,7 @@
     <opc:Field Name="DiagnosticInfos" TypeName="ua:DiagnosticInfo" LengthField="NoOfDiagnosticInfos" />
   </opc:StructuredType>
 
-  <opc:EnumeratedType Name="AttributeWriteMask" LengthInBits="32">
+  <opc:EnumeratedType Name="AttributeWriteMask" LengthInBits="32" IsOptionSet="true">
     <opc:Documentation>Define bits used to indicate which attributes are writable.</opc:Documentation>
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="AccessLevel" Value="1" />

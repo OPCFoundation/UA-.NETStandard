@@ -28,7 +28,7 @@ namespace PubSubConfigurationUI.Views
                 return;
             }
 
-            if (_dataSetGroupViewModel.TransportSetting == 0)
+            if (_dataSetGroupViewModel.MessageSetting == 0)
             {
 
                 foreach (var checkbox in new[]
@@ -59,6 +59,18 @@ namespace PubSubConfigurationUI.Views
                         _dataSetGroupViewModel.JsonNetworkMessageContentMask = _jsonNetworkMessageContentMask;
                     }
                 }
+            }
+            if (TransportSettings.SelectedIndex == 0)
+            {
+                _dataSetGroupViewModel.TransportSetting = TransportSettings.SelectedIndex;
+                _dataSetGroupViewModel.IsDatagramTransport = Visibility.Visible;
+                _dataSetGroupViewModel.IsBrokerTransport = Visibility.Collapsed;
+            }
+            else
+            {
+                _dataSetGroupViewModel.TransportSetting = TransportSettings.SelectedIndex;
+                _dataSetGroupViewModel.IsDatagramTransport = Visibility.Collapsed;
+                _dataSetGroupViewModel.IsBrokerTransport = Visibility.Visible;
             }
 
             _isApplied = true;

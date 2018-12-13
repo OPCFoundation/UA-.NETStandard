@@ -11,12 +11,13 @@
 */
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Bindings
 {
     /// This is an interface to a listener which has no transport implemented.
     /// </summary>
-    public class NullListener : ITransportListener
+    public class NullListener : ITransportListener, ITcpChannelListener
     {
         #region Constructors
         /// <summary>
@@ -26,6 +27,7 @@ namespace Opc.Ua.Bindings
         {
         }
         #endregion
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -34,6 +36,7 @@ namespace Opc.Ua.Bindings
         {
         }
         #endregion
+
         #region ITransportListener Members
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -52,6 +55,36 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public void Close()
+        {
+        }
+        #endregion
+
+        #region ITcpChannelListener Members
+        /// <summary>
+        /// Gets the URL for the listener's endpoint.
+        /// </summary>
+        /// <value>The URL for the listener's endpoint.</value>
+        public Uri EndpointUrl { get; }
+
+        /// <summary>
+        /// Binds a new socket to an existing channel.
+        /// </summary>
+        public bool ReconnectToExistingChannel(
+            IMessageSocket socket,
+            uint requestId,
+            uint sequenceNumber,
+            uint channelId,
+            X509Certificate2 clientCertificate,
+            ChannelToken token,
+            OpenSecureChannelRequest request)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Called when a channel closes.
+        /// </summary>
+        public void ChannelClosed(uint channelId)
         {
         }
         #endregion
