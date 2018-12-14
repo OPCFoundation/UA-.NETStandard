@@ -234,7 +234,6 @@ namespace Opc.Ua
                 case ArrayDimensions:         return (writeMask & (uint)AttributeWriteMask.ArrayDimensions) != 0;
                 case DataTypeDefinition:      return (writeMask & (uint)AttributeWriteMask.DataTypeDefinition) != 0;
                 case RolePermissions:         return (writeMask & (uint)AttributeWriteMask.RolePermissions) != 0;
-                //case UserRolePermissions:     return (writeMask & (uint)AttributeWriteMask.UserRolePermissions) != 0;
                 case AccessRestrictions:      return (writeMask & (uint)AttributeWriteMask.AccessRestrictions) != 0;
                 case AccessLevelEx:           return (writeMask & (uint)AttributeWriteMask.AccessLevelEx) != 0;
             }
@@ -273,7 +272,6 @@ namespace Opc.Ua
                 case ArrayDimensions:         return writeMask | (uint)AttributeWriteMask.ArrayDimensions;
                 case DataTypeDefinition:      return writeMask | (uint)AttributeWriteMask.DataTypeDefinition;
                 case RolePermissions:         return writeMask | (uint)AttributeWriteMask.RolePermissions;
-                //case UserRolePermissions:     return writeMask | (uint)AttributeWriteMask.UserRolePermissions;
                 case AccessRestrictions:      return writeMask | (uint)AttributeWriteMask.AccessRestrictions;
                 case AccessLevelEx:           return writeMask | (uint)AttributeWriteMask.AccessLevelEx;
             }
