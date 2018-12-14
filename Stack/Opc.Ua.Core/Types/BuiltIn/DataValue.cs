@@ -518,10 +518,16 @@ namespace Opc.Ua
         {
             object value = this.Value;
 
-            if (expectedType != null)
+            if (expectedType != null && value != null)
             {
+                // return null for a DataValue with bad status code.
+                if (StatusCode.IsBad(this.StatusCode))
+                {
+                    return null;
+                }
+
                 ExtensionObject extension = value as ExtensionObject;
-                
+
                 if (extension != null)
                 {
                     value = extension.Body;
