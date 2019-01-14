@@ -994,11 +994,11 @@ namespace Opc.Ua.Client
 
                 if (identityPolicy == null)
                 {
-                    Utils.Trace("Endpoint does not supported the user identity type provided.");
+                    Utils.Trace("Endpoint does not support the user identity type provided.");
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
-                        "Endpoint does not supported the user identity type provided.");
+                        "Endpoint does not support the user identity type provided.");
                 }
 
                 // select the security policy for the user token.
@@ -2092,7 +2092,7 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
-                        "Endpoint does not supported the user identity type provided.");
+                        "Endpoint does not support the user identity type provided.");
                 }
 
                 identityToken.PolicyId = identityPolicy.PolicyId;
@@ -2558,7 +2558,7 @@ namespace Opc.Ua.Client
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
-                    "Endpoint does not supported the user identity type provided.");
+                    "Endpoint does not support the user identity type provided.");
             }
 
             // select the security policy for the user token.
