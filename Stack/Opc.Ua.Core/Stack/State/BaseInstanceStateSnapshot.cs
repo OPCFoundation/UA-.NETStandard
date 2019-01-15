@@ -266,7 +266,7 @@ namespace Opc.Ua
         {
             if (index >= relativePath.Count)
             {
-                if (node.NodeClass == NodeClass.Object && attributeId == Attributes.NodeId)
+                if (attributeId == Attributes.NodeId)
                 {
                     return node.Value;
                 }
@@ -274,6 +274,16 @@ namespace Opc.Ua
                 if (node.NodeClass == NodeClass.Variable && attributeId == Attributes.Value)
                 {
                     return node.Value;
+                }
+
+                if (attributeId == Attributes.NodeClass)
+                {
+                    return node.NodeClass;
+                }
+
+                if (attributeId == Attributes.BrowseName)
+                {
+                    return node.BrowseName;
                 }
 
                 return null;
