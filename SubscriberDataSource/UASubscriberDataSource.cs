@@ -100,18 +100,25 @@ namespace SubscriberDataSource
             {
                 UASubscriberUADPDecoder uASubscriberUADPDecoder = new UASubscriberUADPDecoder(dataSetReaderState, subscriberDelegate);
                 Dic_DataSetReader[dataSetReaderState.NodeId] = uASubscriberUADPDecoder;
+                bool isSucess = true;
                 if ((dataSetReaderState.TransportSettings is BrokerDataSetReaderTransportState))
                 {
                     if (((dataSetReaderState.TransportSettings as BrokerDataSetReaderTransportState).QueueName.Value) != null)
                     {
-                        m_TransportdataSource.ReceiveData((dataSetReaderState.TransportSettings as BrokerDataSetReaderTransportState).QueueName.Value);
+                        isSucess= m_TransportdataSource.ReceiveData((dataSetReaderState.TransportSettings as BrokerDataSetReaderTransportState).QueueName.Value);
                     }
                 }
                 else
                 {
-                    m_TransportdataSource.ReceiveData("");
+                    isSucess= m_TransportdataSource.ReceiveData("");
                 }
-
+               if(m_PubSubConnectionState!=null)
+                {
+                    if(!isSucess)
+                    {
+                        m_PubSubConnectionState.Status.State.Value = PubSubState.Error;
+                    }
+                }
             }
             else
             {

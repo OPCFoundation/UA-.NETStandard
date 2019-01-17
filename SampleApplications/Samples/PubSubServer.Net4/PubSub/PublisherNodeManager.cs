@@ -247,60 +247,7 @@ namespace Opc.Ua.Sample.PubSub
             baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "String", DataTypeIds.String);
             PubSubTargetVariables.AddChild(baseDataVariableState);
             AddPredefinedNode(Server.DefaultSystemContext, PubSubTargetVariables);
-            /*
-             BaseDataVariableState baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "MasterValve", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve1", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve2", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve3", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve4", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve5", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Valve6", DataTypeIds.Boolean);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pressure1", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pressure2", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pressure3", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pressure4", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pressure5", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump1rpm", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-            baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump2rpm", DataTypeIds.Float);
-            PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump3rpm", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump4rpm", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump5rpm", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "FlowRate", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Density", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump1Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump2Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump3Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump4Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "Pump5Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "uHART_Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           baseDataVariableState = CreateVaraibleState(PubSubTargetVariables, "uModbus_Temperature", DataTypeIds.Float);
-           PubSubTargetVariables.AddChild(baseDataVariableState);
-           AddPredefinedNode(Server.DefaultSystemContext, PubSubTargetVariables);*/
+            
         }
         public BaseDataVariableState CreateVaraibleState(NodeState parentstate, string name, NodeId dataType)
         {

@@ -174,7 +174,7 @@ namespace PublisherDataSource
             uadpNetworkMessage.NetworkMessageNumber = (activeDataSetWriters[0].MessageSettings as UadpDataSetWriterMessageState).NetworkMessageNumber.Value;
             uadpNetworkMessage.GroupVersion = (groupState.MessageSettings as UadpWriterGroupMessageState).GroupVersion.Value;
             uadpNetworkMessage.NetworkMessageSequenceNumber = (ushort)(Utils.IncrementIdentifier(ref SequenceNumber) % UInt16.MaxValue);
-            uadpNetworkMessage.MessageCount = activeDataSetWriters.Count;
+            uadpNetworkMessage.MessageCount =(byte) activeDataSetWriters.Count;
             foreach (DataSetWriterState writerstate in activeDataSetWriters)
             {
                 uadpNetworkMessage.LstDataSetWriterId.Add(writerstate.DataSetWriterId.Value);
@@ -194,7 +194,7 @@ namespace PublisherDataSource
             uadpNetworkMessage.Encode();
             long DataSetMessageSequenceNumber = 0;
             List<MemoryStream> LstmemoryStream = new List<MemoryStream>();
-            List<long> DataSetMessageSizes = new List<long>();
+            List<UInt16> DataSetMessageSizes = new List<UInt16>();
             foreach (DataSetWriterState writerState in activeDataSetWriters)
             {
                 if ((writerState.TransportSettings is BrokerDataSetWriterTransportState))
@@ -267,7 +267,7 @@ namespace PublisherDataSource
                     } 
                 }
                 uadpDataSetMessage.Encode();
-                DataSetMessageSizes.Add((uadpDataSetMessage.BaseStream as MemoryStream).Length);
+                DataSetMessageSizes.Add((UInt16)(uadpDataSetMessage.BaseStream as MemoryStream).Length);
                 
                 using (var stream = new BinaryWriter(memoryStream))
                 {
@@ -275,16 +275,33 @@ namespace PublisherDataSource
                 }
                 LstmemoryStream.Add(memoryStream);
             }
-            foreach(long size in DataSetMessageSizes)
+            if (uadpNetworkMessage.MessageCount > 1 && uadpNetworkMessage.IsPayloadHeaderAvailable())
             {
-                uadpNetworkMessage.WriteInt64("DataSetMessageSize",size);
+                foreach (UInt16 size in DataSetMessageSizes)
+                {
+                    uadpNetworkMessage.WriteUInt16("DataSetMessageSize", size);
+                }
             }
             using (var stream = new BinaryWriter(uadpNetworkMessage.BaseStream))
             {
                 foreach (var memoryStream in LstmemoryStream)
                 {
                     //need to encrypt here.
-                     //SecurityPolicies.Encrypt()
+                   /* if (uadpNetworkMessage.SecurityMode == MessageSecurityMode.Sign)
+                    {
+                      SignatureData signatureData=  SecurityPolicies.Sign(m_servercertificate, SecurityPolicies.Basic256, memoryStream.ToArray());
+                        stream.Write(signatureData.Signature);
+                    }
+                    else if (uadpNetworkMessage.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                    {
+                        SignatureData signatureData = SecurityPolicies.Sign(m_servercertificate, SecurityPolicies.Basic256, memoryStream.ToArray());
+                        if(signatureData.Signature!=null && signatureData.Signature.Count()>0)
+                        {
+                          EncryptedData encryptedData=  SecurityPolicies.Encrypt(m_servercertificate, SecurityPolicies.Basic256, signatureData.Signature);
+                            stream.Write(encryptedData.Data);
+                        }
+                        
+                    }*/
                     stream.Write(memoryStream.ToArray());
                 }
                

@@ -81,11 +81,11 @@ namespace MQTTTransportDataSource
             return true;
         }
 
-        public override void ReceiveData(string queueName)
+        public override bool ReceiveData(string queueName)
         {
             Topics[0] = queueName;
             client.Subscribe(Topics, new byte[] { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE });
-
+            return true;
         }
 
         #endregion

@@ -122,7 +122,7 @@ namespace AMQPTransportDataSource
             }
         }
 
-        public override void ReceiveData(string queueName)
+        public override bool ReceiveData(string queueName)
         {
             try
             {
@@ -131,13 +131,13 @@ namespace AMQPTransportDataSource
                 ReceiverConnection = Connection;
                 ReceiverSession = Session;
                 ReceiverLink = Receiverlink;
-
+                return true;
             }
             catch (Exception e)
             {
 
             }
-
+            return false;
         }
 
         public static bool RemoteCertificateValidation(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)

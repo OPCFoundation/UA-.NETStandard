@@ -14,8 +14,17 @@ namespace UDPTransportDataSource
 
         private void StartListening()
         {
-            ar_ = m_UdpClient.BeginReceive(Receive, new object());
+            try
+            {
+                ar_ = m_UdpClient.BeginReceive(Receive, new object());
+            }
+            catch(Exception e)
+            {
+                Thread.Sleep(10);
+                StartListening();
+            }
         }
+
         private void Receive(IAsyncResult ar)
         {
 
@@ -94,7 +103,7 @@ namespace UDPTransportDataSource
             return false;
         }
         IAsyncResult ar_ = null;
-        public override void ReceiveData(string queueName)
+        public override bool ReceiveData(string queueName)
         {
             try
             {
@@ -104,12 +113,13 @@ namespace UDPTransportDataSource
                     StartListening();
                 }
                 InitializeReceiveData(true);
-                
+                return true;
             }
             catch(Exception ex)
             {
 
             }
+            return false;
         }
 
         #endregion

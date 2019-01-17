@@ -10,7 +10,7 @@ namespace DataSource
         void InitializeReceiveData(bool isEnable);
         bool SendData(byte[] data, Dictionary<string, object> Settings);
 
-        void ReceiveData(string queueName);
+        bool ReceiveData(string queueName);
     }
     public class BaseDataSource: IDataSource
     {
@@ -37,9 +37,9 @@ namespace DataSource
         {
             return true;    
         }
-        public virtual void ReceiveData(string queueName)
+        public virtual bool ReceiveData(string queueName)
         {
-             
+            return true;
         }
     }
 }
