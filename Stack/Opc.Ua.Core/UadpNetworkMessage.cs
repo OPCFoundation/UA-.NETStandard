@@ -32,13 +32,17 @@ namespace Opc.Ua
         public UInt16 NetworkMessageNumber { get; set; }
         public uint GroupVersion { get; set; }
         public UInt16 NetworkMessageSequenceNumber { get; set; }
-        public Int32 MessageCount { get; set; }
+        public byte MessageCount { get; set; }
         public List<UInt16> LstDataSetWriterId = new List<ushort>();
         public UInt32 SecurityGroupId { get; set; } 
         public bool IsChunkMessage { get; set; }
    
         public FieldMetaDataCollection FieldMetaDataCollection { get; set; }
 
+        public bool IsPayloadHeaderAvailable()
+        {
+            return IsBitSet(UADPVersionFlags, 6);
+        }
 
         public void EncodeNetworkMessageHeader()
         {
@@ -244,7 +248,7 @@ namespace Opc.Ua
         {
             if ((NetworkContentMask & (UInt32)UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
-                WriteInt32("MessageCount", MessageCount);
+                WriteByte("MessageCount", MessageCount);
                 foreach (UInt16 datasetWriterSetId in LstDataSetWriterId)
                 {
                     WriteUInt16("DataSetWriterId", datasetWriterSetId);
@@ -431,7 +435,10 @@ namespace Opc.Ua
             {
                 WriteByte("DataSetFlags2", (byte)DataSetFlags2);
             }
-            WriteUInt16("DataSetMessageSequenceNumber",(UInt16)DataSetMessageSequenceNumber);
+            if (IsBitSet(DataSetFlags1, 2))
+            {
+                WriteUInt16("DataSetMessageSequenceNumber", (UInt16)DataSetMessageSequenceNumber);
+            }
 
             DateTime dt = DateTime.UtcNow;
             if (IsBitSet(DataSetFlags2, 4))
@@ -457,7 +464,7 @@ namespace Opc.Ua
         } 
         public void EncodePayload()
         {
-            WriteInt32("DataSetFieldCount", FieldDatas.Count);
+            WriteUInt16("DataSetFieldCount",(UInt16) FieldDatas.Count);
             foreach (DataValue dataValue in FieldDatas)
             {
                 if (IsBitSet(DataSetFlags1, 1))
@@ -590,7 +597,7 @@ namespace Opc.Ua
         bool IsNetworkMessageSigned = false;
         bool IsNetworkMessageEncrypted = false;
         bool IsSecurityFooterEnabled = false;
-         Int32 MessageCount = 0;
+         byte MessageCount = 0;
         public List<UInt16> DataSetWriterIds = new List<ushort>();
        public object PublisherId;
         Guid DataSetClassId;
@@ -707,7 +714,7 @@ namespace Opc.Ua
             #region Payload Header
             if (IsPayloadHeaderEnabled)
             {
-                MessageCount = ReadInt32("MessageCount");
+                MessageCount = ReadByte("MessageCount");
                 for (int i = 1; i <= MessageCount; i++)
                 {
                     DataSetWriterIds.Add(ReadUInt16("DataSetWriterId"));
@@ -767,11 +774,13 @@ namespace Opc.Ua
             #endregion
 
             #region Payload Size
-            for (int i = 1; i <= MessageCount; i++)
+            if (MessageCount > 1 && IsPayloadHeaderEnabled)
             {
-                DataSetMessageSizes.Add(ReadUInt64("DataSetMessageSize"));
+                for (int i = 1; i <= MessageCount; i++)
+                {
+                    DataSetMessageSizes.Add(ReadUInt16("DataSetMessageSize"));
+                }
             }
-             
             #endregion
         }
 
@@ -817,7 +826,10 @@ namespace Opc.Ua
             {
                 DataSetFlags2 = ReadByte("DataSetFlags2");
             }
-            DataSetMessageSequenceNumber = ReadUInt16("DataSetMessageSequenceNumber");
+            if (IsBitSet(DataSetFlags1, 2))
+            {
+                DataSetMessageSequenceNumber = ReadUInt16("DataSetMessageSequenceNumber");
+            }
 
             if (IsBitSet(DataSetFlags2, 4))
             {
@@ -843,11 +855,11 @@ namespace Opc.Ua
 
         private void DecodeFieldMessageData()
         {
-            FieldCount = ReadInt32("DataSetFieldCount");
+            FieldCount = ReadUInt16("DataSetFieldCount");
             bool isVariant = false;
             bool isRawData = false;
             bool isDataValue = false;
-            if (IsBitSet(DataSetFlags1, 1) && IsBitSet(DataSetFlags1, 2)) // Variant Data
+            if (!IsBitSet(DataSetFlags1, 1) && !IsBitSet(DataSetFlags1, 2)) // Variant Data
             {
                 isVariant = true;
             }
