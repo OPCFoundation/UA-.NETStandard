@@ -721,6 +721,29 @@ namespace Opc.Ua
                 m_historizing = value;
             }
         }
+
+        /// <summary>
+        /// A bit mask specifying how the value may be accessed.
+        /// </summary>
+        /// <value>The extended access level.</value>
+        [DataMember(Name = "AccessLevelEx", Order = 8, IsRequired = false, EmitDefaultValue = false)]
+        public uint AccessLevelEx
+        {
+            get
+            {
+                return m_accessLevelEx;
+            }
+
+            set
+            {
+                if (m_accessLevelEx != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_accessLevelEx = value;
+            }
+        }
         #endregion
 
         #region Event Callbacks
@@ -813,6 +836,16 @@ namespace Opc.Ua
         /// Raised when the Historizing attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteHistorizing;
+
+        /// <summary>
+        /// Raised when the AccessLevelEx attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<uint> OnReadAccessLevelEx;
+
+        /// <summary>
+        /// Raised when the AccessLevelEx attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
         #endregion
 
         #region Serialization Functions
@@ -1405,6 +1438,23 @@ namespace Opc.Ua
 
                     return result;
                 }
+
+                case Attributes.AccessLevelEx:
+                {
+                    uint accessLevelEx = m_accessLevelEx;
+
+                    if (OnReadAccessLevelEx != null)
+                    {
+                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = accessLevelEx;
+                    }
+
+                    return result;
+                }
             }
             
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -1949,6 +1999,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
+        private uint m_accessLevelEx;
         private VariableCopyPolicy m_copyPolicy;
         #endregion
     }
