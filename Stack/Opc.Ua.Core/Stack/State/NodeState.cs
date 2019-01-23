@@ -348,7 +348,7 @@ namespace Opc.Ua
         {
             get
             {
-                return m_writeMask;
+                return m_userWriteMask;
             }
 
             set
