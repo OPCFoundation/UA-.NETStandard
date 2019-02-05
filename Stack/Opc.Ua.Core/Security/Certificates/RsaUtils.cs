@@ -383,10 +383,15 @@ namespace Opc.Ua
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
         internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
+#if NET46 || NET461 || NET47
+            // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
+            return true;
+#else
             using (var rsa = RSA.Create())
             {
                 return RsaUtils.TryVerifyRSAPssSign(rsa, rsa);
             }
+#endif
         });
 
         /// <summary>
