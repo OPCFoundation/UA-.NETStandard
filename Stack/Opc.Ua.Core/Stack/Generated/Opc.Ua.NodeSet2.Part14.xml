@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2018-06-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-01-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2018-06-20T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2019-01-31T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -69,7 +69,7 @@
     <Alias Alias="HasEncoding">i=38</Alias>
     <Alias Alias="HasDescription">i=39</Alias>
   </Aliases>
-  <UADataType NodeId="i=15534" BrowseName="DataTypeSchemaHeader">
+  <UADataType NodeId="i=15534" BrowseName="DataTypeSchemaHeader" IsAbstract="true">
     <DisplayName>DataTypeSchemaHeader</DisplayName>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -81,7 +81,7 @@
       <Field Name="SimpleDataTypes" DataType="i=15005" ValueRank="1" />
     </Definition>
   </UADataType>
-  <UADataType NodeId="i=14525" BrowseName="DataTypeDescription">
+  <UADataType NodeId="i=14525" BrowseName="DataTypeDescription" IsAbstract="true">
     <DisplayName>DataTypeDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -131,6 +131,51 @@
       <Field Name="Body" />
     </Definition>
   </UADataType>
+  <UADataType NodeId="i=14647" BrowseName="PubSubState">
+    <DisplayName>PubSubState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=14648</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="PubSubState">
+      <Field Name="Disabled" Value="0" />
+      <Field Name="Paused" Value="1" />
+      <Field Name="Operational" Value="2" />
+      <Field Name="Error" Value="3" />
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="i=14648" BrowseName="EnumStrings" ParentNodeId="i=14647" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=14647</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Disabled</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Paused</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Operational</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Error</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
+  </UAVariable>
   <UADataType NodeId="i=14523" BrowseName="DataSetMetaDataType">
     <DisplayName>DataSetMetaDataType</DisplayName>
     <References>
@@ -266,7 +311,7 @@
       <Field Name="ServerTimestamp" Value="2" />
       <Field Name="SourcePicoSeconds" Value="3" />
       <Field Name="ServerPicoSeconds" Value="4" />
-      <Field Name="RawDataEncoding" Value="5" />
+      <Field Name="RawData" Value="5" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15584" BrowseName="OptionSetValues" ParentNodeId="i=15583" DataType="LocalizedText" ValueRank="1">
@@ -306,7 +351,7 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>RawDataEncoding</Text>
+          <Text>RawData</Text>
         </LocalizedText>
       </ListOfLocalizedText>
     </Value>
@@ -340,7 +385,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
   </UADataType>
-  <UADataType NodeId="i=15609" BrowseName="PubSubGroupDataType">
+  <UADataType NodeId="i=15609" BrowseName="PubSubGroupDataType" IsAbstract="true">
     <DisplayName>PubSubGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -366,6 +411,7 @@
       <Field Name="KeepAliveTime" DataType="i=290" />
       <Field Name="Priority" DataType="i=3" />
       <Field Name="LocaleIds" DataType="i=295" ValueRank="1" />
+      <Field Name="HeaderLayoutUri" DataType="i=12" />
       <Field Name="TransportSettings" DataType="i=22" />
       <Field Name="MessageSettings" DataType="i=22" />
       <Field Name="DataSetWriters" DataType="i=15597" ValueRank="1" />
@@ -461,6 +507,8 @@
       <Field Name="DataSetMetaData" DataType="i=14523" />
       <Field Name="DataSetFieldContentMask" DataType="i=15583" />
       <Field Name="MessageReceiveTimeout" DataType="i=290" />
+      <Field Name="KeyFrameCount" DataType="i=7" />
+      <Field Name="HeaderLayoutUri" DataType="i=12" />
       <Field Name="SecurityMode" DataType="i=302" />
       <Field Name="SecurityGroupId" DataType="i=12" />
       <Field Name="SecurityKeyServices" DataType="i=312" ValueRank="1" />
@@ -520,7 +568,7 @@
     </References>
     <Definition Name="OverrideValueHandling">
       <Field Name="Disabled" Value="0" />
-      <Field Name="LastUseableValue" Value="1" />
+      <Field Name="LastUsableValue" Value="1" />
       <Field Name="OverrideValue" Value="2" />
     </Definition>
   </UADataType>
@@ -541,7 +589,7 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>LastUseableValue</Text>
+          <Text>LastUsableValue</Text>
         </LocalizedText>
         <LocalizedText>
           <Locale>
@@ -572,6 +620,45 @@
       <Field Name="Enabled" DataType="i=1" />
     </Definition>
   </UADataType>
+  <UADataType NodeId="i=20408" BrowseName="DataSetOrderingType">
+    <DisplayName>DataSetOrderingType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=15641</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="DataSetOrderingType">
+      <Field Name="Undefined" Value="0" />
+      <Field Name="AscendingWriterId" Value="1" />
+      <Field Name="AscendingWriterIdSingle" Value="2" />
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="i=15641" BrowseName="EnumStrings" ParentNodeId="i=20408" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20408</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Undefined</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>AscendingWriterId</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>AscendingWriterIdSingle</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
+  </UAVariable>
   <UADataType NodeId="i=15642" BrowseName="UadpNetworkMessageContentMask">
     <DisplayName>UadpNetworkMessageContentMask</DisplayName>
     <References>
@@ -587,7 +674,7 @@
       <Field Name="SequenceNumber" Value="5" />
       <Field Name="PayloadHeader" Value="6" />
       <Field Name="Timestamp" Value="7" />
-      <Field Name="Picoseconds" Value="8" />
+      <Field Name="PicoSeconds" Value="8" />
       <Field Name="DataSetClassId" Value="9" />
       <Field Name="PromotedFields" Value="10" />
     </Definition>
@@ -644,7 +731,7 @@
         <LocalizedText>
           <Locale>
           </Locale>
-          <Text>Picoseconds</Text>
+          <Text>PicoSeconds</Text>
         </LocalizedText>
         <LocalizedText>
           <Locale>
@@ -995,6 +1082,7 @@
       <Field Name="QueueName" DataType="i=12" />
       <Field Name="ResourceUri" DataType="i=12" />
       <Field Name="AuthenticationProfileUri" DataType="i=12" />
+      <Field Name="RequestedDeliveryGuarantee" DataType="i=15008" />
       <Field Name="MetaDataQueueName" DataType="i=12" />
       <Field Name="MetaDataUpdateTime" DataType="i=290" />
     </Definition>
@@ -1996,9 +2084,18 @@
   <UAVariable NodeId="i=15533" BrowseName="NetworkInterface" ParentNodeId="i=14423" DataType="String">
     <DisplayName>NetworkInterface</DisplayName>
     <References>
-      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasProperty">i=17503</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=16309</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=14423</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17503" BrowseName="Selections" ParentNodeId="i=15533" ValueRank="1">
+    <DisplayName>Selections</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=15533</Reference>
     </References>
   </UAVariable>
   <UAObject NodeId="i=14419" BrowseName="Status" ParentNodeId="i=14417">
@@ -2305,7 +2402,6 @@
       <Reference ReferenceType="HasProperty">i=18718</Reference>
       <Reference ReferenceType="HasProperty">i=18719</Reference>
       <Reference ReferenceType="HasProperty">i=18720</Reference>
-      <Reference ReferenceType="HasProperty">i=18721</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18715</Reference>
@@ -2335,21 +2431,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=18717</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=18721" BrowseName="TimeFirstChange" ParentNodeId="i=18717" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18717</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18722" BrowseName="TotalError" ParentNodeId="i=18715" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18723</Reference>
       <Reference ReferenceType="HasProperty">i=18724</Reference>
       <Reference ReferenceType="HasProperty">i=18725</Reference>
-      <Reference ReferenceType="HasProperty">i=18726</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18715</Reference>
@@ -2373,14 +2460,6 @@
   </UAVariable>
   <UAVariable NodeId="i=18725" BrowseName="DiagnosticsLevel" ParentNodeId="i=18722" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18722</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=18726" BrowseName="TimeFirstChange" ParentNodeId="i=18722" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2422,7 +2501,6 @@
       <Reference ReferenceType="HasProperty">i=18731</Reference>
       <Reference ReferenceType="HasProperty">i=18732</Reference>
       <Reference ReferenceType="HasProperty">i=18733</Reference>
-      <Reference ReferenceType="HasProperty">i=18734</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2458,21 +2536,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18734" BrowseName="TimeFirstChange" ParentNodeId="i=18730" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18730</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18735" BrowseName="StateOperationalByMethod" ParentNodeId="i=18729" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18736</Reference>
       <Reference ReferenceType="HasProperty">i=18737</Reference>
       <Reference ReferenceType="HasProperty">i=18738</Reference>
-      <Reference ReferenceType="HasProperty">i=18739</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2508,21 +2577,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18739" BrowseName="TimeFirstChange" ParentNodeId="i=18735" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18735</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18740" BrowseName="StateOperationalByParent" ParentNodeId="i=18729" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18741</Reference>
       <Reference ReferenceType="HasProperty">i=18742</Reference>
       <Reference ReferenceType="HasProperty">i=18743</Reference>
-      <Reference ReferenceType="HasProperty">i=18744</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2558,21 +2618,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18744" BrowseName="TimeFirstChange" ParentNodeId="i=18740" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18740</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18745" BrowseName="StateOperationalFromError" ParentNodeId="i=18729" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18746</Reference>
       <Reference ReferenceType="HasProperty">i=18747</Reference>
       <Reference ReferenceType="HasProperty">i=18748</Reference>
-      <Reference ReferenceType="HasProperty">i=18749</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2608,21 +2659,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18749" BrowseName="TimeFirstChange" ParentNodeId="i=18745" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18745</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18750" BrowseName="StatePausedByParent" ParentNodeId="i=18729" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18751</Reference>
       <Reference ReferenceType="HasProperty">i=18752</Reference>
       <Reference ReferenceType="HasProperty">i=18753</Reference>
-      <Reference ReferenceType="HasProperty">i=18754</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2658,21 +2700,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18754" BrowseName="TimeFirstChange" ParentNodeId="i=18750" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18750</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=18755" BrowseName="StateDisabledByMethod" ParentNodeId="i=18729" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=18756</Reference>
       <Reference ReferenceType="HasProperty">i=18757</Reference>
       <Reference ReferenceType="HasProperty">i=18758</Reference>
-      <Reference ReferenceType="HasProperty">i=18759</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18729</Reference>
@@ -2707,14 +2740,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=18759" BrowseName="TimeFirstChange" ParentNodeId="i=18755" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=18755</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=18760" BrowseName="LiveValues" ParentNodeId="i=18715">
     <DisplayName>LiveValues</DisplayName>
@@ -3382,7 +3407,6 @@
       <Reference ReferenceType="HasProperty">i=17412</Reference>
       <Reference ReferenceType="HasProperty">i=17413</Reference>
       <Reference ReferenceType="HasProperty">i=17414</Reference>
-      <Reference ReferenceType="HasProperty">i=17415</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17409</Reference>
     </References>
@@ -3408,20 +3432,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=17411</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=17415" BrowseName="TimeFirstChange" ParentNodeId="i=17411" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17411</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17416" BrowseName="TotalError" ParentNodeId="i=17409" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17417</Reference>
       <Reference ReferenceType="HasProperty">i=17418</Reference>
       <Reference ReferenceType="HasProperty">i=17419</Reference>
-      <Reference ReferenceType="HasProperty">i=17420</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17409</Reference>
     </References>
@@ -3442,13 +3458,6 @@
   </UAVariable>
   <UAVariable NodeId="i=17419" BrowseName="DiagnosticsLevel" ParentNodeId="i=17416" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17416</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=17420" BrowseName="TimeFirstChange" ParentNodeId="i=17416" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=17416</Reference>
@@ -3486,7 +3495,6 @@
       <Reference ReferenceType="HasProperty">i=17425</Reference>
       <Reference ReferenceType="HasProperty">i=17426</Reference>
       <Reference ReferenceType="HasProperty">i=17429</Reference>
-      <Reference ReferenceType="HasProperty">i=17430</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3518,20 +3526,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17430" BrowseName="TimeFirstChange" ParentNodeId="i=17424" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17424</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17431" BrowseName="StateOperationalByMethod" ParentNodeId="i=17423" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17432</Reference>
       <Reference ReferenceType="HasProperty">i=17433</Reference>
       <Reference ReferenceType="HasProperty">i=17434</Reference>
-      <Reference ReferenceType="HasProperty">i=17435</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3563,20 +3563,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17435" BrowseName="TimeFirstChange" ParentNodeId="i=17431" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17431</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17436" BrowseName="StateOperationalByParent" ParentNodeId="i=17423" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17437</Reference>
       <Reference ReferenceType="HasProperty">i=17438</Reference>
       <Reference ReferenceType="HasProperty">i=17439</Reference>
-      <Reference ReferenceType="HasProperty">i=17440</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3608,20 +3600,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17440" BrowseName="TimeFirstChange" ParentNodeId="i=17436" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17436</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17441" BrowseName="StateOperationalFromError" ParentNodeId="i=17423" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17442</Reference>
       <Reference ReferenceType="HasProperty">i=17443</Reference>
       <Reference ReferenceType="HasProperty">i=17444</Reference>
-      <Reference ReferenceType="HasProperty">i=17445</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3653,20 +3637,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17445" BrowseName="TimeFirstChange" ParentNodeId="i=17441" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17441</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17446" BrowseName="StatePausedByParent" ParentNodeId="i=17423" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17447</Reference>
       <Reference ReferenceType="HasProperty">i=17448</Reference>
       <Reference ReferenceType="HasProperty">i=17449</Reference>
-      <Reference ReferenceType="HasProperty">i=17450</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3698,20 +3674,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17450" BrowseName="TimeFirstChange" ParentNodeId="i=17446" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17446</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17451" BrowseName="StateDisabledByMethod" ParentNodeId="i=17423" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17452</Reference>
       <Reference ReferenceType="HasProperty">i=17453</Reference>
       <Reference ReferenceType="HasProperty">i=17454</Reference>
-      <Reference ReferenceType="HasProperty">i=17455</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17423</Reference>
     </References>
@@ -3742,13 +3710,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=17455" BrowseName="TimeFirstChange" ParentNodeId="i=17451" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17451</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=17457" BrowseName="LiveValues" ParentNodeId="i=17409">
     <DisplayName>LiveValues</DisplayName>
@@ -6082,9 +6043,18 @@
   <UAVariable NodeId="i=17202" BrowseName="NetworkInterface" ParentNodeId="i=14221" DataType="String">
     <DisplayName>NetworkInterface</DisplayName>
     <References>
-      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasProperty">i=17576</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=16309</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=14221</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17576" BrowseName="Selections" ParentNodeId="i=17202" ValueRank="1">
+    <DisplayName>Selections</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17202</Reference>
     </References>
   </UAVariable>
   <UAObject NodeId="i=17203" BrowseName="TransportSettings" ParentNodeId="i=14209">
@@ -6107,6 +6077,7 @@
       <Reference ReferenceType="HasProperty">i=17319</Reference>
       <Reference ReferenceType="HasProperty">i=17321</Reference>
       <Reference ReferenceType="HasProperty">i=17322</Reference>
+      <Reference ReferenceType="HasProperty">i=17558</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=17725</Reference>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=14209</Reference>
@@ -6187,6 +6158,14 @@
   </UAVariable>
   <UAVariable NodeId="i=17322" BrowseName="LocaleIds" ParentNodeId="i=17310" DataType="i=295" ValueRank="1">
     <DisplayName>LocaleIds</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17310</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17558" BrowseName="HeaderLayoutUri" ParentNodeId="i=17310" DataType="String">
+    <DisplayName>HeaderLayoutUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -6292,7 +6271,6 @@
       <Reference ReferenceType="HasProperty">i=19244</Reference>
       <Reference ReferenceType="HasProperty">i=19245</Reference>
       <Reference ReferenceType="HasProperty">i=19246</Reference>
-      <Reference ReferenceType="HasProperty">i=19247</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19241</Reference>
@@ -6322,21 +6300,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=19243</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=19247" BrowseName="TimeFirstChange" ParentNodeId="i=19243" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19243</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19248" BrowseName="TotalError" ParentNodeId="i=19241" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19249</Reference>
       <Reference ReferenceType="HasProperty">i=19250</Reference>
       <Reference ReferenceType="HasProperty">i=19251</Reference>
-      <Reference ReferenceType="HasProperty">i=19252</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19241</Reference>
@@ -6360,14 +6329,6 @@
   </UAVariable>
   <UAVariable NodeId="i=19251" BrowseName="DiagnosticsLevel" ParentNodeId="i=19248" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19248</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19252" BrowseName="TimeFirstChange" ParentNodeId="i=19248" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -6409,7 +6370,6 @@
       <Reference ReferenceType="HasProperty">i=19257</Reference>
       <Reference ReferenceType="HasProperty">i=19258</Reference>
       <Reference ReferenceType="HasProperty">i=19259</Reference>
-      <Reference ReferenceType="HasProperty">i=19260</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6445,21 +6405,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19260" BrowseName="TimeFirstChange" ParentNodeId="i=19256" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19256</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19261" BrowseName="StateOperationalByMethod" ParentNodeId="i=19255" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19262</Reference>
       <Reference ReferenceType="HasProperty">i=19263</Reference>
       <Reference ReferenceType="HasProperty">i=19264</Reference>
-      <Reference ReferenceType="HasProperty">i=19265</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6495,21 +6446,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19265" BrowseName="TimeFirstChange" ParentNodeId="i=19261" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19261</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19266" BrowseName="StateOperationalByParent" ParentNodeId="i=19255" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19267</Reference>
       <Reference ReferenceType="HasProperty">i=19268</Reference>
       <Reference ReferenceType="HasProperty">i=19269</Reference>
-      <Reference ReferenceType="HasProperty">i=19270</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6545,21 +6487,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19270" BrowseName="TimeFirstChange" ParentNodeId="i=19266" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19266</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19271" BrowseName="StateOperationalFromError" ParentNodeId="i=19255" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19272</Reference>
       <Reference ReferenceType="HasProperty">i=19273</Reference>
       <Reference ReferenceType="HasProperty">i=19274</Reference>
-      <Reference ReferenceType="HasProperty">i=19275</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6595,21 +6528,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19275" BrowseName="TimeFirstChange" ParentNodeId="i=19271" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19271</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19276" BrowseName="StatePausedByParent" ParentNodeId="i=19255" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19277</Reference>
       <Reference ReferenceType="HasProperty">i=19278</Reference>
       <Reference ReferenceType="HasProperty">i=19279</Reference>
-      <Reference ReferenceType="HasProperty">i=19280</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6645,21 +6569,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19280" BrowseName="TimeFirstChange" ParentNodeId="i=19276" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19276</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19281" BrowseName="StateDisabledByMethod" ParentNodeId="i=19255" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19282</Reference>
       <Reference ReferenceType="HasProperty">i=19283</Reference>
       <Reference ReferenceType="HasProperty">i=19284</Reference>
-      <Reference ReferenceType="HasProperty">i=19285</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19255</Reference>
@@ -6694,14 +6609,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=19285" BrowseName="TimeFirstChange" ParentNodeId="i=19281" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19281</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=19286" BrowseName="LiveValues" ParentNodeId="i=19241">
     <DisplayName>LiveValues</DisplayName>
@@ -6904,7 +6811,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAObjectType NodeId="i=14232" BrowseName="PubSubGroupType">
+  <UAObjectType NodeId="i=14232" BrowseName="PubSubGroupType" IsAbstract="true">
     <DisplayName>PubSubGroupType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=15926</Reference>
@@ -6981,6 +6888,7 @@
       <Reference ReferenceType="HasProperty">i=17738</Reference>
       <Reference ReferenceType="HasProperty">i=17739</Reference>
       <Reference ReferenceType="HasProperty">i=17740</Reference>
+      <Reference ReferenceType="HasProperty">i=17559</Reference>
       <Reference ReferenceType="HasComponent">i=17741</Reference>
       <Reference ReferenceType="HasComponent">i=17742</Reference>
       <Reference ReferenceType="i=15296">i=17743</Reference>
@@ -7024,6 +6932,14 @@
   </UAVariable>
   <UAVariable NodeId="i=17740" BrowseName="LocaleIds" ParentNodeId="i=17725" DataType="i=295" ValueRank="1">
     <DisplayName>LocaleIds</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17725</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17559" BrowseName="HeaderLayoutUri" ParentNodeId="i=17725" DataType="String">
+    <DisplayName>HeaderLayoutUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -7128,7 +7044,6 @@
       <Reference ReferenceType="HasProperty">i=17815</Reference>
       <Reference ReferenceType="HasProperty">i=17816</Reference>
       <Reference ReferenceType="HasProperty">i=17817</Reference>
-      <Reference ReferenceType="HasProperty">i=17818</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17812</Reference>
@@ -7158,21 +7073,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=17814</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=17818" BrowseName="TimeFirstChange" ParentNodeId="i=17814" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17814</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17819" BrowseName="TotalError" ParentNodeId="i=17812" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17820</Reference>
       <Reference ReferenceType="HasProperty">i=17821</Reference>
       <Reference ReferenceType="HasProperty">i=17822</Reference>
-      <Reference ReferenceType="HasProperty">i=17823</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17812</Reference>
@@ -7196,14 +7102,6 @@
   </UAVariable>
   <UAVariable NodeId="i=17822" BrowseName="DiagnosticsLevel" ParentNodeId="i=17819" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17819</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=17823" BrowseName="TimeFirstChange" ParentNodeId="i=17819" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -7248,7 +7146,6 @@
       <Reference ReferenceType="HasProperty">i=17828</Reference>
       <Reference ReferenceType="HasProperty">i=17829</Reference>
       <Reference ReferenceType="HasProperty">i=17830</Reference>
-      <Reference ReferenceType="HasProperty">i=17831</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7284,21 +7181,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17831" BrowseName="TimeFirstChange" ParentNodeId="i=17827" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17827</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17832" BrowseName="StateOperationalByMethod" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17833</Reference>
       <Reference ReferenceType="HasProperty">i=17834</Reference>
       <Reference ReferenceType="HasProperty">i=17835</Reference>
-      <Reference ReferenceType="HasProperty">i=17836</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7334,21 +7222,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17836" BrowseName="TimeFirstChange" ParentNodeId="i=17832" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17832</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17837" BrowseName="StateOperationalByParent" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17838</Reference>
       <Reference ReferenceType="HasProperty">i=17839</Reference>
       <Reference ReferenceType="HasProperty">i=17840</Reference>
-      <Reference ReferenceType="HasProperty">i=17841</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7384,21 +7263,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17841" BrowseName="TimeFirstChange" ParentNodeId="i=17837" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17837</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17842" BrowseName="StateOperationalFromError" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17843</Reference>
       <Reference ReferenceType="HasProperty">i=17844</Reference>
       <Reference ReferenceType="HasProperty">i=17845</Reference>
-      <Reference ReferenceType="HasProperty">i=17846</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7434,21 +7304,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17846" BrowseName="TimeFirstChange" ParentNodeId="i=17842" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17842</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17847" BrowseName="StatePausedByParent" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17848</Reference>
       <Reference ReferenceType="HasProperty">i=17849</Reference>
       <Reference ReferenceType="HasProperty">i=17850</Reference>
-      <Reference ReferenceType="HasProperty">i=17851</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7484,21 +7345,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17851" BrowseName="TimeFirstChange" ParentNodeId="i=17847" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17847</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17853" BrowseName="StateDisabledByMethod" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17854</Reference>
       <Reference ReferenceType="HasProperty">i=17855</Reference>
       <Reference ReferenceType="HasProperty">i=17856</Reference>
-      <Reference ReferenceType="HasProperty">i=17857</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7534,21 +7386,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17857" BrowseName="TimeFirstChange" ParentNodeId="i=17853" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17853</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17859" BrowseName="SentNetworkMessages" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>SentNetworkMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17864</Reference>
       <Reference ReferenceType="HasProperty">i=17871</Reference>
       <Reference ReferenceType="HasProperty">i=17872</Reference>
-      <Reference ReferenceType="HasProperty">i=17873</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7584,21 +7427,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17873" BrowseName="TimeFirstChange" ParentNodeId="i=17859" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17859</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17874" BrowseName="FailedTransmissions" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>FailedTransmissions</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17878</Reference>
       <Reference ReferenceType="HasProperty">i=17885</Reference>
       <Reference ReferenceType="HasProperty">i=17892</Reference>
-      <Reference ReferenceType="HasProperty">i=17899</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7634,21 +7468,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17899" BrowseName="TimeFirstChange" ParentNodeId="i=17874" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17874</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=17900" BrowseName="EncryptionErrors" ParentNodeId="i=17826" DataType="UInt32">
     <DisplayName>EncryptionErrors</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=17901</Reference>
       <Reference ReferenceType="HasProperty">i=17902</Reference>
       <Reference ReferenceType="HasProperty">i=17903</Reference>
-      <Reference ReferenceType="HasProperty">i=17906</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=17826</Reference>
@@ -7683,14 +7508,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=17906" BrowseName="TimeFirstChange" ParentNodeId="i=17900" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=17900</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=17858" BrowseName="LiveValues" ParentNodeId="i=17812">
     <DisplayName>LiveValues</DisplayName>
@@ -7883,6 +7700,8 @@
       <Reference ReferenceType="HasProperty">i=18080</Reference>
       <Reference ReferenceType="HasProperty">i=18081</Reference>
       <Reference ReferenceType="HasProperty">i=18082</Reference>
+      <Reference ReferenceType="HasProperty">i=17560</Reference>
+      <Reference ReferenceType="HasProperty">i=17562</Reference>
       <Reference ReferenceType="HasProperty">i=17492</Reference>
       <Reference ReferenceType="HasComponent">i=18088</Reference>
       <Reference ReferenceType="HasComponent">i=21006</Reference>
@@ -7931,8 +7750,24 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=18076</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=18082" BrowseName="MessageReceiveTimeout" ParentNodeId="i=18076" DataType="UInt16">
+  <UAVariable NodeId="i=18082" BrowseName="MessageReceiveTimeout" ParentNodeId="i=18076" DataType="i=290">
     <DisplayName>MessageReceiveTimeout</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18076</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17560" BrowseName="KeyFrameCount" ParentNodeId="i=18076" DataType="UInt32">
+    <DisplayName>KeyFrameCount</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18076</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17562" BrowseName="HeaderLayoutUri" ParentNodeId="i=18076" DataType="String">
+    <DisplayName>HeaderLayoutUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -7967,29 +7802,11 @@
   <UAObject NodeId="i=21006" BrowseName="SubscribedDataSet" ParentNodeId="i=18076">
     <DisplayName>SubscribedDataSet</DisplayName>
     <References>
-      <Reference ReferenceType="HasProperty">i=21007</Reference>
-      <Reference ReferenceType="HasProperty">i=21008</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=15108</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=18076</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=21007" BrowseName="DataSetMetaData" ParentNodeId="i=21006" DataType="i=14523">
-    <DisplayName>DataSetMetaData</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21006</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=21008" BrowseName="MessageReceiveTimeout" ParentNodeId="i=21006" DataType="i=290">
-    <DisplayName>MessageReceiveTimeout</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21006</Reference>
-    </References>
-  </UAVariable>
   <UAObject NodeId="i=21015" BrowseName="Diagnostics" ParentNodeId="i=17999">
     <DisplayName>Diagnostics</DisplayName>
     <References>
@@ -8019,7 +7836,6 @@
       <Reference ReferenceType="HasProperty">i=21018</Reference>
       <Reference ReferenceType="HasProperty">i=21019</Reference>
       <Reference ReferenceType="HasProperty">i=21020</Reference>
-      <Reference ReferenceType="HasProperty">i=21021</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21015</Reference>
@@ -8049,21 +7865,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=21017</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=21021" BrowseName="TimeFirstChange" ParentNodeId="i=21017" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21017</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21022" BrowseName="TotalError" ParentNodeId="i=21015" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21023</Reference>
       <Reference ReferenceType="HasProperty">i=21024</Reference>
       <Reference ReferenceType="HasProperty">i=21025</Reference>
-      <Reference ReferenceType="HasProperty">i=21026</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21015</Reference>
@@ -8087,14 +7894,6 @@
   </UAVariable>
   <UAVariable NodeId="i=21025" BrowseName="DiagnosticsLevel" ParentNodeId="i=21022" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21022</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=21026" BrowseName="TimeFirstChange" ParentNodeId="i=21022" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -8137,7 +7936,6 @@
       <Reference ReferenceType="HasProperty">i=21031</Reference>
       <Reference ReferenceType="HasProperty">i=21032</Reference>
       <Reference ReferenceType="HasProperty">i=21033</Reference>
-      <Reference ReferenceType="HasProperty">i=21034</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8173,21 +7971,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21034" BrowseName="TimeFirstChange" ParentNodeId="i=21030" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21030</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21035" BrowseName="StateOperationalByMethod" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21036</Reference>
       <Reference ReferenceType="HasProperty">i=21037</Reference>
       <Reference ReferenceType="HasProperty">i=21038</Reference>
-      <Reference ReferenceType="HasProperty">i=21039</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8223,21 +8012,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21039" BrowseName="TimeFirstChange" ParentNodeId="i=21035" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21035</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21040" BrowseName="StateOperationalByParent" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21041</Reference>
       <Reference ReferenceType="HasProperty">i=21042</Reference>
       <Reference ReferenceType="HasProperty">i=21043</Reference>
-      <Reference ReferenceType="HasProperty">i=21044</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8273,21 +8053,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21044" BrowseName="TimeFirstChange" ParentNodeId="i=21040" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21040</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21045" BrowseName="StateOperationalFromError" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21046</Reference>
       <Reference ReferenceType="HasProperty">i=21047</Reference>
       <Reference ReferenceType="HasProperty">i=21048</Reference>
-      <Reference ReferenceType="HasProperty">i=21049</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8323,21 +8094,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21049" BrowseName="TimeFirstChange" ParentNodeId="i=21045" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21045</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21050" BrowseName="StatePausedByParent" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21051</Reference>
       <Reference ReferenceType="HasProperty">i=21052</Reference>
       <Reference ReferenceType="HasProperty">i=21053</Reference>
-      <Reference ReferenceType="HasProperty">i=21054</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8373,21 +8135,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21054" BrowseName="TimeFirstChange" ParentNodeId="i=21050" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21050</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21055" BrowseName="StateDisabledByMethod" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21056</Reference>
       <Reference ReferenceType="HasProperty">i=21057</Reference>
       <Reference ReferenceType="HasProperty">i=21058</Reference>
-      <Reference ReferenceType="HasProperty">i=21059</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8423,21 +8176,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21059" BrowseName="TimeFirstChange" ParentNodeId="i=21055" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21055</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=21061" BrowseName="ReceivedNetworkMessages" ParentNodeId="i=21029" DataType="UInt32">
     <DisplayName>ReceivedNetworkMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21062</Reference>
       <Reference ReferenceType="HasProperty">i=21063</Reference>
       <Reference ReferenceType="HasProperty">i=21064</Reference>
-      <Reference ReferenceType="HasProperty">i=21065</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21029</Reference>
@@ -8472,14 +8216,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=21065" BrowseName="TimeFirstChange" ParentNodeId="i=21061" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21061</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=21060" BrowseName="LiveValues" ParentNodeId="i=21015">
     <DisplayName>LiveValues</DisplayName>
@@ -8775,7 +8511,6 @@
       <Reference ReferenceType="HasProperty">i=19553</Reference>
       <Reference ReferenceType="HasProperty">i=19554</Reference>
       <Reference ReferenceType="HasProperty">i=19555</Reference>
-      <Reference ReferenceType="HasProperty">i=19556</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19550</Reference>
@@ -8805,21 +8540,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=19552</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=19556" BrowseName="TimeFirstChange" ParentNodeId="i=19552" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19552</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19557" BrowseName="TotalError" ParentNodeId="i=19550" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19558</Reference>
       <Reference ReferenceType="HasProperty">i=19559</Reference>
       <Reference ReferenceType="HasProperty">i=19560</Reference>
-      <Reference ReferenceType="HasProperty">i=19561</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19550</Reference>
@@ -8843,14 +8569,6 @@
   </UAVariable>
   <UAVariable NodeId="i=19560" BrowseName="DiagnosticsLevel" ParentNodeId="i=19557" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19557</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19561" BrowseName="TimeFirstChange" ParentNodeId="i=19557" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -8893,7 +8611,6 @@
       <Reference ReferenceType="HasProperty">i=19566</Reference>
       <Reference ReferenceType="HasProperty">i=19567</Reference>
       <Reference ReferenceType="HasProperty">i=19568</Reference>
-      <Reference ReferenceType="HasProperty">i=19569</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -8929,21 +8646,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19569" BrowseName="TimeFirstChange" ParentNodeId="i=19565" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19565</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19570" BrowseName="StateOperationalByMethod" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19571</Reference>
       <Reference ReferenceType="HasProperty">i=19572</Reference>
       <Reference ReferenceType="HasProperty">i=19573</Reference>
-      <Reference ReferenceType="HasProperty">i=19574</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -8979,21 +8687,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19574" BrowseName="TimeFirstChange" ParentNodeId="i=19570" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19570</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19575" BrowseName="StateOperationalByParent" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19576</Reference>
       <Reference ReferenceType="HasProperty">i=19577</Reference>
       <Reference ReferenceType="HasProperty">i=19578</Reference>
-      <Reference ReferenceType="HasProperty">i=19579</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -9029,21 +8728,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19579" BrowseName="TimeFirstChange" ParentNodeId="i=19575" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19575</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19580" BrowseName="StateOperationalFromError" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19581</Reference>
       <Reference ReferenceType="HasProperty">i=19582</Reference>
       <Reference ReferenceType="HasProperty">i=19583</Reference>
-      <Reference ReferenceType="HasProperty">i=19584</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -9079,21 +8769,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19584" BrowseName="TimeFirstChange" ParentNodeId="i=19580" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19580</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19585" BrowseName="StatePausedByParent" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19586</Reference>
       <Reference ReferenceType="HasProperty">i=19587</Reference>
       <Reference ReferenceType="HasProperty">i=19588</Reference>
-      <Reference ReferenceType="HasProperty">i=19589</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -9129,21 +8810,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19589" BrowseName="TimeFirstChange" ParentNodeId="i=19585" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19585</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19590" BrowseName="StateDisabledByMethod" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19591</Reference>
       <Reference ReferenceType="HasProperty">i=19592</Reference>
       <Reference ReferenceType="HasProperty">i=19593</Reference>
-      <Reference ReferenceType="HasProperty">i=19594</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -9179,21 +8851,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19594" BrowseName="TimeFirstChange" ParentNodeId="i=19590" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19590</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19596" BrowseName="FailedDataSetMessages" ParentNodeId="i=19564" DataType="UInt32">
     <DisplayName>FailedDataSetMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19597</Reference>
       <Reference ReferenceType="HasProperty">i=19598</Reference>
       <Reference ReferenceType="HasProperty">i=19599</Reference>
-      <Reference ReferenceType="HasProperty">i=19600</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19564</Reference>
@@ -9229,14 +8892,6 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19600" BrowseName="TimeFirstChange" ParentNodeId="i=19596" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19596</Reference>
-    </References>
-  </UAVariable>
   <UAObject NodeId="i=19595" BrowseName="LiveValues" ParentNodeId="i=19550">
     <DisplayName>LiveValues</DisplayName>
     <References>
@@ -9257,7 +8912,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAObjectType NodeId="i=15306" BrowseName="DataSetReaderType" IsAbstract="true">
+  <UAObjectType NodeId="i=15306" BrowseName="DataSetReaderType">
     <DisplayName>DataSetReaderType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21097</Reference>
@@ -9266,6 +8921,8 @@
       <Reference ReferenceType="HasProperty">i=21100</Reference>
       <Reference ReferenceType="HasProperty">i=21101</Reference>
       <Reference ReferenceType="HasProperty">i=21102</Reference>
+      <Reference ReferenceType="HasProperty">i=17563</Reference>
+      <Reference ReferenceType="HasProperty">i=17564</Reference>
       <Reference ReferenceType="HasProperty">i=15932</Reference>
       <Reference ReferenceType="HasProperty">i=15933</Reference>
       <Reference ReferenceType="HasProperty">i=15934</Reference>
@@ -9320,8 +8977,24 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15306</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=21102" BrowseName="MessageReceiveTimeout" ParentNodeId="i=15306" DataType="UInt16">
+  <UAVariable NodeId="i=21102" BrowseName="MessageReceiveTimeout" ParentNodeId="i=15306" DataType="i=290">
     <DisplayName>MessageReceiveTimeout</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=15306</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17563" BrowseName="KeyFrameCount" ParentNodeId="i=15306" DataType="UInt32">
+    <DisplayName>KeyFrameCount</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=15306</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17564" BrowseName="HeaderLayoutUri" ParentNodeId="i=15306" DataType="String">
+    <DisplayName>HeaderLayoutUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -9422,7 +9095,6 @@
       <Reference ReferenceType="HasProperty">i=19612</Reference>
       <Reference ReferenceType="HasProperty">i=19613</Reference>
       <Reference ReferenceType="HasProperty">i=19614</Reference>
-      <Reference ReferenceType="HasProperty">i=19615</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19609</Reference>
@@ -9452,21 +9124,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=19611</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=19615" BrowseName="TimeFirstChange" ParentNodeId="i=19611" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19611</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19616" BrowseName="TotalError" ParentNodeId="i=19609" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19617</Reference>
       <Reference ReferenceType="HasProperty">i=19618</Reference>
       <Reference ReferenceType="HasProperty">i=19619</Reference>
-      <Reference ReferenceType="HasProperty">i=19620</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19609</Reference>
@@ -9490,14 +9153,6 @@
   </UAVariable>
   <UAVariable NodeId="i=19619" BrowseName="DiagnosticsLevel" ParentNodeId="i=19616" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19616</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19620" BrowseName="TimeFirstChange" ParentNodeId="i=19616" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -9540,7 +9195,6 @@
       <Reference ReferenceType="HasProperty">i=19625</Reference>
       <Reference ReferenceType="HasProperty">i=19626</Reference>
       <Reference ReferenceType="HasProperty">i=19627</Reference>
-      <Reference ReferenceType="HasProperty">i=19628</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9576,21 +9230,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19628" BrowseName="TimeFirstChange" ParentNodeId="i=19624" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19624</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19629" BrowseName="StateOperationalByMethod" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19630</Reference>
       <Reference ReferenceType="HasProperty">i=19631</Reference>
       <Reference ReferenceType="HasProperty">i=19632</Reference>
-      <Reference ReferenceType="HasProperty">i=19633</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9626,21 +9271,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19633" BrowseName="TimeFirstChange" ParentNodeId="i=19629" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19629</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19634" BrowseName="StateOperationalByParent" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19635</Reference>
       <Reference ReferenceType="HasProperty">i=19636</Reference>
       <Reference ReferenceType="HasProperty">i=19637</Reference>
-      <Reference ReferenceType="HasProperty">i=19638</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9676,21 +9312,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19638" BrowseName="TimeFirstChange" ParentNodeId="i=19634" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19634</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19639" BrowseName="StateOperationalFromError" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19640</Reference>
       <Reference ReferenceType="HasProperty">i=19641</Reference>
       <Reference ReferenceType="HasProperty">i=19642</Reference>
-      <Reference ReferenceType="HasProperty">i=19643</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9726,21 +9353,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19643" BrowseName="TimeFirstChange" ParentNodeId="i=19639" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19639</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19644" BrowseName="StatePausedByParent" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19645</Reference>
       <Reference ReferenceType="HasProperty">i=19646</Reference>
       <Reference ReferenceType="HasProperty">i=19647</Reference>
-      <Reference ReferenceType="HasProperty">i=19648</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9776,21 +9394,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19648" BrowseName="TimeFirstChange" ParentNodeId="i=19644" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19644</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19649" BrowseName="StateDisabledByMethod" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19650</Reference>
       <Reference ReferenceType="HasProperty">i=19651</Reference>
       <Reference ReferenceType="HasProperty">i=19652</Reference>
-      <Reference ReferenceType="HasProperty">i=19653</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9826,21 +9435,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19653" BrowseName="TimeFirstChange" ParentNodeId="i=19649" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19649</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19655" BrowseName="FailedDataSetMessages" ParentNodeId="i=19623" DataType="UInt32">
     <DisplayName>FailedDataSetMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19656</Reference>
       <Reference ReferenceType="HasProperty">i=19657</Reference>
       <Reference ReferenceType="HasProperty">i=19658</Reference>
-      <Reference ReferenceType="HasProperty">i=19659</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19623</Reference>
@@ -9876,14 +9476,6 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19659" BrowseName="TimeFirstChange" ParentNodeId="i=19655" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19655</Reference>
-    </References>
-  </UAVariable>
   <UAObject NodeId="i=19654" BrowseName="LiveValues" ParentNodeId="i=19609">
     <DisplayName>LiveValues</DisplayName>
     <References>
@@ -9895,29 +9487,11 @@
   <UAObject NodeId="i=15316" BrowseName="SubscribedDataSet" ParentNodeId="i=15306">
     <DisplayName>SubscribedDataSet</DisplayName>
     <References>
-      <Reference ReferenceType="HasProperty">i=15317</Reference>
-      <Reference ReferenceType="HasProperty">i=15318</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=15108</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=15306</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=15317" BrowseName="DataSetMetaData" ParentNodeId="i=15316" DataType="i=14523">
-    <DisplayName>DataSetMetaData</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=15316</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=15318" BrowseName="MessageReceiveTimeout" ParentNodeId="i=15316" DataType="i=290">
-    <DisplayName>MessageReceiveTimeout</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=15316</Reference>
-    </References>
-  </UAVariable>
   <UAMethod NodeId="i=17386" BrowseName="CreateTargetVariables" ParentNodeId="i=15306">
     <DisplayName>CreateTargetVariables</DisplayName>
     <References>
@@ -10095,27 +9669,9 @@
   <UAObjectType NodeId="i=15108" BrowseName="SubscribedDataSetType">
     <DisplayName>SubscribedDataSetType</DisplayName>
     <References>
-      <Reference ReferenceType="HasProperty">i=15109</Reference>
-      <Reference ReferenceType="HasProperty">i=15110</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable NodeId="i=15109" BrowseName="DataSetMetaData" ParentNodeId="i=15108" DataType="i=14523">
-    <DisplayName>DataSetMetaData</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=15108</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=15110" BrowseName="MessageReceiveTimeout" ParentNodeId="i=15108" DataType="i=290">
-    <DisplayName>MessageReceiveTimeout</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=15108</Reference>
-    </References>
-  </UAVariable>
   <UAObjectType NodeId="i=15111" BrowseName="TargetVariablesType">
     <DisplayName>TargetVariablesType</DisplayName>
     <References>
@@ -10332,7 +9888,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=14643</Reference>
     </References>
   </UAMethod>
-  <UAObjectType NodeId="i=19677" BrowseName="PubSubDiagnosticsType">
+  <UAObjectType NodeId="i=19677" BrowseName="PubSubDiagnosticsType" IsAbstract="true">
     <DisplayName>PubSubDiagnosticsType</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">i=19678</Reference>
@@ -10359,7 +9915,6 @@
       <Reference ReferenceType="HasProperty">i=19680</Reference>
       <Reference ReferenceType="HasProperty">i=19681</Reference>
       <Reference ReferenceType="HasProperty">i=19682</Reference>
-      <Reference ReferenceType="HasProperty">i=19683</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19677</Reference>
@@ -10389,21 +9944,12 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=19679</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=19683" BrowseName="TimeFirstChange" ParentNodeId="i=19679" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19679</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19684" BrowseName="TotalError" ParentNodeId="i=19677" DataType="UInt32">
     <DisplayName>TotalError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19685</Reference>
       <Reference ReferenceType="HasProperty">i=19686</Reference>
       <Reference ReferenceType="HasProperty">i=19687</Reference>
-      <Reference ReferenceType="HasProperty">i=19688</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19677</Reference>
@@ -10427,14 +9973,6 @@
   </UAVariable>
   <UAVariable NodeId="i=19687" BrowseName="DiagnosticsLevel" ParentNodeId="i=19684" DataType="i=19723">
     <DisplayName>DiagnosticsLevel</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19684</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19688" BrowseName="TimeFirstChange" ParentNodeId="i=19684" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -10476,7 +10014,6 @@
       <Reference ReferenceType="HasProperty">i=19693</Reference>
       <Reference ReferenceType="HasProperty">i=19694</Reference>
       <Reference ReferenceType="HasProperty">i=19695</Reference>
-      <Reference ReferenceType="HasProperty">i=19696</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10512,21 +10049,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19696" BrowseName="TimeFirstChange" ParentNodeId="i=19692" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19692</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19697" BrowseName="StateOperationalByMethod" ParentNodeId="i=19691" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19698</Reference>
       <Reference ReferenceType="HasProperty">i=19699</Reference>
       <Reference ReferenceType="HasProperty">i=19700</Reference>
-      <Reference ReferenceType="HasProperty">i=19701</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10562,21 +10090,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19701" BrowseName="TimeFirstChange" ParentNodeId="i=19697" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19697</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19702" BrowseName="StateOperationalByParent" ParentNodeId="i=19691" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19703</Reference>
       <Reference ReferenceType="HasProperty">i=19704</Reference>
       <Reference ReferenceType="HasProperty">i=19705</Reference>
-      <Reference ReferenceType="HasProperty">i=19706</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10612,21 +10131,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19706" BrowseName="TimeFirstChange" ParentNodeId="i=19702" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19702</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19707" BrowseName="StateOperationalFromError" ParentNodeId="i=19691" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19708</Reference>
       <Reference ReferenceType="HasProperty">i=19709</Reference>
       <Reference ReferenceType="HasProperty">i=19710</Reference>
-      <Reference ReferenceType="HasProperty">i=19711</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10662,21 +10172,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19711" BrowseName="TimeFirstChange" ParentNodeId="i=19707" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19707</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19712" BrowseName="StatePausedByParent" ParentNodeId="i=19691" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19713</Reference>
       <Reference ReferenceType="HasProperty">i=19714</Reference>
       <Reference ReferenceType="HasProperty">i=19715</Reference>
-      <Reference ReferenceType="HasProperty">i=19716</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10712,21 +10213,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19716" BrowseName="TimeFirstChange" ParentNodeId="i=19712" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19712</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19717" BrowseName="StateDisabledByMethod" ParentNodeId="i=19691" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19718</Reference>
       <Reference ReferenceType="HasProperty">i=19719</Reference>
       <Reference ReferenceType="HasProperty">i=19720</Reference>
-      <Reference ReferenceType="HasProperty">i=19721</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19691</Reference>
@@ -10762,14 +10254,6 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19721" BrowseName="TimeFirstChange" ParentNodeId="i=19717" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19717</Reference>
-    </References>
-  </UAVariable>
   <UAObject NodeId="i=19722" BrowseName="LiveValues" ParentNodeId="i=19677">
     <DisplayName>LiveValues</DisplayName>
     <References>
@@ -10778,6 +10262,57 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=19677</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="i=19723" BrowseName="DiagnosticsLevel">
+    <DisplayName>DiagnosticsLevel</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19724</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="DiagnosticsLevel">
+      <Field Name="Basic" Value="0" />
+      <Field Name="Advanced" Value="1" />
+      <Field Name="Info" Value="2" />
+      <Field Name="Log" Value="3" />
+      <Field Name="Debug" Value="4" />
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="i=19724" BrowseName="EnumStrings" ParentNodeId="i=19723" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19723</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Basic</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Advanced</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Info</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Log</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Debug</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
+  </UAVariable>
   <UAVariableType NodeId="i=19725" BrowseName="PubSubDiagnosticsCounterType" DataType="UInt32">
     <DisplayName>PubSubDiagnosticsCounterType</DisplayName>
     <References>
@@ -10816,9 +10351,42 @@
     <DisplayName>TimeFirstChange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=19725</Reference>
     </References>
+  </UAVariable>
+  <UADataType NodeId="i=19730" BrowseName="PubSubDiagnosticsCounterClassification">
+    <DisplayName>PubSubDiagnosticsCounterClassification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19731</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="PubSubDiagnosticsCounterClassification">
+      <Field Name="Information" Value="0" />
+      <Field Name="Error" Value="1" />
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="i=19731" BrowseName="EnumStrings" ParentNodeId="i=19730" DataType="LocalizedText" ValueRank="1">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19730</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Information</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Locale>
+          </Locale>
+          <Text>Error</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
   </UAVariable>
   <UAObjectType NodeId="i=19732" BrowseName="PubSubDiagnosticsRootType">
     <DisplayName>PubSubDiagnosticsRootType</DisplayName>
@@ -10986,7 +10554,6 @@
       <Reference ReferenceType="HasProperty">i=19850</Reference>
       <Reference ReferenceType="HasProperty">i=19851</Reference>
       <Reference ReferenceType="HasProperty">i=19852</Reference>
-      <Reference ReferenceType="HasProperty">i=19853</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11022,21 +10589,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19853" BrowseName="TimeFirstChange" ParentNodeId="i=19849" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19849</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19854" BrowseName="StateOperationalByMethod" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19855</Reference>
       <Reference ReferenceType="HasProperty">i=19856</Reference>
       <Reference ReferenceType="HasProperty">i=19857</Reference>
-      <Reference ReferenceType="HasProperty">i=19858</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11072,21 +10630,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19858" BrowseName="TimeFirstChange" ParentNodeId="i=19854" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19854</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19859" BrowseName="StateOperationalByParent" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19860</Reference>
       <Reference ReferenceType="HasProperty">i=19861</Reference>
       <Reference ReferenceType="HasProperty">i=19862</Reference>
-      <Reference ReferenceType="HasProperty">i=19863</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11122,21 +10671,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19863" BrowseName="TimeFirstChange" ParentNodeId="i=19859" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19859</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19864" BrowseName="StateOperationalFromError" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19865</Reference>
       <Reference ReferenceType="HasProperty">i=19866</Reference>
       <Reference ReferenceType="HasProperty">i=19867</Reference>
-      <Reference ReferenceType="HasProperty">i=19868</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11172,21 +10712,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19868" BrowseName="TimeFirstChange" ParentNodeId="i=19864" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19864</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19869" BrowseName="StatePausedByParent" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19870</Reference>
       <Reference ReferenceType="HasProperty">i=19871</Reference>
       <Reference ReferenceType="HasProperty">i=19872</Reference>
-      <Reference ReferenceType="HasProperty">i=19873</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11222,21 +10753,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19873" BrowseName="TimeFirstChange" ParentNodeId="i=19869" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19869</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19874" BrowseName="StateDisabledByMethod" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19875</Reference>
       <Reference ReferenceType="HasProperty">i=19876</Reference>
       <Reference ReferenceType="HasProperty">i=19877</Reference>
-      <Reference ReferenceType="HasProperty">i=19878</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11272,21 +10794,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19878" BrowseName="TimeFirstChange" ParentNodeId="i=19874" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19874</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19880" BrowseName="SentNetworkMessages" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>SentNetworkMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19881</Reference>
       <Reference ReferenceType="HasProperty">i=19882</Reference>
       <Reference ReferenceType="HasProperty">i=19883</Reference>
-      <Reference ReferenceType="HasProperty">i=19884</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11322,21 +10835,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19884" BrowseName="TimeFirstChange" ParentNodeId="i=19880" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19880</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19885" BrowseName="FailedTransmissions" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>FailedTransmissions</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19886</Reference>
       <Reference ReferenceType="HasProperty">i=19887</Reference>
       <Reference ReferenceType="HasProperty">i=19888</Reference>
-      <Reference ReferenceType="HasProperty">i=19889</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11372,21 +10876,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19889" BrowseName="TimeFirstChange" ParentNodeId="i=19885" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19885</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19890" BrowseName="EncryptionErrors" ParentNodeId="i=19848" DataType="UInt32">
     <DisplayName>EncryptionErrors</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19891</Reference>
       <Reference ReferenceType="HasProperty">i=19892</Reference>
       <Reference ReferenceType="HasProperty">i=19893</Reference>
-      <Reference ReferenceType="HasProperty">i=19894</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19848</Reference>
@@ -11421,14 +10916,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=19894" BrowseName="TimeFirstChange" ParentNodeId="i=19890" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19890</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=19879" BrowseName="LiveValues" ParentNodeId="i=19834">
     <DisplayName>LiveValues</DisplayName>
@@ -11553,7 +11040,6 @@
       <Reference ReferenceType="HasProperty">i=19919</Reference>
       <Reference ReferenceType="HasProperty">i=19920</Reference>
       <Reference ReferenceType="HasProperty">i=19921</Reference>
-      <Reference ReferenceType="HasProperty">i=19922</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11589,21 +11075,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19922" BrowseName="TimeFirstChange" ParentNodeId="i=19918" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19918</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19923" BrowseName="StateOperationalByMethod" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19924</Reference>
       <Reference ReferenceType="HasProperty">i=19925</Reference>
       <Reference ReferenceType="HasProperty">i=19926</Reference>
-      <Reference ReferenceType="HasProperty">i=19927</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11639,21 +11116,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19927" BrowseName="TimeFirstChange" ParentNodeId="i=19923" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19923</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19928" BrowseName="StateOperationalByParent" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19929</Reference>
       <Reference ReferenceType="HasProperty">i=19930</Reference>
       <Reference ReferenceType="HasProperty">i=19931</Reference>
-      <Reference ReferenceType="HasProperty">i=19932</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11689,21 +11157,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19932" BrowseName="TimeFirstChange" ParentNodeId="i=19928" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19928</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19933" BrowseName="StateOperationalFromError" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19934</Reference>
       <Reference ReferenceType="HasProperty">i=19935</Reference>
       <Reference ReferenceType="HasProperty">i=19936</Reference>
-      <Reference ReferenceType="HasProperty">i=19937</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11739,21 +11198,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19937" BrowseName="TimeFirstChange" ParentNodeId="i=19933" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19933</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19938" BrowseName="StatePausedByParent" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19939</Reference>
       <Reference ReferenceType="HasProperty">i=19940</Reference>
       <Reference ReferenceType="HasProperty">i=19941</Reference>
-      <Reference ReferenceType="HasProperty">i=19942</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11789,21 +11239,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19942" BrowseName="TimeFirstChange" ParentNodeId="i=19938" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19938</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19943" BrowseName="StateDisabledByMethod" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19944</Reference>
       <Reference ReferenceType="HasProperty">i=19945</Reference>
       <Reference ReferenceType="HasProperty">i=19946</Reference>
-      <Reference ReferenceType="HasProperty">i=19947</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11839,21 +11280,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19947" BrowseName="TimeFirstChange" ParentNodeId="i=19943" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19943</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19949" BrowseName="ReceivedNetworkMessages" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>ReceivedNetworkMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19950</Reference>
       <Reference ReferenceType="HasProperty">i=19951</Reference>
       <Reference ReferenceType="HasProperty">i=19952</Reference>
-      <Reference ReferenceType="HasProperty">i=19953</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11889,21 +11321,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19953" BrowseName="TimeFirstChange" ParentNodeId="i=19949" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19949</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19954" BrowseName="ReceivedInvalidNetworkMessages" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>ReceivedInvalidNetworkMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19955</Reference>
       <Reference ReferenceType="HasProperty">i=19956</Reference>
       <Reference ReferenceType="HasProperty">i=19957</Reference>
-      <Reference ReferenceType="HasProperty">i=19958</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11939,21 +11362,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19958" BrowseName="TimeFirstChange" ParentNodeId="i=19954" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19954</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19959" BrowseName="DecryptionErrors" ParentNodeId="i=19917" DataType="UInt32">
     <DisplayName>DecryptionErrors</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19960</Reference>
       <Reference ReferenceType="HasProperty">i=19961</Reference>
       <Reference ReferenceType="HasProperty">i=19962</Reference>
-      <Reference ReferenceType="HasProperty">i=19963</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19917</Reference>
@@ -11988,14 +11402,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=19963" BrowseName="TimeFirstChange" ParentNodeId="i=19959" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19959</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=19948" BrowseName="LiveValues" ParentNodeId="i=19903">
     <DisplayName>LiveValues</DisplayName>
@@ -12076,7 +11482,6 @@
       <Reference ReferenceType="HasProperty">i=19984</Reference>
       <Reference ReferenceType="HasProperty">i=19985</Reference>
       <Reference ReferenceType="HasProperty">i=19986</Reference>
-      <Reference ReferenceType="HasProperty">i=19987</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12112,21 +11517,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19987" BrowseName="TimeFirstChange" ParentNodeId="i=19983" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19983</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19988" BrowseName="StateOperationalByMethod" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19989</Reference>
       <Reference ReferenceType="HasProperty">i=19990</Reference>
       <Reference ReferenceType="HasProperty">i=19991</Reference>
-      <Reference ReferenceType="HasProperty">i=19992</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12162,21 +11558,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19992" BrowseName="TimeFirstChange" ParentNodeId="i=19988" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19988</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19993" BrowseName="StateOperationalByParent" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19994</Reference>
       <Reference ReferenceType="HasProperty">i=19995</Reference>
       <Reference ReferenceType="HasProperty">i=19996</Reference>
-      <Reference ReferenceType="HasProperty">i=19997</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12212,21 +11599,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19997" BrowseName="TimeFirstChange" ParentNodeId="i=19993" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19993</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=19998" BrowseName="StateOperationalFromError" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=19999</Reference>
       <Reference ReferenceType="HasProperty">i=20000</Reference>
       <Reference ReferenceType="HasProperty">i=20001</Reference>
-      <Reference ReferenceType="HasProperty">i=20002</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12262,21 +11640,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20002" BrowseName="TimeFirstChange" ParentNodeId="i=19998" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19998</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20003" BrowseName="StatePausedByParent" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20004</Reference>
       <Reference ReferenceType="HasProperty">i=20005</Reference>
       <Reference ReferenceType="HasProperty">i=20006</Reference>
-      <Reference ReferenceType="HasProperty">i=20007</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12312,21 +11681,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20007" BrowseName="TimeFirstChange" ParentNodeId="i=20003" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20003</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20008" BrowseName="StateDisabledByMethod" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20009</Reference>
       <Reference ReferenceType="HasProperty">i=20010</Reference>
       <Reference ReferenceType="HasProperty">i=20011</Reference>
-      <Reference ReferenceType="HasProperty">i=20012</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12362,21 +11722,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20012" BrowseName="TimeFirstChange" ParentNodeId="i=20008" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20008</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20014" BrowseName="FailedDataSetMessages" ParentNodeId="i=19982" DataType="UInt32">
     <DisplayName>FailedDataSetMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20015</Reference>
       <Reference ReferenceType="HasProperty">i=20016</Reference>
       <Reference ReferenceType="HasProperty">i=20017</Reference>
-      <Reference ReferenceType="HasProperty">i=20018</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=19982</Reference>
@@ -12411,14 +11762,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=20018" BrowseName="TimeFirstChange" ParentNodeId="i=20014" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20014</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=20013" BrowseName="LiveValues" ParentNodeId="i=19968">
     <DisplayName>LiveValues</DisplayName>
@@ -12542,7 +11885,6 @@
       <Reference ReferenceType="HasProperty">i=20043</Reference>
       <Reference ReferenceType="HasProperty">i=20044</Reference>
       <Reference ReferenceType="HasProperty">i=20045</Reference>
-      <Reference ReferenceType="HasProperty">i=20046</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12578,21 +11920,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20046" BrowseName="TimeFirstChange" ParentNodeId="i=20042" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20042</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20047" BrowseName="StateOperationalByMethod" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>StateOperationalByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20048</Reference>
       <Reference ReferenceType="HasProperty">i=20049</Reference>
       <Reference ReferenceType="HasProperty">i=20050</Reference>
-      <Reference ReferenceType="HasProperty">i=20051</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12628,21 +11961,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20051" BrowseName="TimeFirstChange" ParentNodeId="i=20047" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20047</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20052" BrowseName="StateOperationalByParent" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>StateOperationalByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20053</Reference>
       <Reference ReferenceType="HasProperty">i=20054</Reference>
       <Reference ReferenceType="HasProperty">i=20055</Reference>
-      <Reference ReferenceType="HasProperty">i=20056</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12678,21 +12002,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20056" BrowseName="TimeFirstChange" ParentNodeId="i=20052" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20052</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20057" BrowseName="StateOperationalFromError" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>StateOperationalFromError</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20058</Reference>
       <Reference ReferenceType="HasProperty">i=20059</Reference>
       <Reference ReferenceType="HasProperty">i=20060</Reference>
-      <Reference ReferenceType="HasProperty">i=20061</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12728,21 +12043,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20061" BrowseName="TimeFirstChange" ParentNodeId="i=20057" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20057</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20062" BrowseName="StatePausedByParent" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>StatePausedByParent</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20063</Reference>
       <Reference ReferenceType="HasProperty">i=20064</Reference>
       <Reference ReferenceType="HasProperty">i=20065</Reference>
-      <Reference ReferenceType="HasProperty">i=20066</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12778,21 +12084,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20066" BrowseName="TimeFirstChange" ParentNodeId="i=20062" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20062</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20067" BrowseName="StateDisabledByMethod" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>StateDisabledByMethod</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20068</Reference>
       <Reference ReferenceType="HasProperty">i=20069</Reference>
       <Reference ReferenceType="HasProperty">i=20070</Reference>
-      <Reference ReferenceType="HasProperty">i=20071</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12828,21 +12125,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20071" BrowseName="TimeFirstChange" ParentNodeId="i=20067" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20067</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20073" BrowseName="FailedDataSetMessages" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>FailedDataSetMessages</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20074</Reference>
       <Reference ReferenceType="HasProperty">i=20075</Reference>
       <Reference ReferenceType="HasProperty">i=20076</Reference>
-      <Reference ReferenceType="HasProperty">i=20077</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12878,21 +12166,12 @@
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=20077" BrowseName="TimeFirstChange" ParentNodeId="i=20073" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20073</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=20078" BrowseName="DecryptionErrors" ParentNodeId="i=20041" DataType="UInt32">
     <DisplayName>DecryptionErrors</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=20079</Reference>
       <Reference ReferenceType="HasProperty">i=20080</Reference>
       <Reference ReferenceType="HasProperty">i=20081</Reference>
-      <Reference ReferenceType="HasProperty">i=20082</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=19725</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=20041</Reference>
@@ -12927,14 +12206,6 @@
     <Value>
       <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</Int32>
     </Value>
-  </UAVariable>
-  <UAVariable NodeId="i=20082" BrowseName="TimeFirstChange" ParentNodeId="i=20078" DataType="DateTime">
-    <DisplayName>TimeFirstChange</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=20078</Reference>
-    </References>
   </UAVariable>
   <UAObject NodeId="i=20072" BrowseName="LiveValues" ParentNodeId="i=20027">
     <DisplayName>LiveValues</DisplayName>
@@ -13239,7 +12510,6 @@
     <DisplayName>UadpDataSetReaderMessageType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=21117</Reference>
-      <Reference ReferenceType="HasProperty">i=21118</Reference>
       <Reference ReferenceType="HasProperty">i=21119</Reference>
       <Reference ReferenceType="HasProperty">i=17477</Reference>
       <Reference ReferenceType="HasProperty">i=21120</Reference>
@@ -13253,14 +12523,6 @@
   </UAObjectType>
   <UAVariable NodeId="i=21117" BrowseName="GroupVersion" ParentNodeId="i=21116" DataType="i=20998">
     <DisplayName>GroupVersion</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=21116</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=21118" BrowseName="DataSetOrdering" ParentNodeId="i=21116" DataType="i=20408">
-    <DisplayName>DataSetOrdering</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -13404,9 +12666,18 @@
   <UAVariable NodeId="i=15154" BrowseName="NetworkInterface" ParentNodeId="i=15072" DataType="String">
     <DisplayName>NetworkInterface</DisplayName>
     <References>
-      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasProperty">i=17579</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=16309</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=15072</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17579" BrowseName="Selections" ParentNodeId="i=15154" ValueRank="1">
+    <DisplayName>Selections</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=15154</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=21133" BrowseName="DatagramWriterGroupTransportType">
@@ -13421,7 +12692,7 @@
     <DisplayName>MessageRepeatCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=21133</Reference>
     </References>
   </UAVariable>
@@ -13429,7 +12700,7 @@
     <DisplayName>MessageRepeatDelay</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=21133</Reference>
     </References>
   </UAVariable>
@@ -13438,7 +12709,7 @@
     <References>
       <Reference ReferenceType="HasProperty">i=15156</Reference>
       <Reference ReferenceType="HasProperty">i=15178</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=17997</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17721</Reference>
     </References>
   </UAObjectType>
   <UAVariable NodeId="i=15156" BrowseName="ResourceUri" ParentNodeId="i=15155" DataType="String">
@@ -13620,9 +12891,18 @@
   <UAVariable NodeId="i=21146" BrowseName="NetworkInterface" ParentNodeId="i=21145" DataType="String">
     <DisplayName>NetworkInterface</DisplayName>
     <References>
-      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasProperty">i=17582</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=16309</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=21145</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17582" BrowseName="Selections" ParentNodeId="i=21146" ValueRank="1">
+    <DisplayName>Selections</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=21146</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=21147" BrowseName="NetworkAddressUrlType">
