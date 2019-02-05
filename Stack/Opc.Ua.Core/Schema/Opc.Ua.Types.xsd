@@ -1013,6 +1013,7 @@
           <xs:element name="KeepAliveTime" type="xs:double" minOccurs="0" />
           <xs:element name="Priority" type="xs:unsignedByte" minOccurs="0" />
           <xs:element name="LocaleIds" type="ua:ListOfString" minOccurs="0" nillable="true" />
+          <xs:element name="HeaderLayoutUri" type="xs:string" minOccurs="0" nillable="true" />
           <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
           <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
           <xs:element name="DataSetWriters" type="tns:ListOfDataSetWriterDataType" minOccurs="0" nillable="true" />
@@ -1178,6 +1179,8 @@
       <xs:element name="DataSetMetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
       <xs:element name="DataSetFieldContentMask" type="tns:DataSetFieldContentMask" minOccurs="0" />
       <xs:element name="MessageReceiveTimeout" type="xs:double" minOccurs="0" />
+      <xs:element name="KeyFrameCount" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="HeaderLayoutUri" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="SecurityMode" type="tns:MessageSecurityMode" minOccurs="0" />
       <xs:element name="SecurityGroupId" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="SecurityKeyServices" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
@@ -1276,7 +1279,7 @@
   <xs:simpleType  name="OverrideValueHandling">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Disabled_0" />
-      <xs:enumeration value="LastUseableValue_1" />
+      <xs:enumeration value="LastUsableValue_1" />
       <xs:enumeration value="OverrideValue_2" />
     </xs:restriction>
   </xs:simpleType>
@@ -1618,6 +1621,7 @@
           <xs:element name="QueueName" type="xs:string" minOccurs="0" nillable="true" />
           <xs:element name="ResourceUri" type="xs:string" minOccurs="0" nillable="true" />
           <xs:element name="AuthenticationProfileUri" type="xs:string" minOccurs="0" nillable="true" />
+          <xs:element name="RequestedDeliveryGuarantee" type="tns:BrokerTransportQualityOfService" minOccurs="0" />
           <xs:element name="MetaDataQueueName" type="xs:string" minOccurs="0" nillable="true" />
           <xs:element name="MetaDataUpdateTime" type="xs:double" minOccurs="0" />
         </xs:sequence>
@@ -2157,6 +2161,8 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfTimeZoneDataType" type="tns:ListOfTimeZoneDataType" nillable="true"></xs:element>
+
+  <xs:element name="Index" type="xs:unsignedInt" />
 
   <xs:element name="IntegerId" type="xs:unsignedInt" />
 
@@ -2710,6 +2716,8 @@
     </xs:complexContent>
   </xs:complexType>
   <xs:element name="IssuedIdentityToken" type="tns:IssuedIdentityToken" />
+
+  <xs:element name="RsaEncryptedSecret" type="ua:Variant" />
 
   <xs:complexType name="ActivateSessionRequest">
     <xs:annotation>
