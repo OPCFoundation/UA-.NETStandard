@@ -404,6 +404,11 @@ namespace Opc.Ua
                 return null;
             }
 
+            if (length == 0)
+            {
+                return string.Empty;
+            }
+
             if (maxStringLength > 0 && maxStringLength < length)
             {
                 throw ServiceResultException.Create(
@@ -414,7 +419,10 @@ namespace Opc.Ua
             }
 
             byte[] bytes = m_reader.ReadBytes(length);
-            return new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+
+            // If 0 terminated, decrease length by one before converting to string
+            var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
+            return Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
         }
 
         /// <summary>
@@ -501,7 +509,7 @@ namespace Opc.Ua
 
             try
             {
-                // Interop: string might be 0 terminated - calculate correct length for string
+                // If 0 terminated, decrease length by one before converting to string
                 var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
 
