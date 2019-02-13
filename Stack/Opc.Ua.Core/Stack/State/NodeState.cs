@@ -4557,6 +4557,7 @@ namespace Opc.Ua
         #endregion
     }
 
+    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>
