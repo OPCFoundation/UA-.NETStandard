@@ -385,7 +385,8 @@ namespace Opc.Ua
         internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
 #if NET46 || NET461 || NET47
             // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
-            return true;
+            // but not supported with Mono
+            return !Utils.IsRunningOnMono();
 #else
             using (var rsa = RSA.Create())
             {
