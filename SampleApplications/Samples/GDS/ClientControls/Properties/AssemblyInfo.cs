@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("OPC Foundation")]
 [assembly: AssemblyProduct("GlobalDiscoveryServer Client Controls Prototype")]
-[assembly: AssemblyCopyright("Copyright © OPC Foundation 2017")]
+[assembly: AssemblyCopyright("Copyright © 2019 OPC Foundation")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
