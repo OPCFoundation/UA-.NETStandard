@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("OPC Foundation")]
 [assembly: AssemblyProduct("GlobalDiscoveryServer Prototype")]
-[assembly: AssemblyCopyright("Copyright © OPC Foundation 2017")]
+[assembly: AssemblyCopyright("Copyright © 2019 OPC Foundation")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

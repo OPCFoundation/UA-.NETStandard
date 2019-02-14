@@ -2,7 +2,7 @@
   @file opcua_base64.h
   @brief Defines BASE64 handling functions.
 
-  (c) Copyright 2005-2008 The OPC Foundation
+  Copyright (c) 2005-2019 The OPC Foundation
   ALL RIGHTS RESERVED.
 
   DISCLAIMER:
