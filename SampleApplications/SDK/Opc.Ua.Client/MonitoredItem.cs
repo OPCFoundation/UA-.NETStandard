@@ -103,6 +103,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                m_clientHandle       = template.m_clientHandle; // keep the same clientHandle since it uniquely identifies the monitored item for the subscriber
                 m_handle             = template.m_handle;
                 m_displayName        = Utils.Format("{0} {1}", displayName, m_clientHandle);
                 m_startNodeId        = template.m_startNodeId;
