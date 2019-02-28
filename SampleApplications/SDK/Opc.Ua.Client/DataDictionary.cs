@@ -308,6 +308,6 @@ namespace Opc.Ua.Client
         private string m_typeSystemName;
         private Dictionary<NodeId,ReferenceDescription> m_datatypes;
         private SchemaValidator m_validator;
-		#endregion
+        #endregion
 	}
 }
