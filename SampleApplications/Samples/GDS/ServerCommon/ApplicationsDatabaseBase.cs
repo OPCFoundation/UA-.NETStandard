@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Server.Database
 
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
                 {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                    application.ServerCapabilities = new StringCollection() { "NA" };
                 }
             }
             else
