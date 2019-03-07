@@ -292,7 +292,7 @@ public class CertificateFactory
                 new SubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)));
 
             // Basic constraints
-            cg.AddExtension(X509Extensions.BasicConstraints.Id, true, new BasicConstraints(isCA));
+            cg.AddExtension(X509Extensions.BasicConstraints.Id, true, isCA ? new BasicConstraints(0) : new BasicConstraints(false));
 
             // Authority Key identifier references the issuer cert or itself when self signed
             AsymmetricKeyParameter issuerPublicKey;
@@ -319,9 +319,14 @@ public class CertificateFactory
             if (!isCA)
             {
                 // Key usage 
+                var keyUsage = KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
+                        KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment;
+                if (issuerCAKeyCert == null)
+                {   // only self signed certs need KeyCertSign flag.
+                    keyUsage |= KeyUsage.KeyCertSign;
+                }
                 cg.AddExtension(X509Extensions.KeyUsage, true,
-                    new KeyUsage(KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
-                        KeyUsage.NonRepudiation | KeyUsage.KeyCertSign | KeyUsage.KeyEncipherment));
+                    new KeyUsage(keyUsage));
 
                 // Extended Key usage
                 cg.AddExtension(X509Extensions.ExtendedKeyUsage, true,
@@ -1072,15 +1077,26 @@ public class CertificateFactory
     private static string GetRSAHashAlgorithm(uint hashSizeInBits)
     {
         if (hashSizeInBits <= 160)
+        {
             return "SHA1WITHRSA";
+        }
+
         if (hashSizeInBits <= 224)
+        {
             return "SHA224WITHRSA";
+        }
         else if (hashSizeInBits <= 256)
+        {
             return "SHA256WITHRSA";
+        }
         else if (hashSizeInBits <= 384)
+        {
             return "SHA384WITHRSA";
+        }
         else
+        {
             return "SHA512WITHRSA";
+        }
     }
 
     /// <summary>
