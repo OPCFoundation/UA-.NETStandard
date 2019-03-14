@@ -789,6 +789,21 @@ namespace Opc.Ua
                 }
             }
 
+            bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+
+            // check if certificate issuer is trusted.
+            if (issuedByCA && !isIssuerTrusted)
+            {
+                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadCertificateUntrusted,
+                        "Certificate issuer is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
+                        certificate.SubjectName.Name,
+                        certificate.IssuerName.Name);
+                }
+            }
+
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
