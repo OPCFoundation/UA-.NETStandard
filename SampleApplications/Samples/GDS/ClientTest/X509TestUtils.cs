@@ -27,10 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using NUnit.Framework;
 
 
 namespace Opc.Ua.Gds.Test
@@ -82,7 +83,7 @@ namespace Opc.Ua.Gds.Test
             certValidator.Validate(newCert);
         }
 
-        public static void VerifySignedApplicationCert(ApplicationTestData testApp, byte [] rawSignedCert, byte [][] rawIssuerCerts)
+        public static void VerifySignedApplicationCert(ApplicationTestData testApp, byte[] rawSignedCert, byte[][] rawIssuerCerts)
         {
             X509Certificate2 signedCert = new X509Certificate2(rawSignedCert);
             X509Certificate2 issuerCert = new X509Certificate2(rawIssuerCerts[0]);

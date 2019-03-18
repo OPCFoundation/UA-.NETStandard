@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-using Opc.Ua.Gds.Client;
-using Opc.Ua.Test;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
+using Opc.Ua.Test;
 
 
 namespace Opc.Ua.Gds.Test
@@ -288,20 +288,21 @@ namespace Opc.Ua.Gds.Test
 
     public class TestUtils
     {
-        public static void CleanupTrustList(ICertificateStore _store)
+        public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            using (var store = _store)
+            var certs = store.Enumerate().Result;
+            foreach (var cert in certs)
             {
-                var certs = store.Enumerate().Result;
-                foreach (var cert in certs)
-                {
-                    store.Delete(cert.Thumbprint);
-                }
-                var crls = store.EnumerateCRLs();
-                foreach (var crl in crls)
-                {
-                    store.DeleteCRL(crl);
-                }
+                store.Delete(cert.Thumbprint);
+            }
+            var crls = store.EnumerateCRLs();
+            foreach (var crl in crls)
+            {
+                store.DeleteCRL(crl);
+            }
+            if (dispose)
+            {
+                store.Dispose();
             }
         }
 

@@ -29,16 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Gds;
 using Opc.Ua.Gds.Test;
-using Opc.Ua.Test;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
@@ -59,6 +56,15 @@ namespace NUnit.Opc.Ua.Gds.Test
         protected void OneTimeSetUp()
         {
             // work around travis issue by selecting different ports on every run
+            ushort keySize = 4096;
+            ushort hashSize = 512;
+
+            // pki directory root for test runs. 
+            _pkiRoot = "%LocalApplicationData%/OPC/CertValidatorTest/" + ((DateTime.UtcNow.Ticks / 10000) % 3600000).ToString() + "/";
+            _issuerStore = new DirectoryCertificateStore();
+            _issuerStore.Open(_pkiRoot + "issuer");
+            _trustedStore = new DirectoryCertificateStore();
+            _trustedStore.Open(_pkiRoot + "trusted");
 
             // good applications test set
             var appTestDataGenerator = new ApplicationTestDataGenerator(1);
@@ -67,7 +73,9 @@ namespace NUnit.Opc.Ua.Gds.Test
 
             // create all certs and CRL
             _caChain = new X509Certificate2[caChainCount];
+            _caDupeChain = new X509Certificate2[caChainCount];
             _crlChain = new X509CRL[caChainCount];
+            _crlDupeChain = new X509CRL[caChainCount];
             _crlRevokedChain = new X509CRL[caChainCount];
             _appCerts = new X509Certificate2Collection();
             _appSelfSignedCerts = new X509Certificate2Collection();
@@ -77,10 +85,16 @@ namespace NUnit.Opc.Ua.Gds.Test
             var rootCert = CertificateFactory.CreateCertificate(
                 null, null, null,
                 null, null, "CN=Root CA Test Cert",
-                null, 4096, rootCABaseTime, 25 * 12, 512, true,
+                null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
                 pathLengthConstraint: -1);
             _caChain[0] = rootCert;
             _crlChain[0] = CertificateFactory.RevokeCertificate(rootCert, null, null);
+            _caDupeChain[0] = CertificateFactory.CreateCertificate(
+                null, null, null,
+                null, null, "CN=Root CA Test Cert",
+                null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
+                pathLengthConstraint: -1);
+            _crlDupeChain[0] = CertificateFactory.RevokeCertificate(_caDupeChain[0], null, null);
             _crlRevokedChain[0] = null;
 
             var signingCert = rootCert;
@@ -88,14 +102,23 @@ namespace NUnit.Opc.Ua.Gds.Test
             subCABaseTime = new DateTime(subCABaseTime.Year, subCABaseTime.Month, subCABaseTime.Day);
             for (int i = 1; i < caChainCount; i++)
             {
+                if (keySize > 2048) { keySize -= 1024; }
+                if (hashSize > 256) { hashSize -= 128; }
                 var subject = $"CN=Sub CA {i} Test Cert";
                 var subCACert = CertificateFactory.CreateCertificate(
                     null, null, null,
                     null, null, subject,
-                    null, 2048, subCABaseTime, 5 * 12, 256, true,
+                    null, keySize, subCABaseTime, 5 * 12, hashSize, true,
                     signingCert, pathLengthConstraint: caChainCount - 1 - i);
                 _caChain[i] = subCACert;
-                _crlChain[i] = CertificateFactory.RevokeCertificate(subCACert, null, null);
+                _crlChain[i] = CertificateFactory.RevokeCertificate(subCACert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
+                var subCADupeCert = CertificateFactory.CreateCertificate(
+                    null, null, null,
+                    null, null, subject,
+                    null, keySize, subCABaseTime, 5 * 12, hashSize, true,
+                    signingCert, pathLengthConstraint: caChainCount - 1 - i);
+                _caDupeChain[i] = subCADupeCert;
+                _crlDupeChain[i] = CertificateFactory.RevokeCertificate(subCADupeCert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
                 _crlRevokedChain[i] = null;
                 signingCert = subCACert;
             }
@@ -104,8 +127,8 @@ namespace NUnit.Opc.Ua.Gds.Test
             for (int i = 0; i < caChainCount - 1; i++)
             {
                 _crlRevokedChain[i] = CertificateFactory.RevokeCertificate(
-                    _caChain[i], 
-                    new List<X509CRL>() { _crlChain[i] }, 
+                    _caChain[i],
+                    new List<X509CRL>() { _crlChain[i] },
                     new X509Certificate2Collection { _caChain[i + 1] });
             }
 
@@ -132,10 +155,10 @@ namespace NUnit.Opc.Ua.Gds.Test
                 var appCert = CertificateFactory.CreateCertificate(
                     null, null, null,
                     app.ApplicationRecord.ApplicationUri,
-                    app.ApplicationRecord.ApplicationNames[0].Key, 
+                    app.ApplicationRecord.ApplicationNames[0].Key,
                     subject,
-                    app.DomainNames, 
-                    2048, appBaseTime, 2 * 12, 
+                    app.DomainNames,
+                    2048, appBaseTime, 2 * 12,
                     256, false, signingCert);
                 app.Certificate = appCert.RawData;
                 _appCerts.Add(appCert);
@@ -156,6 +179,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         protected void OneTimeTearDown()
         {
             Thread.Sleep(1000);
+            Directory.Delete(Utils.ReplaceSpecialFolderNames(_pkiRoot), true);
         }
 
         [TearDown]
@@ -165,74 +189,92 @@ namespace NUnit.Opc.Ua.Gds.Test
         #endregion
         #region Test Methods
         /// <summary>
+        /// Verify self signed app certs are not trusted
+        /// </summary>
+        [Test, Order(100)]
+        public async Task VerifySelfSignedAppCertsNotTrusted()
+        {
+            // verify cert with issuer chain
+            CleanupValidatorAndStores();
+            var certValidator = InitValidatorWithStores();
+            foreach (var cert in _appSelfSignedCerts)
+            {
+                Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
+            }
+        }
+        /// <summary>
+        /// Verify self signed app certs are not trusted with other ca chains
+        /// </summary>
+        [Test, Order(110)]
+        public async Task VerifySelfSignedAppCertsNotTrustedWithCA()
+        {
+            CleanupValidatorAndStores();
+            // add random issuer certs
+            for (int i = 0; i < caChainCount; i++)
+            {
+                if (i == caChainCount / 2)
+                {
+                    await _trustedStore.Add(_caChain[i]);
+                    _trustedStore.AddCRL(_crlChain[i]);
+                }
+                else
+                {
+                    await _issuerStore.Add(_caChain[i]);
+                    _issuerStore.AddCRL(_crlChain[i]);
+                }
+            }
+
+            var certValidator = InitValidatorWithStores();
+            foreach (var cert in _appSelfSignedCerts)
+            {
+                Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
+            }
+        }
+        /// <summary>
         /// Verify self signed app certs
         /// </summary>
-        [Test, Order(10)]
+        [Test, Order(150)]
         public async Task VerifySelfSignedAppCerts()
         {
             // verify cert with issuer chain
             {
-                CertificateValidator certValidator = new CertificateValidator();
-                CertificateTrustList issuerStore = new CertificateTrustList();
-                CertificateTrustList trustedStore = new CertificateTrustList();
-
-                certValidator.Update(issuerStore, trustedStore, null);
-                foreach (var cert in _appSelfSignedCerts)
-                {
-                    Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
-                }
-
-                // add random issuer certs
-                for (int i = 0; i < caChainCount; i++)
-                {
-                    if (i == caChainCount/2)
-                    {
-                        await trustedStore.TrustedCertificates.Add(_caChain[0]);
-                        //trustedStore.TrustedCertificates.AddCRL(_crlChain[0]);
-                    }
-                    else
-                    {
-                        await issuerStore.TrustedCertificates.Add(_caChain[i]);
-                        //issuerStore.TrustedCertificates.AddCRL(_crlChain[i]);
-                    }
-                }
-
-                certValidator.Update(issuerStore, trustedStore, null);
-                foreach (var cert in _appSelfSignedCerts)
-                {
-                    Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
-                }
-
                 // add all certs to issuer store
+                CleanupValidatorAndStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
-                    await issuerStore.TrustedCertificates.Add(cert);
+                    await _issuerStore.Add(cert);
                 }
-                certValidator.Update(issuerStore, trustedStore, null);
-                foreach (var cert in _appSelfSignedCerts)
-                {
-                    Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
-                }
-
-                certValidator.Update(issuerStore, trustedStore, null);
+                var certValidator = InitValidatorWithStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
                     Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
                 }
 
-                issuerStore = new CertificateTrustList();
-                trustedStore = new CertificateTrustList();
                 // add all certs to trusted store
+                CleanupValidatorAndStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
-                    await trustedStore.TrustedCertificates.Add(cert);
+                    await _trustedStore.Add(cert);
                 }
-
-                certValidator.Update(issuerStore, trustedStore, null);
+                certValidator = InitValidatorWithStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
                     certValidator.Validate(new X509Certificate2(cert));
                 }
+
+                // add all certs to trusted store
+                CleanupValidatorAndStores();
+                foreach (var cert in _appSelfSignedCerts)
+                {
+                    await _trustedStore.Add(cert);
+                    await _issuerStore.Add(cert);
+                }
+                certValidator = InitValidatorWithStores();
+                foreach (var cert in _appSelfSignedCerts)
+                {
+                    certValidator.Validate(new X509Certificate2(cert));
+                }
+
             }
         }
 
@@ -240,30 +282,28 @@ namespace NUnit.Opc.Ua.Gds.Test
         /// <summary>
         /// Verify app certs
         /// </summary>
-        [Test, Order(10)]
+        [Test, Order(200)]
         public async Task VerifyAppChains()
         {
             // verify cert with issuer chain
             for (int v = 0; v < caChainCount; v++)
             {
-                CertificateValidator certValidator = new CertificateValidator();
-                CertificateTrustList issuerStore = new CertificateTrustList();
-                CertificateTrustList trustedStore = new CertificateTrustList();
+                CleanupValidatorAndStores();
                 for (int i = 0; i < caChainCount; i++)
                 {
+                    ICertificateStore store;
                     if (i == v)
                     {
-                        await trustedStore.TrustedCertificates.Add(_caChain[i]);
-                        //trustedStore.TrustedCertificates.AddCRL(_crlChain[i]);
+                        store = _trustedStore;
                     }
                     else
                     {
-                        await issuerStore.TrustedCertificates.Add(_caChain[i]);
-                        //issuerStore.TrustedCertificates.AddCRL(_crlChain[i]);
+                        store = _issuerStore;
                     }
+                    await store.Add(_caChain[i]);
+                    store.AddCRL(_crlChain[i]);
                 }
-
-                certValidator.Update(issuerStore, trustedStore, null);
+                var certValidator = InitValidatorWithStores();
                 foreach (var app in _goodApplicationTestSet)
                 {
                     certValidator.Validate(new X509Certificate2(app.Certificate));
@@ -272,45 +312,349 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// Verify app certs
+        /// Verify app certs with incomplete chain
         /// </summary>
-        [Test, Order(10)]
-        public async Task VerifyTrustedAppCerts()
+        [Test, Order(210)]
+        public async Task VerifyAppChainsIncompleteChain()
+        {
+
+            // verify cert with issuer chain
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i != v)
+                    {
+                        await _trustedStore.Add(_caChain[i]);
+                        _trustedStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verify app certs with invalid chain
+        /// </summary>
+        [Test, Order(220)]
+        public async Task VerifyAppChainsInvalidChain()
+        {
+
+            // verify cert with issuer chain
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i != v)
+                    {
+                        await _trustedStore.Add(_caChain[i]);
+                        _trustedStore.AddCRL(_crlChain[i]);
+                    }
+                    else
+                    {
+                        await _trustedStore.Add(_caDupeChain[i]);
+                        _trustedStore.AddCRL(_crlDupeChain[i]);
+                    }
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verify app certs with good and invalid chain
+        /// </summary>
+        [Test, Order(230)]
+        public async Task VerifyAppChainsWithGoodAndInvalidChain()
         {
             // verify cert with issuer chain
-            CertificateValidator certValidator = new CertificateValidator();
-            CertificateTrustList issuerStore = new CertificateTrustList();
-            CertificateTrustList trustedStore = new CertificateTrustList();
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    ICertificateStore store;
+                    if (i == v)
+                    {
+                        store = _trustedStore;
+                    }
+                    else
+                    {
+                        store = _issuerStore;
+                    }
+                    await store.Add(_caChain[i]);
+                    store.AddCRL(_crlChain[i]);
+                    await store.Add(_caDupeChain[i]);
+                    store.AddCRL(_crlDupeChain[i]);
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    certValidator.Validate(new X509Certificate2(app.Certificate));
+                }
+            }
+        }
+        /// <summary>
+        /// Verify cert is revoked with CRL in trusted store
+        /// </summary>
+        [Test, Order(300)]
+        public async Task VerifyRevokedTrustedStoreAppChains()
+        {
+            // verify cert is revoked with CRL in trusted store
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i == v)
+                    {
+                        await _trustedStore.Add(_caChain[i]);
+                        _trustedStore.AddCRL(_crlRevokedChain[i]);
+                    }
+                    else
+                    {
+                        await _issuerStore.Add(_caChain[i]);
+                        _issuerStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// // verify cert is revoked with CRL in issuer store
+        /// </summary>
+        [Test, Order(310)]
+        public async Task VerifyRevokedIssuerStoreAppChains()
+        {
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i == v)
+                    {
+                        await _issuerStore.Add(_caChain[i]);
+                        _issuerStore.AddCRL(_crlRevokedChain[i]);
+                    }
+                    else
+                    {
+                        await _trustedStore.Add(_caChain[i]);
+                        _trustedStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+        /// <summary>
+        /// // verify cert is revoked with CRL in issuer store
+        /// </summary>
+        [Test, Order(320)]
+        public async Task VerifyRevokedIssuerStoreTrustedAppChains()
+        {
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i == v)
+                    {
+                        await _issuerStore.Add(_caChain[i]);
+                        _issuerStore.AddCRL(_crlRevokedChain[i]);
+                    }
+                    else
+                    {
+                        await _issuerStore.Add(_caChain[i]);
+                        _issuerStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    await _trustedStore.Add(new X509Certificate2(app.Certificate));
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// verify cert is revoked with CRL in trusted store
+        /// </summary>
+        [Test, Order(330)]
+        public async Task VerifyRevokedTrustedStoreNotTrustedAppChains()
+        {
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    await _trustedStore.Add(_caChain[i]);
+                    if (i == v)
+                    {
+                        _trustedStore.AddCRL(_crlRevokedChain[i]);
+                    }
+                    else
+                    {
+                        _trustedStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// verify cert is revoked with CRL in trusted store 
+        /// </summary>
+        [Test, Order(340)]
+        public async Task VerifyRevokedTrustedStoreTrustedAppChains()
+        {
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    await _trustedStore.Add(_caChain[i]);
+                    if (i == v)
+                    {
+                        _trustedStore.AddCRL(_crlRevokedChain[i]);
+                    }
+                    else
+                    {
+                        _trustedStore.AddCRL(_crlChain[i]);
+                    }
+                }
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    await _trustedStore.Add(new X509Certificate2(app.Certificate));
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verify trusted app certs with issuer chain
+        /// </summary>
+        [Test, Order(400)]
+        public async Task VerifyIssuerChainIncompleteTrustedAppCerts()
+        {
+            CleanupValidatorAndStores();
+
+            // issuer chain
             for (int i = 0; i < caChainCount; i++)
             {
-                await issuerStore.TrustedCertificates.Add(_caChain[i]);
-                //issuerStore.TrustedCertificates.AddCRL(_crlChain[i]);
-            }
-            foreach (var app in _goodApplicationTestSet)
-            {
-                await trustedStore.TrustedCertificates.Add(new X509Certificate2(app.Certificate));
+                await _issuerStore.Add(_caChain[i]);
+                _issuerStore.AddCRL(_crlChain[i]);
             }
 
-            certValidator.Update(issuerStore, trustedStore, null);
+            // all app certs are trusted
+            foreach (var app in _goodApplicationTestSet)
+            {
+                await _trustedStore.Add(new X509Certificate2(app.Certificate));
+            }
+
+            var certValidator = InitValidatorWithStores();
             foreach (var app in _goodApplicationTestSet)
             {
                 certValidator.Validate(new X509Certificate2(app.Certificate));
             }
         }
 
+        /// <summary>
+        /// Verify trusted app certs with incomplete issuer chain
+        /// </summary>
+        [Test, Order(410)]
+        public async Task VerifyIssuerChainTrustedAppCerts()
+        {
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                // issuer chain
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    if (i != v)
+                    {
+                        await _issuerStore.Add(_caChain[i]);
+                        _issuerStore.AddCRL(_crlChain[i]);
+                    }
+                }
+
+                // all app certs are trusted
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    await _trustedStore.Add(new X509Certificate2(app.Certificate));
+                }
+
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
+                }
+            }
+        }
         #endregion
         #region Private Methods
+        private CertificateValidator InitValidatorWithStores()
+        {
+            CertificateValidator certValidator = new CertificateValidator();
+            CertificateTrustList issuerTrustList = new CertificateTrustList();
+            issuerTrustList.StoreType = "Directory";
+            issuerTrustList.StorePath = _issuerStore.Directory.FullName;
+            CertificateTrustList trustedTrustList = new CertificateTrustList();
+            trustedTrustList.StoreType = "Directory";
+            trustedTrustList.StorePath = _trustedStore.Directory.FullName;
+            certValidator.Update(issuerTrustList, trustedTrustList, null);
+            return certValidator;
+        }
+
+        private void CleanupValidatorAndStores()
+        {
+            TestUtils.CleanupTrustList(_issuerStore, false);
+            TestUtils.CleanupTrustList(_trustedStore, false);
+        }
         #endregion
         #region Private Fields
-        private const int caChainCount = 3;
+        private const int caChainCount = 4;
         private const int goodApplicationsTestCount = 10;
         private const int invalidApplicationsTestCount = 10;
+        private string _pkiRoot;
+        private DirectoryCertificateStore _issuerStore;
+        private DirectoryCertificateStore _trustedStore;
         private IList<ApplicationTestData> _goodApplicationTestSet;
         private IList<ApplicationTestData> _invalidApplicationTestSet;
-        private X509Certificate2 [] _caChain;
-        private X509CRL [] _crlChain;
+        private X509Certificate2[] _caChain;
+        private X509Certificate2[] _caDupeChain;
+        private X509CRL[] _crlChain;
+        private X509CRL[] _crlDupeChain;
         private X509Certificate2[] _revokedChain;
-        private X509CRL [] _crlRevokedChain;
+        private X509CRL[] _crlRevokedChain;
         private X509Certificate2Collection _appCerts;
         private X509Certificate2Collection _appSelfSignedCerts;
         #endregion

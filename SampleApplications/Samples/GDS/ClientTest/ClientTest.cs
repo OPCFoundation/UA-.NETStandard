@@ -29,17 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Threading;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Gds;
-using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Test;
-using Opc.Ua.Test;
-using System.IO;
-using System.Linq;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
