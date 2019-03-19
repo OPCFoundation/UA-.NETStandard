@@ -813,6 +813,7 @@ namespace Opc.Ua.Bindings
                         return false;
                     }
                     else if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
+                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked)
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
