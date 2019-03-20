@@ -683,7 +683,6 @@ namespace Opc.Ua
 
             // setup policy chain
             X509ChainPolicy policy = new X509ChainPolicy();
-
             policy.RevocationFlag = X509RevocationFlag.EntireChain;
             policy.RevocationMode = X509RevocationMode.NoCheck;
             policy.VerificationFlags = X509VerificationFlags.NoFlag;
@@ -761,7 +760,24 @@ namespace Opc.Ua
                     certificate.IssuerName.Name);
             }
 
+            // check whether the chain is complete (if there is a chain)
             bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+            if (issuers.Count > 0)
+            {
+                var rootCertificate = issuers[issuers.Count - 1].Certificate;
+                if (!Utils.CompareDistinguishedName(rootCertificate.Subject, rootCertificate.Issuer))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                }
+            }
+            else
+            {
+                if (issuedByCA)
+                {
+                    // no issuer found at all
+                    throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                }
+            }
 
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
@@ -817,9 +833,9 @@ namespace Opc.Ua
         {
             return this as X509CertificateValidator;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Returns an error if the chain status indicates a fatal error.
         /// </summary>
@@ -851,7 +867,7 @@ namespace Opc.Ua
                         // .Net Core ChainStatus returns NotSignatureValid only on Windows, 
                         // so we have to do the extra cert signature check on all platforms
                         if (issuer == null && !isIssuer &&
-                            id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
+                            id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
                         {
                             if (!IsSignatureValid(id.Certificate))
                             {
@@ -911,7 +927,6 @@ namespace Opc.Ua
                             status.StatusInformation);
                     }
 
-
                 case X509ChainStatusFlags.NotTimeValid:
                     {
                         if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
@@ -964,9 +979,9 @@ namespace Opc.Ua
         {
             return CertificateFactory.VerifySelfSigned(cert);
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
         private object m_callbackLock = new object();
         private Dictionary<string, X509Certificate2> m_validatedCertificates;
@@ -980,16 +995,16 @@ namespace Opc.Ua
         private X509Certificate2 m_applicationCertificate;
         private bool m_rejectSHA1SignedCertificates;
         private ushort m_minimumCertificateKeySize;
-#endregion
+        #endregion
     }
 
-#region CertificateValidationEventArgs Class
+    #region CertificateValidationEventArgs Class
     /// <summary>
     /// The event arguments provided when a certificate validation error occurs.
     /// </summary>
     public class CertificateValidationEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -998,9 +1013,9 @@ namespace Opc.Ua
             m_error = error;
             m_certificate = certificate;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The error that occurred.
         /// </summary>
@@ -1019,13 +1034,13 @@ namespace Opc.Ua
             get { return m_accept; }
             set { m_accept = value; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ServiceResult m_error;
         private X509Certificate2 m_certificate;
         private bool m_accept;
-#endregion
+        #endregion
     }
 
 
@@ -1033,15 +1048,15 @@ namespace Opc.Ua
     /// Used to handled certificate validation errors.
     /// </summary>
     public delegate void CertificateValidationEventHandler(CertificateValidator sender, CertificateValidationEventArgs e);
-#endregion
+    #endregion
 
-#region CertificateUpdateEventArgs Class
+    #region CertificateUpdateEventArgs Class
     /// <summary>
     /// The event arguments provided when a certificate validation error occurs.
     /// </summary>
     public class CertificateUpdateEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -1052,9 +1067,9 @@ namespace Opc.Ua
             m_configuration = configuration;
             m_validator = validator;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The new security configuration.
         /// </summary>
@@ -1063,12 +1078,12 @@ namespace Opc.Ua
         /// The new certificate validator.
         /// </summary>
         public X509CertificateValidator CertificateValidator => m_validator;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private SecurityConfiguration m_configuration;
         private X509CertificateValidator m_validator;
-#endregion
+        #endregion
     }
 
 
@@ -1077,6 +1092,6 @@ namespace Opc.Ua
     /// </summary>
     public delegate void CertificateUpdateEventHandler(CertificateValidator sender, CertificateUpdateEventArgs e);
 
-#endregion
+    #endregion
 
 }
