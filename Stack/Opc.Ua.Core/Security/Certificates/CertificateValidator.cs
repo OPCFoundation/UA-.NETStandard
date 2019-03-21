@@ -720,6 +720,25 @@ namespace Opc.Ua
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
             bool isIssuerTrusted = await GetIssuers(certificates, issuers);
 
+            // check whether the chain is complete (if there is a chain)
+            bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+
+            if (issuers.Count > 0)
+            {
+                if (!Utils.CompareDistinguishedName(issuers[issuers.Count - 1].Certificate.Subject, issuers[issuers.Count - 1].Certificate.Issuer))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                }
+            }
+            else
+            {
+                if(issuedByCA)
+                {
+                    // no issuer found at all
+                    throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                }
+            }
+
             // setup policy chain
             X509ChainPolicy policy = new X509ChainPolicy();
 
@@ -789,10 +808,8 @@ namespace Opc.Ua
                 }
             }
 
-            bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
-
             // check if certificate issuer is trusted.
-            if (issuedByCA && !isIssuerTrusted)
+            if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
