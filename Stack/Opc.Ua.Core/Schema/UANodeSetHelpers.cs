@@ -271,6 +271,7 @@ namespace Opc.Ua.Export
             exportedNode.Description = Export(new Opc.Ua.LocalizedText[] { node.Description });
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
+            exportedNode.Extensions = node.Extensions;
 
             if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
@@ -473,6 +474,11 @@ namespace Opc.Ua.Export
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
                     value.AccessLevel = o.AccessLevel;
                     value.UserAccessLevel = o.UserAccessLevel;
+                    //if UserAccessLevel is not specified but Access level is diferent from default use AccessLevel for UserAccessLevel
+                    if (o.UserAccessLevel == AccessLevels.CurrentRead && o.AccessLevel > o.UserAccessLevel)
+                    {
+                        value.UserAccessLevel = (byte)o.AccessLevel;
+                    }
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
 
@@ -494,6 +500,14 @@ namespace Opc.Ua.Export
                     MethodState value = new MethodState(null);
                     value.Executable = o.Executable;
                     value.UserExecutable = o.UserExecutable;
+                    if (o.MethodDeclarationId == null)
+                    {
+                        value.TypeDefinitionId = ImportNodeId(o.NodeId, context.NamespaceUris, false);
+                    }
+                    else
+                    {
+                        value.TypeDefinitionId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, false);
+                    }
                     importedNode = value;
                     break;
                 }
@@ -565,6 +579,11 @@ namespace Opc.Ua.Export
             importedNode.Description = Import(node.Description);
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
+            if (importedNode.UserWriteMask == AttributeWriteMask.None)
+            {
+                importedNode.UserWriteMask = importedNode.WriteMask;
+            }
+            importedNode.Extensions = node.Extensions;
 
             if (!String.IsNullOrEmpty(node.SymbolicName))
             {
