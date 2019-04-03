@@ -192,7 +192,7 @@ namespace Opc.Ua
                     }
 
                     m_tokenType = UserTokenType.IssuedToken;
-                    m_issuedTokenType = new XmlQualifiedName("", "http://opcfoundation.org/UA/UserTokenPolicy#JWT");
+                    m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
                     m_displayName = "JWT";
                     return;
                 }
@@ -209,7 +209,7 @@ namespace Opc.Ua
                 m_issuedTokenType = null;
                 m_displayName = "Anonymous";
                 return;
-            }        
+            }
   
             throw new ArgumentException("Unrecognized UA user identity token type.", "token");
         }
