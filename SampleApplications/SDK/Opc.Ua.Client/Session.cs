@@ -2198,7 +2198,15 @@ namespace Opc.Ua.Client
                 catch (Exception ex)
                 {
                     Utils.Trace("Create session failed with client certificate NULL. " + ex.Message);
-                    successCreateSession = false;
+                    if (ex.Message == "BadTooManySessions")
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadTooManySessions,
+                                        "BadTooManySessions");
+                    }
+                    else
+                    {
+                        successCreateSession = false;
+                    }
                 }
             }
 
