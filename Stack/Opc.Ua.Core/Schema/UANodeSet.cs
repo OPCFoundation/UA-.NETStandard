@@ -1343,13 +1343,13 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "1")]
-        public byte UserAccessLevel {
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "1")]
+        public uint UserAccessLevel {
             get {
                 return this.userAccessLevelField;
             }
             set {
-                this.userAccessLevelField = value;
+                this.userAccessLevelField = (byte)value;
             }
         }
         
