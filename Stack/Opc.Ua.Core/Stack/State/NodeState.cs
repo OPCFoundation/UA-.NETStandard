@@ -427,6 +427,24 @@ namespace Opc.Ua
                 m_accessRestrictions = value;
             }
         }
+
+        /// <summary>
+        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// </summary>
+        /// <value>
+        /// The extensions.
+        /// </value>
+        public System.Xml.XmlElement[] Extensions
+        {
+            get
+            {
+                return m_extensions;
+            }
+            set
+            {
+                m_extensions = value;
+            }
+        }
         #endregion
 
         #region Serialization Methods
@@ -4554,6 +4572,7 @@ namespace Opc.Ua
         private int m_areEventsMonitored;
         private bool m_initialized;
         private List<Notifier> m_notifiers;
+        private System.Xml.XmlElement[] m_extensions;
         #endregion
     }
 

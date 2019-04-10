@@ -107,7 +107,12 @@ namespace Opc.Ua
         /// Communicates with UA Binary over HTTPS.
         /// </summary>
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
-        
+
+        /// <summary>
+        /// An Issued User Token that complies with the JWT specification.
+        /// </summary>
+        public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";
+
         /// <summary>
         /// Converts the URI to a URI that can be used for comparison.
         /// </summary>
