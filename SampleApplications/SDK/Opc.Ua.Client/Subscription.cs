@@ -119,7 +119,8 @@ namespace Opc.Ua.Client
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
                     MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers);
-                    clone.Subscription = this; 
+                    clone.Subscription = this;
+                    clone.DisplayName = monitoredItem.DisplayName;
                     m_monitoredItems.Add(clone.ClientHandle, clone);
                 }      
             }
