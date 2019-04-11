@@ -199,7 +199,7 @@ public class CertificateFactory
     /// <param name="hashSizeInBits">The hash size in bits.</param>
     /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
     /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
-    /// <param name="publicKey">The public key.</param>
+    /// <param name="publicKey">The public key if no new keypair is created.</param>
     /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
     /// <returns>The certificate with a private key.</returns>
     public static X509Certificate2 CreateCertificate(
@@ -777,7 +777,7 @@ public class CertificateFactory
         PemReader pemReader;
         using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
         {
-            if (password == null)
+            if (String.IsNullOrEmpty(password))
             {
                 pemReader = new PemReader(pemStreamReader);
             }
@@ -846,20 +846,29 @@ public class CertificateFactory
             }
         }
     }
+
     /// <summary>
     /// returns a byte array containing the private key in PEM format.
     /// </summary>
-
     public static byte[] ExportPrivateKeyAsPEM(
         X509Certificate2 certificate
         )
     {
-        RsaPrivateCrtKeyParameters keyParameter = GetPrivateKeyParameter(certificate);
+        RsaPrivateCrtKeyParameters privateKeyParameter = GetPrivateKeyParameter(certificate);
         using (TextWriter textWriter = new StringWriter())
         {
-            PemWriter pemWriter = new PemWriter(textWriter);
-            pemWriter.WriteObject(keyParameter);
-            pemWriter.Writer.Flush();
+            // write private key as PKCS#8
+            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+            string serializedPrivate = Convert.ToBase64String(serializedPrivateBytes);
+            textWriter.WriteLine("-----BEGIN PRIVATE KEY-----");
+            while (serializedPrivate.Length > 64)
+            {   
+                textWriter.WriteLine(serializedPrivate.Substring(0, 64));
+                serializedPrivate = serializedPrivate.Substring(64);
+            }
+            textWriter.WriteLine(serializedPrivate);
+            textWriter.WriteLine("-----END PRIVATE KEY-----");
             return Encoding.ASCII.GetBytes(textWriter.ToString());
         }
     }
@@ -881,6 +890,9 @@ public class CertificateFactory
         return true;
     }
 
+    /// <summary>
+    /// Return the key usage flags of a certificate.
+    /// </summary>
     public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
     {
         X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
@@ -1145,7 +1157,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// Get private key parameters from a X509Cerificate2.
+    /// Get private key parameters from a X509Certificate2.
     /// The private key must be exportable.
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)

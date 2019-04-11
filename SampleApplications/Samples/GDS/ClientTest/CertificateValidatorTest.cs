@@ -27,22 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using NUnit.Framework;
+using Opc.Ua;
+using Opc.Ua.Gds.Test;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Gds.Test;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
-
-
     /// <summary>
-    /// 
+    /// Tests for the CertificateValidator class.
     /// </summary>
     /// 
     [TestFixture, Category("CertificateValidator")]
@@ -55,7 +54,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            // work around travis issue by selecting different ports on every run
+            // set max RSA key size and SHA-2 hash size
             ushort keySize = 4096;
             ushort hashSize = 512;
 
@@ -74,6 +73,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             // create all certs and CRL
             _caChain = new X509Certificate2[caChainCount];
             _caDupeChain = new X509Certificate2[caChainCount];
+            _caAllSameIssuerChain = new X509Certificate2[caChainCount];
             _crlChain = new X509CRL[caChainCount];
             _crlDupeChain = new X509CRL[caChainCount];
             _crlRevokedChain = new X509CRL[caChainCount];
@@ -189,10 +189,10 @@ namespace NUnit.Opc.Ua.Gds.Test
         #endregion
         #region Test Methods
         /// <summary>
-        /// Verify self signed app certs are not trusted
+        /// Verify self signed app certs are not trusted.
         /// </summary>
         [Test, Order(100)]
-        public async Task VerifySelfSignedAppCertsNotTrusted()
+        public void VerifySelfSignedAppCertsNotTrusted()
         {
             // verify cert with issuer chain
             CleanupValidatorAndStores();
@@ -202,8 +202,9 @@ namespace NUnit.Opc.Ua.Gds.Test
                 Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
             }
         }
+
         /// <summary>
-        /// Verify self signed app certs are not trusted with other ca chains
+        /// Verify self signed app certs are not trusted with other CA chains
         /// </summary>
         [Test, Order(110)]
         public async Task VerifySelfSignedAppCertsNotTrustedWithCA()
@@ -230,15 +231,16 @@ namespace NUnit.Opc.Ua.Gds.Test
                 Assert.That(() => { certValidator.Validate(new X509Certificate2(cert)); }, Throws.Exception);
             }
         }
+
         /// <summary>
-        /// Verify self signed app certs
+        /// Verify self signed app certs throw by default and validate if added to the trusted store.
         /// </summary>
         [Test, Order(150)]
         public async Task VerifySelfSignedAppCerts()
         {
             // verify cert with issuer chain
             {
-                // add all certs to issuer store
+                // add all certs to issuer store, make sure validation fails.
                 CleanupValidatorAndStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
@@ -262,7 +264,7 @@ namespace NUnit.Opc.Ua.Gds.Test
                     certValidator.Validate(new X509Certificate2(cert));
                 }
 
-                // add all certs to trusted store
+                // add all certs to trusted and issuer store
                 CleanupValidatorAndStores();
                 foreach (var cert in _appSelfSignedCerts)
                 {
@@ -280,10 +282,10 @@ namespace NUnit.Opc.Ua.Gds.Test
 
 
         /// <summary>
-        /// Verify app certs
+        /// Verify signed app certs validate. One of all trusted.
         /// </summary>
         [Test, Order(200)]
-        public async Task VerifyAppChains()
+        public async Task VerifyAppChainsOneTrusted()
         {
             // verify cert with issuer chain
             for (int v = 0; v < caChainCount; v++)
@@ -312,7 +314,39 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// Verify app certs with incomplete chain
+        /// Verify signed app certs validate. All but one in trusted.
+        /// </summary>
+        [Test, Order(201)]
+        public async Task VerifyAppChainsAllButOneTrusted()
+        {
+            // verify cert with issuer chain
+            for (int v = 0; v < caChainCount; v++)
+            {
+                CleanupValidatorAndStores();
+                for (int i = 0; i < caChainCount; i++)
+                {
+                    ICertificateStore store;
+                    if (i != v)
+                    {
+                        store = _trustedStore;
+                    }
+                    else
+                    {
+                        store = _issuerStore;
+                    }
+                    await store.Add(_caChain[i]);
+                    store.AddCRL(_crlChain[i]);
+                }
+                var certValidator = InitValidatorWithStores();
+                foreach (var app in _goodApplicationTestSet)
+                {
+                    certValidator.Validate(new X509Certificate2(app.Certificate));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verify app certs with incomplete chain throw.
         /// </summary>
         [Test, Order(210)]
         public async Task VerifyAppChainsIncompleteChain()
@@ -339,7 +373,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// Verify app certs with invalid chain
+        /// Verify app certs do not validate with invalid chain.
         /// </summary>
         [Test, Order(220)]
         public async Task VerifyAppChainsInvalidChain()
@@ -464,7 +498,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
         /// <summary>
-        /// // verify cert is revoked with CRL in issuer store
+        /// Verify trusted app cert is revoked with CRL in issuer store
         /// </summary>
         [Test, Order(320)]
         public async Task VerifyRevokedIssuerStoreTrustedAppChains()
@@ -498,7 +532,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// verify cert is revoked with CRL in trusted store
+        /// Verify cert is revoked with CRL in trusted store
         /// </summary>
         [Test, Order(330)]
         public async Task VerifyRevokedTrustedStoreNotTrustedAppChains()
@@ -527,7 +561,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// verify cert is revoked with CRL in trusted store 
+        /// Verify trusted cert is revoked with CRL in trusted store.
         /// </summary>
         [Test, Order(340)]
         public async Task VerifyRevokedTrustedStoreTrustedAppChains()
@@ -560,7 +594,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// Verify trusted app certs with issuer chain
+        /// Verify trusted app certs with issuer chain.
         /// </summary>
         [Test, Order(400)]
         public async Task VerifyIssuerChainIncompleteTrustedAppCerts()
@@ -588,7 +622,7 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// Verify trusted app certs with incomplete issuer chain
+        /// Verify trusted app certs with incomplete issuer chain.
         /// </summary>
         [Test, Order(410)]
         public async Task VerifyIssuerChainTrustedAppCerts()
@@ -617,6 +651,69 @@ namespace NUnit.Opc.Ua.Gds.Test
                 {
                     Assert.That(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); }, Throws.Exception);
                 }
+            }
+        }
+        /// <summary>
+        /// Create a CA signed cert where signer and issuer have the same distinguished name.
+        /// </summary>
+        [Test, Order(420)]
+        public async Task VerifyAppAndRootCertSameIssuerSubject()
+        {
+            string subject = "CN=Root And App Cert";
+            DateTime baseTime = DateTime.UtcNow;
+            var rootCert = CertificateFactory.CreateCertificate(
+                null, null, null,
+                null, null, subject,
+                null, 2048, baseTime, 2 * 12, 256, true,
+                pathLengthConstraint: 0);
+            var appCert = CertificateFactory.CreateCertificate(
+                null, null, null,
+                "urn:RootAndAppCert:UA:MyServer",
+                "MyServer",
+                subject,
+                new string[] { "myserver" },
+                2048, baseTime, 1 * 12,
+                256, false, rootCert);
+            // not trusted
+            CleanupValidatorAndStores();
+            var certValidator = InitValidatorWithStores();
+            Assert.That(() => { certValidator.Validate(new X509Certificate2(appCert)); }, Throws.Exception);
+            // app cert is trusted, but no chain
+            CleanupValidatorAndStores();
+            await _trustedStore.Add(appCert);
+            certValidator = InitValidatorWithStores();
+            Assert.That(() => { certValidator.Validate(new X509Certificate2(appCert)); }, Throws.Exception);
+            // app cert trusted, root in issuer
+            CleanupValidatorAndStores();
+            await _trustedStore.Add(appCert);
+            await _issuerStore.Add(rootCert);
+            certValidator = InitValidatorWithStores();
+            certValidator.Validate(new X509Certificate2(appCert));
+            // root cert trusted
+            CleanupValidatorAndStores();
+            await _trustedStore.Add(rootCert);
+            certValidator = InitValidatorWithStores();
+            certValidator.Validate(new X509Certificate2(appCert));
+            // root cert trusted
+            CleanupValidatorAndStores();
+            await _trustedStore.Add(rootCert);
+            await _issuerStore.Add(appCert);
+            certValidator = InitValidatorWithStores();
+            certValidator.Validate(new X509Certificate2(appCert));
+        }
+        /// <summary>
+        /// Verify the PEM Writer, no password
+        /// </summary>
+        [Test, Order(500)]
+        public void VerifyPemWriterPrivateKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in _appSelfSignedCerts)
+            {
+                var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob);
+                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, "password");
             }
         }
         #endregion
@@ -651,9 +748,9 @@ namespace NUnit.Opc.Ua.Gds.Test
         private IList<ApplicationTestData> _invalidApplicationTestSet;
         private X509Certificate2[] _caChain;
         private X509Certificate2[] _caDupeChain;
+        private X509Certificate2[] _caAllSameIssuerChain;
         private X509CRL[] _crlChain;
         private X509CRL[] _crlDupeChain;
-        private X509Certificate2[] _revokedChain;
         private X509CRL[] _crlRevokedChain;
         private X509Certificate2Collection _appCerts;
         private X509Certificate2Collection _appSelfSignedCerts;

@@ -40,12 +40,9 @@ using Opc.Ua.Gds.Test;
 
 namespace NUnit.Opc.Ua.Gds.Test
 {
-
-
     /// <summary>
-    /// 
+    /// Test GDS Registration and Client Pull.
     /// </summary>
-    /// 
     [TestFixture, Category("GDSRegistrationAndPull")]
     public class ClientTest
     {
@@ -97,9 +94,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         #region Test Methods
 
         /// <summary>
-        /// 
+        /// Clean the app database from application Uri used during test.
         /// </summary>
-        /// 
         [Test, Order(10)]
         public void CleanGoodApplications()
         {
@@ -118,9 +114,8 @@ namespace NUnit.Opc.Ua.Gds.Test
         }
 
         /// <summary>
-        /// 
+        /// Register the good applications in the database.
         /// </summary>
-        /// 
         [Test, Order(100)]
         public void RegisterGoodApplications()
         {
