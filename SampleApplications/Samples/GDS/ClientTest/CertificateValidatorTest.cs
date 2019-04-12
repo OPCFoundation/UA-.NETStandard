@@ -654,54 +654,6 @@ namespace NUnit.Opc.Ua.Gds.Test
             }
         }
         /// <summary>
-        /// Create a CA signed cert where signer and issuer have the same distinguished name.
-        /// </summary>
-        [Test, Order(420)]
-        public async Task VerifyAppAndRootCertSameIssuerSubject()
-        {
-            string subject = "CN=Root And App Cert";
-            DateTime baseTime = DateTime.UtcNow;
-            var rootCert = CertificateFactory.CreateCertificate(
-                null, null, null,
-                null, null, subject,
-                null, 2048, baseTime, 2 * 12, 256, true,
-                pathLengthConstraint: 0);
-            var appCert = CertificateFactory.CreateCertificate(
-                null, null, null,
-                "urn:RootAndAppCert:UA:MyServer",
-                "MyServer",
-                subject,
-                new string[] { "myserver" },
-                2048, baseTime, 1 * 12,
-                256, false, rootCert);
-            // not trusted
-            CleanupValidatorAndStores();
-            var certValidator = InitValidatorWithStores();
-            Assert.That(() => { certValidator.Validate(new X509Certificate2(appCert)); }, Throws.Exception);
-            // app cert is trusted, but no chain
-            CleanupValidatorAndStores();
-            await _trustedStore.Add(appCert);
-            certValidator = InitValidatorWithStores();
-            Assert.That(() => { certValidator.Validate(new X509Certificate2(appCert)); }, Throws.Exception);
-            // app cert trusted, root in issuer
-            CleanupValidatorAndStores();
-            await _trustedStore.Add(appCert);
-            await _issuerStore.Add(rootCert);
-            certValidator = InitValidatorWithStores();
-            certValidator.Validate(new X509Certificate2(appCert));
-            // root cert trusted
-            CleanupValidatorAndStores();
-            await _trustedStore.Add(rootCert);
-            certValidator = InitValidatorWithStores();
-            certValidator.Validate(new X509Certificate2(appCert));
-            // root cert trusted
-            CleanupValidatorAndStores();
-            await _trustedStore.Add(rootCert);
-            await _issuerStore.Add(appCert);
-            certValidator = InitValidatorWithStores();
-            certValidator.Validate(new X509Certificate2(appCert));
-        }
-        /// <summary>
         /// Verify the PEM Writer, no password
         /// </summary>
         [Test, Order(500)]
