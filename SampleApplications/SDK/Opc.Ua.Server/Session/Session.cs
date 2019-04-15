@@ -543,8 +543,13 @@ namespace Opc.Ua.Server
                 // verify the client signature.
                 if (m_clientCertificate != null)
                 {
+                    if (m_endpoint.SecurityPolicyUri != SecurityPolicies.None && clientSignature != null && clientSignature.Signature == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                    }
+
                     byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
-                    
+
                     if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                     {
                         // verify for certificate chain in endpoint.
