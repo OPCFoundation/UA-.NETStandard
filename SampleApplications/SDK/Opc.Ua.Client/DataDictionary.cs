@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -308,6 +308,6 @@ namespace Opc.Ua.Client
         private string m_typeSystemName;
         private Dictionary<NodeId,ReferenceDescription> m_datatypes;
         private SchemaValidator m_validator;
-		#endregion
+        #endregion
 	}
 }

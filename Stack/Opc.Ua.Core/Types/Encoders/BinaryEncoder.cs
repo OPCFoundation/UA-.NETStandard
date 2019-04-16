@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -567,7 +567,7 @@ namespace Opc.Ua
             // get the node encoding.
             byte encoding = GetNodeIdEncoding(value.IdType, value.Identifier, namespaceIndex);
 
-            // write the encoding.            
+            // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
@@ -615,7 +615,7 @@ namespace Opc.Ua
                 encoding |= 0x40;
             }
 
-            // write the encoding.            
+            // write the encoding.
             WriteByte(null, encoding);
 
             // write the node id.
@@ -1006,11 +1006,11 @@ namespace Opc.Ua
                     Utils.Format("Cannot encode bodies of type '{0}' in extension objects.", body.GetType().FullName));
             }
 
-            long start = m_writer.BaseStream.Position;
-
             // check if it possible to write the extension directly to the stream.
             if (m_writer.BaseStream.CanSeek)
             {
+                long start = m_writer.BaseStream.Position;
+
                 // write a placeholder for the body length.
                 WriteInt32(null, -1);
                 encodeable.Encode(this);
@@ -1812,7 +1812,7 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)valueToEncode); return; }
                     case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)valueToEncode); return; }
                     case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)valueToEncode); return; }
-                    case BuiltInType.Enumeration: { WriteInt32(null, (int)valueToEncode); return; }
+                    case BuiltInType.Enumeration: { WriteInt32(null, Convert.ToInt32(valueToEncode)); return; }
                 }
 
                 throw ServiceResultException.Create(
@@ -1916,7 +1916,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion 
+        #endregion
 
         #region Private Fields
         private Stream m_ostrm;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -136,7 +136,7 @@
 
   <opc:StructuredType Name="QualifiedName">
     <opc:Documentation>A string qualified with a namespace index.</opc:Documentation>
-    <opc:Field Name="NamespaceIndex" TypeName="opc:Int32" />
+    <opc:Field Name="NamespaceIndex" TypeName="opc:UInt16" />
     <opc:Field Name="Name" TypeName="opc:CharArray" />
   </opc:StructuredType>
 
@@ -446,7 +446,7 @@
     <opc:EnumeratedValue Name="ServerTimestamp" Value="4" />
     <opc:EnumeratedValue Name="SourcePicoSeconds" Value="8" />
     <opc:EnumeratedValue Name="ServerPicoSeconds" Value="16" />
-    <opc:EnumeratedValue Name="RawDataEncoding" Value="32" />
+    <opc:EnumeratedValue Name="RawData" Value="32" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="DataSetWriterDataType" BaseType="ua:ExtensionObject">
@@ -496,6 +496,7 @@
     <opc:Field Name="Priority" TypeName="opc:Byte" />
     <opc:Field Name="NoOfLocaleIds" TypeName="opc:Int32" />
     <opc:Field Name="LocaleIds" TypeName="opc:String" LengthField="NoOfLocaleIds" />
+    <opc:Field Name="HeaderLayoutUri" TypeName="opc:String" />
     <opc:Field Name="TransportSettings" TypeName="ua:ExtensionObject" />
     <opc:Field Name="MessageSettings" TypeName="ua:ExtensionObject" />
     <opc:Field Name="NoOfDataSetWriters" TypeName="opc:Int32" />
@@ -566,6 +567,8 @@
     <opc:Field Name="DataSetMetaData" TypeName="tns:DataSetMetaDataType" />
     <opc:Field Name="DataSetFieldContentMask" TypeName="tns:DataSetFieldContentMask" />
     <opc:Field Name="MessageReceiveTimeout" TypeName="opc:Double" />
+    <opc:Field Name="KeyFrameCount" TypeName="opc:UInt32" />
+    <opc:Field Name="HeaderLayoutUri" TypeName="opc:String" />
     <opc:Field Name="SecurityMode" TypeName="tns:MessageSecurityMode" />
     <opc:Field Name="SecurityGroupId" TypeName="opc:String" />
     <opc:Field Name="NoOfSecurityKeyServices" TypeName="opc:Int32" />
@@ -603,7 +606,7 @@
 
   <opc:EnumeratedType Name="OverrideValueHandling" LengthInBits="32">
     <opc:EnumeratedValue Name="Disabled" Value="0" />
-    <opc:EnumeratedValue Name="LastUseableValue" Value="1" />
+    <opc:EnumeratedValue Name="LastUsableValue" Value="1" />
     <opc:EnumeratedValue Name="OverrideValue" Value="2" />
   </opc:EnumeratedType>
 
@@ -637,7 +640,7 @@
     <opc:EnumeratedValue Name="SequenceNumber" Value="32" />
     <opc:EnumeratedValue Name="PayloadHeader" Value="64" />
     <opc:EnumeratedValue Name="Timestamp" Value="128" />
-    <opc:EnumeratedValue Name="Picoseconds" Value="256" />
+    <opc:EnumeratedValue Name="PicoSeconds" Value="256" />
     <opc:EnumeratedValue Name="DataSetClassId" Value="512" />
     <opc:EnumeratedValue Name="PromotedFields" Value="1024" />
   </opc:EnumeratedType>
@@ -745,6 +748,7 @@
     <opc:Field Name="QueueName" TypeName="opc:String" />
     <opc:Field Name="ResourceUri" TypeName="opc:String" />
     <opc:Field Name="AuthenticationProfileUri" TypeName="opc:String" />
+    <opc:Field Name="RequestedDeliveryGuarantee" TypeName="tns:BrokerTransportQualityOfService" />
     <opc:Field Name="MetaDataQueueName" TypeName="opc:String" />
     <opc:Field Name="MetaDataUpdateTime" TypeName="opc:Double" />
   </opc:StructuredType>
@@ -817,7 +821,8 @@
     <opc:EnumeratedValue Name="CurrentRead" Value="1" />
     <opc:EnumeratedValue Name="CurrentWrite" Value="2" />
     <opc:EnumeratedValue Name="HistoryRead" Value="4" />
-    <opc:EnumeratedValue Name="HistoryWrite" Value="16" />
+    <opc:EnumeratedValue Name="HistoryWrite" Value="8" />
+    <opc:EnumeratedValue Name="SemanticChange" Value="16" />
     <opc:EnumeratedValue Name="StatusWrite" Value="32" />
     <opc:EnumeratedValue Name="TimestampWrite" Value="64" />
   </opc:EnumeratedType>
@@ -827,7 +832,8 @@
     <opc:EnumeratedValue Name="CurrentRead" Value="1" />
     <opc:EnumeratedValue Name="CurrentWrite" Value="2" />
     <opc:EnumeratedValue Name="HistoryRead" Value="4" />
-    <opc:EnumeratedValue Name="HistoryWrite" Value="16" />
+    <opc:EnumeratedValue Name="HistoryWrite" Value="8" />
+    <opc:EnumeratedValue Name="SemanticChange" Value="16" />
     <opc:EnumeratedValue Name="StatusWrite" Value="32" />
     <opc:EnumeratedValue Name="TimestampWrite" Value="64" />
     <opc:EnumeratedValue Name="NonatomicRead" Value="256" />
@@ -1176,6 +1182,10 @@
     <opc:Field Name="DaylightSavingInOffset" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
+  <opc:OpaqueType Name="Index">
+    <opc:Documentation>This primitive data type is a UInt32 that identifies an element of an array.</opc:Documentation>
+  </opc:OpaqueType>
+
   <opc:OpaqueType Name="IntegerId">
     <opc:Documentation>A numeric identifier for an object.</opc:Documentation>
   </opc:OpaqueType>
@@ -1517,6 +1527,9 @@
     <opc:Field Name="TokenData" TypeName="opc:ByteString" />
     <opc:Field Name="EncryptionAlgorithm" TypeName="opc:String" />
   </opc:StructuredType>
+
+  <opc:OpaqueType Name="RsaEncryptedSecret">
+  </opc:OpaqueType>
 
   <opc:StructuredType Name="ActivateSessionRequest" BaseType="ua:ExtensionObject">
     <opc:Documentation>Activates a session with the server.</opc:Documentation>

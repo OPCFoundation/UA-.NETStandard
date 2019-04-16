@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -119,7 +119,8 @@ namespace Opc.Ua.Client
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
                     MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers);
-                    clone.Subscription = this; 
+                    clone.Subscription = this;
+                    clone.DisplayName = monitoredItem.DisplayName;
                     m_monitoredItems.Add(clone.ClientHandle, clone);
                 }      
             }

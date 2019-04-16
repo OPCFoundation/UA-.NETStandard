@@ -35,10 +35,12 @@ script:
   - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest
   - dotnet build -c Release SampleApplications/Samples/GDS/ClientTest
-  - dotnet test -c Debug --filter TestCategory!="GDSPush" SampleApplications/Samples/GDS/ClientTest
-  - dotnet test -c Release --filter TestCategory!="GDSPush" SampleApplications/Samples/GDS/ClientTest
-  - dotnet test -c Debug --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
-  - dotnet test -c Release --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Debug --filter TestCategory="GDSRegistrationAndPull" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Release --filter TestCategory="GDSRegistrationAndPull" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Debug --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Release --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  # - dotnet test --no-build -v n -c Debug --filter TestCategory="CertificateValidator" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Release --filter TestCategory="CertificateValidator" SampleApplications/Samples/GDS/ClientTest
   - echo "========== run .Net Core samples ============"
   - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/netcoreapp2.0
   - dotnet NetCoreConsoleServer.dll -t 10 -a

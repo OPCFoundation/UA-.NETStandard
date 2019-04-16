@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -348,7 +348,7 @@ namespace Opc.Ua
         {
             get
             {
-                return m_writeMask;
+                return m_userWriteMask;
             }
 
             set
@@ -425,6 +425,24 @@ namespace Opc.Ua
                 }
 
                 m_accessRestrictions = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// </summary>
+        /// <value>
+        /// The extensions.
+        /// </value>
+        public System.Xml.XmlElement[] Extensions
+        {
+            get
+            {
+                return m_extensions;
+            }
+            set
+            {
+                m_extensions = value;
             }
         }
         #endregion
@@ -4554,9 +4572,11 @@ namespace Opc.Ua
         private int m_areEventsMonitored;
         private bool m_initialized;
         private List<Notifier> m_notifiers;
+        private System.Xml.XmlElement[] m_extensions;
         #endregion
     }
 
+    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>

@@ -14,7 +14,7 @@
 // field in a structure. Clients and servers must use these masks to test
 // and/or indicate whether a given field contains a meaningful value.
 //
-// (c) Copyright 2002 The OPC Foundation
+// Copyright (c) 2019 The OPC Foundation
 // ALL RIGHTS RESERVED.
 //
 // DISCLAIMER:

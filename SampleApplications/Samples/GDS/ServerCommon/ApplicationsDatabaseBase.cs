@@ -1,5 +1,5 @@
 ﻿/* ========================================================================
- * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Server.Database
 
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
                 {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                    application.ServerCapabilities = new StringCollection() { "NA" };
                 }
             }
             else

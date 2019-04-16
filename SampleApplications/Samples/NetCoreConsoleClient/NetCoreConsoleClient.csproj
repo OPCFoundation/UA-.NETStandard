@@ -8,7 +8,7 @@
     <Company>OPC Foundation</Company>
     <Product>OPC UA SDK</Product>
     <Description>.Net Core Console Client</Description>
-    <Copyright>Copyright © 2004-2018 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2019 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

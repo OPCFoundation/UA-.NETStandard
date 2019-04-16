@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -3788,7 +3788,7 @@ namespace Opc.Ua
         {
             m_name = null;
             m_description = null;
-            m_fieldFlags = DataSetFieldFlags.None;
+            m_fieldFlags = 0;
             m_builtInType = (byte)0;
             m_dataType = null;
             m_valueRank = (int)0;
@@ -3824,7 +3824,7 @@ namespace Opc.Ua
         /// A description for the FieldFlags field.
         /// </summary>
         [DataMember(Name = "FieldFlags", IsRequired = false, Order = 3)]
-        public DataSetFieldFlags FieldFlags
+        public ushort FieldFlags
         {
             get { return m_fieldFlags;  }
             set { m_fieldFlags = value; }
@@ -3951,7 +3951,7 @@ namespace Opc.Ua
 
             encoder.WriteString("Name", Name);
             encoder.WriteLocalizedText("Description", Description);
-            encoder.WriteEnumerated("FieldFlags", FieldFlags);
+            encoder.WriteUInt16("FieldFlags", FieldFlags);
             encoder.WriteByte("BuiltInType", BuiltInType);
             encoder.WriteNodeId("DataType", DataType);
             encoder.WriteInt32("ValueRank", ValueRank);
@@ -3970,7 +3970,7 @@ namespace Opc.Ua
 
             Name = decoder.ReadString("Name");
             Description = decoder.ReadLocalizedText("Description");
-            FieldFlags = (DataSetFieldFlags)decoder.ReadEnumerated("FieldFlags", typeof(DataSetFieldFlags));
+            FieldFlags = decoder.ReadUInt16("FieldFlags");
             BuiltInType = decoder.ReadByte("BuiltInType");
             DataType = decoder.ReadNodeId("DataType");
             ValueRank = decoder.ReadInt32("ValueRank");
@@ -4026,7 +4026,7 @@ namespace Opc.Ua
 
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_description = (LocalizedText)Utils.Clone(this.m_description);
-            clone.m_fieldFlags = (DataSetFieldFlags)Utils.Clone(this.m_fieldFlags);
+            clone.m_fieldFlags = (ushort)Utils.Clone(this.m_fieldFlags);
             clone.m_builtInType = (byte)Utils.Clone(this.m_builtInType);
             clone.m_dataType = (NodeId)Utils.Clone(this.m_dataType);
             clone.m_valueRank = (int)Utils.Clone(this.m_valueRank);
@@ -4042,7 +4042,7 @@ namespace Opc.Ua
         #region Private Fields
         private string m_name;
         private LocalizedText m_description;
-        private DataSetFieldFlags m_fieldFlags;
+        private ushort m_fieldFlags;
         private byte m_builtInType;
         private NodeId m_dataType;
         private int m_valueRank;
@@ -4148,7 +4148,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum DataSetFieldFlags
+    public enum DataSetFieldFlags : UInt16
     {
         /// <summary>
         /// No value specified.
@@ -5790,7 +5790,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum DataSetFieldContentMask
+    public enum DataSetFieldContentMask : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -5829,10 +5829,10 @@ namespace Opc.Ua
         ServerPicoSeconds = 16,
 
         /// <summary>
-        /// A description for the RawDataEncoding field.
+        /// A description for the RawData field.
         /// </summary>
-        [EnumMember(Value = "RawDataEncoding_32")]
-        RawDataEncoding = 32,
+        [EnumMember(Value = "RawData_32")]
+        RawData = 32,
     }
 
     #region DataSetFieldContentMaskCollection Class
@@ -5958,7 +5958,7 @@ namespace Opc.Ua
             m_name = null;
             m_enabled = true;
             m_dataSetWriterId = (ushort)0;
-            m_dataSetFieldContentMask = DataSetFieldContentMask.None;
+            m_dataSetFieldContentMask = 0;
             m_keyFrameCount = (uint)0;
             m_dataSetName = null;
             m_dataSetWriterProperties = new KeyValuePairCollection();
@@ -6002,7 +6002,7 @@ namespace Opc.Ua
         /// A description for the DataSetFieldContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetFieldContentMask", IsRequired = false, Order = 4)]
-        public DataSetFieldContentMask DataSetFieldContentMask
+        public uint DataSetFieldContentMask
         {
             get { return m_dataSetFieldContentMask;  }
             set { m_dataSetFieldContentMask = value; }
@@ -6098,7 +6098,7 @@ namespace Opc.Ua
             encoder.WriteString("Name", Name);
             encoder.WriteBoolean("Enabled", Enabled);
             encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
-            encoder.WriteEnumerated("DataSetFieldContentMask", DataSetFieldContentMask);
+            encoder.WriteUInt32("DataSetFieldContentMask", DataSetFieldContentMask);
             encoder.WriteUInt32("KeyFrameCount", KeyFrameCount);
             encoder.WriteString("DataSetName", DataSetName);
             encoder.WriteEncodeableArray("DataSetWriterProperties", DataSetWriterProperties.ToArray(), typeof(KeyValuePair));
@@ -6116,7 +6116,7 @@ namespace Opc.Ua
             Name = decoder.ReadString("Name");
             Enabled = decoder.ReadBoolean("Enabled");
             DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
-            DataSetFieldContentMask = (DataSetFieldContentMask)decoder.ReadEnumerated("DataSetFieldContentMask", typeof(DataSetFieldContentMask));
+            DataSetFieldContentMask = decoder.ReadUInt32("DataSetFieldContentMask");
             KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
             DataSetName = decoder.ReadString("DataSetName");
             DataSetWriterProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetWriterProperties", typeof(KeyValuePair));
@@ -6170,7 +6170,7 @@ namespace Opc.Ua
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_enabled = (bool)Utils.Clone(this.m_enabled);
             clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
-            clone.m_dataSetFieldContentMask = (DataSetFieldContentMask)Utils.Clone(this.m_dataSetFieldContentMask);
+            clone.m_dataSetFieldContentMask = (uint)Utils.Clone(this.m_dataSetFieldContentMask);
             clone.m_keyFrameCount = (uint)Utils.Clone(this.m_keyFrameCount);
             clone.m_dataSetName = (string)Utils.Clone(this.m_dataSetName);
             clone.m_dataSetWriterProperties = (KeyValuePairCollection)Utils.Clone(this.m_dataSetWriterProperties);
@@ -6185,7 +6185,7 @@ namespace Opc.Ua
         private string m_name;
         private bool m_enabled;
         private ushort m_dataSetWriterId;
-        private DataSetFieldContentMask m_dataSetFieldContentMask;
+        private uint m_dataSetFieldContentMask;
         private uint m_keyFrameCount;
         private string m_dataSetName;
         private KeyValuePairCollection m_dataSetWriterProperties;
@@ -7066,6 +7066,7 @@ namespace Opc.Ua
             m_keepAliveTime = (double)0;
             m_priority = (byte)0;
             m_localeIds = new StringCollection();
+            m_headerLayoutUri = null;
             m_transportSettings = null;
             m_messageSettings = null;
             m_dataSetWriters = new DataSetWriterDataTypeCollection();
@@ -7136,9 +7137,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// A description for the HeaderLayoutUri field.
+        /// </summary>
+        [DataMember(Name = "HeaderLayoutUri", IsRequired = false, Order = 6)]
+        public string HeaderLayoutUri
+        {
+            get { return m_headerLayoutUri;  }
+            set { m_headerLayoutUri = value; }
+        }
+
+        /// <summary>
         /// A description for the TransportSettings field.
         /// </summary>
-        [DataMember(Name = "TransportSettings", IsRequired = false, Order = 6)]
+        [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
         public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
@@ -7148,7 +7159,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the MessageSettings field.
         /// </summary>
-        [DataMember(Name = "MessageSettings", IsRequired = false, Order = 7)]
+        [DataMember(Name = "MessageSettings", IsRequired = false, Order = 8)]
         public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
@@ -7158,7 +7169,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the DataSetWriters field.
         /// </summary>
-        [DataMember(Name = "DataSetWriters", IsRequired = false, Order = 8)]
+        [DataMember(Name = "DataSetWriters", IsRequired = false, Order = 9)]
         public DataSetWriterDataTypeCollection DataSetWriters
         {
             get
@@ -7209,6 +7220,7 @@ namespace Opc.Ua
             encoder.WriteDouble("KeepAliveTime", KeepAliveTime);
             encoder.WriteByte("Priority", Priority);
             encoder.WriteStringArray("LocaleIds", LocaleIds);
+            encoder.WriteString("HeaderLayoutUri", HeaderLayoutUri);
             encoder.WriteExtensionObject("TransportSettings", TransportSettings);
             encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteEncodeableArray("DataSetWriters", DataSetWriters.ToArray(), typeof(DataSetWriterDataType));
@@ -7228,6 +7240,7 @@ namespace Opc.Ua
             KeepAliveTime = decoder.ReadDouble("KeepAliveTime");
             Priority = decoder.ReadByte("Priority");
             LocaleIds = decoder.ReadStringArray("LocaleIds");
+            HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             DataSetWriters = (DataSetWriterDataTypeCollection)decoder.ReadEncodeableArray("DataSetWriters", typeof(DataSetWriterDataType));
@@ -7256,6 +7269,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_keepAliveTime, value.m_keepAliveTime)) return false;
             if (!Utils.IsEqual(m_priority, value.m_priority)) return false;
             if (!Utils.IsEqual(m_localeIds, value.m_localeIds)) return false;
+            if (!Utils.IsEqual(m_headerLayoutUri, value.m_headerLayoutUri)) return false;
             if (!Utils.IsEqual(m_transportSettings, value.m_transportSettings)) return false;
             if (!Utils.IsEqual(m_messageSettings, value.m_messageSettings)) return false;
             if (!Utils.IsEqual(m_dataSetWriters, value.m_dataSetWriters)) return false;
@@ -7281,6 +7295,7 @@ namespace Opc.Ua
             clone.m_keepAliveTime = (double)Utils.Clone(this.m_keepAliveTime);
             clone.m_priority = (byte)Utils.Clone(this.m_priority);
             clone.m_localeIds = (StringCollection)Utils.Clone(this.m_localeIds);
+            clone.m_headerLayoutUri = (string)Utils.Clone(this.m_headerLayoutUri);
             clone.m_transportSettings = (ExtensionObject)Utils.Clone(this.m_transportSettings);
             clone.m_messageSettings = (ExtensionObject)Utils.Clone(this.m_messageSettings);
             clone.m_dataSetWriters = (DataSetWriterDataTypeCollection)Utils.Clone(this.m_dataSetWriters);
@@ -7295,6 +7310,7 @@ namespace Opc.Ua
         private double m_keepAliveTime;
         private byte m_priority;
         private StringCollection m_localeIds;
+        private string m_headerLayoutUri;
         private ExtensionObject m_transportSettings;
         private ExtensionObject m_messageSettings;
         private DataSetWriterDataTypeCollection m_dataSetWriters;
@@ -9541,8 +9557,10 @@ namespace Opc.Ua
             m_writerGroupId = (ushort)0;
             m_dataSetWriterId = (ushort)0;
             m_dataSetMetaData = new DataSetMetaDataType();
-            m_dataSetFieldContentMask = DataSetFieldContentMask.None;
+            m_dataSetFieldContentMask = 0;
             m_messageReceiveTimeout = (double)0;
+            m_keyFrameCount = (uint)0;
+            m_headerLayoutUri = null;
             m_securityMode = MessageSecurityMode.Invalid;
             m_securityGroupId = null;
             m_securityKeyServices = new EndpointDescriptionCollection();
@@ -9630,7 +9648,7 @@ namespace Opc.Ua
         /// A description for the DataSetFieldContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetFieldContentMask", IsRequired = false, Order = 7)]
-        public DataSetFieldContentMask DataSetFieldContentMask
+        public uint DataSetFieldContentMask
         {
             get { return m_dataSetFieldContentMask;  }
             set { m_dataSetFieldContentMask = value; }
@@ -9647,9 +9665,29 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// A description for the KeyFrameCount field.
+        /// </summary>
+        [DataMember(Name = "KeyFrameCount", IsRequired = false, Order = 9)]
+        public uint KeyFrameCount
+        {
+            get { return m_keyFrameCount;  }
+            set { m_keyFrameCount = value; }
+        }
+
+        /// <summary>
+        /// A description for the HeaderLayoutUri field.
+        /// </summary>
+        [DataMember(Name = "HeaderLayoutUri", IsRequired = false, Order = 10)]
+        public string HeaderLayoutUri
+        {
+            get { return m_headerLayoutUri;  }
+            set { m_headerLayoutUri = value; }
+        }
+
+        /// <summary>
         /// A description for the SecurityMode field.
         /// </summary>
-        [DataMember(Name = "SecurityMode", IsRequired = false, Order = 9)]
+        [DataMember(Name = "SecurityMode", IsRequired = false, Order = 11)]
         public MessageSecurityMode SecurityMode
         {
             get { return m_securityMode;  }
@@ -9659,7 +9697,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the SecurityGroupId field.
         /// </summary>
-        [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 10)]
+        [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 12)]
         public string SecurityGroupId
         {
             get { return m_securityGroupId;  }
@@ -9669,7 +9707,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the SecurityKeyServices field.
         /// </summary>
-        [DataMember(Name = "SecurityKeyServices", IsRequired = false, Order = 11)]
+        [DataMember(Name = "SecurityKeyServices", IsRequired = false, Order = 13)]
         public EndpointDescriptionCollection SecurityKeyServices
         {
             get
@@ -9691,7 +9729,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the DataSetReaderProperties field.
         /// </summary>
-        [DataMember(Name = "DataSetReaderProperties", IsRequired = false, Order = 12)]
+        [DataMember(Name = "DataSetReaderProperties", IsRequired = false, Order = 14)]
         public KeyValuePairCollection DataSetReaderProperties
         {
             get
@@ -9713,7 +9751,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the TransportSettings field.
         /// </summary>
-        [DataMember(Name = "TransportSettings", IsRequired = false, Order = 13)]
+        [DataMember(Name = "TransportSettings", IsRequired = false, Order = 15)]
         public ExtensionObject TransportSettings
         {
             get { return m_transportSettings;  }
@@ -9723,7 +9761,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the MessageSettings field.
         /// </summary>
-        [DataMember(Name = "MessageSettings", IsRequired = false, Order = 14)]
+        [DataMember(Name = "MessageSettings", IsRequired = false, Order = 16)]
         public ExtensionObject MessageSettings
         {
             get { return m_messageSettings;  }
@@ -9733,7 +9771,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the SubscribedDataSet field.
         /// </summary>
-        [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 15)]
+        [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 17)]
         public ExtensionObject SubscribedDataSet
         {
             get { return m_subscribedDataSet;  }
@@ -9771,8 +9809,10 @@ namespace Opc.Ua
             encoder.WriteUInt16("WriterGroupId", WriterGroupId);
             encoder.WriteUInt16("DataSetWriterId", DataSetWriterId);
             encoder.WriteEncodeable("DataSetMetaData", DataSetMetaData, typeof(DataSetMetaDataType));
-            encoder.WriteEnumerated("DataSetFieldContentMask", DataSetFieldContentMask);
+            encoder.WriteUInt32("DataSetFieldContentMask", DataSetFieldContentMask);
             encoder.WriteDouble("MessageReceiveTimeout", MessageReceiveTimeout);
+            encoder.WriteUInt32("KeyFrameCount", KeyFrameCount);
+            encoder.WriteString("HeaderLayoutUri", HeaderLayoutUri);
             encoder.WriteEnumerated("SecurityMode", SecurityMode);
             encoder.WriteString("SecurityGroupId", SecurityGroupId);
             encoder.WriteEncodeableArray("SecurityKeyServices", SecurityKeyServices.ToArray(), typeof(EndpointDescription));
@@ -9795,8 +9835,10 @@ namespace Opc.Ua
             WriterGroupId = decoder.ReadUInt16("WriterGroupId");
             DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
             DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
-            DataSetFieldContentMask = (DataSetFieldContentMask)decoder.ReadEnumerated("DataSetFieldContentMask", typeof(DataSetFieldContentMask));
+            DataSetFieldContentMask = decoder.ReadUInt32("DataSetFieldContentMask");
             MessageReceiveTimeout = decoder.ReadDouble("MessageReceiveTimeout");
+            KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
+            HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
             SecurityMode = (MessageSecurityMode)decoder.ReadEnumerated("SecurityMode", typeof(MessageSecurityMode));
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
             SecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
@@ -9831,6 +9873,8 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_dataSetMetaData, value.m_dataSetMetaData)) return false;
             if (!Utils.IsEqual(m_dataSetFieldContentMask, value.m_dataSetFieldContentMask)) return false;
             if (!Utils.IsEqual(m_messageReceiveTimeout, value.m_messageReceiveTimeout)) return false;
+            if (!Utils.IsEqual(m_keyFrameCount, value.m_keyFrameCount)) return false;
+            if (!Utils.IsEqual(m_headerLayoutUri, value.m_headerLayoutUri)) return false;
             if (!Utils.IsEqual(m_securityMode, value.m_securityMode)) return false;
             if (!Utils.IsEqual(m_securityGroupId, value.m_securityGroupId)) return false;
             if (!Utils.IsEqual(m_securityKeyServices, value.m_securityKeyServices)) return false;
@@ -9861,8 +9905,10 @@ namespace Opc.Ua
             clone.m_writerGroupId = (ushort)Utils.Clone(this.m_writerGroupId);
             clone.m_dataSetWriterId = (ushort)Utils.Clone(this.m_dataSetWriterId);
             clone.m_dataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_dataSetMetaData);
-            clone.m_dataSetFieldContentMask = (DataSetFieldContentMask)Utils.Clone(this.m_dataSetFieldContentMask);
+            clone.m_dataSetFieldContentMask = (uint)Utils.Clone(this.m_dataSetFieldContentMask);
             clone.m_messageReceiveTimeout = (double)Utils.Clone(this.m_messageReceiveTimeout);
+            clone.m_keyFrameCount = (uint)Utils.Clone(this.m_keyFrameCount);
+            clone.m_headerLayoutUri = (string)Utils.Clone(this.m_headerLayoutUri);
             clone.m_securityMode = (MessageSecurityMode)Utils.Clone(this.m_securityMode);
             clone.m_securityGroupId = (string)Utils.Clone(this.m_securityGroupId);
             clone.m_securityKeyServices = (EndpointDescriptionCollection)Utils.Clone(this.m_securityKeyServices);
@@ -9882,8 +9928,10 @@ namespace Opc.Ua
         private ushort m_writerGroupId;
         private ushort m_dataSetWriterId;
         private DataSetMetaDataType m_dataSetMetaData;
-        private DataSetFieldContentMask m_dataSetFieldContentMask;
+        private uint m_dataSetFieldContentMask;
         private double m_messageReceiveTimeout;
+        private uint m_keyFrameCount;
+        private string m_headerLayoutUri;
         private MessageSecurityMode m_securityMode;
         private string m_securityGroupId;
         private EndpointDescriptionCollection m_securityKeyServices;
@@ -11161,10 +11209,10 @@ namespace Opc.Ua
         Disabled = 0,
 
         /// <summary>
-        /// A description for the LastUseableValue field.
+        /// A description for the LastUsableValue field.
         /// </summary>
-        [EnumMember(Value = "LastUseableValue_1")]
-        LastUseableValue = 1,
+        [EnumMember(Value = "LastUsableValue_1")]
+        LastUsableValue = 1,
 
         /// <summary>
         /// A description for the OverrideValue field.
@@ -11911,7 +11959,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum UadpNetworkMessageContentMask
+    public enum UadpNetworkMessageContentMask : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -11968,10 +12016,10 @@ namespace Opc.Ua
         Timestamp = 128,
 
         /// <summary>
-        /// A description for the Picoseconds field.
+        /// A description for the PicoSeconds field.
         /// </summary>
-        [EnumMember(Value = "Picoseconds_256")]
-        Picoseconds = 256,
+        [EnumMember(Value = "PicoSeconds_256")]
+        PicoSeconds = 256,
 
         /// <summary>
         /// A description for the DataSetClassId field.
@@ -12108,7 +12156,7 @@ namespace Opc.Ua
         {
             m_groupVersion = (uint)0;
             m_dataSetOrdering = DataSetOrderingType.Undefined;
-            m_networkMessageContentMask = UadpNetworkMessageContentMask.None;
+            m_networkMessageContentMask = 0;
             m_samplingOffset = (double)0;
             m_publishingOffset = new DoubleCollection();
         }
@@ -12139,7 +12187,7 @@ namespace Opc.Ua
         /// A description for the NetworkMessageContentMask field.
         /// </summary>
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 3)]
-        public UadpNetworkMessageContentMask NetworkMessageContentMask
+        public uint NetworkMessageContentMask
         {
             get { return m_networkMessageContentMask;  }
             set { m_networkMessageContentMask = value; }
@@ -12206,7 +12254,7 @@ namespace Opc.Ua
 
             encoder.WriteUInt32("GroupVersion", GroupVersion);
             encoder.WriteEnumerated("DataSetOrdering", DataSetOrdering);
-            encoder.WriteEnumerated("NetworkMessageContentMask", NetworkMessageContentMask);
+            encoder.WriteUInt32("NetworkMessageContentMask", NetworkMessageContentMask);
             encoder.WriteDouble("SamplingOffset", SamplingOffset);
             encoder.WriteDoubleArray("PublishingOffset", PublishingOffset);
 
@@ -12222,7 +12270,7 @@ namespace Opc.Ua
 
             GroupVersion = decoder.ReadUInt32("GroupVersion");
             DataSetOrdering = (DataSetOrderingType)decoder.ReadEnumerated("DataSetOrdering", typeof(DataSetOrderingType));
-            NetworkMessageContentMask = (UadpNetworkMessageContentMask)decoder.ReadEnumerated("NetworkMessageContentMask", typeof(UadpNetworkMessageContentMask));
+            NetworkMessageContentMask = decoder.ReadUInt32("NetworkMessageContentMask");
             SamplingOffset = decoder.ReadDouble("SamplingOffset");
             PublishingOffset = decoder.ReadDoubleArray("PublishingOffset");
 
@@ -12269,7 +12317,7 @@ namespace Opc.Ua
 
             clone.m_groupVersion = (uint)Utils.Clone(this.m_groupVersion);
             clone.m_dataSetOrdering = (DataSetOrderingType)Utils.Clone(this.m_dataSetOrdering);
-            clone.m_networkMessageContentMask = (UadpNetworkMessageContentMask)Utils.Clone(this.m_networkMessageContentMask);
+            clone.m_networkMessageContentMask = (uint)Utils.Clone(this.m_networkMessageContentMask);
             clone.m_samplingOffset = (double)Utils.Clone(this.m_samplingOffset);
             clone.m_publishingOffset = (DoubleCollection)Utils.Clone(this.m_publishingOffset);
 
@@ -12280,7 +12328,7 @@ namespace Opc.Ua
         #region Private Fields
         private uint m_groupVersion;
         private DataSetOrderingType m_dataSetOrdering;
-        private UadpNetworkMessageContentMask m_networkMessageContentMask;
+        private uint m_networkMessageContentMask;
         private double m_samplingOffset;
         private DoubleCollection m_publishingOffset;
         #endregion
@@ -12381,7 +12429,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum UadpDataSetMessageContentMask
+    public enum UadpDataSetMessageContentMask : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -12546,7 +12594,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_dataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            m_dataSetMessageContentMask = 0;
             m_configuredSize = (ushort)0;
             m_networkMessageNumber = (ushort)0;
             m_dataSetOffset = (ushort)0;
@@ -12558,7 +12606,7 @@ namespace Opc.Ua
         /// A description for the DataSetMessageContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 1)]
-        public UadpDataSetMessageContentMask DataSetMessageContentMask
+        public uint DataSetMessageContentMask
         {
             get { return m_dataSetMessageContentMask;  }
             set { m_dataSetMessageContentMask = value; }
@@ -12621,7 +12669,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEnumerated("DataSetMessageContentMask", DataSetMessageContentMask);
+            encoder.WriteUInt32("DataSetMessageContentMask", DataSetMessageContentMask);
             encoder.WriteUInt16("ConfiguredSize", ConfiguredSize);
             encoder.WriteUInt16("NetworkMessageNumber", NetworkMessageNumber);
             encoder.WriteUInt16("DataSetOffset", DataSetOffset);
@@ -12636,7 +12684,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            DataSetMessageContentMask = (UadpDataSetMessageContentMask)decoder.ReadEnumerated("DataSetMessageContentMask", typeof(UadpDataSetMessageContentMask));
+            DataSetMessageContentMask = decoder.ReadUInt32("DataSetMessageContentMask");
             ConfiguredSize = decoder.ReadUInt16("ConfiguredSize");
             NetworkMessageNumber = decoder.ReadUInt16("NetworkMessageNumber");
             DataSetOffset = decoder.ReadUInt16("DataSetOffset");
@@ -12681,7 +12729,7 @@ namespace Opc.Ua
         {
             UadpDataSetWriterMessageDataType clone = (UadpDataSetWriterMessageDataType)base.MemberwiseClone();
 
-            clone.m_dataSetMessageContentMask = (UadpDataSetMessageContentMask)Utils.Clone(this.m_dataSetMessageContentMask);
+            clone.m_dataSetMessageContentMask = (uint)Utils.Clone(this.m_dataSetMessageContentMask);
             clone.m_configuredSize = (ushort)Utils.Clone(this.m_configuredSize);
             clone.m_networkMessageNumber = (ushort)Utils.Clone(this.m_networkMessageNumber);
             clone.m_dataSetOffset = (ushort)Utils.Clone(this.m_dataSetOffset);
@@ -12691,7 +12739,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private UadpDataSetMessageContentMask m_dataSetMessageContentMask;
+        private uint m_dataSetMessageContentMask;
         private ushort m_configuredSize;
         private ushort m_networkMessageNumber;
         private ushort m_dataSetOffset;
@@ -12822,8 +12870,8 @@ namespace Opc.Ua
             m_networkMessageNumber = (ushort)0;
             m_dataSetOffset = (ushort)0;
             m_dataSetClassId = Uuid.Empty;
-            m_networkMessageContentMask = UadpNetworkMessageContentMask.None;
-            m_dataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            m_networkMessageContentMask = 0;
+            m_dataSetMessageContentMask = 0;
             m_publishingInterval = (double)0;
             m_receiveOffset = (double)0;
             m_processingOffset = (double)0;
@@ -12875,7 +12923,7 @@ namespace Opc.Ua
         /// A description for the NetworkMessageContentMask field.
         /// </summary>
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 5)]
-        public UadpNetworkMessageContentMask NetworkMessageContentMask
+        public uint NetworkMessageContentMask
         {
             get { return m_networkMessageContentMask;  }
             set { m_networkMessageContentMask = value; }
@@ -12885,7 +12933,7 @@ namespace Opc.Ua
         /// A description for the DataSetMessageContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 6)]
-        public UadpDataSetMessageContentMask DataSetMessageContentMask
+        public uint DataSetMessageContentMask
         {
             get { return m_dataSetMessageContentMask;  }
             set { m_dataSetMessageContentMask = value; }
@@ -12952,8 +13000,8 @@ namespace Opc.Ua
             encoder.WriteUInt16("NetworkMessageNumber", NetworkMessageNumber);
             encoder.WriteUInt16("DataSetOffset", DataSetOffset);
             encoder.WriteGuid("DataSetClassId", DataSetClassId);
-            encoder.WriteEnumerated("NetworkMessageContentMask", NetworkMessageContentMask);
-            encoder.WriteEnumerated("DataSetMessageContentMask", DataSetMessageContentMask);
+            encoder.WriteUInt32("NetworkMessageContentMask", NetworkMessageContentMask);
+            encoder.WriteUInt32("DataSetMessageContentMask", DataSetMessageContentMask);
             encoder.WriteDouble("PublishingInterval", PublishingInterval);
             encoder.WriteDouble("ReceiveOffset", ReceiveOffset);
             encoder.WriteDouble("ProcessingOffset", ProcessingOffset);
@@ -12972,8 +13020,8 @@ namespace Opc.Ua
             NetworkMessageNumber = decoder.ReadUInt16("NetworkMessageNumber");
             DataSetOffset = decoder.ReadUInt16("DataSetOffset");
             DataSetClassId = decoder.ReadGuid("DataSetClassId");
-            NetworkMessageContentMask = (UadpNetworkMessageContentMask)decoder.ReadEnumerated("NetworkMessageContentMask", typeof(UadpNetworkMessageContentMask));
-            DataSetMessageContentMask = (UadpDataSetMessageContentMask)decoder.ReadEnumerated("DataSetMessageContentMask", typeof(UadpDataSetMessageContentMask));
+            NetworkMessageContentMask = decoder.ReadUInt32("NetworkMessageContentMask");
+            DataSetMessageContentMask = decoder.ReadUInt32("DataSetMessageContentMask");
             PublishingInterval = decoder.ReadDouble("PublishingInterval");
             ReceiveOffset = decoder.ReadDouble("ReceiveOffset");
             ProcessingOffset = decoder.ReadDouble("ProcessingOffset");
@@ -13027,8 +13075,8 @@ namespace Opc.Ua
             clone.m_networkMessageNumber = (ushort)Utils.Clone(this.m_networkMessageNumber);
             clone.m_dataSetOffset = (ushort)Utils.Clone(this.m_dataSetOffset);
             clone.m_dataSetClassId = (Uuid)Utils.Clone(this.m_dataSetClassId);
-            clone.m_networkMessageContentMask = (UadpNetworkMessageContentMask)Utils.Clone(this.m_networkMessageContentMask);
-            clone.m_dataSetMessageContentMask = (UadpDataSetMessageContentMask)Utils.Clone(this.m_dataSetMessageContentMask);
+            clone.m_networkMessageContentMask = (uint)Utils.Clone(this.m_networkMessageContentMask);
+            clone.m_dataSetMessageContentMask = (uint)Utils.Clone(this.m_dataSetMessageContentMask);
             clone.m_publishingInterval = (double)Utils.Clone(this.m_publishingInterval);
             clone.m_receiveOffset = (double)Utils.Clone(this.m_receiveOffset);
             clone.m_processingOffset = (double)Utils.Clone(this.m_processingOffset);
@@ -13042,8 +13090,8 @@ namespace Opc.Ua
         private ushort m_networkMessageNumber;
         private ushort m_dataSetOffset;
         private Uuid m_dataSetClassId;
-        private UadpNetworkMessageContentMask m_networkMessageContentMask;
-        private UadpDataSetMessageContentMask m_dataSetMessageContentMask;
+        private uint m_networkMessageContentMask;
+        private uint m_dataSetMessageContentMask;
         private double m_publishingInterval;
         private double m_receiveOffset;
         private double m_processingOffset;
@@ -13145,7 +13193,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum JsonNetworkMessageContentMask
+    public enum JsonNetworkMessageContentMask : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -13310,7 +13358,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_networkMessageContentMask = JsonNetworkMessageContentMask.None;
+            m_networkMessageContentMask = 0;
         }
         #endregion
 
@@ -13319,7 +13367,7 @@ namespace Opc.Ua
         /// A description for the NetworkMessageContentMask field.
         /// </summary>
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 1)]
-        public JsonNetworkMessageContentMask NetworkMessageContentMask
+        public uint NetworkMessageContentMask
         {
             get { return m_networkMessageContentMask;  }
             set { m_networkMessageContentMask = value; }
@@ -13352,7 +13400,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEnumerated("NetworkMessageContentMask", NetworkMessageContentMask);
+            encoder.WriteUInt32("NetworkMessageContentMask", NetworkMessageContentMask);
 
             encoder.PopNamespace();
         }
@@ -13364,7 +13412,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            NetworkMessageContentMask = (JsonNetworkMessageContentMask)decoder.ReadEnumerated("NetworkMessageContentMask", typeof(JsonNetworkMessageContentMask));
+            NetworkMessageContentMask = decoder.ReadUInt32("NetworkMessageContentMask");
 
             decoder.PopNamespace();
         }
@@ -13403,14 +13451,14 @@ namespace Opc.Ua
         {
             JsonWriterGroupMessageDataType clone = (JsonWriterGroupMessageDataType)base.MemberwiseClone();
 
-            clone.m_networkMessageContentMask = (JsonNetworkMessageContentMask)Utils.Clone(this.m_networkMessageContentMask);
+            clone.m_networkMessageContentMask = (uint)Utils.Clone(this.m_networkMessageContentMask);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private JsonNetworkMessageContentMask m_networkMessageContentMask;
+        private uint m_networkMessageContentMask;
         #endregion
     }
 
@@ -13509,7 +13557,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum JsonDataSetMessageContentMask
+    public enum JsonDataSetMessageContentMask : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -13668,7 +13716,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_dataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            m_dataSetMessageContentMask = 0;
         }
         #endregion
 
@@ -13677,7 +13725,7 @@ namespace Opc.Ua
         /// A description for the DataSetMessageContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 1)]
-        public JsonDataSetMessageContentMask DataSetMessageContentMask
+        public uint DataSetMessageContentMask
         {
             get { return m_dataSetMessageContentMask;  }
             set { m_dataSetMessageContentMask = value; }
@@ -13710,7 +13758,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEnumerated("DataSetMessageContentMask", DataSetMessageContentMask);
+            encoder.WriteUInt32("DataSetMessageContentMask", DataSetMessageContentMask);
 
             encoder.PopNamespace();
         }
@@ -13722,7 +13770,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            DataSetMessageContentMask = (JsonDataSetMessageContentMask)decoder.ReadEnumerated("DataSetMessageContentMask", typeof(JsonDataSetMessageContentMask));
+            DataSetMessageContentMask = decoder.ReadUInt32("DataSetMessageContentMask");
 
             decoder.PopNamespace();
         }
@@ -13761,14 +13809,14 @@ namespace Opc.Ua
         {
             JsonDataSetWriterMessageDataType clone = (JsonDataSetWriterMessageDataType)base.MemberwiseClone();
 
-            clone.m_dataSetMessageContentMask = (JsonDataSetMessageContentMask)Utils.Clone(this.m_dataSetMessageContentMask);
+            clone.m_dataSetMessageContentMask = (uint)Utils.Clone(this.m_dataSetMessageContentMask);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private JsonDataSetMessageContentMask m_dataSetMessageContentMask;
+        private uint m_dataSetMessageContentMask;
         #endregion
     }
 
@@ -13892,8 +13940,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_networkMessageContentMask = JsonNetworkMessageContentMask.None;
-            m_dataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            m_networkMessageContentMask = 0;
+            m_dataSetMessageContentMask = 0;
         }
         #endregion
 
@@ -13902,7 +13950,7 @@ namespace Opc.Ua
         /// A description for the NetworkMessageContentMask field.
         /// </summary>
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 1)]
-        public JsonNetworkMessageContentMask NetworkMessageContentMask
+        public uint NetworkMessageContentMask
         {
             get { return m_networkMessageContentMask;  }
             set { m_networkMessageContentMask = value; }
@@ -13912,7 +13960,7 @@ namespace Opc.Ua
         /// A description for the DataSetMessageContentMask field.
         /// </summary>
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 2)]
-        public JsonDataSetMessageContentMask DataSetMessageContentMask
+        public uint DataSetMessageContentMask
         {
             get { return m_dataSetMessageContentMask;  }
             set { m_dataSetMessageContentMask = value; }
@@ -13945,8 +13993,8 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEnumerated("NetworkMessageContentMask", NetworkMessageContentMask);
-            encoder.WriteEnumerated("DataSetMessageContentMask", DataSetMessageContentMask);
+            encoder.WriteUInt32("NetworkMessageContentMask", NetworkMessageContentMask);
+            encoder.WriteUInt32("DataSetMessageContentMask", DataSetMessageContentMask);
 
             encoder.PopNamespace();
         }
@@ -13958,8 +14006,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            NetworkMessageContentMask = (JsonNetworkMessageContentMask)decoder.ReadEnumerated("NetworkMessageContentMask", typeof(JsonNetworkMessageContentMask));
-            DataSetMessageContentMask = (JsonDataSetMessageContentMask)decoder.ReadEnumerated("DataSetMessageContentMask", typeof(JsonDataSetMessageContentMask));
+            NetworkMessageContentMask = decoder.ReadUInt32("NetworkMessageContentMask");
+            DataSetMessageContentMask = decoder.ReadUInt32("DataSetMessageContentMask");
 
             decoder.PopNamespace();
         }
@@ -13999,16 +14047,16 @@ namespace Opc.Ua
         {
             JsonDataSetReaderMessageDataType clone = (JsonDataSetReaderMessageDataType)base.MemberwiseClone();
 
-            clone.m_networkMessageContentMask = (JsonNetworkMessageContentMask)Utils.Clone(this.m_networkMessageContentMask);
-            clone.m_dataSetMessageContentMask = (JsonDataSetMessageContentMask)Utils.Clone(this.m_dataSetMessageContentMask);
+            clone.m_networkMessageContentMask = (uint)Utils.Clone(this.m_networkMessageContentMask);
+            clone.m_dataSetMessageContentMask = (uint)Utils.Clone(this.m_dataSetMessageContentMask);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private JsonNetworkMessageContentMask m_networkMessageContentMask;
-        private JsonDataSetMessageContentMask m_dataSetMessageContentMask;
+        private uint m_networkMessageContentMask;
+        private uint m_dataSetMessageContentMask;
         #endregion
     }
 
@@ -15239,6 +15287,7 @@ namespace Opc.Ua
             m_queueName = null;
             m_resourceUri = null;
             m_authenticationProfileUri = null;
+            m_requestedDeliveryGuarantee = BrokerTransportQualityOfService.NotSpecified;
             m_metaDataQueueName = null;
             m_metaDataUpdateTime = (double)0;
         }
@@ -15276,9 +15325,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// A description for the RequestedDeliveryGuarantee field.
+        /// </summary>
+        [DataMember(Name = "RequestedDeliveryGuarantee", IsRequired = false, Order = 4)]
+        public BrokerTransportQualityOfService RequestedDeliveryGuarantee
+        {
+            get { return m_requestedDeliveryGuarantee;  }
+            set { m_requestedDeliveryGuarantee = value; }
+        }
+
+        /// <summary>
         /// A description for the MetaDataQueueName field.
         /// </summary>
-        [DataMember(Name = "MetaDataQueueName", IsRequired = false, Order = 4)]
+        [DataMember(Name = "MetaDataQueueName", IsRequired = false, Order = 5)]
         public string MetaDataQueueName
         {
             get { return m_metaDataQueueName;  }
@@ -15288,7 +15347,7 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the MetaDataUpdateTime field.
         /// </summary>
-        [DataMember(Name = "MetaDataUpdateTime", IsRequired = false, Order = 5)]
+        [DataMember(Name = "MetaDataUpdateTime", IsRequired = false, Order = 6)]
         public double MetaDataUpdateTime
         {
             get { return m_metaDataUpdateTime;  }
@@ -15325,6 +15384,7 @@ namespace Opc.Ua
             encoder.WriteString("QueueName", QueueName);
             encoder.WriteString("ResourceUri", ResourceUri);
             encoder.WriteString("AuthenticationProfileUri", AuthenticationProfileUri);
+            encoder.WriteEnumerated("RequestedDeliveryGuarantee", RequestedDeliveryGuarantee);
             encoder.WriteString("MetaDataQueueName", MetaDataQueueName);
             encoder.WriteDouble("MetaDataUpdateTime", MetaDataUpdateTime);
 
@@ -15341,6 +15401,7 @@ namespace Opc.Ua
             QueueName = decoder.ReadString("QueueName");
             ResourceUri = decoder.ReadString("ResourceUri");
             AuthenticationProfileUri = decoder.ReadString("AuthenticationProfileUri");
+            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
             MetaDataQueueName = decoder.ReadString("MetaDataQueueName");
             MetaDataUpdateTime = decoder.ReadDouble("MetaDataUpdateTime");
 
@@ -15366,6 +15427,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_queueName, value.m_queueName)) return false;
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
+            if (!Utils.IsEqual(m_requestedDeliveryGuarantee, value.m_requestedDeliveryGuarantee)) return false;
             if (!Utils.IsEqual(m_metaDataQueueName, value.m_metaDataQueueName)) return false;
             if (!Utils.IsEqual(m_metaDataUpdateTime, value.m_metaDataUpdateTime)) return false;
 
@@ -15388,6 +15450,7 @@ namespace Opc.Ua
             clone.m_queueName = (string)Utils.Clone(this.m_queueName);
             clone.m_resourceUri = (string)Utils.Clone(this.m_resourceUri);
             clone.m_authenticationProfileUri = (string)Utils.Clone(this.m_authenticationProfileUri);
+            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)Utils.Clone(this.m_requestedDeliveryGuarantee);
             clone.m_metaDataQueueName = (string)Utils.Clone(this.m_metaDataQueueName);
             clone.m_metaDataUpdateTime = (double)Utils.Clone(this.m_metaDataUpdateTime);
 
@@ -15399,6 +15462,7 @@ namespace Opc.Ua
         private string m_queueName;
         private string m_resourceUri;
         private string m_authenticationProfileUri;
+        private BrokerTransportQualityOfService m_requestedDeliveryGuarantee;
         private string m_metaDataQueueName;
         private double m_metaDataUpdateTime;
         #endregion
@@ -16214,7 +16278,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum PermissionType
+    public enum PermissionType : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -16335,7 +16399,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum AccessLevelType
+    public enum AccessLevelType : Byte
     {
         /// <summary>
         /// No value specified.
@@ -16364,8 +16428,14 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the HistoryWrite field.
         /// </summary>
-        [EnumMember(Value = "HistoryWrite_16")]
-        HistoryWrite = 16,
+        [EnumMember(Value = "HistoryWrite_8")]
+        HistoryWrite = 8,
+
+        /// <summary>
+        /// A description for the SemanticChange field.
+        /// </summary>
+        [EnumMember(Value = "SemanticChange_16")]
+        SemanticChange = 16,
 
         /// <summary>
         /// A description for the StatusWrite field.
@@ -16390,7 +16460,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum AccessLevelExType
+    public enum AccessLevelExType : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -16419,8 +16489,14 @@ namespace Opc.Ua
         /// <summary>
         /// A description for the HistoryWrite field.
         /// </summary>
-        [EnumMember(Value = "HistoryWrite_16")]
-        HistoryWrite = 16,
+        [EnumMember(Value = "HistoryWrite_8")]
+        HistoryWrite = 8,
+
+        /// <summary>
+        /// A description for the SemanticChange field.
+        /// </summary>
+        [EnumMember(Value = "SemanticChange_16")]
+        SemanticChange = 16,
 
         /// <summary>
         /// A description for the StatusWrite field.
@@ -16463,7 +16539,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum EventNotifierType
+    public enum EventNotifierType : Byte
     {
         /// <summary>
         /// No value specified.
@@ -16500,7 +16576,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum AccessRestrictionType
+    public enum AccessRestrictionType : UInt32
     {
         /// <summary>
         /// No value specified.
@@ -16563,7 +16639,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_roleId = null;
-            m_permissions = PermissionType.None;
+            m_permissions = 0;
         }
         #endregion
 
@@ -16582,7 +16658,7 @@ namespace Opc.Ua
         /// A description for the Permissions field.
         /// </summary>
         [DataMember(Name = "Permissions", IsRequired = false, Order = 2)]
-        public PermissionType Permissions
+        public uint Permissions
         {
             get { return m_permissions;  }
             set { m_permissions = value; }
@@ -16614,7 +16690,7 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteNodeId("RoleId", RoleId);
-            encoder.WriteEnumerated("Permissions", Permissions);
+            encoder.WriteUInt32("Permissions", Permissions);
 
             encoder.PopNamespace();
         }
@@ -16625,7 +16701,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RoleId = decoder.ReadNodeId("RoleId");
-            Permissions = (PermissionType)decoder.ReadEnumerated("Permissions", typeof(PermissionType));
+            Permissions = decoder.ReadUInt32("Permissions");
 
             decoder.PopNamespace();
         }
@@ -16665,7 +16741,7 @@ namespace Opc.Ua
             RolePermissionType clone = (RolePermissionType)base.MemberwiseClone();
 
             clone.m_roleId = (NodeId)Utils.Clone(this.m_roleId);
-            clone.m_permissions = (PermissionType)Utils.Clone(this.m_permissions);
+            clone.m_permissions = (uint)Utils.Clone(this.m_permissions);
 
             return clone;
         }
@@ -16673,7 +16749,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private NodeId m_roleId;
-        private PermissionType m_permissions;
+        private uint m_permissions;
         #endregion
     }
 
@@ -35384,7 +35460,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
-    public enum AttributeWriteMask
+    public enum AttributeWriteMask : UInt32
     {
         /// <summary>
         /// No value specified.

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -142,6 +142,15 @@ namespace Quickstarts.ReferenceServer
 
             // request notifications when the user identity is changed. all valid users are accepted by default.
             server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+
+            try
+            {
+                // allow a faster sampling interval for CurrentTime node.
+                server.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+            }
+            catch
+            { }
+            
         }
 
         #endregion

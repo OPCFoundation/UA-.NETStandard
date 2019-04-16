@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2011 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-/*  Copyright (C) OPC Foundation, 2009.               All rights reserved.  */
+/*  Copyright © OPC Foundation 2019.               All rights reserved.     */
 /****************************************************************************/
  
-#define SDK_COPYRIGHT_NOTICE "Copyright (c) 2004-2011 OPC Foundation, Inc"
+#define SDK_COPYRIGHT_NOTICE "Copyright (c) 2004-2019 OPC Foundation, Inc"
 
 //----------------------------------------------------------------------------
 //	Product name and version.
