@@ -72,12 +72,36 @@ namespace Opc.Ua.Com.Client
                 // start the server.
                 await application.Start(new ComWrapperServer());
 
+                // start as minimized.
+                ServerForm serverForm = new ServerForm(application)
+                {
+                    WindowState = FormWindowState.Minimized
+                };
+                serverForm.Load += ServerForm_Load;
+
+                // block user close.
+                serverForm.FormClosing += ServerForm_FormClosing;
+
                 // run the application interactively.
-                Application.Run(new ServerForm(application));
+                Application.Run(serverForm);
             }
             catch (Exception e)
             {
                 ExceptionDlg.Show(application.ApplicationName, e);
+            }
+        }
+
+        private static void ServerForm_Load(object sender, EventArgs e)
+        {
+            ((Form)sender).Hide();
+        }
+
+        private static void ServerForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                ((Form)sender).WindowState = FormWindowState.Minimized;
+                e.Cancel = true;
             }
         }
     }
