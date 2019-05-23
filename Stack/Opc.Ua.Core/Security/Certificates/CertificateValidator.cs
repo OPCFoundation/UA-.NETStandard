@@ -32,6 +32,7 @@ namespace Opc.Ua
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
             m_rejectSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
+            m_rejectUnknownRevocationStatus = false;
             m_minimumCertificateKeySize = CertificateFactory.defaultKeySize;
         }
         #endregion
@@ -170,6 +171,7 @@ namespace Opc.Ua
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
                 m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
+                m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
                 m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
@@ -305,7 +307,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    m_validatedCertificates[certificate.Thumbprint] = certificate;
+                    m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
         }
@@ -631,9 +633,21 @@ namespace Opc.Ua
                                 {
                                     StatusCode status = store.IsRevoked(issuer, certificate);
 
-                                    if (StatusCode.IsBad(status))
+                                    if (StatusCode.IsBad(status) && status != StatusCodes.BadNotSupported)
                                     {
-                                        if (status != StatusCodes.BadNotSupported && status != StatusCodes.BadCertificateRevocationUnknown)
+                                        if (status == StatusCodes.BadCertificateRevocationUnknown)
+                                        {
+                                            if (CertificateFactory.IsCertificateAuthority(certificate))
+                                            {
+                                                status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
+                                            }
+
+                                            if(m_rejectUnknownRevocationStatus)
+                                            {
+                                                throw new ServiceResultException(status);
+                                            }
+                                        }
+                                        else
                                         {
                                             throw new ServiceResultException(status);
                                         }
@@ -806,12 +820,13 @@ namespace Opc.Ua
                 }
             }
 
-#if TODO    // test if cert is valid for use as app/sw or user cert
-            if ()
+            // check if certificate is valid for use as app/sw or user cert
+            X509KeyUsageFlags certificateKeyUsage = CertificateFactory.GetKeyUsage(certificate);
+
+            if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed, "Usage of certificate is not allowed.");
             }
-#endif
 
             // check if minimum requirements are met
             if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
@@ -823,7 +838,6 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "Certificate doesn't meet minimum key length requirement");
             }
-
         }
 
         /// <summary>
@@ -995,6 +1009,7 @@ namespace Opc.Ua
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
         private bool m_rejectSHA1SignedCertificates;
+        private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
 #endregion
     }
