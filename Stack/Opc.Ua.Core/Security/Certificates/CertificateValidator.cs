@@ -566,6 +566,12 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
+            // check if self-signed.
+            if (Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+            {
+                return null;
+            }
+
             string subjectName = certificate.IssuerName.Name;
             string keyId = null;
             string serialNumber = null;
