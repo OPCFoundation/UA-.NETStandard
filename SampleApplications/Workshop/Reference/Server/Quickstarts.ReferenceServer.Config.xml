@@ -43,7 +43,7 @@
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
     The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
-    <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
+    <RejectUnknownRevocationStatus>false</RejectUnknownRevocationStatus>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>true</SendCertificateChain>
