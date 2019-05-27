@@ -290,11 +290,11 @@ namespace Opc.Ua
                     // write the invalid certificate to a directory if specified.
                     lock (m_lock)
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                        Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
 
                         if (m_rejectedCertificateStore != null)
                         {
-                            Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                            Utils.Trace(Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
                             SaveCertificate(certificate);
                         }
                     }

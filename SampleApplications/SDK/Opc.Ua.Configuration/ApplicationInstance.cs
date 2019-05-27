@@ -360,7 +360,7 @@ namespace Opc.Ua.Configuration
                 catch (Exception e)
                 {
                     ServiceResult error = ServiceResult.Create(e, StatusCodes.BadConfigurationError, "Could not start UA Service.");
-                    Utils.Trace((int)Utils.TraceMasks.Error, error.ToLongString());
+                    Utils.Trace(Utils.TraceMasks.Error, error.ToLongString());
                 }
             }
             #endregion
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Configuration
                     && e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
                 {
                     e.Accept = true;
-                    Utils.Trace((int)Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
+                    Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
                 }
             }
             catch (Exception exception)

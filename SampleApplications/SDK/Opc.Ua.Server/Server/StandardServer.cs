@@ -2470,7 +2470,7 @@ namespace Opc.Ua.Server
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
             Utils.Trace(
-                (int)Utils.TraceMasks.Service,
+                Utils.TraceMasks.Service,
                 "{0} Validated. ID={1}",
                 context.RequestType,
                 context.RequestId);

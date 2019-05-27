@@ -335,7 +335,7 @@ namespace Opc.Ua.Com.Server
                 catch (Exception e)
                 {
                     session.RemoveSubscription(subscription);
-                    Utils.Trace((int)Utils.TraceMasks.Error, "Create subscription failed: {0}", e.Message);
+                    Utils.Trace(Utils.TraceMasks.Error, "Create subscription failed: {0}", e.Message);
                     throw ComUtils.CreateComException(e, ResultIds.E_FAIL);
                 }
 

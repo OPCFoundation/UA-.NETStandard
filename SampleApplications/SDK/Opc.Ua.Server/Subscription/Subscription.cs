@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
                     Utils.Trace(
-                        (int)Utils.TraceMasks.Error,
+                        Utils.TraceMasks.Error,
                         "Oops! MonitoredItems queued but no notifications availabled.");
                
                     m_waitingForPublish = false;

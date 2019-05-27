@@ -220,7 +220,7 @@ namespace Opc.Ua.Configuration
             m_displayName = executableFile.Name.Substring(0, executableFile.Name.Length-4);
 
             FileInfo configFile = new FileInfo(executableFile.FullName + ".config");
-            Utils.Trace(1, "APPCONFIG={0}", configFile);
+            Utils.Trace(Utils.TraceMasks.Error, "APPCONFIG={0}", configFile);
 
             if (configFile.Exists)
             {
@@ -229,7 +229,7 @@ namespace Opc.Ua.Configuration
 
                 // look for the UA SDK config file.
                 string configurationPath = GetConfigFileFromAppConfig(configFile);
-                Utils.Trace(1, "UACONFIG={0}", configurationPath);
+                Utils.Trace(Utils.TraceMasks.Error, "UACONFIG={0}", configurationPath);
 
                 if (configurationPath != null)
                 {

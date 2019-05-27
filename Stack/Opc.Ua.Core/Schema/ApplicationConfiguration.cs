@@ -492,7 +492,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace masks.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public int TraceMasks
+        public Utils.TraceMasks TraceMasks
         {
             get { return m_traceMasks; }
             set { m_traceMasks = value; }
@@ -502,7 +502,7 @@ namespace Opc.Ua
         #region Private Fields
         private string m_outputFilePath;
         private bool m_deleteOnLoad;
-        private int m_traceMasks;
+        private Utils.TraceMasks m_traceMasks;
         #endregion
     }
     #endregion

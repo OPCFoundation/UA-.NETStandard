@@ -1047,7 +1047,7 @@ namespace AggregationServer
 
                     if (ServiceResult.IsBad(request.Status.Error))
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Error, "Could not create event item. {0}", request.Status.Error.ToLongString());
+                        Utils.Trace(Utils.TraceMasks.Error, "Could not create event item. {0}", request.Status.Error.ToLongString());
                     }
                 }
             }

@@ -87,10 +87,10 @@ namespace Opc.Ua
         #region Trace Support
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
-        private static int s_traceMasks = (int)TraceMasks.All;
+        private static TraceMasks s_traceMasks = TraceMasks.All;
 #else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
-        private static int s_traceMasks = (int)TraceMasks.None;
+        private static TraceMasks s_traceMasks = TraceMasks.None;
 #endif
 
         private static string s_traceFileName = string.Empty;
@@ -123,67 +123,68 @@ namespace Opc.Ua
         /// The masks used to filter trace messages.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
-        public static class TraceMasks
+        [Flags]
+        public enum TraceMasks
         {
             /// <summary>
             /// Do not output any messages.
             /// </summary>
-            public const int None = 0x0;
+            None = 0x0,
 
             /// <summary>
             /// Output error messages.
             /// </summary>
-            public const int Error = 0x1;
+            Error = 0x1,
 
             /// <summary>
             /// Output informational messages.
             /// </summary>
-            public const int Information = 0x2;
+            Information = 0x2,
 
             /// <summary>
             /// Output stack traces.
             /// </summary>
-            public const int StackTrace = 0x4;
+            StackTrace = 0x4,
 
             /// <summary>
             /// Output basic messages for service calls.
             /// </summary>
-            public const int Service = 0x8;
+            Service = 0x8,
 
             /// <summary>
             /// Output detailed messages for service calls.
             /// </summary>
-            public const int ServiceDetail = 0x10;
+            ServiceDetail = 0x10,
 
             /// <summary>
             /// Output basic messages for each operation.
             /// </summary>
-            public const int Operation = 0x20;
+             Operation = 0x20,
 
             /// <summary>
             /// Output detailed messages for each operation.
             /// </summary>
-            public const int OperationDetail = 0x40;
+            OperationDetail = 0x40,
 
             /// <summary>
             /// Output messages related to application initialization or shutdown
             /// </summary>
-            public const int StartStop = 0x80;
+            StartStop = 0x80,
 
             /// <summary>
             /// Output messages related to a call to an external system.
             /// </summary>
-            public const int ExternalSystem = 0x100;
+            ExternalSystem = 0x100,
 
             /// <summary>
             /// Output messages related to security
             /// </summary>
-            public const int Security = 0x200;
+            Security = 0x200,
 
             /// <summary>
             /// Output all messages.
             /// </summary>
-            public const int All = 0x7FFFFFFF;
+            All = 0x7FFFFFFF
         }
 
         /// <summary>
@@ -200,7 +201,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the current trace mask settings.
         /// </summary>
-        public static int TraceMask
+        public static TraceMasks TraceMask
         {
             get { return s_traceMasks; }
         }
@@ -208,9 +209,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the mask for tracing (thead safe).
         /// </summary>
-        public static void SetTraceMask(int masks)
+        public static void SetTraceMask(TraceMasks masks)
         {
-            s_traceMasks = (int)masks;
+            s_traceMasks = masks;
         }
 
         /// <summary>
@@ -342,7 +343,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Trace((int)TraceMasks.Information, format, false, args);
+            Trace(TraceMasks.Information, format, false, args);
         }
 
         /// <summary>
@@ -351,7 +352,7 @@ namespace Opc.Ua
         [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace((int)TraceMasks.OperationDetail, format, false, args);
+            Trace(TraceMasks.OperationDetail, format, false, args);
         }
 
         /// <summary>
@@ -401,7 +402,7 @@ namespace Opc.Ua
                 }
 
                 // append stack trace.
-                if ((s_traceMasks & (int)TraceMasks.StackTrace) != 0)
+                if ((s_traceMasks & TraceMasks.StackTrace) != 0)
                 {
                     message.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n{0}\r\n", new String('=', 40));
                     message.Append(new ServiceResult(e).ToLongString());
@@ -410,13 +411,13 @@ namespace Opc.Ua
             }
 
             // trace message.
-            Trace((int)TraceMasks.Error, message.ToString(), handled, null);
+            Trace(TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
         /// Writes a message to the trace log.
         /// </summary>
-        public static void Trace(int traceMask, string format, params object[] args)
+        public static void Trace(TraceMasks traceMask, string format, params object[] args)
         {
             Trace(traceMask, format, false, args);
         }
@@ -424,7 +425,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a message to the trace log.
         /// </summary>
-        public static void Trace(int traceMask, string format, bool handled, params object[] args)
+        public static void Trace(TraceMasks traceMask, string format, bool handled, params object[] args)
         {
             if (!handled)
             {
@@ -3228,7 +3229,7 @@ namespace Opc.Ua
         /// <param name="message">The message.</param>
         /// <param name="exception">The exception.</param>
         /// <param name="args">The arguments.</param>
-        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
+        internal TraceEventArgs(Utils.TraceMasks traceMask, string format, string message, Exception exception, object[] args)
         {
             TraceMask = traceMask;
             Format = format;
@@ -3242,7 +3243,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the trace mask.
         /// </summary>
-        public int TraceMask { get; private set; }
+        public Utils.TraceMasks TraceMask { get; private set; }
 
         /// <summary>
         /// Gets the format.

@@ -531,7 +531,7 @@ namespace Opc.Ua.Server
             }
 
             Utils.Trace(
-                (int)Utils.TraceMasks.ServiceDetail,
+                Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.RegisterNodes - Count={0}",
                 nodesToRegister.Count);
             
@@ -560,7 +560,7 @@ namespace Opc.Ua.Server
             if (nodesToUnregister == null) throw new ArgumentNullException("nodesToUnregister");
 
             Utils.Trace(
-                (int)Utils.TraceMasks.ServiceDetail,
+                Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.UnregisterNodes - Count={0}",
                 nodesToUnregister.Count);
 
@@ -1369,7 +1369,7 @@ namespace Opc.Ua.Server
             bool validItems = false;
         
             Utils.Trace(
-                (int)Utils.TraceMasks.ServiceDetail, 
+                Utils.TraceMasks.ServiceDetail, 
                 "MasterNodeManager.Read - Count={0}", 
                 nodesToRead.Count);
 
@@ -1404,7 +1404,7 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
                     Utils.Trace(
-                        (int)Utils.TraceMasks.ServiceDetail, 
+                        Utils.TraceMasks.ServiceDetail, 
                         "MasterNodeManager.Read - Calling NodeManager {0} of {1}", 
                         ii,
                         m_nodeManagers.Count);
