@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="topic-comment" content="" />
-<meta name="Author" content="Nathan Pocock, nathan.pocock@opcfoundation.org" />
+<meta name="Author" content="OPC-F Webmaster, webmaster@opcfoundation.org" />
 <meta name="generator" content="Adobe RoboHelp 9" />
 <title>OPC Foundation Unified Architecture .NET Sample Code (open source)</title>
 <link rel="StyleSheet" href="default.css" type="text/css" />
@@ -98,7 +98,7 @@ H3 {
 <?rh-region_start type="footer" style="width: 100%; position: relative;" ?>
 	<p style="border-top: Solid 1px #000000; text-align: right; font-size: 8pt;">Copyright 
 	 OPC Foundation 1995-2015<br />
-	Author: <a href="mailto:nathan.pocock@opcfoundation.org" style="font-size: 8pt;">Nathan 
+	Author: <a href="mailto:webmaster@opcfoundation.org" style="font-size: 8pt;">Nathan 
 	 Pocock</a>; Last Update: August 28, 2015</p>
 <?rh-region_end type="footer" ?>
 </body>
