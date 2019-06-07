@@ -791,7 +791,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!chainStatusChecked || chainIncomplete)
+            if (issuedByCA && (!chainStatusChecked || chainIncomplete))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadCertificateChainIncomplete,
