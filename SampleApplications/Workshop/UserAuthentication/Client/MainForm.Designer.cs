@@ -71,6 +71,9 @@ namespace Quickstarts.UserAuthenticationClient
             this.LogFilePathTB = new System.Windows.Forms.TextBox();
             this.ChangeLogFileBTN = new System.Windows.Forms.Button();
             this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.AnonymousTAB = new System.Windows.Forms.TabPage();
+            this.AnonymousImpersonateBTN = new System.Windows.Forms.Button();
+            this.AnonymousTokenLB = new System.Windows.Forms.Label();
             this.UserNameTAB = new System.Windows.Forms.TabPage();
             this.PasswordTB = new System.Windows.Forms.TextBox();
             this.UserNameLB = new System.Windows.Forms.Label();
@@ -95,9 +98,9 @@ namespace Quickstarts.UserAuthenticationClient
             this.KerberosUserNameLB = new System.Windows.Forms.Label();
             this.KerberosImpersonateBTN = new System.Windows.Forms.Button();
             this.KerberosPasswordLB = new System.Windows.Forms.Label();
-            this.AnonymousTAB = new System.Windows.Forms.TabPage();
-            this.AnonymousImpersonateBTN = new System.Windows.Forms.Button();
-            this.AnonymousTokenLB = new System.Windows.Forms.Label();
+            this.OAuth2TAB = new System.Windows.Forms.TabPage();
+            this.OAuth2ImpersonateBTN = new System.Windows.Forms.Button();
+            this.OAuth2TokenLB = new System.Windows.Forms.Label();
             this.PreferredLocalesTB = new System.Windows.Forms.TextBox();
             this.PreferredLocalesLB = new System.Windows.Forms.Label();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
@@ -105,10 +108,11 @@ namespace Quickstarts.UserAuthenticationClient
             this.MainPN.SuspendLayout();
             this.AccessControlCheckGB.SuspendLayout();
             this.tabControl1.SuspendLayout();
+            this.AnonymousTAB.SuspendLayout();
             this.UserNameTAB.SuspendLayout();
             this.CertificateTAB.SuspendLayout();
             this.KerberosTAB.SuspendLayout();
-            this.AnonymousTAB.SuspendLayout();
+            this.OAuth2TAB.SuspendLayout();
             this.SuspendLayout();
             // 
             // MenuBar
@@ -189,8 +193,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // AccessControlCheckGB
             // 
-            this.AccessControlCheckGB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.AccessControlCheckGB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.AccessControlCheckGB.Controls.Add(this.LogFilePathLB);
             this.AccessControlCheckGB.Controls.Add(this.LogFilePathTB);
             this.AccessControlCheckGB.Controls.Add(this.ChangeLogFileBTN);
@@ -212,8 +216,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // LogFilePathTB
             // 
-            this.LogFilePathTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.LogFilePathTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.LogFilePathTB.Location = new System.Drawing.Point(80, 24);
             this.LogFilePathTB.Name = "LogFilePathTB";
             this.LogFilePathTB.Size = new System.Drawing.Size(615, 20);
@@ -232,17 +236,51 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // tabControl1
             // 
-            this.tabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.tabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tabControl1.Controls.Add(this.AnonymousTAB);
             this.tabControl1.Controls.Add(this.UserNameTAB);
             this.tabControl1.Controls.Add(this.CertificateTAB);
             this.tabControl1.Controls.Add(this.KerberosTAB);
-            this.tabControl1.Controls.Add(this.AnonymousTAB);
+            this.tabControl1.Controls.Add(this.OAuth2TAB);
             this.tabControl1.Location = new System.Drawing.Point(22, 20);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.Size = new System.Drawing.Size(769, 239);
             this.tabControl1.TabIndex = 23;
+            // 
+            // AnonymousTAB
+            // 
+            this.AnonymousTAB.Controls.Add(this.AnonymousImpersonateBTN);
+            this.AnonymousTAB.Controls.Add(this.AnonymousTokenLB);
+            this.AnonymousTAB.Location = new System.Drawing.Point(4, 22);
+            this.AnonymousTAB.Name = "AnonymousTAB";
+            this.AnonymousTAB.Padding = new System.Windows.Forms.Padding(3);
+            this.AnonymousTAB.Size = new System.Drawing.Size(761, 213);
+            this.AnonymousTAB.TabIndex = 3;
+            this.AnonymousTAB.Text = "Anonymous";
+            this.AnonymousTAB.UseVisualStyleBackColor = true;
+            // 
+            // AnonymousImpersonateBTN
+            // 
+            this.AnonymousImpersonateBTN.Location = new System.Drawing.Point(6, 6);
+            this.AnonymousImpersonateBTN.Name = "AnonymousImpersonateBTN";
+            this.AnonymousImpersonateBTN.Size = new System.Drawing.Size(91, 23);
+            this.AnonymousImpersonateBTN.TabIndex = 11;
+            this.AnonymousImpersonateBTN.Text = "Impersonate";
+            this.AnonymousImpersonateBTN.UseVisualStyleBackColor = true;
+            this.AnonymousImpersonateBTN.Click += new System.EventHandler(this.AnonymousImpersonateBTN_Click);
+            // 
+            // AnonymousTokenLB
+            // 
+            this.AnonymousTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.AnonymousTokenLB.Location = new System.Drawing.Point(6, 32);
+            this.AnonymousTokenLB.Name = "AnonymousTokenLB";
+            this.AnonymousTokenLB.Size = new System.Drawing.Size(373, 178);
+            this.AnonymousTokenLB.TabIndex = 22;
+            this.AnonymousTokenLB.Text = "Anonymous Token";
             // 
             // UserNameTAB
             // 
@@ -262,8 +300,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // PasswordTB
             // 
-            this.PasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.PasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.PasswordTB.Location = new System.Drawing.Point(76, 32);
             this.PasswordTB.Name = "PasswordTB";
             this.PasswordTB.PasswordChar = '*';
@@ -281,14 +319,14 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // UserNameTokenLB
             // 
-            this.UserNameTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.UserNameTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.UserNameTokenLB.Location = new System.Drawing.Point(8, 96);
             this.UserNameTokenLB.Name = "UserNameTokenLB";
             this.UserNameTokenLB.Size = new System.Drawing.Size(747, 114);
             this.UserNameTokenLB.TabIndex = 19;
-            this.UserNameTokenLB.Text = "UserNameTokens";
+            this.UserNameTokenLB.Text = "UserNameToken";
             // 
             // PasswordLB
             // 
@@ -301,8 +339,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // UserNameTB
             // 
-            this.UserNameTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.UserNameTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.UserNameTB.Location = new System.Drawing.Point(76, 6);
             this.UserNameTB.Name = "UserNameTB";
             this.UserNameTB.Size = new System.Drawing.Size(679, 20);
@@ -347,8 +385,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // CertificatePasswordTB
             // 
-            this.CertificatePasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.CertificatePasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.CertificatePasswordTB.Location = new System.Drawing.Point(74, 32);
             this.CertificatePasswordTB.Name = "CertificatePasswordTB";
             this.CertificatePasswordTB.PasswordChar = '*';
@@ -357,9 +395,9 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // CertificateTokenLB
             // 
-            this.CertificateTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.CertificateTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.CertificateTokenLB.Location = new System.Drawing.Point(6, 94);
             this.CertificateTokenLB.Name = "CertificateTokenLB";
             this.CertificateTokenLB.Size = new System.Drawing.Size(376, 116);
@@ -396,8 +434,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // CertificateTB
             // 
-            this.CertificateTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.CertificateTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.CertificateTB.Location = new System.Drawing.Point(74, 6);
             this.CertificateTB.Name = "CertificateTB";
             this.CertificateTB.Size = new System.Drawing.Size(267, 20);
@@ -432,8 +470,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // KerberosDomainTB
             // 
-            this.KerberosDomainTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.KerberosDomainTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.KerberosDomainTB.Location = new System.Drawing.Point(77, 65);
             this.KerberosDomainTB.Name = "KerberosDomainTB";
             this.KerberosDomainTB.Size = new System.Drawing.Size(302, 20);
@@ -441,9 +479,9 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // KereberosTokenLB
             // 
-            this.KereberosTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.KereberosTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.KereberosTokenLB.Location = new System.Drawing.Point(7, 126);
             this.KereberosTokenLB.Name = "KereberosTokenLB";
             this.KereberosTokenLB.Size = new System.Drawing.Size(372, 84);
@@ -452,8 +490,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // KerberosPasswordTB
             // 
-            this.KerberosPasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.KerberosPasswordTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.KerberosPasswordTB.Location = new System.Drawing.Point(77, 39);
             this.KerberosPasswordTB.Name = "KerberosPasswordTB";
             this.KerberosPasswordTB.PasswordChar = '*';
@@ -462,8 +500,8 @@ namespace Quickstarts.UserAuthenticationClient
             // 
             // KerberosUserNameTB
             // 
-            this.KerberosUserNameTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.KerberosUserNameTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.KerberosUserNameTB.Location = new System.Drawing.Point(77, 13);
             this.KerberosUserNameTB.Name = "KerberosUserNameTB";
             this.KerberosUserNameTB.Size = new System.Drawing.Size(302, 20);
@@ -497,43 +535,43 @@ namespace Quickstarts.UserAuthenticationClient
             this.KerberosPasswordLB.TabIndex = 2;
             this.KerberosPasswordLB.Text = "Password";
             // 
-            // AnonymousTAB
+            // OAuth2TAB
             // 
-            this.AnonymousTAB.Controls.Add(this.AnonymousImpersonateBTN);
-            this.AnonymousTAB.Controls.Add(this.AnonymousTokenLB);
-            this.AnonymousTAB.Location = new System.Drawing.Point(4, 22);
-            this.AnonymousTAB.Name = "AnonymousTAB";
-            this.AnonymousTAB.Padding = new System.Windows.Forms.Padding(3);
-            this.AnonymousTAB.Size = new System.Drawing.Size(761, 213);
-            this.AnonymousTAB.TabIndex = 3;
-            this.AnonymousTAB.Text = "Anonymous";
-            this.AnonymousTAB.UseVisualStyleBackColor = true;
+            this.OAuth2TAB.Controls.Add(this.OAuth2ImpersonateBTN);
+            this.OAuth2TAB.Controls.Add(this.OAuth2TokenLB);
+            this.OAuth2TAB.Location = new System.Drawing.Point(4, 22);
+            this.OAuth2TAB.Name = "OAuth2TAB";
+            this.OAuth2TAB.Padding = new System.Windows.Forms.Padding(3);
+            this.OAuth2TAB.Size = new System.Drawing.Size(761, 213);
+            this.OAuth2TAB.TabIndex = 4;
+            this.OAuth2TAB.Text = "OAuth2";
+            this.OAuth2TAB.UseVisualStyleBackColor = true;
             // 
-            // AnonymousImpersonateBTN
+            // OAuth2ImpersonateBTN
             // 
-            this.AnonymousImpersonateBTN.Location = new System.Drawing.Point(6, 6);
-            this.AnonymousImpersonateBTN.Name = "AnonymousImpersonateBTN";
-            this.AnonymousImpersonateBTN.Size = new System.Drawing.Size(91, 23);
-            this.AnonymousImpersonateBTN.TabIndex = 11;
-            this.AnonymousImpersonateBTN.Text = "Impersonate";
-            this.AnonymousImpersonateBTN.UseVisualStyleBackColor = true;
-            this.AnonymousImpersonateBTN.Click += new System.EventHandler(this.AnonymousImpersonateBTN_Click);
+            this.OAuth2ImpersonateBTN.Location = new System.Drawing.Point(6, 6);
+            this.OAuth2ImpersonateBTN.Name = "OAuth2ImpersonateBTN";
+            this.OAuth2ImpersonateBTN.Size = new System.Drawing.Size(91, 23);
+            this.OAuth2ImpersonateBTN.TabIndex = 21;
+            this.OAuth2ImpersonateBTN.Text = "Impersonate";
+            this.OAuth2ImpersonateBTN.UseVisualStyleBackColor = true;
+            this.OAuth2ImpersonateBTN.Click += new System.EventHandler(this.OAuth2ImpersonateBTN_Click);
             // 
-            // AnonymousTokenLB
+            // OAuth2TokenLB
             // 
-            this.AnonymousTokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
-            this.AnonymousTokenLB.Location = new System.Drawing.Point(6, 32);
-            this.AnonymousTokenLB.Name = "AnonymousTokenLB";
-            this.AnonymousTokenLB.Size = new System.Drawing.Size(373, 178);
-            this.AnonymousTokenLB.TabIndex = 22;
-            this.AnonymousTokenLB.Text = "Anonymous Token";
+            this.OAuth2TokenLB.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.OAuth2TokenLB.Location = new System.Drawing.Point(6, 32);
+            this.OAuth2TokenLB.Name = "OAuth2TokenLB";
+            this.OAuth2TokenLB.Size = new System.Drawing.Size(753, 178);
+            this.OAuth2TokenLB.TabIndex = 20;
+            this.OAuth2TokenLB.Text = "Oauth2 Token";
             // 
             // PreferredLocalesTB
             // 
-            this.PreferredLocalesTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.PreferredLocalesTB.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.PreferredLocalesTB.Location = new System.Drawing.Point(115, 265);
             this.PreferredLocalesTB.Name = "PreferredLocalesTB";
             this.PreferredLocalesTB.Size = new System.Drawing.Size(676, 20);
@@ -551,18 +589,23 @@ namespace Quickstarts.UserAuthenticationClient
             // ConnectServerCTRL
             // 
             this.ConnectServerCTRL.Configuration = null;
+            this.ConnectServerCTRL.DisableDomainCheck = false;
             this.ConnectServerCTRL.Dock = System.Windows.Forms.DockStyle.Top;
             this.ConnectServerCTRL.Location = new System.Drawing.Point(0, 24);
             this.ConnectServerCTRL.MaximumSize = new System.Drawing.Size(2048, 23);
             this.ConnectServerCTRL.MinimumSize = new System.Drawing.Size(500, 23);
             this.ConnectServerCTRL.Name = "ConnectServerCTRL";
+            this.ConnectServerCTRL.PreferredLocales = null;
+            this.ConnectServerCTRL.ServerUrl = "";
+            this.ConnectServerCTRL.SessionName = null;
             this.ConnectServerCTRL.Size = new System.Drawing.Size(809, 23);
             this.ConnectServerCTRL.StatusStrip = this.StatusBar;
             this.ConnectServerCTRL.TabIndex = 4;
+            this.ConnectServerCTRL.UserIdentity = null;
             this.ConnectServerCTRL.UseSecurity = true;
-            this.ConnectServerCTRL.ConnectComplete += new System.EventHandler(this.Server_ConnectComplete);
             this.ConnectServerCTRL.ReconnectStarting += new System.EventHandler(this.Server_ReconnectStarting);
             this.ConnectServerCTRL.ReconnectComplete += new System.EventHandler(this.Server_ReconnectComplete);
+            this.ConnectServerCTRL.ConnectComplete += new System.EventHandler(this.Server_ConnectComplete);
             // 
             // MainForm
             // 
@@ -584,13 +627,14 @@ namespace Quickstarts.UserAuthenticationClient
             this.AccessControlCheckGB.ResumeLayout(false);
             this.AccessControlCheckGB.PerformLayout();
             this.tabControl1.ResumeLayout(false);
+            this.AnonymousTAB.ResumeLayout(false);
             this.UserNameTAB.ResumeLayout(false);
             this.UserNameTAB.PerformLayout();
             this.CertificateTAB.ResumeLayout(false);
             this.CertificateTAB.PerformLayout();
             this.KerberosTAB.ResumeLayout(false);
             this.KerberosTAB.PerformLayout();
-            this.AnonymousTAB.ResumeLayout(false);
+            this.OAuth2TAB.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -642,5 +686,8 @@ namespace Quickstarts.UserAuthenticationClient
         private System.Windows.Forms.Button ChangeLogFileBTN;
         private System.Windows.Forms.GroupBox AccessControlCheckGB;
         private Opc.Ua.Client.Controls.ConnectServerCtrl ConnectServerCTRL;
+        private System.Windows.Forms.TabPage OAuth2TAB;
+        private System.Windows.Forms.Label OAuth2TokenLB;
+        private System.Windows.Forms.Button OAuth2ImpersonateBTN;
     }
 }

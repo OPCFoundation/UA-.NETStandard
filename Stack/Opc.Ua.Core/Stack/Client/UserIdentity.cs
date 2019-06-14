@@ -10,7 +10,9 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using Microsoft.IdentityModel.Tokens;
 using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -70,6 +72,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with a .NET security token
+        /// </summary>
+        /// <param name="token">The security token.</param>
+        public UserIdentity(SecurityToken token)
+        {
+            Initialize(token);
+        }
+
+        /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
         public UserIdentity(X509Certificate2 certificate)
@@ -82,9 +93,9 @@ namespace Opc.Ua
         /// Initializes the object with a UA identity token.
         /// </summary>
         /// <param name="token">The user identity token.</param>
-        public UserIdentity(UserIdentityToken token)
+        public UserIdentity(UserIdentityToken token, UserTokenPolicy policy = null)
         {
-            Initialize(token);
+            Initialize(token, policy);
         }
         #endregion
 
@@ -97,8 +108,8 @@ namespace Opc.Ua
         /// </remarks>
         public string PolicyId
         {
-            get { return m_token.PolicyId; }
-            set { m_token.PolicyId = value; }
+            get { return m_policyId; }
+            set { m_policyId = value; }
         }
         #endregion
 
@@ -130,17 +141,43 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary cref="IUserIdentity.GetSecurityToken" />
+        public SecurityToken GetSecurityToken()
+        {
+            return m_securityToken;
+        }
+
         /// <summary cref="IUserIdentity.GetIdentityToken" />
         public UserIdentityToken GetIdentityToken()
         {
             // check for null and return anonymous.
-            if (m_token == null)
+            if (m_securityToken == null)
             {
-                return new AnonymousIdentityToken();
+                if (m_token == null)
+                {
+                    return new AnonymousIdentityToken();
+                }
+                else
+                {
+                    return m_token;
+                }
             }
             else
             {
-                return m_token;
+                // handle JWT token.
+                JwtSecurityToken jwtToken = m_securityToken as JwtSecurityToken;
+
+                if (jwtToken != null)
+                {
+                    IssuedIdentityToken issuedToken = new IssuedIdentityToken();
+                    issuedToken.PolicyId = m_policyId;
+                    issuedToken.IssuedTokenType = Ua.IssuedTokenType.JWT;
+                    issuedToken.DecryptedTokenData = new UTF8Encoding(false).GetBytes(jwtToken.RawData);
+
+                    return issuedToken;
+                }
+
+                return new AnonymousIdentityToken();
             }
         }
         #endregion
@@ -149,9 +186,11 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a UA identity token
         /// </summary>
-        private void Initialize(UserIdentityToken token)
+        private void Initialize(UserIdentityToken token, UserTokenPolicy policy = null)
         {
             if (token == null) throw new ArgumentNullException("token");
+
+            m_policyId = token.PolicyId;
 
             m_token = token;
   
@@ -184,17 +223,18 @@ namespace Opc.Ua
             IssuedIdentityToken issuedToken = token as IssuedIdentityToken;
             if (issuedToken != null)
             {
-                if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
+                if ((policy != null && policy.IssuedTokenType == Profiles.JwtUserToken) || issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
                 {
                     if (issuedToken.DecryptedTokenData == null || issuedToken.DecryptedTokenData.Length == 0)
                     {
                         throw new ArgumentException("JSON Web Token has no data associated with it.", "token");
                     }
 
-                    m_tokenType = UserTokenType.IssuedToken;
-                    m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
-                    m_displayName = "JWT";
+                    string jwt = new UTF8Encoding().GetString(issuedToken.DecryptedTokenData);
+                    JwtSecurityToken jwtToken = new JwtSecurityToken(jwt);
+                    Initialize(jwtToken);
                     return;
+
                 }
                 else
                 {
@@ -209,7 +249,7 @@ namespace Opc.Ua
                 m_issuedTokenType = null;
                 m_displayName = "Anonymous";
                 return;
-            }
+            }        
   
             throw new ArgumentException("Unrecognized UA user identity token type.", "token");
         }
@@ -224,13 +264,68 @@ namespace Opc.Ua
             token.Certificate = certificate;
             Initialize(token);
         }
+
+        /// <summary>
+        /// Initializes the object with a .NET security token
+        /// </summary>
+        private void Initialize(SecurityToken token)
+        {
+            if (token == null) throw new ArgumentNullException("token");
+
+            m_securityToken = token;
+
+            JwtSecurityToken jwtToken = token as JwtSecurityToken;
+
+            if (jwtToken != null)
+            {
+                m_displayName = "JWT";
+
+                string uniqueName = null;
+                string name = null;
+                string subject = null;
+
+                // find the subject of the SAML assertion.
+                foreach (var claim in jwtToken.Claims)
+                {
+                    switch (claim.Type)
+                    {
+                        case "unique_name": { uniqueName = claim.Value.ToString(); break; }
+                        case "name": { name = claim.Value.ToString(); break; }
+                        case "sub": { subject = claim.Value.ToString(); break; }
+                    }
+                }
+
+                if (!String.IsNullOrEmpty(uniqueName))
+                {
+                    m_displayName = uniqueName;
+                }
+                else if (!String.IsNullOrEmpty(name))
+                {
+                    m_displayName = name;
+                }
+                else if (!String.IsNullOrEmpty(subject))
+                {
+                    m_displayName = subject;
+                }
+
+                m_tokenType = UserTokenType.IssuedToken;
+                m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
+                return;
+            }
+
+            m_displayName = UserTokenType.IssuedToken.ToString();
+            m_tokenType = UserTokenType.IssuedToken;
+        }
+
         #endregion
 
         #region Private Fields
         private UserIdentityToken m_token;
+        private SecurityToken m_securityToken;
         private string m_displayName;
         private UserTokenType m_tokenType;
         private XmlQualifiedName m_issuedTokenType;
+        private string m_policyId;
         #endregion
     }
 

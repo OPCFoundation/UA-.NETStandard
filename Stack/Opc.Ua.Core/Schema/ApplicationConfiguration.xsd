@@ -258,6 +258,20 @@
     </xs:complexContent>
   </xs:complexType>
 
+  <xs:complexType name="UserTokenValidators">
+    <xs:sequence>
+      <xs:element name="Validator" type="UserTokenValidator"  minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="UserTokenValidator">
+    <xs:sequence>
+      <xs:element name="PolicyId" type="xs:string" minOccurs="0" />
+      <xs:element name="AuthorityCertificate" type="CertificateIdentifier" minOccurs="0" />
+      <xs:element name="IssuerCertificates" type="CertificateTrustList" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
   <xs:complexType name="ConfiguredEndpointCollection">
     <xs:sequence>
       <xs:element name="KnownHosts" type="ua:ListOfString" minOccurs="0" nillable="true" />

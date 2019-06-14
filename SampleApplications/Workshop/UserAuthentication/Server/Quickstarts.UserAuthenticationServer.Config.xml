@@ -82,24 +82,12 @@
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
       </ua:UserTokenPolicy>
-
-      <!--
-      The ServicePrincipalName (SPN) for the UA Server must be specified as the IssuerEndpointUrl
-      
-      The ServicePrincipalName (SPN) must be registered with the Kerberos Ticket Granting Server (e.g. Windows Domain Controller).
-      The SPN identifies the host that UA server is running on and the name of the application.
-      A domain admin must grant delegate permission to the domain account that the UA server runs under.
-      That can be done with the setspn.exe utility:
-      
-      setspn -U -S <hostname>/<exename> <domain accountname>
-      setspn -C -S <hostname>/<exename> <hostname>
-      
-      The latter form is used if the UA server runs a Windows Service using the built in Windows Service account.   
-      -->
       <ua:UserTokenPolicy>
+        <!-- Server accepts JWTs from a OPCUA Authorization Service -->
+        <ua:PolicyId>OPCUA:JWT</ua:PolicyId>
         <ua:TokenType>IssuedToken_3</ua:TokenType>
-        <ua:IssuedTokenType>http://docs.oasis-open.org/wss/oasis-wss-kerberos-token-profile-1.1</ua:IssuedTokenType>
-        <ua:IssuerEndpointUrl>Aquamarine/Opc.Ua.UserAuthenticationServer</ua:IssuerEndpointUrl>
+        <ua:IssuedTokenType>http://opcfoundation.org/UA/UserToken#JWT</ua:IssuedTokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
       
     </UserTokenPolicies>
@@ -148,7 +136,46 @@
   <Extensions>
     <ua:XmlElement>
       <UserAuthenticationServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/UserAuthentication">
+        <ServiceName>Local</ServiceName>
+        <UserTokenPolicies>
+          <!-- This policy says the Server accepts Azure AD JWTs converts them to JWTs that other servers accept -->
+          <ua:UserTokenPolicy>
+            <ua:PolicyId>GDS-AS:AzureAD</ua:PolicyId>
+            <ua:TokenType>IssuedToken_3</ua:TokenType>
+            <ua:IssuedTokenType>http://opcfoundation.org/UA/UserToken#JWT</ua:IssuedTokenType>
+            <ua:IssuerEndpointUrl>
+              {
+              "ua:authorityUrl": "https://login.microsoftonline.com/opcfoundationprototyping.onmicrosoft.com",
+              "ua:authorityProfileUri" : "http://opcfoundation.org/UA/Authorization#Azure",
+              "ua:authorizationEndpoint" : "/oauth2/authorize",
+              "ua:tokenEndpoint" : "/oauth2/token",
+              "ua:requestTypes": [ "authorization_code" ],
+              "ua:resourceId" : "https://mycompany.com/gds-prototype"
+              }
+            </ua:IssuerEndpointUrl>
+            <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</ua:SecurityPolicyUri>
+          </ua:UserTokenPolicy>
+        </UserTokenPolicies>
       </UserAuthenticationServerConfiguration>
+    </ua:XmlElement>
+    <ua:XmlElement>
+      <UserTokenValidators xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <UserTokenValidator>
+          <PolicyId>OPCUA:JWT</PolicyId>
+          <IssuerUri>urn:localhost:UA:Quickstarts:UserAuthenticationServer</IssuerUri>
+          <IssuerEndpointUrl>{
+            "ua:authorityUrl": "opc.tcp://localhost:62565",
+            "ua:authorityProfileUri" : "http://opcfoundation.org/UA/Authorization#OPCUA",
+            "ua:tokenEndpoint" : "nsu=http://opcfoundation.org/Quickstarts/UserAuthentication;s=AS:Local"
+          }
+          </IssuerEndpointUrl>
+          <AuthorityCertificate>
+            <StoreType>Directory</StoreType>
+            <StorePath>%CommonApplicationData%\OPC Foundation\pki\own</StorePath>
+            <SubjectName>CN=Quickstart UserAuthentication Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+          </AuthorityCertificate>
+        </UserTokenValidator>
+      </UserTokenValidators>
     </ua:XmlElement>
   </Extensions>
 

@@ -32,6 +32,7 @@ using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Collections.Generic;
 using Opc.Ua.Server;
+using Opc.Ua;
 
 namespace Quickstarts.UserAuthenticationServer
 {
@@ -68,6 +69,11 @@ namespace Quickstarts.UserAuthenticationServer
         #endregion
 
         #region Public Properties
+        [DataMember(Order = 1)]
+        public string ServiceName { get; set; }
+
+        [DataMember(Order = 2)]
+        public UserTokenPolicyCollection UserTokenPolicies { get; set; }
         #endregion
 
         #region Private Members

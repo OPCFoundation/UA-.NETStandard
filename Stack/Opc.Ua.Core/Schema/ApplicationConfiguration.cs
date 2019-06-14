@@ -3300,4 +3300,99 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
+
+    #region UserTokenValidator Class
+    /// <summary>
+    /// Stores the configuration information for an endpoint.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class UserTokenValidator
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        private UserTokenValidator()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            AuthorityCertificate = new CertificateIdentifier();
+            IssuerCertificates = new CertificateTrustList();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The policy id for the the UserTokenPolicy that the validator is used for.
+        /// </summary>
+        [DataMember(Name = "PolicyId", Order = 1, IsRequired = true)]
+        public string PolicyId { get; set; }
+
+        /// <summary>
+        /// The URI used in the issuer field of tokens.
+        /// </summary>
+        [DataMember(Name = "IssuerUri", Order = 2, IsRequired = false)]
+        public string IssuerUri { get; set; }
+
+        /// <summary>
+        /// The configuration information provided in the UserTokenPolicies.
+        /// </summary>
+        [DataMember(Name = "IssuerEndpointUrl", Order = 3, IsRequired = false)]
+        public string IssuerEndpointUrl { get; set; }
+
+        /// <summary>
+        /// The authority certificate used to validate user tokens.
+        /// </summary>
+        [DataMember(Name = "AuthorityCertificate", Order = 4, IsRequired = false)]
+        public CertificateIdentifier AuthorityCertificate { get; set; }
+
+        /// <summary>
+        /// The store containing the issuer certificates for the authority.
+        /// </summary>
+        [DataMember(Name = "IssuerCertificates", Order = 5, IsRequired = false)]
+        public CertificateTrustList IssuerCertificates { get; set; }
+        #endregion
+    }
+    #endregion
+
+    #region UserTokenValidators Class
+    /// <summary>
+    /// A collection of UserTokenValidator objects.
+    /// </summary>
+    [CollectionDataContract(Name = "UserTokenValidators", Namespace = Namespaces.OpcUaConfig, ItemName = "UserTokenValidator")]
+    public partial class UserTokenValidators : List<UserTokenValidator>
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public UserTokenValidators() { }
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public UserTokenValidators(int capacity) : base(capacity) { }
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public UserTokenValidators(IEnumerable<UserTokenValidator> collection) : base(collection) { }
+        #endregion
+    }
+    #endregion
 }

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -75,6 +76,12 @@ namespace Opc.Ua.Server
         public bool SupportsSignatures
         {
             get { return m_identity.SupportsSignatures; }
+        }
+
+        /// <summary cref="IUserIdentity.GetSecurityToken" />
+        public SecurityToken GetSecurityToken()
+        {
+            return m_identity.GetSecurityToken();
         }
 
         public UserIdentityToken GetIdentityToken()

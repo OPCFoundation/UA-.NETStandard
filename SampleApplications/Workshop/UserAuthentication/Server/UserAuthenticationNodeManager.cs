@@ -37,6 +37,9 @@ using System.Threading;
 using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Quickstarts.UserAuthenticationServer
 {
@@ -54,6 +57,7 @@ namespace Quickstarts.UserAuthenticationServer
             base(server, Namespaces.UserAuthentication)
         {
             SystemContext.NodeIdFactory = this;
+            m_applicationConfiguration = configuration;
 
             // get the configuration for the node manager.
             m_configuration = configuration.ParseExtension<UserAuthenticationServerConfiguration>();
@@ -136,13 +140,19 @@ namespace Quickstarts.UserAuthenticationServer
                 state.Value = ".\\Log.txt";
 
                 process.AddChild(state);
-                
+
                 state.OnReadUserAccessLevel = OnReadUserAccessLevel;
                 state.OnSimpleWriteValue = OnWriteValue;
 
                 // save in dictionary. 
                 AddPredefinedNode(SystemContext, process);
-            } 
+
+                // Create the nodes for AuthorizationService
+                FolderState authorizationServices = CreateAuthorizationService();
+                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, authorizationServices.NodeId));
+
+                AddPredefinedNode(SystemContext, authorizationServices);
+            }
         }
 
         public ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
@@ -206,6 +216,177 @@ namespace Quickstarts.UserAuthenticationServer
 
             return ServiceResult.Good;
         }
+
+        #region AuthorizationService
+        private FolderState CreateAuthorizationService()
+        {
+            FolderState authorizationServices = new FolderState(null);
+
+            authorizationServices.NodeId = new NodeId(3, NamespaceIndex);
+            authorizationServices.BrowseName = new QualifiedName("AuthorizationServices", NamespaceIndex);
+            authorizationServices.DisplayName = authorizationServices.BrowseName.Name;
+            authorizationServices.TypeDefinitionId = ObjectTypeIds.FolderType;
+            authorizationServices.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+
+            BaseObjectState authorizationService = new BaseObjectState(authorizationServices);
+            // Create token policies node.
+            authorizationService.NodeId = new NodeId("AS:" + m_configuration.ServiceName, NamespaceIndex);
+            authorizationService.BrowseName = new QualifiedName(m_configuration.ServiceName, NamespaceIndex);
+            authorizationService.DisplayName = authorizationService.BrowseName.Name;
+            authorizationService.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+            authorizationServices.AddChild(authorizationService);
+
+            PropertyState userTokenpolices = authorizationService.AddProperty<UserTokenPolicy[]>(Opc.Ua.Gds.BrowseNames.UserTokenPolicies,
+                DataTypeIds.UserTokenPolicy, ValueRanks.OneDimension);
+            userTokenpolices.NodeId = new NodeId(5, NamespaceIndex);
+            userTokenpolices.Value = m_configuration.UserTokenPolicies.ToArray();
+
+            // Create RequestAccessToken method
+            MethodState requestAccessToken = new MethodState(authorizationService);
+
+            requestAccessToken.SymbolicName = Opc.Ua.Gds.BrowseNames.RequestAccessToken;
+            requestAccessToken.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            requestAccessToken.NodeId = new NodeId(6, NamespaceIndex);
+            requestAccessToken.BrowseName = new QualifiedName(Opc.Ua.Gds.BrowseNames.RequestAccessToken, NamespaceIndex);
+            requestAccessToken.DisplayName = Opc.Ua.Gds.BrowseNames.RequestAccessToken;
+            requestAccessToken.WriteMask = AttributeWriteMask.None;
+            requestAccessToken.UserWriteMask = AttributeWriteMask.None;
+            requestAccessToken.Executable = true;
+            requestAccessToken.UserExecutable = true;
+
+            // set input arguments
+            requestAccessToken.InputArguments = new PropertyState<Argument[]>(requestAccessToken);
+            requestAccessToken.InputArguments.NodeId = new NodeId(7, NamespaceIndex);
+            requestAccessToken.InputArguments.BrowseName = BrowseNames.InputArguments;
+            requestAccessToken.InputArguments.DisplayName = BrowseNames.InputArguments;
+            requestAccessToken.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
+            requestAccessToken.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            requestAccessToken.InputArguments.DataType = DataTypeIds.Argument;
+            requestAccessToken.InputArguments.ValueRank = ValueRanks.OneDimension;
+
+            requestAccessToken.InputArguments.Value = new Argument[]
+            {
+                new Argument() { Name = "IdentityToken",  DataType = DataTypeIds.UserIdentityToken, ValueRank = ValueRanks.Scalar },
+                new Argument() { Name = "ResourceId", DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar }
+            };
+
+            // set output arguments
+            requestAccessToken.OutputArguments = new PropertyState<Argument[]>(requestAccessToken);
+            requestAccessToken.OutputArguments.NodeId = new NodeId(8, NamespaceIndex);
+            requestAccessToken.OutputArguments.BrowseName = BrowseNames.OutputArguments;
+            requestAccessToken.OutputArguments.DisplayName = BrowseNames.OutputArguments;
+            requestAccessToken.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
+            requestAccessToken.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            requestAccessToken.OutputArguments.DataType = DataTypeIds.Argument;
+            requestAccessToken.OutputArguments.ValueRank = ValueRanks.OneDimension;
+
+            requestAccessToken.OutputArguments.Value = new Argument[]
+            {
+                 new Argument() { Name = "AccessToken", DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar }
+            };
+
+            requestAccessToken.OnCallMethod = new GenericMethodCalledEventHandler(OnRequestAccessToken);
+
+            authorizationService.AddChild(requestAccessToken);
+
+            return authorizationServices;
+        }
+
+        private ServiceResult OnRequestAccessToken(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            // all arguments must be provided.
+            if (inputArguments.Count < 2)
+            {
+                return StatusCodes.BadArgumentsMissing;
+            }
+
+            try
+            {
+                // parse input arguments.
+                ExtensionObject extensionObject = (ExtensionObject)inputArguments[0];
+                UserIdentityToken identityToken = (UserIdentityToken)extensionObject.Body;
+                string resourceId = (string)inputArguments[1];
+
+                UserTokenPolicy selectedPolicy = null; 
+
+                foreach (var policy in m_configuration.UserTokenPolicies)
+                {
+                    if (policy.PolicyId == identityToken.PolicyId)
+                    {
+                        selectedPolicy = policy;
+                        break;
+                    }
+                }
+
+                if (selectedPolicy == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid);
+                }
+
+                var certificate = m_applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate;
+
+                identityToken.Decrypt(
+                    certificate,
+                    certificate.RawData,
+                    selectedPolicy.SecurityPolicyUri);
+
+                IUserIdentity identity = new UserIdentity(identityToken, selectedPolicy);
+
+                // check for an issued token.
+                IssuedIdentityToken issuedToken = identityToken as IssuedIdentityToken;
+
+                if (issuedToken != null)
+                {
+                    if (selectedPolicy.IssuedTokenType == Profiles.JwtUserToken)
+                    {
+                        JwtEndpointParameters parameters = new JwtEndpointParameters();
+                        parameters.FromJson(selectedPolicy.IssuerEndpointUrl);
+                        var jwt = new UTF8Encoding().GetString(issuedToken.DecryptedTokenData);
+
+                        identity = JwtUtils.ValidateToken(new Uri(parameters.AuthorityUrl), null, null, parameters.ResourceId, jwt);
+                    }
+                }
+
+                var signingKey = new X509SecurityKey(m_applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate);
+
+                var claimsIdentity = new ClaimsIdentity(new List<Claim>()
+                {
+                    new Claim("name", identity.DisplayName),
+                    new Claim("scp", "UAServer"),
+                    new Claim("roles", "admin"),
+                }, "Custom");
+
+                var signingCredentials = new SigningCredentials(
+                signingKey,
+                System.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature,
+                System.IdentityModel.Tokens.SecurityAlgorithms.Sha256Digest);
+
+                var securityTokenDescriptor = new SecurityTokenDescriptor()
+                {
+                    Issuer = m_applicationConfiguration.ApplicationUri,
+                    Audience = m_applicationConfiguration.ApplicationUri,
+                    Subject = claimsIdentity,
+                    SigningCredentials = signingCredentials,
+                };
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var plainToken = tokenHandler.CreateToken(securityTokenDescriptor);
+                var signedAndEncodedToken = tokenHandler.WriteToken(plainToken);
+
+                // set output parameter
+                outputArguments[0] = signedAndEncodedToken;
+                return ServiceResult.Good;
+            }
+            catch(Exception ex)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+        }
+        #endregion
 
         /// <summary>
         /// Frees any resources allocated for the address space.
@@ -279,6 +460,7 @@ namespace Quickstarts.UserAuthenticationServer
 
         #region Private Fields
         private UserAuthenticationServerConfiguration m_configuration;
+        private ApplicationConfiguration m_applicationConfiguration;
         #endregion
     }
 }
