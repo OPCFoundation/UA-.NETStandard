@@ -619,8 +619,8 @@ namespace Opc.Ua
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
-                        "The FilterOperand is not a supported type ({0}).", 
-                        filterOperand.GetType());
+                        "The FilterOperand is not a supported type ({0}).",
+                        operand.Body.GetType());
 
                     result.OperandResults.Add(operandResult);
                     error = true;

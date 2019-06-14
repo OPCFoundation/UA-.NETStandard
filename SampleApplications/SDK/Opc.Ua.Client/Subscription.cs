@@ -68,7 +68,7 @@ namespace Opc.Ua.Client
             Initialize();
 
             if (template != null)
-            {                    
+            {
                 string displayName = template.DisplayName;
 
                 if (String.IsNullOrEmpty(displayName))
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_StateChanged               = template.m_StateChanged;
-                    m_PublishStatusChanged        = template.m_PublishStatusChanged;
+                    m_PublishStatusChanged       = template.m_PublishStatusChanged;
                     m_fastDataChangeCallback     = template.m_fastDataChangeCallback;
                     m_fastEventCallback          = template.m_fastEventCallback;
                 }
@@ -118,10 +118,10 @@ namespace Opc.Ua.Client
                 // copy the list of monitored items.
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
-                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers);
-                    clone.Subscription = this; 
-                    m_monitoredItems.Add(clone.ClientHandle, clone);
-                }      
+                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers, true);
+                    clone.DisplayName = monitoredItem.DisplayName;
+                    AddItem(clone);
+                }
             }
         }
 

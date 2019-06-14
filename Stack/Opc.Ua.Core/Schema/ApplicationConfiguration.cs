@@ -759,6 +759,7 @@ namespace Opc.Ua
             m_nonceLength = 32;
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
+            m_rejectUnknownRevocationStatus = false;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = false;
@@ -898,12 +899,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
+        /// </summary>
+        /// <remarks>
+        /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        public bool RejectUnknownRevocationStatus
+        {
+            get { return m_rejectUnknownRevocationStatus; }
+            set { m_rejectUnknownRevocationStatus = value; }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating which minimum certificate key strength is accepted.
         /// </summary>
         /// <remarks>
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public ushort MinimumCertificateKeySize
         {
             get { return m_minCertificateKeySize; }
@@ -916,7 +930,7 @@ namespace Opc.Ua
         /// <remarks>
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
         public bool AddAppCertToTrustedStore
         {
             get { return m_addAppCertToTrustedStore; }
@@ -929,7 +943,7 @@ namespace Opc.Ua
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
         public bool SendCertificateChain
         {
             get { return m_sendCertificateChain; }
@@ -939,7 +953,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public CertificateTrustList UserIssuerCertificates
         {
             get
@@ -961,7 +975,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
         public CertificateTrustList TrustedUserCertificates
         {
             get
@@ -983,7 +997,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get
@@ -1005,7 +1019,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get
@@ -1038,6 +1052,7 @@ namespace Opc.Ua
         private bool m_autoAcceptUntrustedCertificates;
         private string m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
+        private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;

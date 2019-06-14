@@ -126,6 +126,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the stream that the decoder is reading from.
+        /// </summary>
+        public Stream BaseStream
+        {
+            get
+            {
+                return m_reader.BaseStream;
+            }
+        }
+
+        /// <summary>
         /// Decodes a message from a stream.
         /// </summary>
         public static IEncodeable DecodeMessage(Stream stream, System.Type expectedType, ServiceMessageContext context)

@@ -49,6 +49,7 @@
       <xs:element name="AutoAcceptUntrustedCertificates" type="xs:boolean" minOccurs="0" />
       <xs:element name="UserRoleDirectory" type="xs:string"  minOccurs="0" nillable="true" />
       <xs:element name="RejectSHA1SignedCertificates" type="xs:boolean" minOccurs="0" />
+      <xs:element name="RejectUnknownRevocationStatus" type="xs:boolean" minOccurs="0" />
       <xs:element name="MinimumCertificateKeySize" type="xs:unsignedShort" minOccurs="0" />
       <xs:element name="AddAppCertToTrustedStore" type="xs:boolean" minOccurs="0" />
       <xs:element name="SendCertificateChain" type="xs:boolean" minOccurs="0" />

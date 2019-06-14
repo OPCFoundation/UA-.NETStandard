@@ -77,12 +77,22 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The template used to specify the monitoring parameters.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public MonitoredItem(MonitoredItem template, bool copyEventHandlers)
+        public MonitoredItem(MonitoredItem template, bool copyEventHandlers) : this(template, copyEventHandlers, false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
+        /// </summary>
+        /// <param name="template">The template used to specify the monitoring parameters.</param>
+        /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
+        /// <param name="copyClientHandle">if set to <c>true</c> the clientHandle is of the template copied.</param>
+        public MonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
         {
             Initialize();
-                       
+
             if (template != null)
-            {          
+            {
                 string displayName = template.DisplayName;
 
                 if (displayName != null)
@@ -103,7 +113,6 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                m_clientHandle       = template.m_clientHandle; // keep the same clientHandle since it uniquely identifies the monitored item for the subscriber
                 m_handle             = template.m_handle;
                 m_displayName        = Utils.Format("{0} {1}", displayName, m_clientHandle);
                 m_startNodeId        = template.m_startNodeId;
@@ -121,6 +130,11 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_Notification = template.m_Notification;
+                }
+
+                if (copyClientHandle)
+                {
+                    m_clientHandle = template.m_clientHandle;
                 }
 
                 // this ensures the state is consistent with the node class.

@@ -199,6 +199,8 @@ public class CertificateFactory
     /// <param name="hashSizeInBits">The hash size in bits.</param>
     /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
     /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+    /// <param name="publicKey">The public key if no new keypair is created.</param>
+    /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
     /// <returns>The certificate with a private key.</returns>
     public static X509Certificate2 CreateCertificate(
         string storeType,
@@ -214,7 +216,8 @@ public class CertificateFactory
         ushort hashSizeInBits,
         bool isCA = false,
         X509Certificate2 issuerCAKeyCert = null,
-        byte[] publicKey = null)
+        byte[] publicKey = null,
+        int pathLengthConstraint = 0)
     {
         if (issuerCAKeyCert != null)
         {
@@ -292,7 +295,12 @@ public class CertificateFactory
                 new SubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)));
 
             // Basic constraints
-            cg.AddExtension(X509Extensions.BasicConstraints.Id, true, isCA ? new BasicConstraints(0) : new BasicConstraints(false));
+            BasicConstraints basicConstraints = new BasicConstraints(isCA);
+            if (pathLengthConstraint >= 0 && isCA)
+            {
+                basicConstraints = new BasicConstraints(pathLengthConstraint);
+            }
+            cg.AddExtension(X509Extensions.BasicConstraints.Id, true, basicConstraints);
 
             // Authority Key identifier references the issuer cert or itself when self signed
             AsymmetricKeyParameter issuerPublicKey;
@@ -558,6 +566,22 @@ public class CertificateFactory
         X509Certificate2Collection revokedCertificates
         )
     {
+        return RevokeCertificate(issuerCertificate, issuerCrls, revokedCertificates,
+            DateTime.UtcNow, DateTime.UtcNow.AddMonths(12));
+    }
+
+    /// <summary>
+    /// Revoke the certificate. 
+    /// The CRL number is increased by one and the new CRL is returned.
+    /// </summary>
+    public static X509CRL RevokeCertificate(
+        X509Certificate2 issuerCertificate,
+        List<X509CRL> issuerCrls,
+        X509Certificate2Collection revokedCertificates,
+        DateTime thisUpdate,
+        DateTime nextUpdate
+        )
+    {
         if (!issuerCertificate.HasPrivateKey)
         {
             throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
@@ -576,9 +600,9 @@ public class CertificateFactory
                     new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
 
             X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
-            crlGen.SetIssuerDN(bcCertCA.IssuerDN);
-            crlGen.SetThisUpdate(DateTime.UtcNow);
-            crlGen.SetNextUpdate(DateTime.UtcNow.AddMonths(12));
+            crlGen.SetIssuerDN(bcCertCA.SubjectDN);
+            crlGen.SetThisUpdate(thisUpdate);
+            crlGen.SetNextUpdate(nextUpdate);
 
             // merge all existing revocation list
             if (issuerCrls != null)
@@ -753,7 +777,7 @@ public class CertificateFactory
         PemReader pemReader;
         using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
         {
-            if (password == null)
+            if (String.IsNullOrEmpty(password))
             {
                 pemReader = new PemReader(pemStreamReader);
             }
@@ -822,20 +846,29 @@ public class CertificateFactory
             }
         }
     }
+
     /// <summary>
     /// returns a byte array containing the private key in PEM format.
     /// </summary>
-
     public static byte[] ExportPrivateKeyAsPEM(
         X509Certificate2 certificate
         )
     {
-        RsaPrivateCrtKeyParameters keyParameter = GetPrivateKeyParameter(certificate);
+        RsaPrivateCrtKeyParameters privateKeyParameter = GetPrivateKeyParameter(certificate);
         using (TextWriter textWriter = new StringWriter())
         {
-            PemWriter pemWriter = new PemWriter(textWriter);
-            pemWriter.WriteObject(keyParameter);
-            pemWriter.Writer.Flush();
+            // write private key as PKCS#8
+            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+            string serializedPrivate = Convert.ToBase64String(serializedPrivateBytes);
+            textWriter.WriteLine("-----BEGIN PRIVATE KEY-----");
+            while (serializedPrivate.Length > 64)
+            {   
+                textWriter.WriteLine(serializedPrivate.Substring(0, 64));
+                serializedPrivate = serializedPrivate.Substring(64);
+            }
+            textWriter.WriteLine(serializedPrivate);
+            textWriter.WriteLine("-----END PRIVATE KEY-----");
             return Encoding.ASCII.GetBytes(textWriter.ToString());
         }
     }
@@ -857,6 +890,9 @@ public class CertificateFactory
         return true;
     }
 
+    /// <summary>
+    /// Return the key usage flags of a certificate.
+    /// </summary>
     public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
     {
         X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
@@ -1121,7 +1157,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// Get private key parameters from a X509Cerificate2.
+    /// Get private key parameters from a X509Certificate2.
     /// The private key must be exportable.
     /// </summary>
     private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
@@ -1195,7 +1231,7 @@ public class CertificateFactory
     /// <summary>
     /// Determines whether the certificate is issued by a Certificate Authority.
     /// </summary>
-    private static bool IsCertificateAuthority(X509Certificate2 certificate)
+    public static bool IsCertificateAuthority(X509Certificate2 certificate)
     {
         X509BasicConstraintsExtension constraints = null;
 
