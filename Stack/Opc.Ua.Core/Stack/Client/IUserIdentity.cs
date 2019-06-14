@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using Microsoft.IdentityModel.Tokens;
 using System.Xml;
 
 namespace Opc.Ua
@@ -47,6 +48,12 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if signatures are supported; otherwise, <c>false</c>.</value>
         bool SupportsSignatures { get; }
+
+        /// <summary>
+        /// Returns a .NET security token containing the user information.
+        /// </summary>
+        /// <returns>.NET security token containing the user information.</returns>
+        SecurityToken GetSecurityToken();
 
         /// <summary>
         /// Returns a UA user identity token containing the user information.

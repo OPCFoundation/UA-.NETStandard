@@ -37,10 +37,12 @@ using System.IdentityModel.Claims;
 using System.IdentityModel;
 using System.IdentityModel.Selectors;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 using System.IO;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Quickstarts.UserAuthenticationClient
 {
@@ -94,6 +96,11 @@ namespace Quickstarts.UserAuthenticationClient
             "Certificate tokens use a X509 certicate associated with a user.\r\n" +
             "These could come from a smart card and identify a user account.\r\n" +
             "Tokens must be signed when sent to the server.";
+
+            OAuth2TokenLB.Text =
+            "OAuth2 tokens use Authorization Services that produce JSON Web Tokens (JWT).\r\n" +
+            "These JWTs are passed as an Issued Token to an OPC UA Server\r\n" +
+            "which uses the signature contained in the JWT to validate the token.";
 
             KereberosTokenLB.Text =
             "Kereberos tokens allow use of Windows domain credentials without\r\n" +
@@ -223,10 +230,13 @@ namespace Quickstarts.UserAuthenticationClient
                     break;
                 }
 
-                foreach (MonitoredItem monitoredItem in m_subscription.MonitoredItems)
+                if (m_subscription != null)
                 {
-                    m_monitoredItem = monitoredItem;
-                    break;
+                    foreach (MonitoredItem monitoredItem in m_subscription.MonitoredItems)
+                    {
+                        m_monitoredItem = monitoredItem;
+                        break;
+                    }
                 }
             }
             catch (Exception exception)
@@ -245,6 +255,231 @@ namespace Quickstarts.UserAuthenticationClient
         #endregion
 
         #region Private Methods
+
+        private async Task<IUserIdentity> GetOAuth2Token()
+        {
+            UserTokenPolicy policy = (UserTokenPolicy)OAuth2TAB.Tag;
+
+            if (policy == null)
+            {
+                return null;
+            }
+
+            if (policy.TokenType == UserTokenType.IssuedToken)
+            {
+                if (policy.IssuedTokenType == Profiles.JwtUserToken)
+                {
+                    JwtEndpointParameters parameters = new JwtEndpointParameters();
+                    parameters.FromJson(policy.IssuerEndpointUrl);
+
+                    // choose a default resource id for the target server.
+                    if (parameters.ResourceId == null)
+                    {
+                        parameters.ResourceId = m_session.Endpoint.Server.ApplicationUri;
+                    }
+
+                    // check if target server expects clients to use an OPCUA authorization service. 
+                    if (parameters.AuthorityProfileUri == Profiles.OpcUaAuthorization)
+                    {
+                        return await GetJwtWithOpcUa(m_configuration, policy, parameters);
+                    }
+                }
+            }
+
+            throw new NotSupportedException();
+        }
+
+        private async Task<IUserIdentity> GetJwtWithOpcUa(ApplicationConfiguration configuration, UserTokenPolicy policy, JwtEndpointParameters parameters)
+        {
+            // find the client's information needed to connect the authorization service.
+            var credentials = OAuth2CredentialCollection.FindByAuthorityUrl(configuration, parameters.AuthorityUrl);
+
+            if (credentials == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError, "No configuration specified for the selected Authority.");
+            }
+
+            // this identity is used by the client to access the authorization service.
+            var requestorIdentity = new UserIdentity(credentials.ClientId, credentials.ClientSecret);
+
+            var endpoint = CoreClientUtils.SelectEndpoint(parameters.AuthorityUrl, true);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            ConfiguredEndpoint ce = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
+
+            Session session = null;
+
+            try
+            {
+                // connect to the authorization service.
+                session = await Session.Create(
+                    configuration,
+                    ce,
+                    false,
+                    false,
+                    configuration.ApplicationName,
+                    60000,
+                    requestorIdentity,
+                    null);
+
+                var eid = ExpandedNodeId.Parse(parameters.TokenEndpoint);
+                var nid = ExpandedNodeId.ToNodeId(eid, session.NamespaceUris);
+
+                byte[] continuationPoint = null;
+                ReferenceDescriptionCollection references = null;
+
+                // find the UserTokenPolicies node.
+                session.Browse(
+                    null,
+                    null,
+                    nid,
+                    0,
+                    BrowseDirection.Forward,
+                    ReferenceTypeIds.HasProperty,
+                    false,
+                    0,
+                    out continuationPoint,
+                    out references);
+
+                NodeId policiesNodeId = null;
+
+                if (references != null || references.Count > 0)
+                {
+                    foreach (var reference in references)
+                    {
+                        if (reference.BrowseName.Name == Opc.Ua.Gds.BrowseNames.UserTokenPolicies)
+                        {
+                            policiesNodeId = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                            break;
+                        }
+                    }
+                }
+
+                var dv = session.ReadValue(policiesNodeId);
+                var policies = (UserTokenPolicy[])ExtensionObject.ToArray(dv.Value, typeof(UserTokenPolicy));
+                UserTokenPolicy selectedPolicy = null;
+
+                if (policies != null)
+                {
+                    foreach (var serverPolicy in policies)
+                    {
+                        if (serverPolicy.IssuedTokenType == policy.IssuedTokenType)
+                        {
+                            selectedPolicy = serverPolicy;
+                            break;
+                        }
+                    }
+                }
+
+                if (selectedPolicy == null)
+                {
+                    // the authorization service does not support the requested policy.
+                    throw new NotSupportedException();
+                }
+
+                JwtEndpointParameters serverParameters = new JwtEndpointParameters();
+                serverParameters.FromJson(selectedPolicy.IssuerEndpointUrl);
+                UserIdentity identity = null;
+
+                // create the identity for authorization service.
+                if (serverParameters.AuthorityProfileUri == Profiles.AzureAuthorization)
+                {
+                    identity = GetTokenFromAzure(configuration, parameters.ResourceId, selectedPolicy, serverParameters);
+                }
+
+                if (identity == null)
+                {
+                    // token not received from Azure.
+                    throw new NotSupportedException();
+                }
+
+                // encrypt or sign the credentials.
+                var token = identity.GetIdentityToken();
+
+                token.Encrypt(
+                    new X509Certificate2(endpoint.ServerCertificate),
+                    endpoint.ServerCertificate,
+                    selectedPolicy.SecurityPolicyUri);
+
+                // find the RequestAccessToken method node.
+                session.Browse(
+                    null,
+                    null,
+                    nid,
+                    0,
+                    BrowseDirection.Forward,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    0,
+                    out continuationPoint,
+                    out references);
+
+                NodeId requestTokenNodeId = null;
+
+                if (references != null || references.Count > 0)
+                {
+                    foreach (var reference in references)
+                    {
+                        if (reference.BrowseName.Name == Opc.Ua.Gds.BrowseNames.RequestAccessToken)
+                        {
+                            requestTokenNodeId = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                            break;
+                        }
+                    }
+                }
+
+                var outputArguments = session.Call(
+                   nid,
+                   requestTokenNodeId,
+                   token,
+                   parameters.ResourceId);
+
+                // return the new access token.
+                var accessToken = outputArguments[0] as string;
+                JwtSecurityToken securityToken = new JwtSecurityToken(accessToken);
+                return new UserIdentity(securityToken) { PolicyId = policy.PolicyId };
+            }
+            finally
+            {
+                if (session != null)
+                {
+                    session.Close();
+                    session.Dispose();
+                    session = null;
+                }
+            }
+        }
+
+        private UserIdentity GetTokenFromAzure(ApplicationConfiguration configuration, string resourceId, UserTokenPolicy policy, JwtEndpointParameters parameters)
+        {
+            // find the client's information needed to connect to the Azure identity provider.
+            var credentials = OAuth2CredentialCollection.FindByAuthorityUrl(configuration, parameters.AuthorityUrl);
+
+            if (credentials == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError, "No OAuth2 configuration specified for the selected authority.");
+            }
+
+            credentials.AuthorizationEndpoint = parameters.AuthorizationEndpoint;
+            credentials.TokenEndpoint = parameters.TokenEndpoint;
+            credentials.ServerResourceId = parameters.ResourceId;
+
+            if (parameters.RequestTypes.Contains(Opc.Ua.JwtConstants.OAuth2AuthorizationCode))
+            {
+                var accessToken = new OAuth2CredentialsDialog().ShowDialog(credentials);
+
+                if (accessToken == null)
+                {
+                    return null;
+                }
+
+                var jwt = new JwtSecurityToken(accessToken.AccessToken);
+                return new UserIdentity(jwt) { PolicyId = policy.PolicyId };
+            }
+
+            return null;
+        }
+
+
         /// <summary>
         /// Creates a SAML token for the specified email address.
         /// </summary>
@@ -374,6 +609,7 @@ namespace Quickstarts.UserAuthenticationClient
             UserNameTAB.Enabled = false;
             CertificateTAB.Enabled = false;
             KerberosTAB.Enabled = false;
+            OAuth2TAB.Enabled = false;
 
             if (endpointDescription == null)
             {
@@ -417,6 +653,15 @@ namespace Quickstarts.UserAuthenticationClient
                         {
                             KerberosTAB.Tag = policy;
                             KerberosTAB.Enabled = true;
+                        }
+                    }
+
+                    if (!OAuth2TAB.Enabled)
+                    {
+                        if (policy.IssuedTokenType == Profiles.JwtUserToken)
+                        {
+                            OAuth2TAB.Tag = policy;
+                            OAuth2TAB.Enabled = true;
                         }
                     }
                 }
@@ -501,6 +746,36 @@ namespace Quickstarts.UserAuthenticationClient
                 
                 string[] preferredLocales = PreferredLocalesTB.Text.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 m_session.UpdateSession(new UserIdentity(new AnonymousIdentityToken()), preferredLocales);
+
+                MessageBox.Show("User identity changed.", "Impersonate User", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception exception)
+            {
+                ClientUtils.HandleException(this.Text, exception);
+            }
+            finally
+            {
+                m_session.ReturnDiagnostics = DiagnosticsMasks.None;
+            }
+        }
+
+        private void OAuth2ImpersonateBTN_Click(object sender, EventArgs e)
+        {
+            if (m_session == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // request the token.
+                IUserIdentity identity = GetOAuth2Token().Result;
+
+                // want to get error text for this call.
+                m_session.ReturnDiagnostics = DiagnosticsMasks.All;
+
+                string[] preferredLocales = PreferredLocalesTB.Text.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                m_session.UpdateSession(identity, preferredLocales);
 
                 MessageBox.Show("User identity changed.", "Impersonate User", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -643,6 +918,6 @@ namespace Quickstarts.UserAuthenticationClient
                 m_session.ReturnDiagnostics = DiagnosticsMasks.None;
             }
         }
-#endregion
+        #endregion
     }
 }

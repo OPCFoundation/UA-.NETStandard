@@ -980,6 +980,11 @@ namespace Opc.Ua
                     }
                 }
 
+                if (policy.IssuerEndpointUrl != null)
+                {
+                    policy.IssuerEndpointUrl = Utils.ReplaceLocalhost(policy.IssuerEndpointUrl);
+                }
+
                 policies.Add(policy);
             }
 

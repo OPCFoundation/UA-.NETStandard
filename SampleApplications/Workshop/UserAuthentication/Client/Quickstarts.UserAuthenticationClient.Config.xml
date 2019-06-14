@@ -63,6 +63,27 @@
   </ClientConfiguration>
 
   <Extensions>
+    <ua:XmlElement>
+      <!-- this is a list of OAuth2 servers which the client has been given access to. -->
+      <ListOfOAuth2Credential xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <!-- this is used to access the Azure OAuth2 service when an identity provider is used. -->
+        <OAuth2Credential>
+          <AuthorityUrl>https://login.microsoftonline.com/opcfoundationprototyping.onmicrosoft.com</AuthorityUrl>
+          <GrantType>authorization_code</GrantType>
+          <ClientId>f8b31779-d9a3-43ff-b854-28f27a52e2f2</ClientId>
+          <RedirectUrl>https://localhost:62540/prototypeclient</RedirectUrl>
+          <TokenEndpoint>/oauth2/token</TokenEndpoint>
+          <AuthorizationEndpoint>/oauth2/authorize</AuthorizationEndpoint>
+        </OAuth2Credential>
+        <!-- this is used to access the OPC UA authorization service -->
+        <OAuth2Credential>
+          <AuthorityUrl>opc.tcp://localhost:62565</AuthorityUrl>
+          <GrantType>client_credentials</GrantType>
+          <ClientId>authorizationService</ClientId>
+          <ClientSecret>appadmin</ClientSecret>
+        </OAuth2Credential>
+      </ListOfOAuth2Credential>
+    </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>

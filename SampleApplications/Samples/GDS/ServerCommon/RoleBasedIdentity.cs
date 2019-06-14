@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.IdentityModel.Tokens;
 using System.Xml;
 
 namespace Opc.Ua.Gds.Server
@@ -85,6 +86,11 @@ namespace Opc.Ua.Gds.Server
         public UserIdentityToken GetIdentityToken()
         {
             return m_identity.GetIdentityToken();
+        }
+
+        public SecurityToken GetSecurityToken()
+        {
+            return m_identity.GetSecurityToken();
         }
     }
 }
