@@ -700,8 +700,8 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(m_currentPublishingInterval*m_currentKeepAliveCount);   
-                                        
+                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
+
                     if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval+500) < DateTime.UtcNow)
                     {
                         return true;
@@ -846,13 +846,13 @@ namespace Opc.Ua.Client
                 m_lastNotificationTime = DateTime.MinValue;
             }
 
-            int keepAliveInterval = (int)(m_currentPublishingInterval*m_currentKeepAliveCount);       
-            
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+
             m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
 
             // send initial publish.
-            m_session.BeginPublish(keepAliveInterval*3);
+            m_session.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue /3)*3);
         }
 
         /// <summary>
