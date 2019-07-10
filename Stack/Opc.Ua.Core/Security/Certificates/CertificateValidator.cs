@@ -254,6 +254,7 @@ namespace Opc.Ua
                 {
                     case StatusCodes.BadCertificateHostNameInvalid:
                     case StatusCodes.BadCertificateIssuerRevocationUnknown:
+                    case StatusCodes.BadCertificateChainIncomplete:
                     case StatusCodes.BadCertificateIssuerTimeInvalid:
                     case StatusCodes.BadCertificateIssuerUseNotAllowed:
                     case StatusCodes.BadCertificateRevocationUnknown:
