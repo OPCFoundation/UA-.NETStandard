@@ -1121,7 +1121,8 @@ namespace Opc.Ua.Client
             settings.OmitXmlDeclaration = false;
             settings.Encoding = Encoding.UTF8;
 
-            XmlWriter writer = XmlWriter.Create(new StringBuilder(filePath), settings);
+            FileStream stream = new FileStream(filePath, FileMode.Create);
+            XmlWriter writer = XmlWriter.Create(stream, settings);
 
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
 
@@ -1134,6 +1135,7 @@ namespace Opc.Ua.Client
             {
                 writer.Flush();
                 writer.Dispose();
+                stream.Dispose();
             }
         }
 
