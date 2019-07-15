@@ -1121,7 +1121,7 @@ namespace Opc.Ua.Client
             settings.OmitXmlDeclaration = false;
             settings.Encoding = Encoding.UTF8;
 
-            XmlWriter writer = XmlWriter.Create(new StringBuilder(filePath), settings);
+            XmlWriter writer = XmlWriter.Create(filePath, settings);
 
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
 
