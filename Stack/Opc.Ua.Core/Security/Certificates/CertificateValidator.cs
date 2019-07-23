@@ -270,6 +270,10 @@ namespace Opc.Ua
 
                     default:
                         {
+                            // write the invalid certificate to rejected store if specified.
+                            Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                            SaveCertificate(certificate);
+
                             throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                         }
                 }
@@ -290,17 +294,9 @@ namespace Opc.Ua
                 // throw if rejected.
                 if (!accept)
                 {
-                    // write the invalid certificate to a directory if specified.
-                    lock (m_lock)
-                    {
-                        Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
-
-                        if (m_rejectedCertificateStore != null)
-                        {
-                            Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
-                            SaveCertificate(certificate);
-                        }
-                    }
+                    // write the invalid certificate to rejected store if specified.
+                    Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                    SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
@@ -314,27 +310,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Saves the certificate in the invalid certificate directory.
+        /// Saves the certificate in the rejected certificate store.
         /// </summary>
         private void SaveCertificate(X509Certificate2 certificate)
         {
-            try
+            lock (m_lock)
             {
-                ICertificateStore store = m_rejectedCertificateStore.OpenStore();
+                if (m_rejectedCertificateStore != null)
+                {
+                    Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                    try
+                    {
+                        ICertificateStore store = m_rejectedCertificateStore.OpenStore();
 
-                try
-                {
-                    store.Delete(certificate.Thumbprint);
-                    store.Add(certificate);
+                        try
+                        {
+                            store.Delete(certificate.Thumbprint);
+                            store.Add(certificate);
+                        }
+                        finally
+                        {
+                            store.Close();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                    }
                 }
-                finally
-                {
-                    store.Close();
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
             }
         }
 
