@@ -1719,7 +1719,14 @@ namespace Opc.Ua.Client
 
                         if (value != null)
                         {
-                            dataTypeNode.DataTypeDefinition = new ExtensionObject(attributes[Attributes.DataTypeDefinition].Value);
+                            ExtensionObject extensionObject = value.Value as ExtensionObject;
+
+                            if(extensionObject == null)
+                            {
+                                extensionObject = new ExtensionObject(value.Value);
+                            }
+                            
+                            dataTypeNode.DataTypeDefinition = extensionObject;
                         }
 
                         node = dataTypeNode;
