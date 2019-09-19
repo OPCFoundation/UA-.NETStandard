@@ -2770,7 +2770,7 @@ namespace Opc.Ua.Client
 
             ResponseHeader responseHeader = Read(
                 null,
-                Int32.MaxValue,
+                0,
                 TimestampsToReturn.Both,
                 valuesToRead,
                 out results,
