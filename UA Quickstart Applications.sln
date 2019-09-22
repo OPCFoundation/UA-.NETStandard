@@ -105,6 +105,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Client Controls", "Sampl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "SampleApplications\Samples\ServerControls.Net4\UA Server Controls.csproj", "{80056988-44E7-4EF4-9F59-50BCF215CB03}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeightScaleServer", "SampleApplications\Workshop\Boiler\WeightScaleServer\WeightScaleServer.csproj", "{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -251,6 +253,10 @@ Global
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80056988-44E7-4EF4-9F59-50BCF215CB03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
