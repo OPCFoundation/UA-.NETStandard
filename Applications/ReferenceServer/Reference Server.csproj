@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -7,24 +7,36 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{D7601329-530D-4537-B9B9-D9D53D5F81F6}</ProjectGuid>
+    <ProjectGuid>{42EF4F25-29BF-4AB7-B403-8523694A3B36}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Opc.Ua.Sample</RootNamespace>
-    <AssemblyName>Opc.Ua.SampleClient</AssemblyName>
+    <RootNamespace>Quickstarts.ReferenceServer</RootNamespace>
+    <AssemblyName>Quickstarts.ReferenceServer</AssemblyName>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
     <ApplicationIcon>App.ico</ApplicationIcon>
-    <StartupObject>Opc.Ua.Sample.Program</StartupObject>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
-    <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
-    <SignAssembly>false</SignAssembly>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <OldToolsVersion>3.5</OldToolsVersion>
     <TargetFrameworkProfile />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,7 +47,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -46,37 +57,45 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.configuration" />
-    <Reference Include="System.Configuration.Install" />
-    <Reference Include="System.Core">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
     <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
     <Reference Include="System.Drawing" />
-    <Reference Include="System.IdentityModel">
-      <RequiredTargetFramework>3.0</RequiredTargetFramework>
-    </Reference>
+    <Reference Include="System.IdentityModel" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CustomTransportChannel.cs" />
+    <Compile Include="MonitoredItemEventLogDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MonitoredItemEventLogDlg.Designer.cs">
+      <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ReferenceServerConfiguration.cs" />
+    <Compile Include="ReferenceNodeManager.cs" />
+    <Compile Include="ReferenceServer.cs" />
+    <Compile Include="Namespaces.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReferenceServerUtils.cs" />
+    <Content Include="Resources\OPCFoundation.jpg" />
+    <EmbeddedResource Include="MonitoredItemEventLogDlg.resx">
+      <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
@@ -85,85 +104,63 @@
     <Content Include="App.config">
       <SubType>Designer</SubType>
     </Content>
-    <EmbeddedResource Include="SampleClientForm.resx">
-      <DependentUpon>SampleClientForm.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
     <EmbeddedResource Include="App.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="Opc.Ua.SampleClient.Config.xml">
+    <Content Include="Quickstarts.ReferenceServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </Content>
-    <Content Include="Opc.Ua.SampleClient.Endpoints.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Properties\Settings.settings">
+    <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </Content>
+    </None>
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="SampleClientForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="SampleClientForm.Designer.cs">
-      <DependentUpon>SampleClientForm.cs</DependentUpon>
-    </Compile>
+    <None Include="Readme.md" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
-      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{4569aaa2-710b-4e8b-a4c6-f917777814da}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
-      <Project>{fe9eeb39-0698-4a19-b770-e66836ce0002}</Project>
-      <Name>Opc.Ua.Client.ComplexTypes</Name>
+    <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
+      <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
+      <Name>UA Server Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
-      <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>
-      <Name>Opc.Ua.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
-      <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{de6b7d4f-e566-45cb-a876-086e5cd50fb0}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj">
-      <Project>{6c449a1e-244e-4515-9949-a7e22012537c}</Project>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj">
+      <Project>{a2f587fd-5140-478b-8a0e-8417f8a38548}</Project>
       <Name>Opc.Ua.Server</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
-      <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
-      <Name>UA Client Controls</Name>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Controls.Net4\UA Sample Controls.csproj">
-      <Project>{92AE819B-4938-4502-AC32-67063F9893CD}</Project>
-      <Name>UA Sample Controls</Name>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Opc.Ua.Sample\Opc.Ua.Sample.csproj">
-      <Project>{bcb915b6-b5c3-45bc-9c8b-f43008df0c14}</Project>
-      <Name>Opc.Ua.Sample</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="app.manifest" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="System.Net.Http">
-      <Version>4.3.3</Version>
-    </PackageReference>
   </ItemGroup>
   <PropertyGroup>
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
     <BaseNuGetRuntimeIdentifier>win7-x64</BaseNuGetRuntimeIdentifier>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
@@ -171,10 +168,4 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
-    <PreBuildEvent>
-    </PreBuildEvent>
-  </PropertyGroup>
 </Project>
