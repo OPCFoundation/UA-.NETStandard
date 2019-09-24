@@ -78,6 +78,9 @@
     <Compile Include="Opc.Ua.Di.Classes.cs" />
     <Compile Include="Opc.Ua.Di.Constants.cs" />
     <Compile Include="Opc.Ua.Di.DataTypes.cs" />
+    <Compile Include="Opc.Ua.Ws.Classes.cs" />
+    <Compile Include="Opc.Ua.Ws.Constants.cs" />
+    <Compile Include="Opc.Ua.Ws.DataTypes.cs" />
     <Compile Include="WeightScaleServerConfiguration.cs" />
     <Compile Include="WeightScaleNodeManager.cs" />
     <Compile Include="WeightScaleServer.cs" />
@@ -105,6 +108,7 @@
     </Content>
     <Content Include="BuildDesign.bat" />
     <EmbeddedResource Include="Opc.Ua.Di.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Opc.Ua.Ws.PredefinedNodes.uanodes" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

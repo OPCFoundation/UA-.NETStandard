@@ -51,7 +51,7 @@ namespace Quickstarts.WeightScale.Server
         /// </summary>
         public WeightScaleNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         :
-            base(server, configuration, Opc.Ua.Di.Namespaces.OpcUaDi)
+            base(server, configuration, Opc.Ua.Ws.Namespaces.OpcUaDi, Opc.Ua.Ws.Namespaces.OpcUaWs)
         {
             SystemContext.NodeIdFactory = this;
 
@@ -107,10 +107,24 @@ namespace Quickstarts.WeightScale.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context,
-                "Quickstarts.WeightScale.Server.Opc.Ua.Di.PredefinedNodes.uanodes",
+
+            NodeStateCollection tmp = new NodeStateCollection();
+
+            tmp.LoadFromBinaryResource(context,
+            "Quickstarts.WeightScale.Server.Opc.Ua.Di.PredefinedNodes.uanodes",
+            typeof(WeightScaleNodeManager).GetTypeInfo().Assembly,
+            true);
+
+            tmp.ForEach((ns) => predefinedNodes.Add(ns));
+            
+            tmp.LoadFromBinaryResource(context,
+                "Quickstarts.WeightScale.Server.Opc.Ua.Ws.PredefinedNodes.uanodes",
                 typeof(WeightScaleNodeManager).GetTypeInfo().Assembly, 
                 true);
+
+            tmp.ForEach((ns) => predefinedNodes.Add(ns));
+            
+
             return predefinedNodes;
         }
         #endregion
