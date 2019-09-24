@@ -8,8 +8,8 @@
     <ProjectGuid>{CFB15271-EEFA-4C7E-AE96-BDCEEDC24B6B}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Quickstarts.Boiler.Server</RootNamespace>
-    <AssemblyName>Quickstarts.BoilerServer</AssemblyName>
+    <RootNamespace>Quickstarts.WeightScale.Server</RootNamespace>
+    <AssemblyName>Quickstarts.WeightScaleServer</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationIcon>App.ico</ApplicationIcon>
@@ -75,9 +75,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BoilerServerConfiguration.cs" />
-    <Compile Include="BoilerNodeManager.cs" />
-    <Compile Include="BoilerServer.cs" />
+    <Compile Include="Opc.Ua.Di.Classes.cs" />
+    <Compile Include="Opc.Ua.Di.Constants.cs" />
+    <Compile Include="Opc.Ua.Di.DataTypes.cs" />
+    <Compile Include="WeightScaleServerConfiguration.cs" />
+    <Compile Include="WeightScaleNodeManager.cs" />
+    <Compile Include="WeightScaleServer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -96,24 +99,21 @@
     </EmbeddedResource>
     <Content Include="ModelDesign.csv" />
     <Content Include="ModelDesign.xml" />
-    <Content Include="BoilerServer.Config.xml">
+    <Content Include="WeightScaleServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </Content>
     <Content Include="BuildDesign.bat" />
+    <EmbeddedResource Include="Opc.Ua.Di.PredefinedNodes.uanodes" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-    <EmbeddedResource Include="Quickstarts.Boiler.PredefinedNodes.uanodes" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="Quickstarts.Boiler.Classes.cs" />
-    <Compile Include="Quickstarts.Boiler.Constants.cs" />
-    <Compile Include="Quickstarts.Boiler.DataTypes.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

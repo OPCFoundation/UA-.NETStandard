@@ -33,19 +33,19 @@ using System.Runtime.Serialization;
 using System.Collections.Generic;
 using Opc.Ua.Server;
 
-namespace Quickstarts.Boiler.Server
+namespace Quickstarts.WeightScale.Server
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace=Namespaces.Boiler)]
-    public class BoilerServerConfiguration
+    [DataContract(Namespace=Opc.Ua.Di.Namespaces.OpcUaDi)]
+    public class WeightScaleServerConfiguration
     {
         #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public BoilerServerConfiguration()
+        public WeightScaleServerConfiguration()
         {
             Initialize();
         }
