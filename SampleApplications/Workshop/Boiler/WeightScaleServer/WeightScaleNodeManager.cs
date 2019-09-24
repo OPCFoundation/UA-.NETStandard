@@ -38,36 +38,36 @@ using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 
-namespace Quickstarts.Boiler.Server
+namespace Quickstarts.WeightScale.Server
 {
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class BoilerNodeManager : CustomNodeManager2
+    public class WeightScaleNodeManager : CustomNodeManager2
     {
         #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public BoilerNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        public WeightScaleNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         :
-            base(server, configuration)
+            base(server, configuration, Opc.Ua.Di.Namespaces.OpcUaDi)
         {
             SystemContext.NodeIdFactory = this;
 
-            // set one namespace for the type model and one names for dynamically created nodes.
-            string[] namespaceUrls = new string[2];
-            namespaceUrls[0] = Namespaces.Boiler;
-            namespaceUrls[1] = Namespaces.Boiler + "/Instance";
-            SetNamespaces(namespaceUrls);
+            //// set one namespace for the type model and one names for dynamically created nodes.
+            //string[] namespaceUrls = new string[2];
+            //namespaceUrls[0] = Namespaces.Boiler;
+            //namespaceUrls[1] = Namespaces.Boiler + "/Instance";
+            //SetNamespaces(namespaceUrls);
 
             // get the configuration for the node manager.
-            m_configuration = configuration.ParseExtension<BoilerServerConfiguration>();
+            m_configuration = configuration.ParseExtension<WeightScaleServerConfiguration>();
 
             // use suitable defaults if no configuration exists.
             if (m_configuration == null)
             {
-                m_configuration = new BoilerServerConfiguration();
+                m_configuration = new WeightScaleServerConfiguration();
             }
         }
         #endregion
@@ -107,9 +107,9 @@ namespace Quickstarts.Boiler.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, 
-                "Quickstarts.Boiler.Server.Quickstarts.Boiler.PredefinedNodes.uanodes",
-                typeof(BoilerNodeManager).GetTypeInfo().Assembly, 
+            predefinedNodes.LoadFromBinaryResource(context,
+                "Quickstarts.WeightScale.Server.Opc.Ua.Di.PredefinedNodes.uanodes",
+                typeof(WeightScaleNodeManager).GetTypeInfo().Assembly, 
                 true);
             return predefinedNodes;
         }
@@ -131,25 +131,25 @@ namespace Quickstarts.Boiler.Server
                 LoadPredefinedNodes(SystemContext, externalReferences);
                 
                 // find the untyped Boiler1 node that was created when the model was loaded.
-                BaseObjectState passiveNode = (BaseObjectState)FindPredefinedNode(new NodeId(Objects.Boiler1, NamespaceIndexes[0]), typeof(BaseObjectState));
+                //BaseObjectState passiveNode = (BaseObjectState)FindPredefinedNode(new NodeId(Objects.Boiler1, NamespaceIndexes[0]), typeof(BaseObjectState));
 
-                // convert the untyped node to a typed node that can be manipulated within the server.
-                m_boiler1 = new BoilerState(null);
-                m_boiler1.Create(SystemContext, passiveNode);
+                //// convert the untyped node to a typed node that can be manipulated within the server.
+                //m_boiler1 = new BoilerState(null);
+                //m_boiler1.Create(SystemContext, passiveNode);
 
-                // replaces the untyped predefined nodes with their strongly typed versions.
-                AddPredefinedNode(SystemContext, m_boiler1);
+                //// replaces the untyped predefined nodes with their strongly typed versions.
+                //AddPredefinedNode(SystemContext, m_boiler1);
 
-                // create a boiler node.
-                m_boiler2 = new BoilerState(null);
+                //// create a boiler node.
+                //m_boiler2 = new BoilerState(null);
 
-                // initialize it from the type model and assign unique node ids.
-                m_boiler2.Create(
-                    SystemContext,
-                    null,
-                    new QualifiedName("Boiler #2", NamespaceIndexes[1]),
-                    null,
-                    true);
+                //// initialize it from the type model and assign unique node ids.
+                //m_boiler2.Create(
+                //    SystemContext,
+                //    null,
+                //    new QualifiedName("Boiler #2", NamespaceIndexes[1]),
+                //    null,
+                //    true);
 
                 // link root to objects folder.
                 IList<IReference> references = null;
@@ -159,13 +159,13 @@ namespace Quickstarts.Boiler.Server
                     externalReferences[Opc.Ua.ObjectIds.ObjectsFolder] = references = new List<IReference>();
                 }
 
-                references.Add(new NodeStateReference(Opc.Ua.ReferenceTypeIds.Organizes, false, m_boiler2.NodeId));
+                //references.Add(new NodeStateReference(Opc.Ua.ReferenceTypeIds.Organizes, false, m_boiler2.NodeId));
 
-                // store it and all of its children in the pre-defined nodes dictionary for easy look up.
-                AddPredefinedNode(SystemContext, m_boiler2);
+                //// store it and all of its children in the pre-defined nodes dictionary for easy look up.
+                //AddPredefinedNode(SystemContext, m_boiler2);
 
-                // start a simulation that changes the values of the nodes.
-                m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
+                //// start a simulation that changes the values of the nodes.
+                //m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
             }
         }
 
@@ -249,15 +249,15 @@ namespace Quickstarts.Boiler.Server
         {
             try
             {
-                double value1 = m_boiler1.Drum.LevelIndicator.Output.Value;
-                value1 = ((int)(++value1))%100;
-                m_boiler1.Drum.LevelIndicator.Output.Value = value1;
-                m_boiler1.ClearChangeMasks(SystemContext, true);
+                //double value1 = m_boiler1.Drum.LevelIndicator.Output.Value;
+                //value1 = ((int)(++value1))%100;
+                //m_boiler1.Drum.LevelIndicator.Output.Value = value1;
+                //m_boiler1.ClearChangeMasks(SystemContext, true);
                 
-                double value2 = m_boiler2.Drum.LevelIndicator.Output.Value;
-                value2 = ((int)(++value2))%20;
-                m_boiler2.Drum.LevelIndicator.Output.Value = value2;
-                m_boiler2.ClearChangeMasks(SystemContext, true);
+                //double value2 = m_boiler2.Drum.LevelIndicator.Output.Value;
+                //value2 = ((int)(++value2))%20;
+                //m_boiler2.Drum.LevelIndicator.Output.Value = value2;
+                //m_boiler2.ClearChangeMasks(SystemContext, true);
             }
             catch (Exception e)
             {
@@ -267,9 +267,9 @@ namespace Quickstarts.Boiler.Server
         #endregion
 
         #region Private Fields
-        private BoilerServerConfiguration m_configuration;
-        private BoilerState m_boiler1;
-        private BoilerState m_boiler2;
+        private WeightScaleServerConfiguration m_configuration;
+        //private BoilerState m_boiler1;
+        //private BoilerState m_boiler2;
         private uint m_nodeIdCounter;
         private Timer m_simulationTimer;
         #endregion

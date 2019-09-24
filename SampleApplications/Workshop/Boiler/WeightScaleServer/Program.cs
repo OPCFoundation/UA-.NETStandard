@@ -36,7 +36,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Controls;
 
-namespace Quickstarts.Boiler.Server
+namespace Quickstarts.WeightScale.Server
 {
     static class Program
     {
@@ -53,7 +53,7 @@ namespace Quickstarts.Boiler.Server
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Server;
-            application.ConfigSectionName = "BoilerServer";
+            application.ConfigSectionName = "WeightScaleServer";
 
             try
             {
@@ -66,7 +66,7 @@ namespace Quickstarts.Boiler.Server
                 // check if running as a service.
                 if (!Environment.UserInteractive)
                 {
-                    application.StartAsService(new BoilerServer());
+                    application.StartAsService(new WeightScaleServer());
                     return;
                 }
 
@@ -77,7 +77,7 @@ namespace Quickstarts.Boiler.Server
                 application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
-                application.Start(new BoilerServer()).Wait();
+                application.Start(new WeightScaleServer()).Wait();
 
                 // run the application interactively.
                 Application.Run(new Opc.Ua.Server.Controls.ServerForm(application));
@@ -91,7 +91,7 @@ namespace Quickstarts.Boiler.Server
     }
 
     /// <summary>
-    /// The <b>BoilerServer</b> namespace contains classes which implement a Quickstart Server.
+    /// The <b>WeightScaleServer</b> namespace contains classes which implement a Quickstart Server.
     /// </summary>
     /// <exclude/>
     [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]

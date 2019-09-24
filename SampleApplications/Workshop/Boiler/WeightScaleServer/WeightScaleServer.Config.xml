@@ -2,11 +2,15 @@
 <ApplicationConfiguration
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:OpcUa="http://opcfoundation.org/UA/"
+  xmlns:DI="http://opcfoundation.org/UA/DI/"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  TargetNamespace="http://opcfoundation.org/UA/DI/"
+  TargetXmlNamespace="http://opcfoundation.org/UA/DI/"
 >
-  <ApplicationName>Quickstart InformationModel Server</ApplicationName>
-  <ApplicationUri>urn:localhost:UA:InformationModelServer</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UA/InformationModelServer</ProductUri>
+  <ApplicationName>Quickstart WeightScale Server</ApplicationName>
+  <ApplicationUri>urn:localhost:UA:WeightScaleServer</ApplicationUri>
+  <ProductUri>http://phi-ware.com/UA/WeightScaleServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
   
   <SecurityConfiguration>
@@ -15,7 +19,7 @@
     <ApplicationCertificate>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\own</StorePath>
-      <SubjectName>CN=Quickstart InformationModel Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=Quickstart WeightScale Server, C=US, S=Arizona, O=phi-ware, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -128,18 +132,18 @@
       </SamplingRateGroup>
     </AvailableSamplingRates>
     <MaxRegistrationInterval>30000</MaxRegistrationInterval>
-    <NodeManagerSaveFile>Quickstarts.BoilerServer.nodes.xml</NodeManagerSaveFile>
+    <NodeManagerSaveFile>Quickstarts.WeightScaleServer.nodes.xml</NodeManagerSaveFile>
   </ServerConfiguration>
 
   <Extensions>
     <ua:XmlElement>
-      <BoilerServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/Boiler">
-      </BoilerServerConfiguration>
+      <WeightScaleServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/WeightScale">
+      </WeightScaleServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.BoilerServer.log.txt</OutputFilePath>
+    <OutputFilePath>Logs\Quickstarts.WeightScaleServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
