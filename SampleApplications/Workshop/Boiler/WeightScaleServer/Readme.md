@@ -12,3 +12,5 @@ in base constructor wiht _Opc.Ua.Di.Namespaces.OpcUaDi_
 ...
 }
 ```
+
+Check [Is there any solution to import nodeset xml file to opc ua server in C#? #546](https://github.com/OPCFoundation/UA-.NETStandard/issues/546)
