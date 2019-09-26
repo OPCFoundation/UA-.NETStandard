@@ -158,9 +158,24 @@ namespace Opc.Ua.Bindings
             // wait for completion.
             if (mustWait)
             {
-                if (!m_event.WaitOne(timeout) && throwOnError)
+                try
                 {
-                    throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
+                    if (!m_event.WaitOne(timeout) && throwOnError)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
+                    }
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        // Dispose the event 
+                        if (m_event != null)
+                        {
+                            m_event.Dispose();
+                            m_event = null;
+                        }
+                    }
                 }
             }
 
