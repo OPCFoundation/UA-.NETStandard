@@ -410,7 +410,7 @@ namespace Opc.Ua
             }
 
             // trace message.
-            Trace((int)TraceMasks.Error, message.ToString(), handled, null);
+            Trace(e, (int)TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
@@ -426,9 +426,17 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, bool handled, params object[] args)
         {
+            Trace(null, traceMask, format, handled, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, int traceMask, string format, bool handled, params object[] args)
+        {
             if (!handled)
             {
-                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, null, args));
+                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e, args));
             }
 
             // do nothing if mask not enabled.
