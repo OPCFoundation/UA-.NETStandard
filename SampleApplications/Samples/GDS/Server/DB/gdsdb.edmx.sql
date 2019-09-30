@@ -61,7 +61,7 @@ GO
 CREATE TABLE [dbo].[ApplicationNames] (
     [ID] int IDENTITY(1,1) NOT NULL,
     [ApplicationId] int  NOT NULL,
-    [Locale] nvarchar(10)  NOT NULL,
+    [Locale] nvarchar(10)  NULL,
     [Text] nvarchar(500)  NOT NULL
 );
 GO
