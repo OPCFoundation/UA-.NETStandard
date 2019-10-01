@@ -102,6 +102,7 @@
     </EmbeddedResource>
     <Content Include="ModelDesign.csv" />
     <Content Include="ModelDesign.xml" />
+    <Content Include="namespacesfiles.PNG" />
     <Content Include="WeightScaleServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
