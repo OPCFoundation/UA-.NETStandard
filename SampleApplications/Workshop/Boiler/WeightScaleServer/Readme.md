@@ -1,4 +1,6 @@
-﻿# WeightScaleServer
+# WeightScaleServer
+[Slovak version available here...](readme-SK.md)
+
 Is based on Boiler Server. The purpose of this project is to enable custom _information model_ based on DI companion specification.
 The DI information model is based on [OPCFoundation/UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset) v1.04, because the current NETStandard stack is using same version.
 ## Loading DI namespace
