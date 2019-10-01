@@ -11,7 +11,7 @@ Súbory popisujúce menné priestory sú tieto:
 
 Vo vlastnostiach súborov s príponou _.uanodes_ treba nastaviť **Build Action = [Embedded Resource](https://docs.microsoft.com/en-us/visualstudio/ide/build-actions?view=vs-2019)**.
 
-Tieto súbory obsahujú predefinované uzly, ktoré je treba pridať do adresného priestoru servera pomocou metódy **LoadPredefinedNodes** v [WeightScaleNodeManager.cs](SampleApplications/Workshop/Boiler/WeightScaleServer/WeightScaleNodeManager.cs):
+Tieto súbory obsahujú predefinované uzly, ktoré je treba pridať do adresného priestoru servera pomocou metódy **LoadPredefinedNodes** v [WeightScaleNodeManager.cs](WeightScaleNodeManager.cs):
 
 ```
 protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
@@ -40,7 +40,7 @@ protected override NodeStateCollection LoadPredefinedNodes(ISystemContext contex
 ```
 Súbory _.uanodes_ taktiež obsahujú informáciu o tom, do ktoréhe menného priestoru patria predefinované uzly. Na to aby predefinované uzly bolo zobrazené v adresnom priestore je treba do adresného priestoru pridať menné priestory DI a WS. 
 
-Názovy menných priestorov sú zadefinované v súboroch [Opc.Ua.Di.Constants.cs](SampleApplications/Workshop/Boiler/WeightScaleServer/Opc.Ua.Di.Constants.cs) a [Opc.Ua.Ws.Constants.cs](SampleApplications/Workshop/Boiler/WeightScaleServer/Opc.Ua.Ws.Constants.cs) ako:
+Názovy menných priestorov sú zadefinované v súboroch [Opc.Ua.Di.Constants.cs](Opc.Ua.Di.Constants.cs) a [Opc.Ua.Ws.Constants.cs](Opc.Ua.Ws.Constants.cs) ako:
 
 ```
 /// </summary>
@@ -50,7 +50,7 @@ public const string OpcUaDi = "http://opcfoundation.org/UA/DI/";
 public const string OpcUaWs = "http://phi-ware.com/FEISTU/WS/";
 ```
 
-Pridanie menných prestorov do adresného priestoru sa deje v konštruktory triedy [**WeightScaleNodeManager**](SampleApplications/Workshop/Boiler/WeightScaleServer/WeightScaleNodeManager.cs):
+Pridanie menných prestorov do adresného priestoru sa deje v konštruktory triedy [**WeightScaleNodeManager**](WeightScaleNodeManager.cs):
 
 ```
 public WeightScaleNodeManager(IServerInternal server, ApplicationConfiguration configuration)
