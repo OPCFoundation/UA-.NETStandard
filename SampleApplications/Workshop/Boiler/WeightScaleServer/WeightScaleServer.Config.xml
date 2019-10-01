@@ -55,8 +55,8 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>https://localhost:62566/Quickstarts/BoilerServer</ua:String>
-      <ua:String>opc.tcp://localhost:62567/Quickstarts/BoilerServer</ua:String>
+      <ua:String>https://localhost:62566/Quickstarts/WeightScaleServer</ua:String>
+      <ua:String>opc.tcp://localhost:62567/Quickstarts/WeightScaleServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>

@@ -103,6 +103,8 @@
     <Content Include="ModelDesign.csv" />
     <Content Include="ModelDesign.xml" />
     <Content Include="namespacesfiles.PNG" />
+    <Content Include="OPCUAServer.PNG" />
+    <Content Include="UAExpert.PNG" />
     <Content Include="WeightScaleServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
