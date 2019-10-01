@@ -2110,7 +2110,7 @@ namespace Opc.Ua.Client
             X509Certificate2 serverCertificate = null;
             byte[] certificateData = m_endpoint.Description.ServerCertificate;
 
-            if (certificateData != null && certificateData.Length > 0 && requireEncryption)
+            if (certificateData != null && certificateData.Length > 0)
             {
                 X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
 
@@ -2119,14 +2119,17 @@ namespace Opc.Ua.Client
                     serverCertificate = serverCertificateChain[0];
                 }
 
-                m_configuration.CertificateValidator.Validate(serverCertificateChain);
-
-                if (checkDomain)
+                if (requireEncryption)
                 {
-                    CheckCertificateDomain(m_endpoint);
+                    m_configuration.CertificateValidator.Validate(serverCertificateChain);
+
+                    if (checkDomain)
+                    {
+                        CheckCertificateDomain(m_endpoint);
+                    }
+                    // save for reconnect
+                    m_checkDomain = checkDomain;
                 }
-                // save for reconnect
-                m_checkDomain = checkDomain;
             }
 
             // create a nonce.
