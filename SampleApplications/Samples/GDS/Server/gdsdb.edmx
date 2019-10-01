@@ -38,7 +38,7 @@
     </Key>
     <Property Name="ID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
     <Property Name="ApplicationId" Type="int" Nullable="false" />
-    <Property Name="Locale" Type="nvarchar" Nullable="false" MaxLength="10" />
+    <Property Name="Locale" Type="nvarchar" Nullable="true" MaxLength="10" />
     <Property Name="Text" Type="nvarchar" Nullable="false" MaxLength="500" />
   </EntityType>
   <EntityType Name="ServerEndpoints">
@@ -193,7 +193,7 @@
           </Key>
           <Property Name="ID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" />
           <Property Name="ApplicationId" Type="Int32" Nullable="false" />
-          <Property Name="Locale" Type="String" Nullable="false" MaxLength="10" Unicode="true" FixedLength="false" />
+          <Property Name="Locale" Type="String" Nullable="true" MaxLength="10" Unicode="true" FixedLength="false" />
           <Property Name="Text" Type="String" Nullable="false" MaxLength="500" Unicode="true" FixedLength="false" />
           <NavigationProperty Name="Application" Relationship="gdsdbModel.FK_ApplicationNames_ApplicationId" FromRole="ApplicationName" ToRole="Application" />
         </EntityType>
