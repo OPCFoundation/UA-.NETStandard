@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Client.Controls
 
             DiscoveryClient client = DiscoveryClient.Create(
                 discoveryUrl,
-                endpointConfiguration,
+                EndpointConfiguration.Create(m_configuration),
                 m_configuration);
 
             try

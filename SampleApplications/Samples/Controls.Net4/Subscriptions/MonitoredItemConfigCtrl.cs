@@ -198,17 +198,10 @@ namespace Opc.Ua.Sample.Controls
 
             if (parents.Count > 0)
             {
-                NodeId modellingRule = node.ModellingRule;
-                
                 bool followToType = false;
-
-                if (modellingRule == Objects.ModellingRule_MandatoryShared)
-                {
-                    followToType = true;
-                }
                 
                 foreach (IReference parentReference in parents)
-                {                    
+                {
                     Node parent = m_subscription.Session.NodeCache.Find(parentReference.TargetId) as Node;
 
                     if (followToType)

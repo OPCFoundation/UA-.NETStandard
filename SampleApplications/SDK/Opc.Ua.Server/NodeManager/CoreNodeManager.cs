@@ -1921,12 +1921,6 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // always use the declaration node.
-                else if (modellingRule == Objects.ModellingRule_MandatoryShared)
-                {                            
-                    newInstance = instanceDeclaration;
-                }
-
                 // ignore any unknown modelling rules.
                 else
                 {

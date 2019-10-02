@@ -119,8 +119,8 @@
     <opc:Documentation>A recursive structure containing diagnostic information associated with a status code.</opc:Documentation>
     <opc:Field Name="SymbolicIdSpecified" TypeName="opc:Bit" />
     <opc:Field Name="NamespaceURISpecified" TypeName="opc:Bit" />
-    <opc:Field Name="LocaleSpecified" TypeName="opc:Bit" />
     <opc:Field Name="LocalizedTextSpecified" TypeName="opc:Bit" />
+    <opc:Field Name="LocaleSpecified" TypeName="opc:Bit" />
     <opc:Field Name="AdditionalInfoSpecified" TypeName="opc:Bit" />
     <opc:Field Name="InnerStatusCodeSpecified" TypeName="opc:Bit" />
     <opc:Field Name="InnerDiagnosticInfoSpecified" TypeName="opc:Bit" />
@@ -154,8 +154,8 @@
     <opc:Field Name="ValueSpecified" TypeName="opc:Bit" />
     <opc:Field Name="StatusCodeSpecified" TypeName="opc:Bit" />
     <opc:Field Name="SourceTimestampSpecified" TypeName="opc:Bit" />
-    <opc:Field Name="SourcePicosecondsSpecified" TypeName="opc:Bit" />
     <opc:Field Name="ServerTimestampSpecified" TypeName="opc:Bit" />
+    <opc:Field Name="SourcePicosecondsSpecified" TypeName="opc:Bit" />
     <opc:Field Name="ServerPicosecondsSpecified" TypeName="opc:Bit" />
     <opc:Field Name="Reserved1" TypeName="opc:Bit" Length="2" />
     <opc:Field Name="Value" TypeName="ua:Variant" SwitchField="ValueSpecified" />
@@ -220,27 +220,21 @@
     
 
   <opc:OpaqueType Name="ImageBMP">
-    <opc:Documentation>An image encoded in BMP format.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="ImageGIF">
-    <opc:Documentation>An image encoded in GIF format.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="ImageJPG">
-    <opc:Documentation>An image encoded in JPEG format.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="ImagePNG">
-    <opc:Documentation>An image encoded in PNG format.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="AudioDataType">
-    <opc:Documentation>An image encoded in PNG format.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="BitFieldMaskDataType">
-    <opc:Documentation>A mask of 32 bits that can be updated individually by using the top 32 bits as a mask.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:StructuredType Name="KeyValuePair" BaseType="ua:ExtensionObject">
@@ -253,6 +247,46 @@
     <opc:Field Name="SecurityMode" TypeName="tns:MessageSecurityMode" />
     <opc:Field Name="SecurityPolicyUri" TypeName="opc:String" />
     <opc:Field Name="TransportProfileUri" TypeName="opc:String" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="RationalNumber" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Numerator" TypeName="opc:Int32" />
+    <opc:Field Name="Denominator" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="Vector" BaseType="ua:ExtensionObject">
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ThreeDVector" BaseType="tns:Vector">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="CartesianCoordinates" BaseType="ua:ExtensionObject">
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ThreeDCartesianCoordinates" BaseType="tns:CartesianCoordinates">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="Orientation" BaseType="ua:ExtensionObject">
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ThreeDOrientation" BaseType="tns:Orientation">
+    <opc:Field Name="A" TypeName="opc:Double" />
+    <opc:Field Name="B" TypeName="opc:Double" />
+    <opc:Field Name="C" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="Frame" BaseType="ua:ExtensionObject">
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ThreeDFrame" BaseType="tns:Frame">
+    <opc:Field Name="CartesianCoordinates" TypeName="tns:ThreeDCartesianCoordinates" />
+    <opc:Field Name="Orientation" TypeName="tns:ThreeDOrientation" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="OpenFileMode" LengthInBits="32">
@@ -775,7 +809,6 @@
   </opc:EnumeratedType>
 
   <opc:EnumeratedType Name="IdType" LengthInBits="32">
-    <opc:Documentation>The type of identifier used in a node id.</opc:Documentation>
     <opc:EnumeratedValue Name="Numeric" Value="0" />
     <opc:EnumeratedValue Name="String" Value="1" />
     <opc:EnumeratedValue Name="Guid" Value="2" />
@@ -783,7 +816,6 @@
   </opc:EnumeratedType>
 
   <opc:EnumeratedType Name="NodeClass" LengthInBits="32">
-    <opc:Documentation>A mask specifying the class of the node.</opc:Documentation>
     <opc:EnumeratedValue Name="Unspecified" Value="0" />
     <opc:EnumeratedValue Name="Object" Value="1" />
     <opc:EnumeratedValue Name="Variable" Value="2" />
@@ -848,6 +880,13 @@
     <opc:EnumeratedValue Name="HistoryWrite" Value="8" />
   </opc:EnumeratedType>
 
+  <opc:EnumeratedType Name="AccessRestrictionType" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="SigningRequired" Value="1" />
+    <opc:EnumeratedValue Name="EncryptionRequired" Value="2" />
+    <opc:EnumeratedValue Name="SessionRequired" Value="4" />
+  </opc:EnumeratedType>
+
   <opc:StructuredType Name="RolePermissionType" BaseType="ua:ExtensionObject">
     <opc:Field Name="RoleId" TypeName="ua:NodeId" />
     <opc:Field Name="Permissions" TypeName="tns:PermissionType" />
@@ -884,7 +923,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="Node" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Specifies the attributes which belong to all nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" />
@@ -936,7 +974,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ObjectNode" BaseType="tns:InstanceNode">
-    <opc:Documentation>Specifies the attributes which belong to object nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -955,7 +992,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ObjectTypeNode" BaseType="tns:TypeNode">
-    <opc:Documentation>Specifies the attributes which belong to object type nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -974,7 +1010,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="VariableNode" BaseType="tns:InstanceNode">
-    <opc:Documentation>Specifies the attributes which belong to variable nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -1002,7 +1037,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="VariableTypeNode" BaseType="tns:TypeNode">
-    <opc:Documentation>Specifies the attributes which belong to variable type nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -1026,7 +1060,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ReferenceTypeNode" BaseType="tns:TypeNode">
-    <opc:Documentation>Specifies the attributes which belong to reference type nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -1047,7 +1080,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="MethodNode" BaseType="tns:InstanceNode">
-    <opc:Documentation>Specifies the attributes which belong to method nodes.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" SourceType="tns:Node" />
     <opc:Field Name="NodeClass" TypeName="tns:NodeClass" SourceType="tns:Node" />
     <opc:Field Name="BrowseName" TypeName="ua:QualifiedName" SourceType="tns:Node" />
@@ -1105,14 +1137,12 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ReferenceNode" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Specifies a reference which belongs to a node.</opc:Documentation>
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="IsInverse" TypeName="opc:Boolean" />
     <opc:Field Name="TargetId" TypeName="ua:ExpandedNodeId" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="Argument" BaseType="ua:ExtensionObject">
-    <opc:Documentation>An argument for a method.</opc:Documentation>
     <opc:Field Name="Name" TypeName="opc:String" />
     <opc:Field Name="DataType" TypeName="ua:NodeId" />
     <opc:Field Name="ValueRank" TypeName="opc:Int32" />
@@ -1122,7 +1152,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="EnumValueType" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A mapping between a value of an enumerated type and a name and description.</opc:Documentation>
     <opc:Field Name="Value" TypeName="opc:Int64" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" />
@@ -1136,45 +1165,35 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="OptionSet" BaseType="ua:ExtensionObject">
-    <opc:Documentation>This abstract Structured DataType is the base DataType for all DataTypes representing a bit mask.</opc:Documentation>
     <opc:Field Name="Value" TypeName="opc:ByteString" />
     <opc:Field Name="ValidBits" TypeName="opc:ByteString" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="Union" BaseType="ua:ExtensionObject">
-    <opc:Documentation>This abstract DataType is the base DataType for all union DataTypes.</opc:Documentation>
   </opc:StructuredType>
 
   <opc:OpaqueType Name="NormalizedString">
-    <opc:Documentation>A string normalized based on the rules in the unicode specification.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="DecimalString">
-    <opc:Documentation>An arbitraty numeric value.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="DurationString">
-    <opc:Documentation>A period of time formatted as defined in ISO 8601-2000.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="TimeString">
-    <opc:Documentation>A time formatted as defined in ISO 8601-2000.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="DateString">
-    <opc:Documentation>A date formatted as defined in ISO 8601-2000.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="Duration">
-    <opc:Documentation>A period of time measured in milliseconds.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="UtcTime">
-    <opc:Documentation>A date/time value specified in Universal Coordinated Time (UTC).</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="LocaleId">
-    <opc:Documentation>An identifier for a user locale.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:StructuredType Name="TimeZoneDataType" BaseType="ua:ExtensionObject">
@@ -1183,15 +1202,12 @@
   </opc:StructuredType>
 
   <opc:OpaqueType Name="Index">
-    <opc:Documentation>This primitive data type is a UInt32 that identifies an element of an array.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="IntegerId">
-    <opc:Documentation>A numeric identifier for an object.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:EnumeratedType Name="ApplicationType" LengthInBits="32">
-    <opc:Documentation>The types of applications.</opc:Documentation>
     <opc:EnumeratedValue Name="Server" Value="0" />
     <opc:EnumeratedValue Name="Client" Value="1" />
     <opc:EnumeratedValue Name="ClientAndServer" Value="2" />
@@ -1199,7 +1215,6 @@
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="ApplicationDescription" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Describes an application and how to find it.</opc:Documentation>
     <opc:Field Name="ApplicationUri" TypeName="opc:String" />
     <opc:Field Name="ProductUri" TypeName="opc:String" />
     <opc:Field Name="ApplicationName" TypeName="ua:LocalizedText" />
@@ -1211,7 +1226,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="RequestHeader" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The header passed with every server request.</opc:Documentation>
     <opc:Field Name="AuthenticationToken" TypeName="ua:NodeId" />
     <opc:Field Name="Timestamp" TypeName="opc:DateTime" />
     <opc:Field Name="RequestHandle" TypeName="opc:UInt32" />
@@ -1222,7 +1236,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ResponseHeader" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The header passed with every server response.</opc:Documentation>
     <opc:Field Name="Timestamp" TypeName="opc:DateTime" />
     <opc:Field Name="RequestHandle" TypeName="opc:UInt32" />
     <opc:Field Name="ServiceResult" TypeName="ua:StatusCode" />
@@ -1236,7 +1249,6 @@
   </opc:OpaqueType>
 
   <opc:StructuredType Name="ServiceFault" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The response returned by all services when there is a service level error.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
   </opc:StructuredType>
 
@@ -1261,7 +1273,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="FindServersRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Finds the servers known to the discovery server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="EndpointUrl" TypeName="opc:String" />
     <opc:Field Name="NoOfLocaleIds" TypeName="opc:Int32" />
@@ -1271,7 +1282,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="FindServersResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Finds the servers known to the discovery server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfServers" TypeName="opc:Int32" />
     <opc:Field Name="Servers" TypeName="tns:ApplicationDescription" LengthField="NoOfServers" />
@@ -1301,11 +1311,9 @@
   </opc:StructuredType>
 
   <opc:OpaqueType Name="ApplicationInstanceCertificate">
-    <opc:Documentation>A certificate for an instance of an application.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:EnumeratedType Name="MessageSecurityMode" LengthInBits="32">
-    <opc:Documentation>The type of security to use on a message.</opc:Documentation>
     <opc:EnumeratedValue Name="Invalid" Value="0" />
     <opc:EnumeratedValue Name="None" Value="1" />
     <opc:EnumeratedValue Name="Sign" Value="2" />
@@ -1313,7 +1321,6 @@
   </opc:EnumeratedType>
 
   <opc:EnumeratedType Name="UserTokenType" LengthInBits="32">
-    <opc:Documentation>The possible user token types.</opc:Documentation>
     <opc:EnumeratedValue Name="Anonymous" Value="0" />
     <opc:EnumeratedValue Name="UserName" Value="1" />
     <opc:EnumeratedValue Name="Certificate" Value="2" />
@@ -1321,7 +1328,6 @@
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="UserTokenPolicy" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Describes a user token that can be used with a server.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" />
     <opc:Field Name="TokenType" TypeName="tns:UserTokenType" />
     <opc:Field Name="IssuedTokenType" TypeName="opc:String" />
@@ -1330,7 +1336,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="EndpointDescription" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The description of a endpoint that can be used to access a server.</opc:Documentation>
     <opc:Field Name="EndpointUrl" TypeName="opc:String" />
     <opc:Field Name="Server" TypeName="tns:ApplicationDescription" />
     <opc:Field Name="ServerCertificate" TypeName="opc:ByteString" />
@@ -1343,7 +1348,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="GetEndpointsRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Gets the endpoints used by the server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="EndpointUrl" TypeName="opc:String" />
     <opc:Field Name="NoOfLocaleIds" TypeName="opc:Int32" />
@@ -1353,14 +1357,12 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="GetEndpointsResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Gets the endpoints used by the server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfEndpoints" TypeName="opc:Int32" />
     <opc:Field Name="Endpoints" TypeName="tns:EndpointDescription" LengthField="NoOfEndpoints" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="RegisteredServer" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The information required to register a server with a discovery server.</opc:Documentation>
     <opc:Field Name="ServerUri" TypeName="opc:String" />
     <opc:Field Name="ProductUri" TypeName="opc:String" />
     <opc:Field Name="NoOfServerNames" TypeName="opc:Int32" />
@@ -1374,22 +1376,18 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="RegisterServerRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Registers a server with the discovery server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="Server" TypeName="tns:RegisteredServer" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="RegisterServerResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Registers a server with the discovery server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="DiscoveryConfiguration" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A base type for discovery configuration information.</opc:Documentation>
   </opc:StructuredType>
 
   <opc:StructuredType Name="MdnsDiscoveryConfiguration" BaseType="tns:DiscoveryConfiguration">
-    <opc:Documentation>The discovery information needed for mDNS registration.</opc:Documentation>
     <opc:Field Name="MdnsServerName" TypeName="opc:String" />
     <opc:Field Name="NoOfServerCapabilities" TypeName="opc:Int32" />
     <opc:Field Name="ServerCapabilities" TypeName="opc:String" LengthField="NoOfServerCapabilities" />
@@ -1411,13 +1409,11 @@
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="SecurityTokenRequestType" LengthInBits="32">
-    <opc:Documentation>Indicates whether a token if being created or renewed.</opc:Documentation>
     <opc:EnumeratedValue Name="Issue" Value="0" />
     <opc:EnumeratedValue Name="Renew" Value="1" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="ChannelSecurityToken" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The token that identifies a set of keys for an active secure channel.</opc:Documentation>
     <opc:Field Name="ChannelId" TypeName="opc:UInt32" />
     <opc:Field Name="TokenId" TypeName="opc:UInt32" />
     <opc:Field Name="CreatedAt" TypeName="opc:DateTime" />
@@ -1425,7 +1421,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="OpenSecureChannelRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Creates a secure channel with a server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="ClientProtocolVersion" TypeName="opc:UInt32" />
     <opc:Field Name="RequestType" TypeName="tns:SecurityTokenRequestType" />
@@ -1435,7 +1430,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="OpenSecureChannelResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Creates a secure channel with a server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="ServerProtocolVersion" TypeName="opc:UInt32" />
     <opc:Field Name="SecurityToken" TypeName="tns:ChannelSecurityToken" />
@@ -1443,33 +1437,27 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="CloseSecureChannelRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Closes a secure channel.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="CloseSecureChannelResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Closes a secure channel.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="SignedSoftwareCertificate" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A software certificate with a digital signature.</opc:Documentation>
     <opc:Field Name="CertificateData" TypeName="opc:ByteString" />
     <opc:Field Name="Signature" TypeName="opc:ByteString" />
   </opc:StructuredType>
 
   <opc:OpaqueType Name="SessionAuthenticationToken">
-    <opc:Documentation>A unique identifier for a session used to authenticate requests.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:StructuredType Name="SignatureData" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A digital signature.</opc:Documentation>
     <opc:Field Name="Algorithm" TypeName="opc:String" />
     <opc:Field Name="Signature" TypeName="opc:ByteString" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="CreateSessionRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Creates a new session with the server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="ClientDescription" TypeName="tns:ApplicationDescription" />
     <opc:Field Name="ServerUri" TypeName="opc:String" />
@@ -1482,7 +1470,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="CreateSessionResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Creates a new session with the server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="SessionId" TypeName="ua:NodeId" />
     <opc:Field Name="AuthenticationToken" TypeName="ua:NodeId" />
@@ -1498,17 +1485,14 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="UserIdentityToken" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A base type for a user identity token.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="AnonymousIdentityToken" BaseType="tns:UserIdentityToken">
-    <opc:Documentation>A token representing an anonymous user.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" SourceType="tns:UserIdentityToken" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="UserNameIdentityToken" BaseType="tns:UserIdentityToken">
-    <opc:Documentation>A token representing a user identified by a user name and password.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" SourceType="tns:UserIdentityToken" />
     <opc:Field Name="UserName" TypeName="opc:String" />
     <opc:Field Name="Password" TypeName="opc:ByteString" />
@@ -1516,13 +1500,11 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="X509IdentityToken" BaseType="tns:UserIdentityToken">
-    <opc:Documentation>A token representing a user identified by an X509 certificate.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" SourceType="tns:UserIdentityToken" />
     <opc:Field Name="CertificateData" TypeName="opc:ByteString" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="IssuedIdentityToken" BaseType="tns:UserIdentityToken">
-    <opc:Documentation>A token representing a user identified by a WS-Security XML token.</opc:Documentation>
     <opc:Field Name="PolicyId" TypeName="opc:String" SourceType="tns:UserIdentityToken" />
     <opc:Field Name="TokenData" TypeName="opc:ByteString" />
     <opc:Field Name="EncryptionAlgorithm" TypeName="opc:String" />
@@ -1532,7 +1514,6 @@
   </opc:OpaqueType>
 
   <opc:StructuredType Name="ActivateSessionRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Activates a session with the server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="ClientSignature" TypeName="tns:SignatureData" />
     <opc:Field Name="NoOfClientSoftwareCertificates" TypeName="opc:Int32" />
@@ -1544,7 +1525,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ActivateSessionResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Activates a session with the server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="ServerNonce" TypeName="opc:ByteString" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
@@ -1554,30 +1534,25 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="CloseSessionRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Closes a session with the server.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="DeleteSubscriptions" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="CloseSessionResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Closes a session with the server.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="CancelRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Cancels an outstanding request.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="RequestHandle" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="CancelResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Cancels an outstanding request.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="CancelCount" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="NodeAttributesMask" LengthInBits="32">
-    <opc:Documentation>The bits used to specify default attributes for a new node.</opc:Documentation>
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="AccessLevel" Value="1" />
     <opc:EnumeratedValue Name="ArrayDimensions" Value="2" />
@@ -1616,7 +1591,6 @@
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="NodeAttributes" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The base attributes for all nodes.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" />
@@ -1625,7 +1599,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ObjectAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for an object node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1635,7 +1608,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="VariableAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a variable node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1653,7 +1625,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="MethodAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a method node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1664,7 +1635,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ObjectTypeAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for an object type node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1674,7 +1644,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="VariableTypeAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a variable type node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1689,7 +1658,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ReferenceTypeAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a reference type node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1701,7 +1669,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="DataTypeAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a data type node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1711,7 +1678,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="ViewAttributes" BaseType="tns:NodeAttributes">
-    <opc:Documentation>The attributes for a view node.</opc:Documentation>
     <opc:Field Name="SpecifiedAttributes" TypeName="opc:UInt32" SourceType="tns:NodeAttributes" />
     <opc:Field Name="DisplayName" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" SourceType="tns:NodeAttributes" />
@@ -1737,7 +1703,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddNodesItem" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to add a node to the server address space.</opc:Documentation>
     <opc:Field Name="ParentNodeId" TypeName="ua:ExpandedNodeId" />
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="RequestedNewNodeId" TypeName="ua:ExpandedNodeId" />
@@ -1748,20 +1713,17 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddNodesResult" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A result of an add node operation.</opc:Documentation>
     <opc:Field Name="StatusCode" TypeName="ua:StatusCode" />
     <opc:Field Name="AddedNodeId" TypeName="ua:NodeId" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddNodesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Adds one or more nodes to the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfNodesToAdd" TypeName="opc:Int32" />
     <opc:Field Name="NodesToAdd" TypeName="tns:AddNodesItem" LengthField="NoOfNodesToAdd" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddNodesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Adds one or more nodes to the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="tns:AddNodesResult" LengthField="NoOfResults" />
@@ -1770,7 +1732,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddReferencesItem" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to add a reference to the server address space.</opc:Documentation>
     <opc:Field Name="SourceNodeId" TypeName="ua:NodeId" />
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="IsForward" TypeName="opc:Boolean" />
@@ -1780,14 +1741,12 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddReferencesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Adds one or more references to the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfReferencesToAdd" TypeName="opc:Int32" />
     <opc:Field Name="ReferencesToAdd" TypeName="tns:AddReferencesItem" LengthField="NoOfReferencesToAdd" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="AddReferencesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Adds one or more references to the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="ua:StatusCode" LengthField="NoOfResults" />
@@ -1796,20 +1755,17 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteNodesItem" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to delete a node to the server address space.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" />
     <opc:Field Name="DeleteTargetReferences" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteNodesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Delete one or more nodes from the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfNodesToDelete" TypeName="opc:Int32" />
     <opc:Field Name="NodesToDelete" TypeName="tns:DeleteNodesItem" LengthField="NoOfNodesToDelete" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteNodesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Delete one or more nodes from the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="ua:StatusCode" LengthField="NoOfResults" />
@@ -1818,7 +1774,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteReferencesItem" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to delete a node from the server address space.</opc:Documentation>
     <opc:Field Name="SourceNodeId" TypeName="ua:NodeId" />
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="IsForward" TypeName="opc:Boolean" />
@@ -1827,14 +1782,12 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteReferencesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Delete one or more references from the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfReferencesToDelete" TypeName="opc:Int32" />
     <opc:Field Name="ReferencesToDelete" TypeName="tns:DeleteReferencesItem" LengthField="NoOfReferencesToDelete" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="DeleteReferencesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Delete one or more references from the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="ua:StatusCode" LengthField="NoOfResults" />
@@ -1843,7 +1796,6 @@
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="AttributeWriteMask" LengthInBits="32" IsOptionSet="true">
-    <opc:Documentation>Define bits used to indicate which attributes are writable.</opc:Documentation>
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="AccessLevel" Value="1" />
     <opc:EnumeratedValue Name="ArrayDimensions" Value="2" />
@@ -1874,7 +1826,6 @@
   </opc:EnumeratedType>
 
   <opc:EnumeratedType Name="BrowseDirection" LengthInBits="32">
-    <opc:Documentation>The directions of the references to return.</opc:Documentation>
     <opc:EnumeratedValue Name="Forward" Value="0" />
     <opc:EnumeratedValue Name="Inverse" Value="1" />
     <opc:EnumeratedValue Name="Both" Value="2" />
@@ -1882,14 +1833,12 @@
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="ViewDescription" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The view to browse.</opc:Documentation>
     <opc:Field Name="ViewId" TypeName="ua:NodeId" />
     <opc:Field Name="Timestamp" TypeName="opc:DateTime" />
     <opc:Field Name="ViewVersion" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowseDescription" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to browse the the references from a node.</opc:Documentation>
     <opc:Field Name="NodeId" TypeName="ua:NodeId" />
     <opc:Field Name="BrowseDirection" TypeName="tns:BrowseDirection" />
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
@@ -1899,7 +1848,6 @@
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="BrowseResultMask" LengthInBits="32">
-    <opc:Documentation>A bit mask which specifies what should be returned in a browse response.</opc:Documentation>
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="ReferenceTypeId" Value="1" />
     <opc:EnumeratedValue Name="IsForward" Value="2" />
@@ -1913,7 +1861,6 @@
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="ReferenceDescription" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The description of a reference.</opc:Documentation>
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="IsForward" TypeName="opc:Boolean" />
     <opc:Field Name="NodeId" TypeName="ua:ExpandedNodeId" />
@@ -1924,11 +1871,9 @@
   </opc:StructuredType>
 
   <opc:OpaqueType Name="ContinuationPoint">
-    <opc:Documentation>An identifier for a suspended query or browse operation.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:StructuredType Name="BrowseResult" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The result of a browse operation.</opc:Documentation>
     <opc:Field Name="StatusCode" TypeName="ua:StatusCode" />
     <opc:Field Name="ContinuationPoint" TypeName="opc:ByteString" />
     <opc:Field Name="NoOfReferences" TypeName="opc:Int32" />
@@ -1936,7 +1881,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowseRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Browse the references for one or more nodes from the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="View" TypeName="tns:ViewDescription" />
     <opc:Field Name="RequestedMaxReferencesPerNode" TypeName="opc:UInt32" />
@@ -1945,7 +1889,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowseResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Browse the references for one or more nodes from the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="tns:BrowseResult" LengthField="NoOfResults" />
@@ -1954,7 +1897,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowseNextRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Continues one or more browse operations.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="ReleaseContinuationPoints" TypeName="opc:Boolean" />
     <opc:Field Name="NoOfContinuationPoints" TypeName="opc:Int32" />
@@ -1962,7 +1904,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowseNextResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Continues one or more browse operations.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="tns:BrowseResult" LengthField="NoOfResults" />
@@ -1971,7 +1912,6 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="RelativePathElement" BaseType="ua:ExtensionObject">
-    <opc:Documentation>An element in a relative path.</opc:Documentation>
     <opc:Field Name="ReferenceTypeId" TypeName="ua:NodeId" />
     <opc:Field Name="IsInverse" TypeName="opc:Boolean" />
     <opc:Field Name="IncludeSubtypes" TypeName="opc:Boolean" />
@@ -1979,39 +1919,33 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="RelativePath" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A relative path constructed from reference types and browse names.</opc:Documentation>
     <opc:Field Name="NoOfElements" TypeName="opc:Int32" />
     <opc:Field Name="Elements" TypeName="tns:RelativePathElement" LengthField="NoOfElements" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowsePath" BaseType="ua:ExtensionObject">
-    <opc:Documentation>A request to translate a path into a node id.</opc:Documentation>
     <opc:Field Name="StartingNode" TypeName="ua:NodeId" />
     <opc:Field Name="RelativePath" TypeName="tns:RelativePath" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowsePathTarget" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The target of the translated path.</opc:Documentation>
     <opc:Field Name="TargetId" TypeName="ua:ExpandedNodeId" />
     <opc:Field Name="RemainingPathIndex" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="BrowsePathResult" BaseType="ua:ExtensionObject">
-    <opc:Documentation>The result of a translate opearation.</opc:Documentation>
     <opc:Field Name="StatusCode" TypeName="ua:StatusCode" />
     <opc:Field Name="NoOfTargets" TypeName="opc:Int32" />
     <opc:Field Name="Targets" TypeName="tns:BrowsePathTarget" LengthField="NoOfTargets" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="TranslateBrowsePathsToNodeIdsRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Translates one or more paths in the server address space.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfBrowsePaths" TypeName="opc:Int32" />
     <opc:Field Name="BrowsePaths" TypeName="tns:BrowsePath" LengthField="NoOfBrowsePaths" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="TranslateBrowsePathsToNodeIdsResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Translates one or more paths in the server address space.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfResults" TypeName="opc:Int32" />
     <opc:Field Name="Results" TypeName="tns:BrowsePathResult" LengthField="NoOfResults" />
@@ -2020,45 +1954,37 @@
   </opc:StructuredType>
 
   <opc:StructuredType Name="RegisterNodesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Registers one or more nodes for repeated use within a session.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfNodesToRegister" TypeName="opc:Int32" />
     <opc:Field Name="NodesToRegister" TypeName="ua:NodeId" LengthField="NoOfNodesToRegister" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="RegisterNodesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Registers one or more nodes for repeated use within a session.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
     <opc:Field Name="NoOfRegisteredNodeIds" TypeName="opc:Int32" />
     <opc:Field Name="RegisteredNodeIds" TypeName="ua:NodeId" LengthField="NoOfRegisteredNodeIds" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="UnregisterNodesRequest" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Unregisters one or more previously registered nodes.</opc:Documentation>
     <opc:Field Name="RequestHeader" TypeName="tns:RequestHeader" />
     <opc:Field Name="NoOfNodesToUnregister" TypeName="opc:Int32" />
     <opc:Field Name="NodesToUnregister" TypeName="ua:NodeId" LengthField="NoOfNodesToUnregister" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="UnregisterNodesResponse" BaseType="ua:ExtensionObject">
-    <opc:Documentation>Unregisters one or more previously registered nodes.</opc:Documentation>
     <opc:Field Name="ResponseHeader" TypeName="tns:ResponseHeader" />
   </opc:StructuredType>
 
   <opc:OpaqueType Name="Counter">
-    <opc:Documentation>A monotonically increasing value.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="NumericRange">
-    <opc:Documentation>Specifies a range of array indexes.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="Time">
-    <opc:Documentation>A time value specified as HH:MM:SS.SSS.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="Date">
-    <opc:Documentation>A date value.</opc:Documentation>
   </opc:OpaqueType>
 
   <opc:StructuredType Name="EndpointConfiguration" BaseType="ua:ExtensionObject">

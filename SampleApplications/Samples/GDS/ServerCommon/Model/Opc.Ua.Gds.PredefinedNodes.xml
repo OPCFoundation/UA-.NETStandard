@@ -68,10 +68,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceUri</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>The URI of the namespace.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -100,10 +96,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceVersion</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>The human readable string representing version of the namespace.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -132,10 +124,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespacePublicationDate</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>The publication date for the namespace.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -145,7 +133,7 @@
       <uax:NumericId>724</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:DateTime>2018-12-01T00:00:00Z</uax:DateTime>
+          <uax:DateTime>2019-05-01T00:00:00Z</uax:DateTime>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -164,10 +152,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>IsNamespaceSubset</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>If TRUE then the server only supports a subset of the namespace.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -196,10 +180,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>StaticNodeIdTypes</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>A list of IdTypes for nodes which are the same in every server that exposes them.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -218,6 +198,7 @@
         <uax:Identifier>i=256</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </StaticNodeIdTypes>
@@ -230,10 +211,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>StaticNumericNodeIdRange</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>A list of ranges for numeric node ids which are the same in every server that exposes them.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -252,6 +229,7 @@
         <uax:Identifier>i=291</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </StaticNumericNodeIdRange>
@@ -264,10 +242,6 @@
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>StaticStringNodeIdPattern</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>A regular expression which matches string node ids are the same in every server that exposes them.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -307,6 +281,7 @@
         <uax:Identifier>i=96</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </DefaultRolePermissions>
@@ -330,6 +305,7 @@
         <uax:Identifier>i=96</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </DefaultUserRolePermissions>
@@ -457,7 +433,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -468,6 +443,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -504,8 +480,9 @@
                       <uax:Identifier>ns=1;i=1</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -516,6 +493,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -575,7 +553,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -586,6 +563,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -623,7 +601,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -634,6 +611,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -693,7 +671,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -704,6 +681,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -763,7 +741,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -774,6 +751,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -833,7 +811,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -844,6 +821,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -881,7 +859,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -892,6 +869,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -951,7 +929,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -967,7 +944,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -983,7 +959,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -999,7 +974,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1015,7 +989,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1031,7 +1004,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1046,8 +1018,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1058,6 +1031,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -1095,7 +1069,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1111,7 +1084,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1126,8 +1098,9 @@
                       <uax:Identifier>i=308</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1138,6 +1111,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -1197,7 +1171,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1213,7 +1186,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1229,7 +1201,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1245,7 +1216,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1261,7 +1231,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1276,8 +1245,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1288,6 +1258,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -1325,7 +1296,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1340,8 +1310,9 @@
                       <uax:Identifier>i=12189</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -1352,6 +1323,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -1449,10 +1421,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Size</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The size of the file in bytes.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -1479,10 +1447,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Writable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -1509,10 +1473,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>UserWritable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable by the current user.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -1539,10 +1499,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>OpenCount</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The current number of open file handles.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -1615,7 +1571,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1626,6 +1581,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1663,7 +1619,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1674,6 +1629,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -1733,7 +1689,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1744,6 +1699,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1803,7 +1759,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1819,7 +1774,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1830,6 +1784,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1867,7 +1822,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1878,6 +1832,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -1937,7 +1892,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1953,7 +1907,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -1964,6 +1917,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2023,7 +1977,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2034,6 +1987,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2071,7 +2025,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2082,6 +2035,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -2141,7 +2095,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2157,7 +2110,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2168,6 +2120,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2253,7 +2206,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2264,6 +2216,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2301,7 +2254,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -2312,6 +2264,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -2340,6 +2293,7 @@
             <uax:Identifier>i=17</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
+          <uax:ArrayDimensions>0</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
@@ -2400,7 +2354,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2416,7 +2369,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2432,7 +2384,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2448,7 +2399,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2459,6 +2409,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2496,7 +2447,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2507,6 +2457,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -2566,7 +2517,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2582,7 +2532,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2598,7 +2547,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2614,7 +2562,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2629,8 +2576,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2646,7 +2594,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2662,7 +2609,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2673,6 +2619,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2710,7 +2657,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2721,6 +2667,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -2780,7 +2727,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2796,7 +2742,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2807,6 +2752,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2844,7 +2790,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2860,7 +2805,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2875,8 +2819,9 @@
                       <uax:Identifier>i=15</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2887,6 +2832,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -2946,7 +2892,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2962,7 +2907,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -2973,6 +2917,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3032,7 +2977,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3043,6 +2987,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3079,8 +3024,9 @@
                       <uax:Identifier>i=17</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3091,6 +3037,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3150,7 +3097,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3166,7 +3112,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3177,6 +3122,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3214,7 +3160,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3225,6 +3170,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3284,7 +3230,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3300,7 +3245,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3316,7 +3260,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3327,6 +3270,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3364,7 +3308,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3375,6 +3318,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3601,6 +3545,7 @@
         <uax:Identifier>i=12</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </ProfileUris>
@@ -3659,7 +3604,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3675,7 +3619,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3691,7 +3634,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3706,8 +3648,9 @@
                       <uax:Identifier>i=17</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3718,6 +3661,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3755,7 +3699,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3766,6 +3709,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3825,7 +3769,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3841,7 +3784,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3852,6 +3794,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3889,7 +3832,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3905,7 +3847,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3921,7 +3862,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3937,7 +3877,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3952,8 +3891,9 @@
                       <uax:Identifier>i=17</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -3964,6 +3904,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4023,7 +3964,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4034,6 +3974,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4193,6 +4134,7 @@
         <uax:Identifier>i=304</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </UserTokenPolicies>
@@ -4251,7 +4193,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4267,7 +4208,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4282,8 +4222,9 @@
                       <uax:Identifier>i=304</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4294,6 +4235,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4353,7 +4295,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4369,7 +4310,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4380,6 +4320,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4417,7 +4358,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4428,6 +4368,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4539,7 +4480,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4550,6 +4490,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4583,8 +4524,9 @@
                       <uax:Identifier>ns=1;i=1</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4595,6 +4537,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4648,7 +4591,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4659,6 +4601,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4693,7 +4636,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4704,6 +4646,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4757,7 +4700,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4768,6 +4710,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4821,7 +4764,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4832,6 +4774,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4885,7 +4828,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4896,6 +4838,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4930,7 +4873,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -4941,6 +4883,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4994,7 +4937,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5010,7 +4952,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5026,7 +4967,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5042,7 +4982,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5058,7 +4997,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5074,7 +5012,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5089,8 +5026,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5101,6 +5039,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5135,7 +5074,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5151,7 +5089,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5166,8 +5103,9 @@
                       <uax:Identifier>i=308</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5178,6 +5116,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5231,7 +5170,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5247,7 +5185,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5263,7 +5200,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5279,7 +5215,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5295,7 +5230,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5310,8 +5244,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5322,6 +5257,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5356,7 +5292,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5371,8 +5306,9 @@
                       <uax:Identifier>i=12189</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -5383,6 +5319,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5444,10 +5381,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Size</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The size of the file in bytes.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -5471,10 +5404,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Writable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -5498,10 +5427,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>UserWritable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable by the current user.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -5525,10 +5450,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>OpenCount</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The current number of open file handles.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -5592,7 +5513,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5603,6 +5523,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -5637,7 +5558,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5648,6 +5568,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -5701,7 +5622,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5712,6 +5632,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -5765,7 +5686,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5781,7 +5701,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5792,6 +5711,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -5826,7 +5746,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5837,6 +5756,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -5890,7 +5810,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5906,7 +5825,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5917,6 +5835,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -5970,7 +5889,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -5981,6 +5899,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6015,7 +5934,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6026,6 +5944,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6079,7 +5998,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6095,7 +6013,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6106,6 +6023,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6182,7 +6100,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6193,6 +6110,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6227,7 +6145,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6238,6 +6155,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6291,7 +6209,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6302,6 +6219,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6336,7 +6254,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6347,6 +6264,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6400,7 +6318,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6416,7 +6333,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6427,6 +6343,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6480,7 +6397,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6496,7 +6412,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6507,6 +6422,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6532,6 +6448,7 @@
             <uax:Identifier>i=17</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
+          <uax:ArrayDimensions>0</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
@@ -6577,10 +6494,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Size</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The size of the file in bytes.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -6604,10 +6517,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Writable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -6631,10 +6540,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>UserWritable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable by the current user.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -6658,10 +6563,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>OpenCount</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The current number of open file handles.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -6725,7 +6626,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6736,6 +6636,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6770,7 +6671,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6781,6 +6681,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6834,7 +6735,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6845,6 +6745,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6898,7 +6799,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6914,7 +6814,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6925,6 +6824,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6959,7 +6859,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -6970,6 +6869,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7023,7 +6923,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7039,7 +6938,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7050,6 +6948,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7103,7 +7002,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7114,6 +7012,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7148,7 +7047,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7159,6 +7057,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7212,7 +7111,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7228,7 +7126,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7239,6 +7136,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7315,7 +7213,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7326,6 +7223,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7360,7 +7258,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7371,6 +7268,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7424,7 +7322,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7435,6 +7332,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7469,7 +7367,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7480,6 +7377,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7533,7 +7431,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7549,7 +7446,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7560,6 +7456,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7613,7 +7510,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7629,7 +7525,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7640,6 +7535,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7665,6 +7561,7 @@
             <uax:Identifier>i=17</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
+          <uax:ArrayDimensions>0</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
@@ -7710,10 +7607,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Size</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The size of the file in bytes.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -7737,10 +7630,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>Writable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -7764,10 +7653,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>UserWritable</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>Whether the file is writable by the current user.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -7791,10 +7676,6 @@
               <uax:NamespaceIndex>0</uax:NamespaceIndex>
               <uax:Name>OpenCount</uax:Name>
             </uax:BrowseName>
-            <uax:Description>
-              <uax:Locale></uax:Locale>
-              <uax:Text>The current number of open file handles.</uax:Text>
-            </uax:Description>
             <uax:ReferenceTypeId>
               <uax:Identifier>i=46</uax:Identifier>
             </uax:ReferenceTypeId>
@@ -7858,7 +7739,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7869,6 +7749,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7903,7 +7784,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7914,6 +7794,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7967,7 +7848,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -7978,6 +7858,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8031,7 +7912,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8047,7 +7927,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8058,6 +7937,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8092,7 +7972,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8103,6 +7982,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8156,7 +8036,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8172,7 +8051,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8183,6 +8061,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8236,7 +8115,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8247,6 +8125,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8281,7 +8160,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8292,6 +8170,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8345,7 +8224,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8361,7 +8239,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8372,6 +8249,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8448,7 +8326,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8459,6 +8336,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8493,7 +8371,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8504,6 +8381,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8557,7 +8435,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8568,6 +8445,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8602,7 +8480,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8613,6 +8490,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8666,7 +8544,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8682,7 +8559,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8693,6 +8569,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8746,7 +8623,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8762,7 +8638,6 @@
                           </uax:DataType>
                           <uax:ValueRank>-1</uax:ValueRank>
                           <uax:ArrayDimensions />
-                          <uax:Description xsi:nil="true" />
                         </uax:Argument>
                       </uax:Body>
                     </uax:ExtensionObject>
@@ -8773,6 +8648,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>0</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8798,6 +8674,7 @@
             <uax:Identifier>i=17</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
+          <uax:ArrayDimensions>0</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </CertificateTypes>
@@ -8852,7 +8729,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -8868,7 +8744,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -8884,7 +8759,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -8900,7 +8774,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -8911,6 +8784,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -8945,7 +8819,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -8956,6 +8829,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9009,7 +8883,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9025,7 +8898,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9041,7 +8913,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9057,7 +8928,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9072,8 +8942,9 @@
                       <uax:Identifier>i=12</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9089,7 +8960,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9105,7 +8975,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9116,6 +8985,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9150,7 +9020,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9161,6 +9030,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9214,7 +9084,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9230,7 +9099,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9241,6 +9109,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9275,7 +9144,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9291,7 +9159,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9306,8 +9173,9 @@
                       <uax:Identifier>i=15</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9318,6 +9186,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9371,7 +9240,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9382,6 +9250,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9415,8 +9284,9 @@
                       <uax:Identifier>i=17</uax:Identifier>
                     </uax:DataType>
                     <uax:ValueRank>1</uax:ValueRank>
-                    <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9427,6 +9297,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9480,7 +9351,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9496,7 +9366,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9507,6 +9376,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9541,7 +9411,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9552,6 +9421,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9605,7 +9475,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9621,7 +9490,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9637,7 +9505,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9648,6 +9515,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9682,7 +9550,6 @@
                     </uax:DataType>
                     <uax:ValueRank>-1</uax:ValueRank>
                     <uax:ArrayDimensions />
-                    <uax:Description xsi:nil="true" />
                   </uax:Argument>
                 </uax:Body>
               </uax:ExtensionObject>
@@ -9693,6 +9560,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>0</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9797,10 +9665,6 @@ IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:By
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceUri</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>A URI that uniquely identifies the dictionary.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -9829,10 +9693,6 @@ IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:By
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>Deprecated</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -9986,10 +9846,6 @@ ZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceUri</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>A URI that uniquely identifies the dictionary.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -10018,10 +9874,6 @@ ZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>Deprecated</uax:Name>
       </uax:BrowseName>
-      <uax:Description>
-        <uax:Locale></uax:Locale>
-        <uax:Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</uax:Text>
-      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
