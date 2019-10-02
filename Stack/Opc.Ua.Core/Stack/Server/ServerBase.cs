@@ -864,39 +864,24 @@ namespace Opc.Ua
 
                 if (uri.Scheme == Utils.UriSchemeHttps)
                 {
-                    // Can only support one policy with HTTPS 
-                    // So pick the strongest security mode from configuration
+                    // Can only support one policy with HTTPS
+                    // So pick the first with policy with security mode sign and encrypt
                     ServerSecurityPolicy bestPolicy = null;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        if (bestPolicy == null)
+                        if (policy.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                         {
-                            bestPolicy = policy;
                             continue;
                         }
 
-                        if (policy.SecurityMode > bestPolicy.SecurityMode)
-                        {
-                            bestPolicy = policy;
-                            continue;
-                        }
-
-                        if (policy.SecurityMode == bestPolicy.SecurityMode)
-                        {
-                            byte policySecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
-                            byte bestPolicySecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
-
-                            if (policySecurityLevel > bestPolicySecurityLevel)
-                            {
-                                bestPolicy = policy;
-                                continue;
-                            }
-                        }
+                        bestPolicy = policy;
+                        break;
                     }
 
+                    // Pick the first policy from the list if no policies with sign and encrypt defined
                     if (bestPolicy == null)
                     {
-                        throw new ServiceResultException("HTTPS transport requires security policy to be specified.");
+                        bestPolicy = securityPolicies[0];
                     }
 
                     EndpointDescription description = new EndpointDescription();
