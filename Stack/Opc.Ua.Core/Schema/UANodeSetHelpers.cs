@@ -158,7 +158,7 @@ namespace Opc.Ua.Export
                     value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = Export(o.ArrayDimensions);
-                    value.AccessLevel = o.AccessLevel;
+                    value.AccessLevel = o.AccessLevel < o.AccessLevelEx ? o.AccessLevelEx : o.AccessLevel;
                     value.UserAccessLevel = o.UserAccessLevel;
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
@@ -472,9 +472,10 @@ namespace Opc.Ua.Export
                     value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
-                    value.AccessLevel = o.AccessLevel;
-                    value.UserAccessLevel = o.UserAccessLevel;
-                    //if UserAccessLevel is not specified but Access level is diferent from default use AccessLevel for UserAccessLevel
+                    value.AccessLevel = (byte)o.AccessLevel;
+                    value.AccessLevelEx = o.AccessLevel;
+                    value.UserAccessLevel = (byte)o.UserAccessLevel;
+                    //if UserAccessLevel is not specified but Access level is different from default use AccessLevel for UserAccessLevel
                     if (o.UserAccessLevel == AccessLevels.CurrentRead && o.AccessLevel > o.UserAccessLevel)
                     {
                         value.UserAccessLevel = (byte)o.AccessLevel;
