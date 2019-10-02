@@ -865,7 +865,7 @@ namespace Opc.Ua
                 if (uri.Scheme == Utils.UriSchemeHttps)
                 {
                     // Can only support one policy with HTTPS
-                    // So pick the first with policy with security mode sign and encrypt
+                    // So pick the first policy with security mode sign and encrypt
                     ServerSecurityPolicy bestPolicy = null;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
