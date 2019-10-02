@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2020-03-06T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-09-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.3" PublicationDate="2019-09-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -94,7 +94,6 @@
       <Reference ReferenceType="HasProperty">i=11502</Reference>
       <Reference ReferenceType="HasProperty">i=11275</Reference>
       <Reference ReferenceType="HasComponent">i=11201</Reference>
-      <Reference ReferenceType="HasProperty">i=19091</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=2268</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2330</Reference>
     </References>
@@ -204,13 +203,6 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=11192</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=19091" BrowseName="ServerTimestampSupported" ParentNodeId="i=11192" DataType="Boolean">
-    <DisplayName>ServerTimestampSupported</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=11192</Reference>
-    </References>
-  </UAVariable>
   <UAVariable NodeId="i=11214" BrowseName="Annotations" DataType="i=891" ValueRank="-2">
     <DisplayName>Annotations</DisplayName>
     <References>
@@ -230,7 +222,6 @@
       <Reference ReferenceType="HasProperty">i=2328</Reference>
       <Reference ReferenceType="HasProperty">i=11499</Reference>
       <Reference ReferenceType="HasProperty">i=11500</Reference>
-      <Reference ReferenceType="HasProperty">i=19092</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -350,14 +341,6 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=2318</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=19092" BrowseName="ServerTimestampSupported" ParentNodeId="i=2318" DataType="Boolean">
-    <DisplayName>ServerTimestampSupported</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=80</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=2318</Reference>
-    </References>
-  </UAVariable>
   <UAObject NodeId="i=11202" BrowseName="HA Configuration" SymbolicName="HAConfiguration">
     <DisplayName>HA Configuration</DisplayName>
     <References>
@@ -436,7 +419,6 @@
       <Reference ReferenceType="HasProperty">i=11501</Reference>
       <Reference ReferenceType="HasProperty">i=11270</Reference>
       <Reference ReferenceType="HasComponent">i=11172</Reference>
-      <Reference ReferenceType="HasProperty">i=19094</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -560,14 +542,6 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=2330</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=19094" BrowseName="ServerTimestampSupported" ParentNodeId="i=2330" DataType="Boolean">
-    <DisplayName>ServerTimestampSupported</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=2330</Reference>
-    </References>
-  </UAVariable>
   <UAObjectType NodeId="i=2999" BrowseName="AuditHistoryEventUpdateEventType" IsAbstract="true">
     <DisplayName>AuditHistoryEventUpdateEventType</DisplayName>
     <References>
@@ -659,39 +633,6 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=3006</Reference>
-    </References>
-  </UAVariable>
-  <UAObjectType NodeId="i=19095" BrowseName="AuditHistoryAnnotationUpdateEventType" IsAbstract="true">
-    <DisplayName>AuditHistoryAnnotationUpdateEventType</DisplayName>
-    <References>
-      <Reference ReferenceType="HasProperty">i=19293</Reference>
-      <Reference ReferenceType="HasProperty">i=19294</Reference>
-      <Reference ReferenceType="HasProperty">i=19295</Reference>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=2104</Reference>
-    </References>
-  </UAObjectType>
-  <UAVariable NodeId="i=19293" BrowseName="PerformInsertReplace" ParentNodeId="i=19095" DataType="i=11293">
-    <DisplayName>PerformInsertReplace</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19095</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19294" BrowseName="NewValues" ParentNodeId="i=19095" DataType="i=23" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>NewValues</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19095</Reference>
-    </References>
-  </UAVariable>
-  <UAVariable NodeId="i=19295" BrowseName="OldValues" ParentNodeId="i=19095" DataType="i=23" ValueRank="1" ArrayDimensions="0">
-    <DisplayName>OldValues</DisplayName>
-    <References>
-      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=78</Reference>
-      <Reference ReferenceType="HasProperty" IsForward="false">i=19095</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=3012" BrowseName="AuditHistoryDeleteEventType" IsAbstract="true">

@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2020-03-06T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-09-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.3" PublicationDate="2019-09-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -752,7 +752,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15616</Reference>
     </References>
     <Definition Name="UadpWriterGroupMessageDataType">
-      <Field Name="GroupVersion" DataType="i=20998" />
+      <Field Name="GroupVersion" DataType="i=7" />
       <Field Name="DataSetOrdering" DataType="i=20408" />
       <Field Name="NetworkMessageContentMask" DataType="i=15642" />
       <Field Name="SamplingOffset" DataType="i=290" />

@@ -55460,11 +55460,6 @@ namespace Opc.Ua
             {
                 StartOfOnlineArchive.Initialize(context, StartOfOnlineArchive_InitializationString);
             }
-
-            if (ServerTimestampSupported != null)
-            {
-                ServerTimestampSupported.Initialize(context, ServerTimestampSupported_InitializationString);
-            }
         }
 
         #region Initialization String
@@ -55498,13 +55493,9 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAFAAAAFN0YXJ0T2ZPbmxpbmVBcmNoaXZlAQDsLAAuAETsLAAAAQAmAf//" +
            "//8BAf////8AAAAA";
 
-        private const string ServerTimestampSupported_InitializationString =
-           "//////////8VYIkKAgAAAAAAGAAAAFNlcnZlclRpbWVzdGFtcFN1cHBvcnRlZAEAlEoALgBElEoAAAAB" +
-           "/////wEB/////wAAAAA=";
-
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJwAAAEhpc3RvcmljYWxEYXRhQ29uZmlndXJhdGlvblR5cGVJbnN0YW5j" +
-           "ZQEADgkBAA4JDgkAAP////8LAAAABGCACgEAAAAAABYAAABBZ2dyZWdhdGVDb25maWd1cmF0aW9uAQDz" +
+           "ZQEADgkBAA4JDgkAAP////8KAAAABGCACgEAAAAAABYAAABBZ2dyZWdhdGVDb25maWd1cmF0aW9uAQDz" +
            "CwAvAQCzK/MLAAD/////BAAAABVgiQoCAAAAAAATAAAAVHJlYXRVbmNlcnRhaW5Bc0JhZAEAoCsALgBE" +
            "oCsAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAFBlcmNlbnREYXRhQmFkAQChKwAuAEShKwAA" +
            "AAP/////AQH/////AAAAABVgiQoCAAAAAAAPAAAAUGVyY2VudERhdGFHb29kAQCiKwAuAESiKwAAAAP/" +
@@ -55517,9 +55508,7 @@ namespace Opc.Ua
            "AABFeGNlcHRpb25EZXZpYXRpb24BABcJAC4ARBcJAAAAC/////8BAf////8AAAAAFWCJCgIAAAAAABgA" +
            "AABFeGNlcHRpb25EZXZpYXRpb25Gb3JtYXQBABgJAC4ARBgJAAABAHoD/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAADgAAAFN0YXJ0T2ZBcmNoaXZlAQDrLAAuAETrLAAAAQAmAf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAABQAAABTdGFydE9mT25saW5lQXJjaGl2ZQEA7CwALgBE7CwAAAEAJgH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCUSgAuAESUSgAAAAH/////AQH/////" +
-           "AAAAAA==";
+           "AAAAABQAAABTdGFydE9mT25saW5lQXJjaGl2ZQEA7CwALgBE7CwAAAEAJgH/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -55714,25 +55703,6 @@ namespace Opc.Ua
                 m_startOfOnlineArchive = value;
             }
         }
-
-        /// <remarks />
-        public PropertyState<bool> ServerTimestampSupported
-        {
-            get
-            {
-                return m_serverTimestampSupported;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_serverTimestampSupported, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_serverTimestampSupported = value;
-            }
-        }
         #endregion
 
         #region Overridden Methods
@@ -55793,11 +55763,6 @@ namespace Opc.Ua
             if (m_startOfOnlineArchive != null)
             {
                 children.Add(m_startOfOnlineArchive);
-            }
-
-            if (m_serverTimestampSupported != null)
-            {
-                children.Add(m_serverTimestampSupported);
             }
 
             base.GetChildren(context, children);
@@ -56030,27 +55995,6 @@ namespace Opc.Ua
                     instance = StartOfOnlineArchive;
                     break;
                 }
-
-                case Opc.Ua.BrowseNames.ServerTimestampSupported:
-                {
-                    if (createOrReplace)
-                    {
-                        if (ServerTimestampSupported == null)
-                        {
-                            if (replacement == null)
-                            {
-                                ServerTimestampSupported = new PropertyState<bool>(this);
-                            }
-                            else
-                            {
-                                ServerTimestampSupported = (PropertyState<bool>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = ServerTimestampSupported;
-                    break;
-                }
             }
 
             if (instance != null)
@@ -56073,7 +56017,6 @@ namespace Opc.Ua
         private PropertyState<ExceptionDeviationFormat> m_exceptionDeviationFormat;
         private PropertyState<DateTime> m_startOfArchive;
         private PropertyState<DateTime> m_startOfOnlineArchive;
-        private PropertyState<bool> m_serverTimestampSupported;
         #endregion
     }
     #endif
@@ -56134,7 +56077,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJQAAAEhpc3RvcnlTZXJ2ZXJDYXBhYmlsaXRpZXNUeXBlSW5zdGFuY2UB" +
-           "ABoJAQAaCRoJAAD/////EAAAABVgiQoCAAAAAAAbAAAAQWNjZXNzSGlzdG9yeURhdGFDYXBhYmlsaXR5" +
+           "ABoJAQAaCRoJAAD/////DwAAABVgiQoCAAAAAAAbAAAAQWNjZXNzSGlzdG9yeURhdGFDYXBhYmlsaXR5" +
            "AQAbCQAuAEQbCQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAdAAAAQWNjZXNzSGlzdG9yeUV2ZW50" +
            "c0NhcGFiaWxpdHkBABwJAC4ARBwJAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABNYXhSZXR1" +
            "cm5EYXRhVmFsdWVzAQAELAAuAEQELAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAUAAAATWF4UmV0" +
@@ -56150,8 +56093,7 @@ namespace Opc.Ua
            "AAAAABVgiQoCAAAAAAAVAAAARGVsZXRlRXZlbnRDYXBhYmlsaXR5AQDtLAAuAETtLAAAAAH/////AQH/" +
            "////AAAAABVgiQoCAAAAAAAaAAAASW5zZXJ0QW5ub3RhdGlvbkNhcGFiaWxpdHkBAAYsAC4ARAYsAAAA" +
            "Af////8BAf////8AAAAABGCACgEAAAAAABIAAABBZ2dyZWdhdGVGdW5jdGlvbnMBAKQrAC8APaQrAAD/" +
-           "////AAAAABVgiQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCWSgAuAESWSgAAAAH/" +
-           "////AQH/////AAAAAA==";
+           "////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -56441,25 +56383,6 @@ namespace Opc.Ua
                 m_aggregateFunctions = value;
             }
         }
-
-        /// <remarks />
-        public PropertyState<bool> ServerTimestampSupported
-        {
-            get
-            {
-                return m_serverTimestampSupported;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_serverTimestampSupported, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_serverTimestampSupported = value;
-            }
-        }
         #endregion
 
         #region Overridden Methods
@@ -56545,11 +56468,6 @@ namespace Opc.Ua
             if (m_aggregateFunctions != null)
             {
                 children.Add(m_aggregateFunctions);
-            }
-
-            if (m_serverTimestampSupported != null)
-            {
-                children.Add(m_serverTimestampSupported);
             }
 
             base.GetChildren(context, children);
@@ -56887,27 +56805,6 @@ namespace Opc.Ua
                     instance = AggregateFunctions;
                     break;
                 }
-
-                case Opc.Ua.BrowseNames.ServerTimestampSupported:
-                {
-                    if (createOrReplace)
-                    {
-                        if (ServerTimestampSupported == null)
-                        {
-                            if (replacement == null)
-                            {
-                                ServerTimestampSupported = new PropertyState<bool>(this);
-                            }
-                            else
-                            {
-                                ServerTimestampSupported = (PropertyState<bool>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = ServerTimestampSupported;
-                    break;
-                }
             }
 
             if (instance != null)
@@ -56935,7 +56832,6 @@ namespace Opc.Ua
         private PropertyState<bool> m_deleteEventCapability;
         private PropertyState<bool> m_insertAnnotationCapability;
         private FolderState m_aggregateFunctions;
-        private PropertyState<bool> m_serverTimestampSupported;
         #endregion
     }
     #endif
@@ -57598,268 +57494,6 @@ namespace Opc.Ua
 
         #region Private Fields
         private PropertyState<NodeId> m_updatedNode;
-        private PropertyState<PerformUpdateType> m_performInsertReplace;
-        private PropertyState<DataValue[]> m_newValues;
-        private PropertyState<DataValue[]> m_oldValues;
-        #endregion
-    }
-    #endif
-    #endregion
-
-    #region AuditHistoryAnnotationUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryAnnotationUpdateEventState)
-    /// <summary>
-    /// Stores an instance of the AuditHistoryAnnotationUpdateEventType ObjectType.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class AuditHistoryAnnotationUpdateEventState : AuditHistoryUpdateEventState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public AuditHistoryAnnotationUpdateEventState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryAnnotationUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-        }
-
-        #region Initialization String
-        private const string InitializationString =
-           "//////////8EYIACAQAAAAAALQAAAEF1ZGl0SGlzdG9yeUFubm90YXRpb25VcGRhdGVFdmVudFR5cGVJ" +
-           "bnN0YW5jZQEAl0oBAJdKl0oAAP////8RAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQCYSgAuAESYSgAA" +
-           "AA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQCZSgAuAESZSgAAABH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEAmkoALgBEmkoAAAAR/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBAJtKAC4ARJtKAAAADP////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAQAAABUaW1lAQCcSgAuAEScSgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZl" +
-           "VGltZQEAnUoALgBEnUoAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEAn0oA" +
-           "LgBEn0oAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQCgSgAuAESgSgAAAAX/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAPAAAAQWN0aW9uVGltZVN0YW1wAQChSgAuAEShSgAAAQAmAf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0dXMBAKJKAC4ARKJKAAAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAEAWUsALgBEWUsAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "EgAAAENsaWVudEF1ZGl0RW50cnlJZAEAWksALgBEWksAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "DAAAAENsaWVudFVzZXJJZAEAW0sALgBEW0sAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFBh" +
-           "cmFtZXRlckRhdGFUeXBlSWQBAFxLAC4ARFxLAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABQAAABQ" +
-           "ZXJmb3JtSW5zZXJ0UmVwbGFjZQEAXUsALgBEXUsAAAEAHSz/////AQH/////AAAAABdgiQoCAAAAAAAJ" +
-           "AAAATmV3VmFsdWVzAQBeSwAuAEReSwAAABcBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAAAkA" +
-           "AABPbGRWYWx1ZXMBAF9LAC4ARF9LAAAAFwEAAAABAAAAAAAAAAEB/////wAAAAA=";
-        #endregion
-        #endif
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        public PropertyState<PerformUpdateType> PerformInsertReplace
-        {
-            get
-            {
-                return m_performInsertReplace;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_performInsertReplace, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_performInsertReplace = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<DataValue[]> NewValues
-        {
-            get
-            {
-                return m_newValues;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_newValues, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_newValues = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<DataValue[]> OldValues
-        {
-            get
-            {
-                return m_oldValues;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_oldValues, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_oldValues = value;
-            }
-        }
-        #endregion
-
-        #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
-        {
-            if (m_performInsertReplace != null)
-            {
-                children.Add(m_performInsertReplace);
-            }
-
-            if (m_newValues != null)
-            {
-                children.Add(m_newValues);
-            }
-
-            if (m_oldValues != null)
-            {
-                children.Add(m_oldValues);
-            }
-
-            base.GetChildren(context, children);
-        }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (QualifiedName.IsNull(browseName))
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-
-            switch (browseName.Name)
-            {
-                case Opc.Ua.BrowseNames.PerformInsertReplace:
-                {
-                    if (createOrReplace)
-                    {
-                        if (PerformInsertReplace == null)
-                        {
-                            if (replacement == null)
-                            {
-                                PerformInsertReplace = new PropertyState<PerformUpdateType>(this);
-                            }
-                            else
-                            {
-                                PerformInsertReplace = (PropertyState<PerformUpdateType>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = PerformInsertReplace;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.NewValues:
-                {
-                    if (createOrReplace)
-                    {
-                        if (NewValues == null)
-                        {
-                            if (replacement == null)
-                            {
-                                NewValues = new PropertyState<DataValue[]>(this);
-                            }
-                            else
-                            {
-                                NewValues = (PropertyState<DataValue[]>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = NewValues;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.OldValues:
-                {
-                    if (createOrReplace)
-                    {
-                        if (OldValues == null)
-                        {
-                            if (replacement == null)
-                            {
-                                OldValues = new PropertyState<DataValue[]>(this);
-                            }
-                            else
-                            {
-                                OldValues = (PropertyState<DataValue[]>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = OldValues;
-                    break;
-                }
-            }
-
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-        #endregion
-
-        #region Private Fields
         private PropertyState<PerformUpdateType> m_performInsertReplace;
         private PropertyState<DataValue[]> m_newValues;
         private PropertyState<DataValue[]> m_oldValues;
@@ -59301,11 +58935,6 @@ namespace Opc.Ua
         {
             base.InitializeOptionalChildren(context);
 
-            if (UpdateFrequency != null)
-            {
-                UpdateFrequency.Initialize(context, UpdateFrequency_InitializationString);
-            }
-
             if (CloseAndUpdate != null)
             {
                 CloseAndUpdate.Initialize(context, CloseAndUpdate_InitializationString);
@@ -59323,10 +58952,6 @@ namespace Opc.Ua
         }
 
         #region Initialization String
-        private const string UpdateFrequency_InitializationString =
-           "//////////8VYIkKAgAAAAAADwAAAFVwZGF0ZUZyZXF1ZW5jeQEAYEsALgBEYEsAAAEAIgH/////AQH/" +
-           "////AAAAAA==";
-
         private const string CloseAndUpdate_InitializationString =
            "//////////8EYYIKBAAAAAAADgAAAENsb3NlQW5kVXBkYXRlAQACMQAvAQACMQIxAAABAf////8CAAAA" +
            "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAoTEALgBEoTEAAJYBAAAAAQAqAQEZAAAACgAAAEZp" +
@@ -59347,7 +58972,7 @@ namespace Opc.Ua
            "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
 
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAFQAAAFRydXN0TGlzdFR5cGVJbnN0YW5jZQEA6jABAOow6jAAAP////8Q" +
+           "//////////8EYIACAQAAAAAAFQAAAFRydXN0TGlzdFR5cGVJbnN0YW5jZQEA6jABAOow6jAAAP////8P" +
            "AAAAFWCJCgIAAAAAAAQAAABTaXplAQDrMAAuAETrMAAAAAn/////AQH/////AAAAABVgiQoCAAAAAAAI" +
            "AAAAV3JpdGFibGUBAJoxAC4ARJoxAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABVc2VyV3Jp" +
            "dGFibGUBAJsxAC4ARJsxAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABPcGVuQ291bnQBAO4w" +
@@ -59373,24 +58998,23 @@ namespace Opc.Ua
            "CwAAAFNldFBvc2l0aW9uAQD8MAAvAQBJLfwwAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
            "Z3VtZW50cwEA/TAALgBE/TAAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEA" +
            "KgEBFwAAAAgAAABQb3NpdGlvbgAJ/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
-           "AgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQD+MAAuAET+MAAAAQAmAf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAA8AAABVcGRhdGVGcmVxdWVuY3kBAGBLAC4ARGBLAAABACIB/////wEB/////wAAAAAEYYIKBAAA" +
-           "AAAADQAAAE9wZW5XaXRoTWFza3MBAP8wAC8BAP8w/zAAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElu" +
-           "cHV0QXJndW1lbnRzAQAAMQAuAEQAMQAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB/////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAAExAC4A" +
-           "RAExAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
-           "AQH/////AAAAAARhggoEAAAAAAAOAAAAQ2xvc2VBbmRVcGRhdGUBAAIxAC8BAAIxAjEAAAEB/////wIA" +
-           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQChMQAuAEShMQAAlgEAAAABACoBARkAAAAKAAAA" +
-           "RmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAA" +
-           "AE91dHB1dEFyZ3VtZW50cwEAAzEALgBEAzEAAJYBAAAAAQAqAQEjAAAAFAAAAEFwcGx5Q2hhbmdlc1Jl" +
-           "cXVpcmVkAAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAOAAAAQWRk" +
-           "Q2VydGlmaWNhdGUBAAQxAC8BAAQxBDEAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
-           "bnRzAQAFMQAuAEQFMQAAlgIAAAABACoBARoAAAALAAAAQ2VydGlmaWNhdGUAD/////8AAAAAAAEAKgEB" +
-           "IwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAEYYIKBAAAAAAAEQAAAFJlbW92ZUNlcnRpZmljYXRlAQAGMQAvAQAGMQYxAAABAf////8BAAAA" +
-           "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEABzEALgBEBzEAAJYCAAAAAQAqAQEZAAAACgAAAFRo" +
-           "dW1icHJpbnQADP////8AAAAAAAEAKgEBIwAAABQAAABJc1RydXN0ZWRDZXJ0aWZpY2F0ZQAB/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQD+MAAuAET+MAAAAQAmAf////8BAf////8AAAAABGGCCgQA" +
+           "AAAAAA0AAABPcGVuV2l0aE1hc2tzAQD/MAAvAQD/MP8wAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJ" +
+           "bnB1dEFyZ3VtZW50cwEAADEALgBEADEAAJYBAAAAAQAqAQEUAAAABQAAAE1hc2tzAAf/////AAAAAAAB" +
+           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQABMQAu" +
+           "AEQBMQAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAAADgAAAENsb3NlQW5kVXBkYXRlAQACMQAvAQACMQIxAAABAf////8C" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAoTEALgBEoTEAAJYBAAAAAQAqAQEZAAAACgAA" +
+           "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
+           "AABPdXRwdXRBcmd1bWVudHMBAAMxAC4ARAMxAACWAQAAAAEAKgEBIwAAABQAAABBcHBseUNoYW5nZXNS" +
+           "ZXF1aXJlZAAB/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAADgAAAEFk" +
+           "ZENlcnRpZmljYXRlAQAEMQAvAQAEMQQxAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
+           "ZW50cwEABTEALgBEBTEAAJYCAAAAAQAqAQEaAAAACwAAAENlcnRpZmljYXRlAA//////AAAAAAABACoB" +
+           "ASMAAAAUAAAASXNUcnVzdGVkQ2VydGlmaWNhdGUAAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "//8AAAAABGGCCgQAAAAAABEAAABSZW1vdmVDZXJ0aWZpY2F0ZQEABjEALwEABjEGMQAAAQH/////AQAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAcxAC4ARAcxAACWAgAAAAEAKgEBGQAAAAoAAABU" +
+           "aHVtYnByaW50AAz/////AAAAAAABACoBASMAAAAUAAAASXNUcnVzdGVkQ2VydGlmaWNhdGUAAf////8A" +
+           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -59412,25 +59036,6 @@ namespace Opc.Ua
                 }
 
                 m_lastUpdateTime = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<double> UpdateFrequency
-        {
-            get
-            {
-                return m_updateFrequency;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_updateFrequency, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_updateFrequency = value;
             }
         }
 
@@ -59526,11 +59131,6 @@ namespace Opc.Ua
                 children.Add(m_lastUpdateTime);
             }
 
-            if (m_updateFrequency != null)
-            {
-                children.Add(m_updateFrequency);
-            }
-
             if (m_openWithMasksMethod != null)
             {
                 children.Add(m_openWithMasksMethod);
@@ -59590,27 +59190,6 @@ namespace Opc.Ua
                     }
 
                     instance = LastUpdateTime;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.UpdateFrequency:
-                {
-                    if (createOrReplace)
-                    {
-                        if (UpdateFrequency == null)
-                        {
-                            if (replacement == null)
-                            {
-                                UpdateFrequency = new PropertyState<double>(this);
-                            }
-                            else
-                            {
-                                UpdateFrequency = (PropertyState<double>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = UpdateFrequency;
                     break;
                 }
 
@@ -59710,298 +59289,10 @@ namespace Opc.Ua
 
         #region Private Fields
         private PropertyState<DateTime> m_lastUpdateTime;
-        private PropertyState<double> m_updateFrequency;
         private OpenWithMasksMethodState m_openWithMasksMethod;
         private CloseAndUpdateMethodState m_closeAndUpdateMethod;
         private AddCertificateMethodState m_addCertificateMethod;
         private RemoveCertificateMethodState m_removeCertificateMethod;
-        #endregion
-    }
-    #endif
-    #endregion
-
-    #region TrustListOutOfDateAlarmState Class
-    #if (!OPCUA_EXCLUDE_TrustListOutOfDateAlarmState)
-    /// <summary>
-    /// Stores an instance of the TrustListOutOfDateAlarmType ObjectType.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class TrustListOutOfDateAlarmState : SystemOffNormalAlarmState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public TrustListOutOfDateAlarmState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrustListOutOfDateAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-        }
-
-        #region Initialization String
-        private const string InitializationString =
-           "//////////8EYIACAQAAAAAAIwAAAFRydXN0TGlzdE91dE9mRGF0ZUFsYXJtVHlwZUluc3RhbmNlAQBh" +
-           "SwEAYUthSwAA/////x4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAGJLAC4ARGJLAAAAD/////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAGNLAC4ARGNLAAAAEf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAoAAABTb3VyY2VOb2RlAQBkSwAuAERkSwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAK" +
-           "AAAAU291cmNlTmFtZQEAZUsALgBEZUsAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUB" +
-           "AGZLAC4ARGZLAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQBnSwAu" +
-           "AERnSwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQBpSwAuAERpSwAAABX/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBAGpLAC4ARGpLAAAABf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQBrSwAuAERrSwAAABH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQBsSwAuAERsSwAAABX/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEAb0sALgBEb0sAAAAM/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACAAAAEJyYW5jaElkAQBwSwAuAERwSwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAA" +
-           "UmV0YWluAQBxSwAuAERxSwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5hYmxlZFN0YXRl" +
-           "AQBySwAvAQAjI3JLAAAAFf////8BAQUAAAABACwjAAEAiksBACwjAAEAk0sBACwjAAEAoEsBACwjAAEA" +
-           "qksBACwjAAEAvEsBAAAAFWCJCgIAAAAAAAIAAABJZAEAc0sALgBEc0sAAAAB/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAABwAAAFF1YWxpdHkBAHtLAC8BACoje0sAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAA" +
-           "DwAAAFNvdXJjZVRpbWVzdGFtcAEAfEsALgBEfEsAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAM" +
-           "AAAATGFzdFNldmVyaXR5AQB9SwAvAQAqI31LAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABT" +
-           "b3VyY2VUaW1lc3RhbXABAH5LAC4ARH5LAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENv" +
-           "bW1lbnQBAH9LAC8BACojf0sAAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVz" +
-           "dGFtcAEAgEsALgBEgEsAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklk" +
-           "AQCBSwAuAESBSwAAAAz/////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEAgksALwEARCOC" +
-           "SwAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQCDSwAvAQBDI4NLAAABAQEA" +
-           "AAABAPkLAAEA8woAAAAABGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQCESwAvAQBFI4RLAAABAQEAAAAB" +
-           "APkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhUsALgBEhUsAAJYCAAAAAQAq" +
-           "AQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBl" +
-           "dmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBj" +
-           "b21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAoAAABBY2tlZFN0YXRlAQCKSwAvAQAjI4pLAAAAFf////8BAQEAAAABACwjAQEAcksBAAAA" +
-           "FWCJCgIAAAAAAAIAAABJZAEAi0sALgBEi0sAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFj" +
-           "a25vd2xlZGdlAQCcSwAvAQCXI5xLAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
-           "dEFyZ3VtZW50cwEAnUsALgBEnUsAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAA" +
-           "AAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABD" +
-           "b21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9u" +
-           "LgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEAoEsALwEA" +
-           "IyOgSwAAABX/////AQEBAAAAAQAsIwEBAHJLAQAAABVgiQoCAAAAAAACAAAASWQBAKFLAC4ARKFLAAAA" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAKlLAC4ARKlLAAAAEf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQDPSwAuAETPSwAAAAH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUBAPVLAC4ARPVLAAAAEf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAsAAABUcnVzdExpc3RJZAEA9ksALgBE9ksAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAADgAAAExhc3RVcGRhdGVUaW1lAQD3SwAuAET3SwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AA8AAABVcGRhdGVGcmVxdWVuY3kBAPhLAC4ARPhLAAABACIB/////wEB/////wAAAAA=";
-        #endregion
-        #endif
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        public PropertyState<NodeId> TrustListId
-        {
-            get
-            {
-                return m_trustListId;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_trustListId, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_trustListId = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<DateTime> LastUpdateTime
-        {
-            get
-            {
-                return m_lastUpdateTime;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_lastUpdateTime, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_lastUpdateTime = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<double> UpdateFrequency
-        {
-            get
-            {
-                return m_updateFrequency;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_updateFrequency, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_updateFrequency = value;
-            }
-        }
-        #endregion
-
-        #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
-        {
-            if (m_trustListId != null)
-            {
-                children.Add(m_trustListId);
-            }
-
-            if (m_lastUpdateTime != null)
-            {
-                children.Add(m_lastUpdateTime);
-            }
-
-            if (m_updateFrequency != null)
-            {
-                children.Add(m_updateFrequency);
-            }
-
-            base.GetChildren(context, children);
-        }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (QualifiedName.IsNull(browseName))
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-
-            switch (browseName.Name)
-            {
-                case Opc.Ua.BrowseNames.TrustListId:
-                {
-                    if (createOrReplace)
-                    {
-                        if (TrustListId == null)
-                        {
-                            if (replacement == null)
-                            {
-                                TrustListId = new PropertyState<NodeId>(this);
-                            }
-                            else
-                            {
-                                TrustListId = (PropertyState<NodeId>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = TrustListId;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.LastUpdateTime:
-                {
-                    if (createOrReplace)
-                    {
-                        if (LastUpdateTime == null)
-                        {
-                            if (replacement == null)
-                            {
-                                LastUpdateTime = new PropertyState<DateTime>(this);
-                            }
-                            else
-                            {
-                                LastUpdateTime = (PropertyState<DateTime>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = LastUpdateTime;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.UpdateFrequency:
-                {
-                    if (createOrReplace)
-                    {
-                        if (UpdateFrequency == null)
-                        {
-                            if (replacement == null)
-                            {
-                                UpdateFrequency = new PropertyState<double>(this);
-                            }
-                            else
-                            {
-                                UpdateFrequency = (PropertyState<double>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = UpdateFrequency;
-                    break;
-                }
-            }
-
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-        #endregion
-
-        #region Private Fields
-        private PropertyState<NodeId> m_trustListId;
-        private PropertyState<DateTime> m_lastUpdateTime;
-        private PropertyState<double> m_updateFrequency;
         #endregion
     }
     #endif
@@ -60057,110 +59348,12 @@ namespace Opc.Ua
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
-
-            if (CertificateExpired != null)
-            {
-                CertificateExpired.Initialize(context, CertificateExpired_InitializationString);
-            }
-
-            if (TrustListOutOfDate != null)
-            {
-                TrustListOutOfDate.Initialize(context, TrustListOutOfDate_InitializationString);
-            }
         }
 
         #region Initialization String
-        private const string CertificateExpired_InitializationString =
-           "//////////8EYIAKAQAAAAAAEgAAAENlcnRpZmljYXRlRXhwaXJlZAEA+ksALwEAqTP6SwAA/////x4A" +
-           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAPtLAC4ARPtLAAAAD/////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAkAAABFdmVudFR5cGUBAPxLAC4ARPxLAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3Vy" +
-           "Y2VOb2RlAQD9SwAuAET9SwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEA" +
-           "/ksALgBE/ksAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAP9LAC4ARP9LAAABACYB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQAATAAuAEQATAAAAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQACTAAuAEQCTAAAABX/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAAU2V2ZXJpdHkBAANMAC4ARANMAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABAA" +
-           "AABDb25kaXRpb25DbGFzc0lkAQAETAAuAEQETAAAABH/////AQH/////AAAAABVgiQoCAAAAAAASAAAA" +
-           "Q29uZGl0aW9uQ2xhc3NOYW1lAQAFTAAuAEQFTAAAABX/////AQH/////AAAAABVgiQoCAAAAAAANAAAA" +
-           "Q29uZGl0aW9uTmFtZQEACEwALgBECEwAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAEJyYW5j" +
-           "aElkAQAJTAAuAEQJTAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWluAQAKTAAuAEQK" +
-           "TAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQALTAAvAQAjIwtMAAAA" +
-           "Ff////8BAQUAAAABACwjAAEAH0wBACwjAAEAKEwBACwjAAEANUwBACwjAAEAP0wBACwjAAEAUUwBAAAA" +
-           "FWCJCgIAAAAAAAIAAABJZAEADEwALgBEDEwAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1" +
-           "YWxpdHkBABRMAC8BACojFEwAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVz" +
-           "dGFtcAEAFUwALgBEFUwAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5" +
-           "AQAWTAAvAQAqIxZMAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXAB" +
-           "ABdMAC4ARBdMAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBABhMAC8BACoj" +
-           "GEwAAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEAGUwALgBEGUwA" +
-           "AAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQAaTAAuAEQaTAAAAAz/" +
-           "////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEAG0wALwEARCMbTAAAAQEBAAAAAQD5CwAB" +
-           "APMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQAcTAAvAQBDIxxMAAABAQEAAAABAPkLAAEA8woAAAAA" +
-           "BGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQAdTAAvAQBFIx1MAAABAQEAAAABAPkLAAEADQsBAAAAF2Cp" +
-           "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAHkwALgBEHkwAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50" +
-           "SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50" +
-           "LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0" +
-           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
-           "ZFN0YXRlAQAfTAAvAQAjIx9MAAAAFf////8BAQEAAAABACwjAQEAC0wBAAAAFWCJCgIAAAAAAAIAAABJ" +
-           "ZAEAIEwALgBEIEwAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQAxTAAv" +
-           "AQCXIzFMAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMkwA" +
-           "LgBEMkwAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50" +
-           "aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAA" +
-           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEANUwALwEAIyM1TAAAABX/////AQEB" +
-           "AAAAAQAsIwEBAAtMAQAAABVgiQoCAAAAAAACAAAASWQBADZMAC4ARDZMAAAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAD5MAC4ARD5MAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "ABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQCFTgAuAESFTgAAAAH/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAALAAAATm9ybWFsU3RhdGUBAKpOAC4ARKpOAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABF" +
-           "eHBpcmF0aW9uRGF0ZQEAq04ALgBEq04AAAAN/////wEB/////wAAAAAVYIkKAgAAAAAADwAAAENlcnRp" +
-           "ZmljYXRlVHlwZQEArU4ALgBErU4AAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAENlcnRpZmlj" +
-           "YXRlAQCuTgAuAESuTgAAAA//////AQH/////AAAAAA==";
-
-        private const string TrustListOutOfDate_InitializationString =
-           "//////////8EYIAKAQAAAAAAEgAAAFRydXN0TGlzdE91dE9mRGF0ZQEAr04ALwEAYUuvTgAA/////x4A" +
-           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBALBOAC4ARLBOAAAAD/////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAkAAABFdmVudFR5cGUBALFOAC4ARLFOAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3Vy" +
-           "Y2VOb2RlAQCyTgAuAESyTgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEA" +
-           "s04ALgBEs04AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBALROAC4ARLROAAABACYB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQC1TgAuAES1TgAAAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQC3TgAuAES3TgAAABX/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAAU2V2ZXJpdHkBALhOAC4ARLhOAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABAA" +
-           "AABDb25kaXRpb25DbGFzc0lkAQC5TgAuAES5TgAAABH/////AQH/////AAAAABVgiQoCAAAAAAASAAAA" +
-           "Q29uZGl0aW9uQ2xhc3NOYW1lAQC6TgAuAES6TgAAABX/////AQH/////AAAAABVgiQoCAAAAAAANAAAA" +
-           "Q29uZGl0aW9uTmFtZQEAvU4ALgBEvU4AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAEJyYW5j" +
-           "aElkAQC+TgAuAES+TgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWluAQC/TgAuAES/" +
-           "TgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQDATgAvAQAjI8BOAAAA" +
-           "Ff////8BAQUAAAABACwjAAEA1E4BACwjAAEA3U4BACwjAAEA6k4BACwjAAEA9E4BACwjAAEABk8BAAAA" +
-           "FWCJCgIAAAAAAAIAAABJZAEAwU4ALgBEwU4AAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1" +
-           "YWxpdHkBAMlOAC8BACojyU4AAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVz" +
-           "dGFtcAEAyk4ALgBEyk4AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5" +
-           "AQDLTgAvAQAqI8tOAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXAB" +
-           "AMxOAC4ARMxOAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAM1OAC8BACoj" +
-           "zU4AAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEAzk4ALgBEzk4A" +
-           "AAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQDPTgAuAETPTgAAAAz/" +
-           "////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEA0E4ALwEARCPQTgAAAQEBAAAAAQD5CwAB" +
-           "APMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQDRTgAvAQBDI9FOAAABAQEAAAABAPkLAAEA8woAAAAA" +
-           "BGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQDSTgAvAQBFI9JOAAABAQEAAAABAPkLAAEADQsBAAAAF2Cp" +
-           "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA004ALgBE004AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50" +
-           "SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50" +
-           "LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0" +
-           "byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tl" +
-           "ZFN0YXRlAQDUTgAvAQAjI9ROAAAAFf////8BAQEAAAABACwjAQEAwE4BAAAAFWCJCgIAAAAAAAIAAABJ" +
-           "ZAEA1U4ALgBE1U4AAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQDmTgAv" +
-           "AQCXI+ZOAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA504A" +
-           "LgBE504AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50" +
-           "aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAA" +
-           "AAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0ZQEA6k4ALwEAIyPqTgAAABX/////AQEB" +
-           "AAAAAQAsIwEBAMBOAQAAABVgiQoCAAAAAAACAAAASWQBAOtOAC4AROtOAAAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAPNOAC4ARPNOAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "ABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAZTwAuAEQZTwAAAAH/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAALAAAATm9ybWFsU3RhdGUBAD5PAC4ARD5PAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABU" +
-           "cnVzdExpc3RJZAEAP08ALgBEP08AAAAR/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAExhc3RVcGRh" +
-           "dGVUaW1lAQBATwAuAERATwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABVcGRhdGVGcmVx" +
-           "dWVuY3kBAEFPAC4AREFPAAABACIB/////wEB/////wAAAAA=";
-
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAENlcnRpZmljYXRlR3JvdXBUeXBlSW5zdGFuY2UBAAsxAQALMQsx" +
-           "AAD/////BAAAAARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQAfNQAvAQDqMB81AAD/////DAAAABVgiQoC" +
+           "AAD/////AgAAAARggAoBAAAAAAAJAAAAVHJ1c3RMaXN0AQAfNQAvAQDqMB81AAD/////DAAAABVgiQoC" +
            "AAAAAAAEAAAAU2l6ZQEAIDUALgBEIDUAAAAJ/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFdyaXRh" +
            "YmxlAQAhNQAuAEQhNQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAVXNlcldyaXRhYmxlAQAi" +
            "NQAuAEQiNQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAT3BlbkNvdW50AQAjNQAuAEQjNQAA" +
@@ -60192,89 +59385,7 @@ namespace Opc.Ua
            "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEANzUALgBENzUAAJYB" +
            "AAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
            "AAAAF2CJCgIAAAAAABAAAABDZXJ0aWZpY2F0ZVR5cGVzAQA/NQAuAEQ/NQAAABEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAABGCACgEAAAAAABIAAABDZXJ0aWZpY2F0ZUV4cGlyZWQBAPpLAC8BAKkz+ksAAP////8e" +
-           "AAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQD7SwAuAET7SwAAAA//////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAJAAAARXZlbnRUeXBlAQD8SwAuAET8SwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
-           "cmNlTm9kZQEA/UsALgBE/UsAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUB" +
-           "AP5LAC4ARP5LAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAQD/SwAuAET/SwAAAQAm" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEAAEwALgBEAEwAAAEAJgH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEAAkwALgBEAkwAAAAV/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACAAAAFNldmVyaXR5AQADTAAuAEQDTAAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
-           "AAAAQ29uZGl0aW9uQ2xhc3NJZAEABEwALgBEBEwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAAEgAA" +
-           "AENvbmRpdGlvbkNsYXNzTmFtZQEABUwALgBEBUwAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAADQAA" +
-           "AENvbmRpdGlvbk5hbWUBAAhMAC4ARAhMAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABCcmFu" +
-           "Y2hJZAEACUwALgBECUwAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAFJldGFpbgEACkwALgBE" +
-           "CkwAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVuYWJsZWRTdGF0ZQEAC0wALwEAIyMLTAAA" +
-           "ABX/////AQEFAAAAAQAsIwABAB9MAQAsIwABAChMAQAsIwABADVMAQAsIwABAD9MAQAsIwABAFFMAQAA" +
-           "ABVgiQoCAAAAAAACAAAASWQBAAxMAC4ARAxMAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABR" +
-           "dWFsaXR5AQAUTAAvAQAqIxRMAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1l" +
-           "c3RhbXABABVMAC4ARBVMAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0" +
-           "eQEAFkwALwEAKiMWTAAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQAXTAAuAEQXTAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQAYTAAvAQAq" +
-           "IxhMAAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABABlMAC4ARBlM" +
-           "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEAGkwALgBEGkwAAAAM" +
-           "/////wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBABtMAC8BAEQjG0wAAAEBAQAAAAEA+QsA" +
-           "AQDzCgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEAHEwALwEAQyMcTAAAAQEBAAAAAQD5CwABAPMKAAAA" +
-           "AARhggoEAAAAAAAKAAAAQWRkQ29tbWVudAEAHUwALwEARSMdTAAAAQEBAAAAAQD5CwABAA0LAQAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAB5MAC4ARB5MAACWAgAAAAEAKgEBRgAAAAcAAABFdmVu" +
-           "dElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVu" +
-           "dC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQg" +
-           "dG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNr" +
-           "ZWRTdGF0ZQEAH0wALwEAIyMfTAAAABX/////AQEBAAAAAQAsIwEBAAtMAQAAABVgiQoCAAAAAAACAAAA" +
-           "SWQBACBMAC4ARCBMAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEAMUwA" +
-           "LwEAlyMxTAAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADJM" +
-           "AC4ARDJMAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVu" +
-           "dGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAA" +
-           "AAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAQWN0aXZlU3RhdGUBADVMAC8BACMjNUwAAAAV/////wEB" +
-           "AQAAAAEALCMBAQALTAEAAAAVYIkKAgAAAAAAAgAAAElkAQA2TAAuAEQ2TAAAAAH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAJAAAASW5wdXROb2RlAQA+TAAuAEQ+TAAAABH/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAATAAAAU3VwcHJlc3NlZE9yU2hlbHZlZAEAhU4ALgBEhU4AAAAB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACwAAAE5vcm1hbFN0YXRlAQCqTgAuAESqTgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAA" +
-           "RXhwaXJhdGlvbkRhdGUBAKtOAC4ARKtOAAAADf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABDZXJ0" +
-           "aWZpY2F0ZVR5cGUBAK1OAC4ARK1OAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZp" +
-           "Y2F0ZQEArk4ALgBErk4AAAAP/////wEB/////wAAAAAEYIAKAQAAAAAAEgAAAFRydXN0TGlzdE91dE9m" +
-           "RGF0ZQEAr04ALwEAYUuvTgAA/////x4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBALBOAC4ARLBOAAAA" +
-           "D/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBALFOAC4ARLFOAAAAEf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQCyTgAuAESyTgAAABH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAKAAAAU291cmNlTmFtZQEAs04ALgBEs04AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "BAAAAFRpbWUBALROAC4ARLROAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVU" +
-           "aW1lAQC1TgAuAES1TgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQC3TgAu" +
-           "AES3TgAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBALhOAC4ARLhOAAAABf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQC5TgAuAES5TgAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQC6TgAuAES6TgAAABX/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEAvU4ALgBEvU4AAAAM/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQC+TgAuAES+TgAAABH/////AQH/////AAAAABVgiQoC" +
-           "AAAAAAAGAAAAUmV0YWluAQC/TgAuAES/TgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5h" +
-           "YmxlZFN0YXRlAQDATgAvAQAjI8BOAAAAFf////8BAQUAAAABACwjAAEA1E4BACwjAAEA3U4BACwjAAEA" +
-           "6k4BACwjAAEA9E4BACwjAAEABk8BAAAAFWCJCgIAAAAAAAIAAABJZAEAwU4ALgBEwU4AAAAB/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxpdHkBAMlOAC8BACojyU4AAAAT/////wEB/////wEAAAAV" +
-           "YIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEAyk4ALgBEyk4AAAEAJgH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQDLTgAvAQAqI8tOAAAABf////8BAf////8BAAAAFWCJCgIA" +
-           "AAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAMxOAC4ARMxOAAABACYB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAABwAAAENvbW1lbnQBAM1OAC8BACojzU4AAAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNv" +
-           "dXJjZVRpbWVzdGFtcAEAzk4ALgBEzk4AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xp" +
-           "ZW50VXNlcklkAQDPTgAuAETPTgAAAAz/////AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEA" +
-           "0E4ALwEARCPQTgAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQDRTgAvAQBD" +
-           "I9FOAAABAQEAAAABAPkLAAEA8woAAAAABGGCCgQAAAAAAAoAAABBZGRDb21tZW50AQDSTgAvAQBFI9JO" +
-           "AAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA004ALgBE004A" +
-           "AJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIg" +
-           "Zm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAA" +
-           "JAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQDUTgAvAQAjI9ROAAAAFf////8BAQEAAAABACwj" +
-           "AQEAwE4BAAAAFWCJCgIAAAAAAAIAAABJZAEA1U4ALgBE1U4AAAAB/////wEB/////wAAAAAEYYIKBAAA" +
-           "AAAACwAAAEFja25vd2xlZGdlAQDmTgAvAQCXI+ZOAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEA504ALgBE504AAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD///" +
-           "//8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEB" +
-           "QgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUg" +
-           "Y29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABBY3RpdmVTdGF0" +
-           "ZQEA6k4ALwEAIyPqTgAAABX/////AQEBAAAAAQAsIwEBAMBOAQAAABVgiQoCAAAAAAACAAAASWQBAOtO" +
-           "AC4AROtOAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1dE5vZGUBAPNOAC4ARPNOAAAA" +
-           "Ef////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAQAZTwAuAEQZTwAA" +
-           "AAH/////AQH/////AAAAABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUBAD5PAC4ARD5PAAAAEf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAsAAABUcnVzdExpc3RJZAEAP08ALgBEP08AAAAR/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQBATwAuAERATwAAAQAmAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAA8AAABVcGRhdGVGcmVxdWVuY3kBAEFPAC4AREFPAAABACIB/////wEB/////wAAAAA=";
+           "Af////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -60317,44 +59428,6 @@ namespace Opc.Ua
                 m_certificateTypes = value;
             }
         }
-
-        /// <remarks />
-        public CertificateExpirationAlarmState CertificateExpired
-        {
-            get
-            {
-                return m_certificateExpired;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_certificateExpired, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_certificateExpired = value;
-            }
-        }
-
-        /// <remarks />
-        public TrustListOutOfDateAlarmState TrustListOutOfDate
-        {
-            get
-            {
-                return m_trustListOutOfDate;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_trustListOutOfDate, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_trustListOutOfDate = value;
-            }
-        }
         #endregion
 
         #region Overridden Methods
@@ -60375,16 +59448,6 @@ namespace Opc.Ua
             if (m_certificateTypes != null)
             {
                 children.Add(m_certificateTypes);
-            }
-
-            if (m_certificateExpired != null)
-            {
-                children.Add(m_certificateExpired);
-            }
-
-            if (m_trustListOutOfDate != null)
-            {
-                children.Add(m_trustListOutOfDate);
             }
 
             base.GetChildren(context, children);
@@ -60449,48 +59512,6 @@ namespace Opc.Ua
                     instance = CertificateTypes;
                     break;
                 }
-
-                case Opc.Ua.BrowseNames.CertificateExpired:
-                {
-                    if (createOrReplace)
-                    {
-                        if (CertificateExpired == null)
-                        {
-                            if (replacement == null)
-                            {
-                                CertificateExpired = new CertificateExpirationAlarmState(this);
-                            }
-                            else
-                            {
-                                CertificateExpired = (CertificateExpirationAlarmState)replacement;
-                            }
-                        }
-                    }
-
-                    instance = CertificateExpired;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.TrustListOutOfDate:
-                {
-                    if (createOrReplace)
-                    {
-                        if (TrustListOutOfDate == null)
-                        {
-                            if (replacement == null)
-                            {
-                                TrustListOutOfDate = new TrustListOutOfDateAlarmState(this);
-                            }
-                            else
-                            {
-                                TrustListOutOfDate = (TrustListOutOfDateAlarmState)replacement;
-                            }
-                        }
-                    }
-
-                    instance = TrustListOutOfDate;
-                    break;
-                }
             }
 
             if (instance != null)
@@ -60505,8 +59526,6 @@ namespace Opc.Ua
         #region Private Fields
         private TrustListState m_trustList;
         private PropertyState<NodeId[]> m_certificateTypes;
-        private CertificateExpirationAlarmState m_certificateExpired;
-        private TrustListOutOfDateAlarmState m_trustListOutOfDate;
         #endregion
     }
     #endif
@@ -63071,7 +62090,6 @@ namespace Opc.Ua
         ref NodeId revisedSecurityPolicyUri);
     #endif
     #endregion
-
 
     #region KeyCredentialConfigurationState Class
     #if (!OPCUA_EXCLUDE_KeyCredentialConfigurationState)
@@ -82765,447 +81783,6 @@ namespace Opc.Ua
         private BaseDataVariableState<string> m_url;
         #endregion
     }
-    #endif
-    #endregion
-
-    #region MultiStateDictionaryEntryDiscreteBaseState Class
-    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteBaseState)
-    /// <summary>
-    /// Stores an instance of the MultiStateDictionaryEntryDiscreteBaseType VariableType.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class MultiStateDictionaryEntryDiscreteBaseState : MultiStateValueDiscreteState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public MultiStateDictionaryEntryDiscreteBaseState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.MultiStateDictionaryEntryDiscreteBaseType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        /// <summary>
-        /// Returns the id of the default data type node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        /// <summary>
-        /// Returns the id of the default value rank for the instance.
-        /// </summary>
-        protected override int GetDefaultValueRank()
-        {
-            return ValueRanks.Scalar;
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-
-            if (ValueAsDictionaryEntries != null)
-            {
-                ValueAsDictionaryEntries.Initialize(context, ValueAsDictionaryEntries_InitializationString);
-            }
-        }
-
-        #region Initialization String
-        private const string ValueAsDictionaryEntries_InitializationString =
-           "//////////8XYIkKAgAAAAAAGAAAAFZhbHVlQXNEaWN0aW9uYXJ5RW50cmllcwEAi0oALgBEi0oAAAAR" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
-
-        private const string InitializationString =
-           "//////////8VYIkCAgAAAAAAMQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZUJhc2VU" +
-           "eXBlSW5zdGFuY2UBAIVKAQCFSoVKAAAAGv////8BAf////8EAAAAF2CJCgIAAAAAAAoAAABFbnVtVmFs" +
-           "dWVzAQCISgAuAESISgAAAQCqHQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFZhbHVl" +
-           "QXNUZXh0AQCJSgAuAESJSgAAABX/////AQH/////AAAAABdgiQoCAAAAAAAVAAAARW51bURpY3Rpb25h" +
-           "cnlFbnRyaWVzAQCKSgAuAESKSgAAABECAAAAAgAAAAAAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAY" +
-           "AAAAVmFsdWVBc0RpY3Rpb25hcnlFbnRyaWVzAQCLSgAuAESLSgAAABEBAAAAAQAAAAAAAAABAf////8A" +
-           "AAAA";
-        #endregion
-        #endif
-        #endregion
-
-        #region Public Properties
-        /// <remarks />
-        public PropertyState<NodeId> EnumDictionaryEntries
-        {
-            get
-            {
-                return m_enumDictionaryEntries;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_enumDictionaryEntries, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_enumDictionaryEntries = value;
-            }
-        }
-
-        /// <remarks />
-        public PropertyState<NodeId[]> ValueAsDictionaryEntries
-        {
-            get
-            {
-                return m_valueAsDictionaryEntries;
-            }
-
-            set
-            {
-                if (!Object.ReferenceEquals(m_valueAsDictionaryEntries, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_valueAsDictionaryEntries = value;
-            }
-        }
-        #endregion
-
-        #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
-        {
-            if (m_enumDictionaryEntries != null)
-            {
-                children.Add(m_enumDictionaryEntries);
-            }
-
-            if (m_valueAsDictionaryEntries != null)
-            {
-                children.Add(m_valueAsDictionaryEntries);
-            }
-
-            base.GetChildren(context, children);
-        }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (QualifiedName.IsNull(browseName))
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-
-            switch (browseName.Name)
-            {
-                case Opc.Ua.BrowseNames.EnumDictionaryEntries:
-                {
-                    if (createOrReplace)
-                    {
-                        if (EnumDictionaryEntries == null)
-                        {
-                            if (replacement == null)
-                            {
-                                EnumDictionaryEntries = new PropertyState<NodeId>(this);
-                            }
-                            else
-                            {
-                                EnumDictionaryEntries = (PropertyState<NodeId>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = EnumDictionaryEntries;
-                    break;
-                }
-
-                case Opc.Ua.BrowseNames.ValueAsDictionaryEntries:
-                {
-                    if (createOrReplace)
-                    {
-                        if (ValueAsDictionaryEntries == null)
-                        {
-                            if (replacement == null)
-                            {
-                                ValueAsDictionaryEntries = new PropertyState<NodeId[]>(this);
-                            }
-                            else
-                            {
-                                ValueAsDictionaryEntries = (PropertyState<NodeId[]>)replacement;
-                            }
-                        }
-                    }
-
-                    instance = ValueAsDictionaryEntries;
-                    break;
-                }
-            }
-
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-        #endregion
-
-        #region Private Fields
-        private PropertyState<NodeId> m_enumDictionaryEntries;
-        private PropertyState<NodeId[]> m_valueAsDictionaryEntries;
-        #endregion
-    }
-
-    #region MultiStateDictionaryEntryDiscreteBaseState<T> Class
-    /// <summary>
-    /// A typed version of the MultiStateDictionaryEntryDiscreteBaseType variable.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public class MultiStateDictionaryEntryDiscreteBaseState<T> : MultiStateDictionaryEntryDiscreteBaseState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the instance with its defalt attribute values.
-        /// </summary>
-        public MultiStateDictionaryEntryDiscreteBaseState(NodeState parent) : base(parent)
-        {
-            Value = default(T);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-
-            Value = default(T);
-            DataType = TypeInfo.GetDataTypeId(typeof(T));
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-        #endregion
-
-        #region Public Members
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
-
-            set
-            {
-                base.Value = value;
-            }
-        }
-        #endregion
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region MultiStateDictionaryEntryDiscreteState Class
-    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteState)
-    /// <summary>
-    /// Stores an instance of the MultiStateDictionaryEntryDiscreteType VariableType.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class MultiStateDictionaryEntryDiscreteState : MultiStateDictionaryEntryDiscreteBaseState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public MultiStateDictionaryEntryDiscreteState(NodeState parent) : base(parent)
-        {
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.MultiStateDictionaryEntryDiscreteType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        /// <summary>
-        /// Returns the id of the default data type node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
-        {
-            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
-        }
-
-        /// <summary>
-        /// Returns the id of the default value rank for the instance.
-        /// </summary>
-        protected override int GetDefaultValueRank()
-        {
-            return ValueRanks.Scalar;
-        }
-
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            Initialize(context, InitializationString);
-            InitializeOptionalChildren(context);
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
-        protected override void InitializeOptionalChildren(ISystemContext context)
-        {
-            base.InitializeOptionalChildren(context);
-        }
-
-        #region Initialization String
-        private const string InitializationString =
-           "//////////8VYIkCAgAAAAAALQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZVR5cGVJ" +
-           "bnN0YW5jZQEAjEoBAIxKjEoAAAAa/////wEB/////wQAAAAXYIkKAgAAAAAACgAAAEVudW1WYWx1ZXMB" +
-           "AI9KAC4ARI9KAAABAKodAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAVmFsdWVBc1Rl" +
-           "eHQBAJBKAC4ARJBKAAAAFf////8BAf////8AAAAAF2CJCgIAAAAAABUAAABFbnVtRGljdGlvbmFyeUVu" +
-           "dHJpZXMBAJFKAC4ARJFKAAAAEQIAAAACAAAAAAAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABW" +
-           "YWx1ZUFzRGljdGlvbmFyeUVudHJpZXMBAJJKAC4ARJJKAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
-        #endregion
-        #endif
-        #endregion
-
-        #region Public Properties
-        #endregion
-
-        #region Overridden Methods
-        #endregion
-
-        #region Private Fields
-        #endregion
-    }
-
-    #region MultiStateDictionaryEntryDiscreteState<T> Class
-    /// <summary>
-    /// A typed version of the MultiStateDictionaryEntryDiscreteType variable.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public class MultiStateDictionaryEntryDiscreteState<T> : MultiStateDictionaryEntryDiscreteState
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the instance with its defalt attribute values.
-        /// </summary>
-        public MultiStateDictionaryEntryDiscreteState(NodeState parent) : base(parent)
-        {
-            Value = default(T);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-
-            Value = default(T);
-            DataType = TypeInfo.GetDataTypeId(typeof(T));
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
-        protected override void Initialize(ISystemContext context, NodeState source)
-        {
-            InitializeOptionalChildren(context);
-            base.Initialize(context, source);
-        }
-        #endregion
-
-        #region Public Members
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
-
-            set
-            {
-                base.Value = value;
-            }
-        }
-        #endregion
-    }
-    #endregion
     #endif
     #endregion
 }
