@@ -864,8 +864,8 @@ namespace Opc.Ua
 
                 if (uri.Scheme == Utils.UriSchemeHttps)
                 {
-                    // Can only support one policy with HTTPS so pick the 
-                    // first secure policy with sign and encrypt in the list 
+                    // Can only support one policy with HTTPS
+                    // So pick the first policy with security mode sign and encrypt
                     ServerSecurityPolicy bestPolicy = null;
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
@@ -878,9 +878,10 @@ namespace Opc.Ua
                         break;
                     }
 
+                    // Pick the first policy from the list if no policies with sign and encrypt defined
                     if (bestPolicy == null)
                     {
-                        throw new ServiceResultException("HTTPS transport requires policy with sign and encrypt.");
+                        bestPolicy = securityPolicies[0];
                     }
 
                     EndpointDescription description = new EndpointDescription();
