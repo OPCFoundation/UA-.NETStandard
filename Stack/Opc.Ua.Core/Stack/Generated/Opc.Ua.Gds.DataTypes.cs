@@ -39,7 +39,7 @@ namespace Opc.Ua.Gds
     #region ApplicationRecordDataType Class
     #if (!OPCUA_EXCLUDE_ApplicationRecordDataType)
     /// <summary>
-    /// A description for the ApplicationRecordDataType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80,9 +80,7 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the ApplicationId field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ApplicationId", IsRequired = false, Order = 1)]
         public NodeId ApplicationId
         {
@@ -90,9 +88,7 @@ namespace Opc.Ua.Gds
             set { m_applicationId = value; }
         }
 
-        /// <summary>
-        /// A description for the ApplicationUri field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 2)]
         public string ApplicationUri
         {
@@ -100,9 +96,7 @@ namespace Opc.Ua.Gds
             set { m_applicationUri = value; }
         }
 
-        /// <summary>
-        /// A description for the ApplicationType field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ApplicationType", IsRequired = false, Order = 3)]
         public ApplicationType ApplicationType
         {
@@ -111,7 +105,7 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
-        /// A description for the ApplicationNames field.
+        /// 
         /// </summary>
         [DataMember(Name = "ApplicationNames", IsRequired = false, Order = 4)]
         public LocalizedTextCollection ApplicationNames
@@ -132,9 +126,7 @@ namespace Opc.Ua.Gds
             }
         }
 
-        /// <summary>
-        /// A description for the ProductUri field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 5)]
         public string ProductUri
         {
@@ -143,7 +135,7 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
-        /// A description for the DiscoveryUrls field.
+        /// 
         /// </summary>
         [DataMember(Name = "DiscoveryUrls", IsRequired = false, Order = 6)]
         public StringCollection DiscoveryUrls
@@ -165,7 +157,7 @@ namespace Opc.Ua.Gds
         }
 
         /// <summary>
-        /// A description for the ServerCapabilities field.
+        /// 
         /// </summary>
         [DataMember(Name = "ServerCapabilities", IsRequired = false, Order = 7)]
         public StringCollection ServerCapabilities

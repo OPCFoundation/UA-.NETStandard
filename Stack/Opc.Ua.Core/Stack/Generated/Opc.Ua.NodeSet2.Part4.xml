@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-01-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-09-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2019-01-31T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.3" PublicationDate="2019-09-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -71,69 +71,54 @@
   </Aliases>
   <UADataType NodeId="i=18" BrowseName="ExpandedNodeId">
     <DisplayName>ExpandedNodeId</DisplayName>
-    <Description>Describes a value that is an absolute identifier for a node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=19" BrowseName="StatusCode">
     <DisplayName>StatusCode</DisplayName>
-    <Description>Describes a value that is a code representing the outcome of an operation by a Server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=23" BrowseName="DataValue">
     <DisplayName>DataValue</DisplayName>
-    <Description>Describes a value that is a structure containing a value, a status code and timestamps.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=25" BrowseName="DiagnosticInfo">
     <DisplayName>DiagnosticInfo</DisplayName>
-    <Description>Describes a value that is a structure containing diagnostics associated with a StatusCode.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=17588" BrowseName="Index">
     <DisplayName>Index</DisplayName>
-    <Description>This primitive data type is a UInt32 that identifies an element of an array.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=288" BrowseName="IntegerId">
     <DisplayName>IntegerId</DisplayName>
-    <Description>A numeric identifier for an object.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=307" BrowseName="ApplicationType">
     <DisplayName>ApplicationType</DisplayName>
-    <Description>The types of applications.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7597</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="ApplicationType">
-      <Field Name="Server" Value="0">
-        <Description>The application is a server.</Description>
-      </Field>
-      <Field Name="Client" Value="1">
-        <Description>The application is a client.</Description>
-      </Field>
-      <Field Name="ClientAndServer" Value="2">
-        <Description>The application is a client and a server.</Description>
-      </Field>
-      <Field Name="DiscoveryServer" Value="3">
-        <Description>The application is a discovery server.</Description>
-      </Field>
+      <Field Name="Server" Value="0" />
+      <Field Name="Client" Value="1" />
+      <Field Name="ClientAndServer" Value="2" />
+      <Field Name="DiscoveryServer" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7597" BrowseName="EnumStrings" ParentNodeId="i=307" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7597" BrowseName="EnumStrings" ParentNodeId="i=307" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -167,89 +152,46 @@
   </UAVariable>
   <UADataType NodeId="i=308" BrowseName="ApplicationDescription">
     <DisplayName>ApplicationDescription</DisplayName>
-    <Description>Describes an application and how to find it.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ApplicationDescription">
-      <Field Name="ApplicationUri" DataType="i=12">
-        <Description>The globally unique identifier for the application.</Description>
-      </Field>
-      <Field Name="ProductUri" DataType="i=12">
-        <Description>The globally unique identifier for the product.</Description>
-      </Field>
-      <Field Name="ApplicationName" DataType="i=21">
-        <Description>The name of application.</Description>
-      </Field>
-      <Field Name="ApplicationType" DataType="i=307">
-        <Description>The type of application.</Description>
-      </Field>
-      <Field Name="GatewayServerUri" DataType="i=12">
-        <Description>The globally unique identifier for the server that is acting as a gateway for the server.</Description>
-      </Field>
-      <Field Name="DiscoveryProfileUri" DataType="i=12">
-        <Description>The globally unique identifier for the discovery profile supported by the server.</Description>
-      </Field>
-      <Field Name="DiscoveryUrls" DataType="i=12" ValueRank="1">
-        <Description>The URLs for the server's discovery endpoints.</Description>
-      </Field>
+      <Field Name="ApplicationUri" DataType="i=12" />
+      <Field Name="ProductUri" DataType="i=12" />
+      <Field Name="ApplicationName" DataType="i=21" />
+      <Field Name="ApplicationType" DataType="i=307" />
+      <Field Name="GatewayServerUri" DataType="i=12" />
+      <Field Name="DiscoveryProfileUri" DataType="i=12" />
+      <Field Name="DiscoveryUrls" DataType="i=12" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=389" BrowseName="RequestHeader" Purpose="ServicesOnly">
     <DisplayName>RequestHeader</DisplayName>
-    <Description>The header passed with every server request.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RequestHeader">
-      <Field Name="AuthenticationToken" DataType="i=388">
-        <Description>The authentication token for the current session.</Description>
-      </Field>
-      <Field Name="Timestamp" DataType="i=294">
-        <Description>When the request was sent by the client.</Description>
-      </Field>
-      <Field Name="RequestHandle" DataType="i=288">
-        <Description>A handle assigned by the client to the request. It is returned in the response.</Description>
-      </Field>
-      <Field Name="ReturnDiagnostics" DataType="i=7">
-        <Description>A mask indicating what diagnostic information should be returned in the response.</Description>
-      </Field>
-      <Field Name="AuditEntryId" DataType="i=12">
-        <Description>Identifies an entry in the client audit log.</Description>
-      </Field>
-      <Field Name="TimeoutHint" DataType="i=7">
-        <Description>The timeout for the operation specified by the client.</Description>
-      </Field>
-      <Field Name="AdditionalHeader" DataType="i=22">
-        <Description>Allows vendor specific information to be included in the header.</Description>
-      </Field>
+      <Field Name="AuthenticationToken" DataType="i=388" />
+      <Field Name="Timestamp" DataType="i=294" />
+      <Field Name="RequestHandle" DataType="i=288" />
+      <Field Name="ReturnDiagnostics" DataType="i=7" />
+      <Field Name="AuditEntryId" DataType="i=12" />
+      <Field Name="TimeoutHint" DataType="i=7" />
+      <Field Name="AdditionalHeader" DataType="i=22" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=392" BrowseName="ResponseHeader" Purpose="ServicesOnly">
     <DisplayName>ResponseHeader</DisplayName>
-    <Description>The header passed with every server response.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ResponseHeader">
-      <Field Name="Timestamp" DataType="i=294">
-        <Description>When the response was sent by the server.</Description>
-      </Field>
-      <Field Name="RequestHandle" DataType="i=288">
-        <Description>The handle passed by the client in the request.</Description>
-      </Field>
-      <Field Name="ServiceResult" DataType="i=19">
-        <Description>The result of the operation. If Bad there are no parameters returned.</Description>
-      </Field>
-      <Field Name="ServiceDiagnostics" DataType="i=25">
-        <Description>The diagnostics associated with the ServiceResult.</Description>
-      </Field>
-      <Field Name="StringTable" DataType="i=12" ValueRank="1">
-        <Description>A table of strings referenced by the diagnotics structures included in the request.</Description>
-      </Field>
-      <Field Name="AdditionalHeader" DataType="i=22">
-        <Description>Allows vendor specific information to be included in the header.</Description>
-      </Field>
+      <Field Name="Timestamp" DataType="i=294" />
+      <Field Name="RequestHandle" DataType="i=288" />
+      <Field Name="ServiceResult" DataType="i=19" />
+      <Field Name="ServiceDiagnostics" DataType="i=25" />
+      <Field Name="StringTable" DataType="i=12" ValueRank="1" />
+      <Field Name="AdditionalHeader" DataType="i=22" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=20998" BrowseName="VersionTime">
@@ -260,14 +202,11 @@
   </UADataType>
   <UADataType NodeId="i=395" BrowseName="ServiceFault" Purpose="ServicesOnly">
     <DisplayName>ServiceFault</DisplayName>
-    <Description>The response returned by all services when there is a service level error.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ServiceFault">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=15901" BrowseName="SessionlessInvokeRequestType" Purpose="ServicesOnly">
@@ -296,38 +235,24 @@
   </UADataType>
   <UADataType NodeId="i=420" BrowseName="FindServersRequest" Purpose="ServicesOnly">
     <DisplayName>FindServersRequest</DisplayName>
-    <Description>Finds the servers known to the discovery server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="FindServersRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="EndpointUrl" DataType="i=12">
-        <Description>The URL used by the client to send the request.</Description>
-      </Field>
-      <Field Name="LocaleIds" DataType="i=295" ValueRank="1">
-        <Description>The locales to use when constructing a response.</Description>
-      </Field>
-      <Field Name="ServerUris" DataType="i=12" ValueRank="1">
-        <Description>The URIs of the servers to return (all servers returned if none specified).</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="EndpointUrl" DataType="i=12" />
+      <Field Name="LocaleIds" DataType="i=295" ValueRank="1" />
+      <Field Name="ServerUris" DataType="i=12" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=423" BrowseName="FindServersResponse" Purpose="ServicesOnly">
     <DisplayName>FindServersResponse</DisplayName>
-    <Description>Finds the servers known to the discovery server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="FindServersResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Servers" DataType="i=308" ValueRank="1">
-        <Description>The servers that met the criteria specified in the request.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Servers" DataType="i=308" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=12189" BrowseName="ServerOnNetwork">
@@ -367,34 +292,24 @@
   </UADataType>
   <UADataType NodeId="i=311" BrowseName="ApplicationInstanceCertificate">
     <DisplayName>ApplicationInstanceCertificate</DisplayName>
-    <Description>A certificate for an instance of an application.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=302" BrowseName="MessageSecurityMode">
     <DisplayName>MessageSecurityMode</DisplayName>
-    <Description>The type of security to use on a message.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7595</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="MessageSecurityMode">
-      <Field Name="Invalid" Value="0">
-        <Description>An invalid mode.</Description>
-      </Field>
-      <Field Name="None" Value="1">
-        <Description>No security is used.</Description>
-      </Field>
-      <Field Name="Sign" Value="2">
-        <Description>The message is signed.</Description>
-      </Field>
-      <Field Name="SignAndEncrypt" Value="3">
-        <Description>The message is signed and encrypted.</Description>
-      </Field>
+      <Field Name="Invalid" Value="0" />
+      <Field Name="None" Value="1" />
+      <Field Name="Sign" Value="2" />
+      <Field Name="SignAndEncrypt" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7595" BrowseName="EnumStrings" ParentNodeId="i=302" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7595" BrowseName="EnumStrings" ParentNodeId="i=302" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -428,27 +343,18 @@
   </UAVariable>
   <UADataType NodeId="i=303" BrowseName="UserTokenType">
     <DisplayName>UserTokenType</DisplayName>
-    <Description>The possible user token types.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7596</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="UserTokenType">
-      <Field Name="Anonymous" Value="0">
-        <Description>An anonymous user.</Description>
-      </Field>
-      <Field Name="UserName" Value="1">
-        <Description>A user identified by a user name and password.</Description>
-      </Field>
-      <Field Name="Certificate" Value="2">
-        <Description>A user identified by an X509 certificate.</Description>
-      </Field>
-      <Field Name="IssuedToken" Value="3">
-        <Description>A user identified by WS-Security XML token.</Description>
-      </Field>
+      <Field Name="Anonymous" Value="0" />
+      <Field Name="UserName" Value="1" />
+      <Field Name="Certificate" Value="2" />
+      <Field Name="IssuedToken" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7596" BrowseName="EnumStrings" ParentNodeId="i=303" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7596" BrowseName="EnumStrings" ParentNodeId="i=303" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -482,177 +388,104 @@
   </UAVariable>
   <UADataType NodeId="i=304" BrowseName="UserTokenPolicy">
     <DisplayName>UserTokenPolicy</DisplayName>
-    <Description>Describes a user token that can be used with a server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="UserTokenPolicy">
-      <Field Name="PolicyId" DataType="i=12">
-        <Description>A identifier for the policy assigned by the server.</Description>
-      </Field>
-      <Field Name="TokenType" DataType="i=303">
-        <Description>The type of user token.</Description>
-      </Field>
-      <Field Name="IssuedTokenType" DataType="i=12">
-        <Description>The type of issued token.</Description>
-      </Field>
-      <Field Name="IssuerEndpointUrl" DataType="i=12">
-        <Description>The endpoint or any other information need to contruct an issued token URL.</Description>
-      </Field>
-      <Field Name="SecurityPolicyUri" DataType="i=12">
-        <Description>The security policy to use when encrypting or signing the user token.</Description>
-      </Field>
+      <Field Name="PolicyId" DataType="i=12" />
+      <Field Name="TokenType" DataType="i=303" />
+      <Field Name="IssuedTokenType" DataType="i=12" />
+      <Field Name="IssuerEndpointUrl" DataType="i=12" />
+      <Field Name="SecurityPolicyUri" DataType="i=12" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=312" BrowseName="EndpointDescription">
     <DisplayName>EndpointDescription</DisplayName>
-    <Description>The description of a endpoint that can be used to access a server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="EndpointDescription">
-      <Field Name="EndpointUrl" DataType="i=12">
-        <Description>The network endpoint to use when connecting to the server.</Description>
-      </Field>
-      <Field Name="Server" DataType="i=308">
-        <Description>The description of the server.</Description>
-      </Field>
-      <Field Name="ServerCertificate" DataType="i=311">
-        <Description>The server's application certificate.</Description>
-      </Field>
-      <Field Name="SecurityMode" DataType="i=302">
-        <Description>The security mode that must be used when connecting to the endpoint.</Description>
-      </Field>
-      <Field Name="SecurityPolicyUri" DataType="i=12">
-        <Description>The security policy to use when connecting to the endpoint.</Description>
-      </Field>
-      <Field Name="UserIdentityTokens" DataType="i=304" ValueRank="1">
-        <Description>The user identity tokens that can be used with this endpoint.</Description>
-      </Field>
-      <Field Name="TransportProfileUri" DataType="i=12">
-        <Description>The transport profile to use when connecting to the endpoint.</Description>
-      </Field>
-      <Field Name="SecurityLevel" DataType="i=3">
-        <Description>A server assigned value that indicates how secure the endpoint is relative to other server endpoints.</Description>
-      </Field>
+      <Field Name="EndpointUrl" DataType="i=12" />
+      <Field Name="Server" DataType="i=308" />
+      <Field Name="ServerCertificate" DataType="i=311" />
+      <Field Name="SecurityMode" DataType="i=302" />
+      <Field Name="SecurityPolicyUri" DataType="i=12" />
+      <Field Name="UserIdentityTokens" DataType="i=304" ValueRank="1" />
+      <Field Name="TransportProfileUri" DataType="i=12" />
+      <Field Name="SecurityLevel" DataType="i=3" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=426" BrowseName="GetEndpointsRequest" Purpose="ServicesOnly">
     <DisplayName>GetEndpointsRequest</DisplayName>
-    <Description>Gets the endpoints used by the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="GetEndpointsRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="EndpointUrl" DataType="i=12">
-        <Description>The URL used by the client to send the request.</Description>
-      </Field>
-      <Field Name="LocaleIds" DataType="i=295" ValueRank="1">
-        <Description>The locales to use when constructing a response.</Description>
-      </Field>
-      <Field Name="ProfileUris" DataType="i=12" ValueRank="1">
-        <Description>The URIs of the transport profiles for the endpoints to return (all endpoints returned if none specified).</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="EndpointUrl" DataType="i=12" />
+      <Field Name="LocaleIds" DataType="i=295" ValueRank="1" />
+      <Field Name="ProfileUris" DataType="i=12" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=429" BrowseName="GetEndpointsResponse" Purpose="ServicesOnly">
     <DisplayName>GetEndpointsResponse</DisplayName>
-    <Description>Gets the endpoints used by the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="GetEndpointsResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Endpoints" DataType="i=312" ValueRank="1">
-        <Description>The endpoints that met the criteria specified in the request.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Endpoints" DataType="i=312" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=432" BrowseName="RegisteredServer">
     <DisplayName>RegisteredServer</DisplayName>
-    <Description>The information required to register a server with a discovery server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RegisteredServer">
-      <Field Name="ServerUri" DataType="i=12">
-        <Description>The globally unique identifier for the server.</Description>
-      </Field>
-      <Field Name="ProductUri" DataType="i=12">
-        <Description>The globally unique identifier for the product.</Description>
-      </Field>
-      <Field Name="ServerNames" DataType="i=21" ValueRank="1">
-        <Description>The name of server in multiple lcoales.</Description>
-      </Field>
-      <Field Name="ServerType" DataType="i=307">
-        <Description>The type of server.</Description>
-      </Field>
-      <Field Name="GatewayServerUri" DataType="i=12">
-        <Description>The globally unique identifier for the server that is acting as a gateway for the server.</Description>
-      </Field>
-      <Field Name="DiscoveryUrls" DataType="i=12" ValueRank="1">
-        <Description>The URLs for the server's discovery endpoints.</Description>
-      </Field>
-      <Field Name="SemaphoreFilePath" DataType="i=12">
-        <Description>A path to a file that is deleted when the server is no longer accepting connections.</Description>
-      </Field>
-      <Field Name="IsOnline" DataType="i=1">
-        <Description>If FALSE the server will save the registration information to a persistent datastore.</Description>
-      </Field>
+      <Field Name="ServerUri" DataType="i=12" />
+      <Field Name="ProductUri" DataType="i=12" />
+      <Field Name="ServerNames" DataType="i=21" ValueRank="1" />
+      <Field Name="ServerType" DataType="i=307" />
+      <Field Name="GatewayServerUri" DataType="i=12" />
+      <Field Name="DiscoveryUrls" DataType="i=12" ValueRank="1" />
+      <Field Name="SemaphoreFilePath" DataType="i=12" />
+      <Field Name="IsOnline" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=435" BrowseName="RegisterServerRequest" Purpose="ServicesOnly">
     <DisplayName>RegisterServerRequest</DisplayName>
-    <Description>Registers a server with the discovery server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RegisterServerRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="Server" DataType="i=432">
-        <Description>The server to register.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="Server" DataType="i=432" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=438" BrowseName="RegisterServerResponse" Purpose="ServicesOnly">
     <DisplayName>RegisterServerResponse</DisplayName>
-    <Description>Registers a server with the discovery server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RegisterServerResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=12890" BrowseName="DiscoveryConfiguration">
     <DisplayName>DiscoveryConfiguration</DisplayName>
-    <Description>A base type for discovery configuration information.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12891" BrowseName="MdnsDiscoveryConfiguration">
     <DisplayName>MdnsDiscoveryConfiguration</DisplayName>
-    <Description>The discovery information needed for mDNS registration.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12890</Reference>
     </References>
     <Definition Name="MdnsDiscoveryConfiguration">
-      <Field Name="MdnsServerName" DataType="i=12">
-        <Description>The name for server that is broadcast via mDNS.</Description>
-      </Field>
-      <Field Name="ServerCapabilities" DataType="i=12" ValueRank="1">
-        <Description>The server capabilities that are broadcast via mDNS.</Description>
-      </Field>
+      <Field Name="MdnsServerName" DataType="i=12" />
+      <Field Name="ServerCapabilities" DataType="i=12" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=12193" BrowseName="RegisterServer2Request" Purpose="ServicesOnly">
@@ -679,21 +512,16 @@
   </UADataType>
   <UADataType NodeId="i=315" BrowseName="SecurityTokenRequestType">
     <DisplayName>SecurityTokenRequestType</DisplayName>
-    <Description>Indicates whether a token if being created or renewed.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7598</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="SecurityTokenRequestType">
-      <Field Name="Issue" Value="0">
-        <Description>The channel is being created.</Description>
-      </Field>
-      <Field Name="Renew" Value="1">
-        <Description>The channel is being renewed.</Description>
-      </Field>
+      <Field Name="Issue" Value="0" />
+      <Field Name="Renew" Value="1" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7598" BrowseName="EnumStrings" ParentNodeId="i=315" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7598" BrowseName="EnumStrings" ParentNodeId="i=315" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -717,271 +545,164 @@
   </UAVariable>
   <UADataType NodeId="i=441" BrowseName="ChannelSecurityToken" Purpose="ServicesOnly">
     <DisplayName>ChannelSecurityToken</DisplayName>
-    <Description>The token that identifies a set of keys for an active secure channel.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ChannelSecurityToken">
-      <Field Name="ChannelId" DataType="i=7">
-        <Description>A unique identifier for the channel.</Description>
-      </Field>
-      <Field Name="TokenId" DataType="i=7">
-        <Description>A unique identifier for the current token.</Description>
-      </Field>
-      <Field Name="CreatedAt" DataType="i=294">
-        <Description>When the channel was created.</Description>
-      </Field>
-      <Field Name="RevisedLifetime" DataType="i=7">
-        <Description>When the channel will expiry.</Description>
-      </Field>
+      <Field Name="ChannelId" DataType="i=7" />
+      <Field Name="TokenId" DataType="i=7" />
+      <Field Name="CreatedAt" DataType="i=294" />
+      <Field Name="RevisedLifetime" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=444" BrowseName="OpenSecureChannelRequest" Purpose="ServicesOnly">
     <DisplayName>OpenSecureChannelRequest</DisplayName>
-    <Description>Creates a secure channel with a server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="OpenSecureChannelRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ClientProtocolVersion" DataType="i=7">
-        <Description>The version of protocol used by the client.</Description>
-      </Field>
-      <Field Name="RequestType" DataType="i=315">
-        <Description>Whether the channel is being created or renewed.</Description>
-      </Field>
-      <Field Name="SecurityMode" DataType="i=302">
-        <Description>The security mode to use with the channel.</Description>
-      </Field>
-      <Field Name="ClientNonce" DataType="i=15">
-        <Description>A random number generated by the client.</Description>
-      </Field>
-      <Field Name="RequestedLifetime" DataType="i=7">
-        <Description>The channel lifetime in milliseconds.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ClientProtocolVersion" DataType="i=7" />
+      <Field Name="RequestType" DataType="i=315" />
+      <Field Name="SecurityMode" DataType="i=302" />
+      <Field Name="ClientNonce" DataType="i=15" />
+      <Field Name="RequestedLifetime" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=447" BrowseName="OpenSecureChannelResponse" Purpose="ServicesOnly">
     <DisplayName>OpenSecureChannelResponse</DisplayName>
-    <Description>Creates a secure channel with a server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="OpenSecureChannelResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="ServerProtocolVersion" DataType="i=7">
-        <Description>The version of protocol used by the server.</Description>
-      </Field>
-      <Field Name="SecurityToken" DataType="i=441">
-        <Description>The token that identifies the new secure channel.</Description>
-      </Field>
-      <Field Name="ServerNonce" DataType="i=15">
-        <Description>A random number generated by the server.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="ServerProtocolVersion" DataType="i=7" />
+      <Field Name="SecurityToken" DataType="i=441" />
+      <Field Name="ServerNonce" DataType="i=15" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=450" BrowseName="CloseSecureChannelRequest" Purpose="ServicesOnly">
     <DisplayName>CloseSecureChannelRequest</DisplayName>
-    <Description>Closes a secure channel.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CloseSecureChannelRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=453" BrowseName="CloseSecureChannelResponse" Purpose="ServicesOnly">
     <DisplayName>CloseSecureChannelResponse</DisplayName>
-    <Description>Closes a secure channel.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CloseSecureChannelResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=344" BrowseName="SignedSoftwareCertificate">
     <DisplayName>SignedSoftwareCertificate</DisplayName>
-    <Description>A software certificate with a digital signature.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="SignedSoftwareCertificate">
-      <Field Name="CertificateData" DataType="i=15">
-        <Description>The data of the certificate.</Description>
-      </Field>
-      <Field Name="Signature" DataType="i=15">
-        <Description>The digital signature.</Description>
-      </Field>
+      <Field Name="CertificateData" DataType="i=15" />
+      <Field Name="Signature" DataType="i=15" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=388" BrowseName="SessionAuthenticationToken">
     <DisplayName>SessionAuthenticationToken</DisplayName>
-    <Description>A unique identifier for a session used to authenticate requests.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=456" BrowseName="SignatureData" Purpose="ServicesOnly">
     <DisplayName>SignatureData</DisplayName>
-    <Description>A digital signature.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="SignatureData">
-      <Field Name="Algorithm" DataType="i=12">
-        <Description>The cryptography algorithm used to create the signature.</Description>
-      </Field>
-      <Field Name="Signature" DataType="i=15">
-        <Description>The signature.</Description>
-      </Field>
+      <Field Name="Algorithm" DataType="i=12" />
+      <Field Name="Signature" DataType="i=15" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=459" BrowseName="CreateSessionRequest" Purpose="ServicesOnly">
     <DisplayName>CreateSessionRequest</DisplayName>
-    <Description>Creates a new session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CreateSessionRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ClientDescription" DataType="i=308">
-        <Description>Describes the client application.</Description>
-      </Field>
-      <Field Name="ServerUri" DataType="i=12">
-        <Description>The URI of the server that the client wants to create a session with.</Description>
-      </Field>
-      <Field Name="EndpointUrl" DataType="i=12">
-        <Description>The URL that the client used to connect to the server.</Description>
-      </Field>
-      <Field Name="SessionName" DataType="i=12">
-        <Description>A name for the session provided by the client.</Description>
-      </Field>
-      <Field Name="ClientNonce" DataType="i=15">
-        <Description>A random number generated by the client.</Description>
-      </Field>
-      <Field Name="ClientCertificate" DataType="i=311">
-        <Description>The application certificate for the client.</Description>
-      </Field>
-      <Field Name="RequestedSessionTimeout" DataType="i=290">
-        <Description>The requested session timeout in milliseconds.</Description>
-      </Field>
-      <Field Name="MaxResponseMessageSize" DataType="i=7">
-        <Description>The maximum message size accepted by the client.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ClientDescription" DataType="i=308" />
+      <Field Name="ServerUri" DataType="i=12" />
+      <Field Name="EndpointUrl" DataType="i=12" />
+      <Field Name="SessionName" DataType="i=12" />
+      <Field Name="ClientNonce" DataType="i=15" />
+      <Field Name="ClientCertificate" DataType="i=311" />
+      <Field Name="RequestedSessionTimeout" DataType="i=290" />
+      <Field Name="MaxResponseMessageSize" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=462" BrowseName="CreateSessionResponse" Purpose="ServicesOnly">
     <DisplayName>CreateSessionResponse</DisplayName>
-    <Description>Creates a new session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CreateSessionResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="SessionId" DataType="i=17">
-        <Description>A identifier which uniquely identifies the session.</Description>
-      </Field>
-      <Field Name="AuthenticationToken" DataType="i=388">
-        <Description>The token used to authenticate the client in subsequent requests.</Description>
-      </Field>
-      <Field Name="RevisedSessionTimeout" DataType="i=290">
-        <Description>The session timeout in milliseconds.</Description>
-      </Field>
-      <Field Name="ServerNonce" DataType="i=15">
-        <Description>A random number generated by the server.</Description>
-      </Field>
-      <Field Name="ServerCertificate" DataType="i=311">
-        <Description>The application certificate for the server.</Description>
-      </Field>
-      <Field Name="ServerEndpoints" DataType="i=312" ValueRank="1">
-        <Description>The endpoints provided by the server.</Description>
-      </Field>
-      <Field Name="ServerSoftwareCertificates" DataType="i=344" ValueRank="1">
-        <Description>The software certificates owned by the server.</Description>
-      </Field>
-      <Field Name="ServerSignature" DataType="i=456">
-        <Description>A signature created with the server certificate.</Description>
-      </Field>
-      <Field Name="MaxRequestMessageSize" DataType="i=7">
-        <Description>The maximum message size accepted by the server.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="SessionId" DataType="i=17" />
+      <Field Name="AuthenticationToken" DataType="i=388" />
+      <Field Name="RevisedSessionTimeout" DataType="i=290" />
+      <Field Name="ServerNonce" DataType="i=15" />
+      <Field Name="ServerCertificate" DataType="i=311" />
+      <Field Name="ServerEndpoints" DataType="i=312" ValueRank="1" />
+      <Field Name="ServerSoftwareCertificates" DataType="i=344" ValueRank="1" />
+      <Field Name="ServerSignature" DataType="i=456" />
+      <Field Name="MaxRequestMessageSize" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=316" BrowseName="UserIdentityToken" IsAbstract="true">
     <DisplayName>UserIdentityToken</DisplayName>
-    <Description>A base type for a user identity token.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="UserIdentityToken">
-      <Field Name="PolicyId" DataType="i=12">
-        <Description>The policy id specified in a user token policy for the endpoint being used.</Description>
-      </Field>
+      <Field Name="PolicyId" DataType="i=12" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=319" BrowseName="AnonymousIdentityToken">
     <DisplayName>AnonymousIdentityToken</DisplayName>
-    <Description>A token representing an anonymous user.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=322" BrowseName="UserNameIdentityToken">
     <DisplayName>UserNameIdentityToken</DisplayName>
-    <Description>A token representing a user identified by a user name and password.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
     <Definition Name="UserNameIdentityToken">
-      <Field Name="UserName" DataType="i=12">
-        <Description>The user name.</Description>
-      </Field>
-      <Field Name="Password" DataType="i=15">
-        <Description>The password encrypted with the server certificate.</Description>
-      </Field>
-      <Field Name="EncryptionAlgorithm" DataType="i=12">
-        <Description>The algorithm used to encrypt the password.</Description>
-      </Field>
+      <Field Name="UserName" DataType="i=12" />
+      <Field Name="Password" DataType="i=15" />
+      <Field Name="EncryptionAlgorithm" DataType="i=12" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=325" BrowseName="X509IdentityToken">
     <DisplayName>X509IdentityToken</DisplayName>
-    <Description>A token representing a user identified by an X509 certificate.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
     <Definition Name="X509IdentityToken">
-      <Field Name="CertificateData" DataType="i=15">
-        <Description>The certificate.</Description>
-      </Field>
+      <Field Name="CertificateData" DataType="i=15" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=938" BrowseName="IssuedIdentityToken">
     <DisplayName>IssuedIdentityToken</DisplayName>
-    <Description>A token representing a user identified by a WS-Security XML token.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
     <Definition Name="IssuedIdentityToken">
-      <Field Name="TokenData" DataType="i=15">
-        <Description>The XML token encrypted with the server certificate.</Description>
-      </Field>
-      <Field Name="EncryptionAlgorithm" DataType="i=12">
-        <Description>The algorithm used to encrypt the certificate.</Description>
-      </Field>
+      <Field Name="TokenData" DataType="i=15" />
+      <Field Name="EncryptionAlgorithm" DataType="i=12" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=17545" BrowseName="RsaEncryptedSecret">
@@ -992,225 +713,114 @@
   </UADataType>
   <UADataType NodeId="i=465" BrowseName="ActivateSessionRequest" Purpose="ServicesOnly">
     <DisplayName>ActivateSessionRequest</DisplayName>
-    <Description>Activates a session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ActivateSessionRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ClientSignature" DataType="i=456">
-        <Description>A signature created with the client certificate from the last server nonce returned by the server.</Description>
-      </Field>
-      <Field Name="ClientSoftwareCertificates" DataType="i=344" ValueRank="1">
-        <Description>The software certificates owned by the client.</Description>
-      </Field>
-      <Field Name="LocaleIds" DataType="i=295" ValueRank="1">
-        <Description>The locales to use with the session.</Description>
-      </Field>
-      <Field Name="UserIdentityToken" DataType="i=22">
-        <Description>The user identity to use with the session.</Description>
-      </Field>
-      <Field Name="UserTokenSignature" DataType="i=456">
-        <Description>A digital signature created with the user identity token.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ClientSignature" DataType="i=456" />
+      <Field Name="ClientSoftwareCertificates" DataType="i=344" ValueRank="1" />
+      <Field Name="LocaleIds" DataType="i=295" ValueRank="1" />
+      <Field Name="UserIdentityToken" DataType="i=22" />
+      <Field Name="UserTokenSignature" DataType="i=456" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=468" BrowseName="ActivateSessionResponse" Purpose="ServicesOnly">
     <DisplayName>ActivateSessionResponse</DisplayName>
-    <Description>Activates a session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ActivateSessionResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="ServerNonce" DataType="i=15">
-        <Description>A random number generated by the server.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=19" ValueRank="1">
-        <Description>Any errors during validation of the software certificates.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the software certificates results.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="ServerNonce" DataType="i=15" />
+      <Field Name="Results" DataType="i=19" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=471" BrowseName="CloseSessionRequest" Purpose="ServicesOnly">
     <DisplayName>CloseSessionRequest</DisplayName>
-    <Description>Closes a session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CloseSessionRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="DeleteSubscriptions" DataType="i=1">
-        <Description>If TRUE all subscriptions are deleted when the session is closed.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="DeleteSubscriptions" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=474" BrowseName="CloseSessionResponse" Purpose="ServicesOnly">
     <DisplayName>CloseSessionResponse</DisplayName>
-    <Description>Closes a session with the server.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CloseSessionResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=477" BrowseName="CancelRequest" Purpose="ServicesOnly">
     <DisplayName>CancelRequest</DisplayName>
-    <Description>Cancels an outstanding request.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CancelRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="RequestHandle" DataType="i=288">
-        <Description>The handle assigned by the client to the requests being cancelled.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="RequestHandle" DataType="i=288" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=480" BrowseName="CancelResponse" Purpose="ServicesOnly">
     <DisplayName>CancelResponse</DisplayName>
-    <Description>Cancels an outstanding request.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="CancelResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="CancelCount" DataType="i=7">
-        <Description>The number of requests successfully cancelled.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="CancelCount" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=348" BrowseName="NodeAttributesMask">
     <DisplayName>NodeAttributesMask</DisplayName>
-    <Description>The bits used to specify default attributes for a new node.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=11881</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="NodeAttributesMask">
-      <Field Name="None" Value="0">
-        <Description>No attribuites provided.</Description>
-      </Field>
-      <Field Name="AccessLevel" Value="1">
-        <Description>The access level attribute is specified.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" Value="2">
-        <Description>The array dimensions attribute is specified.</Description>
-      </Field>
-      <Field Name="BrowseName" Value="4">
-        <Description>The browse name attribute is specified.</Description>
-      </Field>
-      <Field Name="ContainsNoLoops" Value="8">
-        <Description>The contains no loops attribute is specified.</Description>
-      </Field>
-      <Field Name="DataType" Value="16">
-        <Description>The data type attribute is specified.</Description>
-      </Field>
-      <Field Name="Description" Value="32">
-        <Description>The description attribute is specified.</Description>
-      </Field>
-      <Field Name="DisplayName" Value="64">
-        <Description>The display name attribute is specified.</Description>
-      </Field>
-      <Field Name="EventNotifier" Value="128">
-        <Description>The event notifier attribute is specified.</Description>
-      </Field>
-      <Field Name="Executable" Value="256">
-        <Description>The executable attribute is specified.</Description>
-      </Field>
-      <Field Name="Historizing" Value="512">
-        <Description>The historizing attribute is specified.</Description>
-      </Field>
-      <Field Name="InverseName" Value="1024">
-        <Description>The inverse name attribute is specified.</Description>
-      </Field>
-      <Field Name="IsAbstract" Value="2048">
-        <Description>The is abstract attribute is specified.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" Value="4096">
-        <Description>The minimum sampling interval attribute is specified.</Description>
-      </Field>
-      <Field Name="NodeClass" Value="8192">
-        <Description>The node class attribute is specified.</Description>
-      </Field>
-      <Field Name="NodeId" Value="16384">
-        <Description>The node id attribute is specified.</Description>
-      </Field>
-      <Field Name="Symmetric" Value="32768">
-        <Description>The symmetric attribute is specified.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" Value="65536">
-        <Description>The user access level attribute is specified.</Description>
-      </Field>
-      <Field Name="UserExecutable" Value="131072">
-        <Description>The user executable attribute is specified.</Description>
-      </Field>
-      <Field Name="UserWriteMask" Value="262144">
-        <Description>The user write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="ValueRank" Value="524288">
-        <Description>The value rank attribute is specified.</Description>
-      </Field>
-      <Field Name="WriteMask" Value="1048576">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="Value" Value="2097152">
-        <Description>The value attribute is specified.</Description>
-      </Field>
-      <Field Name="DataTypeDefinition" Value="4194304">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="RolePermissions" Value="8388608">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="AccessRestrictions" Value="16777216">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="All" Value="33554431">
-        <Description>All attributes are specified.</Description>
-      </Field>
-      <Field Name="BaseNode" Value="26501220">
-        <Description>All base attributes are specified.</Description>
-      </Field>
-      <Field Name="Object" Value="26501348">
-        <Description>All object attributes are specified.</Description>
-      </Field>
-      <Field Name="ObjectType" Value="26503268">
-        <Description>All object type attributes are specified.</Description>
-      </Field>
-      <Field Name="Variable" Value="26571383">
-        <Description>All variable attributes are specified.</Description>
-      </Field>
-      <Field Name="VariableType" Value="28600438">
-        <Description>All variable type attributes are specified.</Description>
-      </Field>
-      <Field Name="Method" Value="26632548">
-        <Description>All method attributes are specified.</Description>
-      </Field>
-      <Field Name="ReferenceType" Value="26537060">
-        <Description>All reference type attributes are specified.</Description>
-      </Field>
-      <Field Name="View" Value="26501356">
-        <Description>All view attributes are specified.</Description>
-      </Field>
+      <Field Name="None" Value="0" />
+      <Field Name="AccessLevel" Value="1" />
+      <Field Name="ArrayDimensions" Value="2" />
+      <Field Name="BrowseName" Value="4" />
+      <Field Name="ContainsNoLoops" Value="8" />
+      <Field Name="DataType" Value="16" />
+      <Field Name="Description" Value="32" />
+      <Field Name="DisplayName" Value="64" />
+      <Field Name="EventNotifier" Value="128" />
+      <Field Name="Executable" Value="256" />
+      <Field Name="Historizing" Value="512" />
+      <Field Name="InverseName" Value="1024" />
+      <Field Name="IsAbstract" Value="2048" />
+      <Field Name="MinimumSamplingInterval" Value="4096" />
+      <Field Name="NodeClass" Value="8192" />
+      <Field Name="NodeId" Value="16384" />
+      <Field Name="Symmetric" Value="32768" />
+      <Field Name="UserAccessLevel" Value="65536" />
+      <Field Name="UserExecutable" Value="131072" />
+      <Field Name="UserWriteMask" Value="262144" />
+      <Field Name="ValueRank" Value="524288" />
+      <Field Name="WriteMask" Value="1048576" />
+      <Field Name="Value" Value="2097152" />
+      <Field Name="DataTypeDefinition" Value="4194304" />
+      <Field Name="RolePermissions" Value="8388608" />
+      <Field Name="AccessRestrictions" Value="16777216" />
+      <Field Name="All" Value="33554431" />
+      <Field Name="BaseNode" Value="26501220" />
+      <Field Name="Object" Value="26501348" />
+      <Field Name="ObjectType" Value="26503268" />
+      <Field Name="Variable" Value="26571383" />
+      <Field Name="VariableType" Value="28600438" />
+      <Field Name="Method" Value="26632548" />
+      <Field Name="ReferenceType" Value="26537060" />
+      <Field Name="View" Value="26501356" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11881" BrowseName="EnumValues" ParentNodeId="i=348" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11881" BrowseName="EnumValues" ParentNodeId="i=348" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1231,11 +841,6 @@
                 </Locale>
                 <Text>None</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>No attribuites provided.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1251,11 +856,6 @@
                 </Locale>
                 <Text>AccessLevel</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The access level attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1271,11 +871,6 @@
                 </Locale>
                 <Text>ArrayDimensions</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The array dimensions attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1291,11 +886,6 @@
                 </Locale>
                 <Text>BrowseName</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The browse name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1311,11 +901,6 @@
                 </Locale>
                 <Text>ContainsNoLoops</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The contains no loops attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1331,11 +916,6 @@
                 </Locale>
                 <Text>DataType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The data type attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1351,11 +931,6 @@
                 </Locale>
                 <Text>Description</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The description attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1371,11 +946,6 @@
                 </Locale>
                 <Text>DisplayName</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The display name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1391,11 +961,6 @@
                 </Locale>
                 <Text>EventNotifier</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The event notifier attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1411,11 +976,6 @@
                 </Locale>
                 <Text>Executable</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The executable attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1431,11 +991,6 @@
                 </Locale>
                 <Text>Historizing</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The historizing attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1451,11 +1006,6 @@
                 </Locale>
                 <Text>InverseName</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The inverse name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1471,11 +1021,6 @@
                 </Locale>
                 <Text>IsAbstract</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The is abstract attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1491,11 +1036,6 @@
                 </Locale>
                 <Text>MinimumSamplingInterval</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The minimum sampling interval attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1511,11 +1051,6 @@
                 </Locale>
                 <Text>NodeClass</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node class attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1531,11 +1066,6 @@
                 </Locale>
                 <Text>NodeId</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node id attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1551,11 +1081,6 @@
                 </Locale>
                 <Text>Symmetric</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The symmetric attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1571,11 +1096,6 @@
                 </Locale>
                 <Text>UserAccessLevel</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user access level attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1591,11 +1111,6 @@
                 </Locale>
                 <Text>UserExecutable</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user executable attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1611,11 +1126,6 @@
                 </Locale>
                 <Text>UserWriteMask</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The user write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1631,11 +1141,6 @@
                 </Locale>
                 <Text>ValueRank</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The value rank attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1651,11 +1156,6 @@
                 </Locale>
                 <Text>WriteMask</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1671,11 +1171,6 @@
                 </Locale>
                 <Text>Value</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The value attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1691,11 +1186,6 @@
                 </Locale>
                 <Text>DataTypeDefinition</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1711,11 +1201,6 @@
                 </Locale>
                 <Text>RolePermissions</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1731,11 +1216,6 @@
                 </Locale>
                 <Text>AccessRestrictions</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1751,11 +1231,6 @@
                 </Locale>
                 <Text>All</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1771,11 +1246,6 @@
                 </Locale>
                 <Text>BaseNode</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All base attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1791,11 +1261,6 @@
                 </Locale>
                 <Text>Object</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All object attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1811,11 +1276,6 @@
                 </Locale>
                 <Text>ObjectType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All object type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1831,11 +1291,6 @@
                 </Locale>
                 <Text>Variable</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All variable attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1851,11 +1306,6 @@
                 </Locale>
                 <Text>VariableType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All variable type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1871,11 +1321,6 @@
                 </Locale>
                 <Text>Method</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All method attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1891,11 +1336,6 @@
                 </Locale>
                 <Text>ReferenceType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All reference type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1911,11 +1351,6 @@
                 </Locale>
                 <Text>View</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>All view attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -1924,167 +1359,102 @@
   </UAVariable>
   <UADataType NodeId="i=349" BrowseName="NodeAttributes" Purpose="ServicesOnly">
     <DisplayName>NodeAttributes</DisplayName>
-    <Description>The base attributes for all nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="NodeAttributes">
-      <Field Name="SpecifiedAttributes" DataType="i=7">
-        <Description>A mask indicating which attributes have been provided.</Description>
-      </Field>
-      <Field Name="DisplayName" DataType="i=21">
-        <Description>A human readable name for the node.</Description>
-      </Field>
-      <Field Name="Description" DataType="i=21">
-        <Description>A description for the node.</Description>
-      </Field>
-      <Field Name="WriteMask" DataType="i=7">
-        <Description>A mask which specifies which attributes are writable.</Description>
-      </Field>
-      <Field Name="UserWriteMask" DataType="i=7">
-        <Description>A mask which specifies which attributes are writable by the current user.</Description>
-      </Field>
+      <Field Name="SpecifiedAttributes" DataType="i=7" />
+      <Field Name="DisplayName" DataType="i=21" />
+      <Field Name="Description" DataType="i=21" />
+      <Field Name="WriteMask" DataType="i=7" />
+      <Field Name="UserWriteMask" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=352" BrowseName="ObjectAttributes" Purpose="ServicesOnly">
     <DisplayName>ObjectAttributes</DisplayName>
-    <Description>The attributes for an object node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="ObjectAttributes">
-      <Field Name="EventNotifier" DataType="i=3">
-        <Description>A mask indicating what events are produced by the object.</Description>
-      </Field>
+      <Field Name="EventNotifier" DataType="i=3" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=355" BrowseName="VariableAttributes" Purpose="ServicesOnly">
     <DisplayName>VariableAttributes</DisplayName>
-    <Description>The attributes for a variable node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="VariableAttributes">
-      <Field Name="Value">
-        <Description>The value of the variable.</Description>
-      </Field>
-      <Field Name="DataType" DataType="i=17">
-        <Description>The data type of the value.</Description>
-      </Field>
-      <Field Name="ValueRank" DataType="i=6">
-        <Description>Whether the value is an array type and the rank of the array if it is.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
-        <Description>The number of dimensions if the value is an array type and one or more dimensions have a fixed length.</Description>
-      </Field>
-      <Field Name="AccessLevel" DataType="i=3">
-        <Description>A bit mask specifying how the value may be accessed.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" DataType="i=3">
-        <Description>A bit mask specifying how the value may be accessed by the current user.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" DataType="i=290">
-        <Description>The minimum possible sampling interval for the value.</Description>
-      </Field>
-      <Field Name="Historizing" DataType="i=1">
-        <Description>TRUE if the server is current storing the history of the value.</Description>
-      </Field>
+      <Field Name="Value" />
+      <Field Name="DataType" DataType="i=17" />
+      <Field Name="ValueRank" DataType="i=6" />
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1" />
+      <Field Name="AccessLevel" DataType="i=3" />
+      <Field Name="UserAccessLevel" DataType="i=3" />
+      <Field Name="MinimumSamplingInterval" DataType="i=290" />
+      <Field Name="Historizing" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=358" BrowseName="MethodAttributes" Purpose="ServicesOnly">
     <DisplayName>MethodAttributes</DisplayName>
-    <Description>The attributes for a method node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="MethodAttributes">
-      <Field Name="Executable" DataType="i=1">
-        <Description>If TRUE the method can be called.</Description>
-      </Field>
-      <Field Name="UserExecutable" DataType="i=1">
-        <Description>If TRUE the method can be called by the current user.</Description>
-      </Field>
+      <Field Name="Executable" DataType="i=1" />
+      <Field Name="UserExecutable" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=361" BrowseName="ObjectTypeAttributes" Purpose="ServicesOnly">
     <DisplayName>ObjectTypeAttributes</DisplayName>
-    <Description>The attributes for an object type node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="ObjectTypeAttributes">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=364" BrowseName="VariableTypeAttributes" Purpose="ServicesOnly">
     <DisplayName>VariableTypeAttributes</DisplayName>
-    <Description>The attributes for a variable type node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="VariableTypeAttributes">
-      <Field Name="Value">
-        <Description>The default value when creating new instances.</Description>
-      </Field>
-      <Field Name="DataType" DataType="i=17">
-        <Description>The data type of the value.</Description>
-      </Field>
-      <Field Name="ValueRank" DataType="i=6">
-        <Description>Whether the value is an array type and the rank of the array if it is.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
-        <Description>The number of dimensions if the value is an array type and one or more dimensions have a fixed length.</Description>
-      </Field>
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
+      <Field Name="Value" />
+      <Field Name="DataType" DataType="i=17" />
+      <Field Name="ValueRank" DataType="i=6" />
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1" />
+      <Field Name="IsAbstract" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=367" BrowseName="ReferenceTypeAttributes" Purpose="ServicesOnly">
     <DisplayName>ReferenceTypeAttributes</DisplayName>
-    <Description>The attributes for a reference type node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="ReferenceTypeAttributes">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
-      <Field Name="Symmetric" DataType="i=1">
-        <Description>If TRUE the reference type has the same semantics in both directions.</Description>
-      </Field>
-      <Field Name="InverseName" DataType="i=21">
-        <Description>The display name for the reference when following it from target to source.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
+      <Field Name="Symmetric" DataType="i=1" />
+      <Field Name="InverseName" DataType="i=21" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=370" BrowseName="DataTypeAttributes" Purpose="ServicesOnly">
     <DisplayName>DataTypeAttributes</DisplayName>
-    <Description>The attributes for a data type node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="DataTypeAttributes">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=373" BrowseName="ViewAttributes" Purpose="ServicesOnly">
     <DisplayName>ViewAttributes</DisplayName>
-    <Description>The attributes for a view node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=349</Reference>
     </References>
     <Definition Name="ViewAttributes">
-      <Field Name="ContainsNoLoops" DataType="i=1">
-        <Description>If TRUE the view contains a tree of non-looping hierarchical references.</Description>
-      </Field>
-      <Field Name="EventNotifier" DataType="i=3">
-        <Description>A mask indicating whether events are produced by the view.</Description>
-      </Field>
+      <Field Name="ContainsNoLoops" DataType="i=1" />
+      <Field Name="EventNotifier" DataType="i=3" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=17606" BrowseName="GenericAttributeValue" Purpose="ServicesOnly">
@@ -2108,336 +1478,186 @@
   </UADataType>
   <UADataType NodeId="i=376" BrowseName="AddNodesItem">
     <DisplayName>AddNodesItem</DisplayName>
-    <Description>A request to add a node to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddNodesItem">
-      <Field Name="ParentNodeId" DataType="i=18">
-        <Description>The node id for the parent node.</Description>
-      </Field>
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of reference from the parent to the new node.</Description>
-      </Field>
-      <Field Name="RequestedNewNodeId" DataType="i=18">
-        <Description>The node id requested by the client. If null the server must provide one.</Description>
-      </Field>
-      <Field Name="BrowseName" DataType="i=20">
-        <Description>The browse name for the new node.</Description>
-      </Field>
-      <Field Name="NodeClass" DataType="i=257">
-        <Description>The class of the new node.</Description>
-      </Field>
-      <Field Name="NodeAttributes" DataType="i=22">
-        <Description>The default attributes for the new node.</Description>
-      </Field>
-      <Field Name="TypeDefinition" DataType="i=18">
-        <Description>The type definition for the new node.</Description>
-      </Field>
+      <Field Name="ParentNodeId" DataType="i=18" />
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="RequestedNewNodeId" DataType="i=18" />
+      <Field Name="BrowseName" DataType="i=20" />
+      <Field Name="NodeClass" DataType="i=257" />
+      <Field Name="NodeAttributes" DataType="i=22" />
+      <Field Name="TypeDefinition" DataType="i=18" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=483" BrowseName="AddNodesResult" Purpose="ServicesOnly">
     <DisplayName>AddNodesResult</DisplayName>
-    <Description>A result of an add node operation.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddNodesResult">
-      <Field Name="StatusCode" DataType="i=19">
-        <Description>A code indicating any error during the operation.</Description>
-      </Field>
-      <Field Name="AddedNodeId" DataType="i=17">
-        <Description>The id of the new node.</Description>
-      </Field>
+      <Field Name="StatusCode" DataType="i=19" />
+      <Field Name="AddedNodeId" DataType="i=17" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=486" BrowseName="AddNodesRequest" Purpose="ServicesOnly">
     <DisplayName>AddNodesRequest</DisplayName>
-    <Description>Adds one or more nodes to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddNodesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="NodesToAdd" DataType="i=376" ValueRank="1">
-        <Description>The list of nodes to add.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="NodesToAdd" DataType="i=376" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=489" BrowseName="AddNodesResponse" Purpose="ServicesOnly">
     <DisplayName>AddNodesResponse</DisplayName>
-    <Description>Adds one or more nodes to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddNodesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=483" ValueRank="1">
-        <Description>The results for the add node operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results returned.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=483" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=379" BrowseName="AddReferencesItem">
     <DisplayName>AddReferencesItem</DisplayName>
-    <Description>A request to add a reference to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddReferencesItem">
-      <Field Name="SourceNodeId" DataType="i=17">
-        <Description>The source of the reference.</Description>
-      </Field>
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of reference.</Description>
-      </Field>
-      <Field Name="IsForward" DataType="i=1">
-        <Description>If TRUE the reference is a forward reference.</Description>
-      </Field>
-      <Field Name="TargetServerUri" DataType="i=12">
-        <Description>The URI of the server containing the target (if in another server).</Description>
-      </Field>
-      <Field Name="TargetNodeId" DataType="i=18">
-        <Description>The target of the reference.</Description>
-      </Field>
-      <Field Name="TargetNodeClass" DataType="i=257">
-        <Description>The node class of the target (if known).</Description>
-      </Field>
+      <Field Name="SourceNodeId" DataType="i=17" />
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IsForward" DataType="i=1" />
+      <Field Name="TargetServerUri" DataType="i=12" />
+      <Field Name="TargetNodeId" DataType="i=18" />
+      <Field Name="TargetNodeClass" DataType="i=257" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=492" BrowseName="AddReferencesRequest" Purpose="ServicesOnly">
     <DisplayName>AddReferencesRequest</DisplayName>
-    <Description>Adds one or more references to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddReferencesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ReferencesToAdd" DataType="i=379" ValueRank="1">
-        <Description>The list of references to add.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ReferencesToAdd" DataType="i=379" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=495" BrowseName="AddReferencesResponse" Purpose="ServicesOnly">
     <DisplayName>AddReferencesResponse</DisplayName>
-    <Description>Adds one or more references to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="AddReferencesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=19" ValueRank="1">
-        <Description>The results for the add reference operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results returned.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=19" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=382" BrowseName="DeleteNodesItem">
     <DisplayName>DeleteNodesItem</DisplayName>
-    <Description>A request to delete a node to the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteNodesItem">
-      <Field Name="NodeId" DataType="i=17">
-        <Description>The id of the node to delete.</Description>
-      </Field>
-      <Field Name="DeleteTargetReferences" DataType="i=1">
-        <Description>If TRUE all references to the are deleted as well.</Description>
-      </Field>
+      <Field Name="NodeId" DataType="i=17" />
+      <Field Name="DeleteTargetReferences" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=498" BrowseName="DeleteNodesRequest" Purpose="ServicesOnly">
     <DisplayName>DeleteNodesRequest</DisplayName>
-    <Description>Delete one or more nodes from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteNodesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="NodesToDelete" DataType="i=382" ValueRank="1">
-        <Description>The list of nodes to delete.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="NodesToDelete" DataType="i=382" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=501" BrowseName="DeleteNodesResponse" Purpose="ServicesOnly">
     <DisplayName>DeleteNodesResponse</DisplayName>
-    <Description>Delete one or more nodes from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteNodesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=19" ValueRank="1">
-        <Description>The results for the delete nodes operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results returned.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=19" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=385" BrowseName="DeleteReferencesItem">
     <DisplayName>DeleteReferencesItem</DisplayName>
-    <Description>A request to delete a node from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteReferencesItem">
-      <Field Name="SourceNodeId" DataType="i=17">
-        <Description>The source of the reference to delete.</Description>
-      </Field>
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of reference to delete.</Description>
-      </Field>
-      <Field Name="IsForward" DataType="i=1">
-        <Description>If TRUE the a forward reference is deleted.</Description>
-      </Field>
-      <Field Name="TargetNodeId" DataType="i=18">
-        <Description>The target of the reference to delete.</Description>
-      </Field>
-      <Field Name="DeleteBidirectional" DataType="i=1">
-        <Description>If TRUE the reference is deleted in both directions.</Description>
-      </Field>
+      <Field Name="SourceNodeId" DataType="i=17" />
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IsForward" DataType="i=1" />
+      <Field Name="TargetNodeId" DataType="i=18" />
+      <Field Name="DeleteBidirectional" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=504" BrowseName="DeleteReferencesRequest" Purpose="ServicesOnly">
     <DisplayName>DeleteReferencesRequest</DisplayName>
-    <Description>Delete one or more references from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteReferencesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ReferencesToDelete" DataType="i=385" ValueRank="1">
-        <Description>The list of references to delete.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ReferencesToDelete" DataType="i=385" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=507" BrowseName="DeleteReferencesResponse" Purpose="ServicesOnly">
     <DisplayName>DeleteReferencesResponse</DisplayName>
-    <Description>Delete one or more references from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="DeleteReferencesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=19" ValueRank="1">
-        <Description>The results for the delete reference operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results returned.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=19" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=347" BrowseName="AttributeWriteMask">
     <DisplayName>AttributeWriteMask</DisplayName>
-    <Description>Define bits used to indicate which attributes are writable.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=15036</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="AttributeWriteMask" IsOptionSet="true">
-      <Field Name="AccessLevel" Value="0">
-        <Description>The access level attribute is writable.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" Value="1">
-        <Description>The array dimensions attribute is writable.</Description>
-      </Field>
-      <Field Name="BrowseName" Value="2">
-        <Description>The browse name attribute is writable.</Description>
-      </Field>
-      <Field Name="ContainsNoLoops" Value="3">
-        <Description>The contains no loops attribute is writable.</Description>
-      </Field>
-      <Field Name="DataType" Value="4">
-        <Description>The data type attribute is writable.</Description>
-      </Field>
-      <Field Name="Description" Value="5">
-        <Description>The description attribute is writable.</Description>
-      </Field>
-      <Field Name="DisplayName" Value="6">
-        <Description>The display name attribute is writable.</Description>
-      </Field>
-      <Field Name="EventNotifier" Value="7">
-        <Description>The event notifier attribute is writable.</Description>
-      </Field>
-      <Field Name="Executable" Value="8">
-        <Description>The executable attribute is writable.</Description>
-      </Field>
-      <Field Name="Historizing" Value="9">
-        <Description>The historizing attribute is writable.</Description>
-      </Field>
-      <Field Name="InverseName" Value="10">
-        <Description>The inverse name attribute is writable.</Description>
-      </Field>
-      <Field Name="IsAbstract" Value="11">
-        <Description>The is abstract attribute is writable.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" Value="12">
-        <Description>The minimum sampling interval attribute is writable.</Description>
-      </Field>
-      <Field Name="NodeClass" Value="13">
-        <Description>The node class attribute is writable.</Description>
-      </Field>
-      <Field Name="NodeId" Value="14">
-        <Description>The node id attribute is writable.</Description>
-      </Field>
-      <Field Name="Symmetric" Value="15">
-        <Description>The symmetric attribute is writable.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" Value="16">
-        <Description>The user access level attribute is writable.</Description>
-      </Field>
-      <Field Name="UserExecutable" Value="17">
-        <Description>The user executable attribute is writable.</Description>
-      </Field>
-      <Field Name="UserWriteMask" Value="18">
-        <Description>The user write mask attribute is writable.</Description>
-      </Field>
-      <Field Name="ValueRank" Value="19">
-        <Description>The value rank attribute is writable.</Description>
-      </Field>
-      <Field Name="WriteMask" Value="20">
-        <Description>The write mask attribute is writable.</Description>
-      </Field>
-      <Field Name="ValueForVariableType" Value="21">
-        <Description>The value attribute is writable.</Description>
-      </Field>
-      <Field Name="DataTypeDefinition" Value="22">
-        <Description>The DataTypeDefinition attribute is writable.</Description>
-      </Field>
-      <Field Name="RolePermissions" Value="23">
-        <Description>The RolePermissions attribute is writable.</Description>
-      </Field>
-      <Field Name="AccessRestrictions" Value="24">
-        <Description>The AccessRestrictions attribute is writable.</Description>
-      </Field>
-      <Field Name="AccessLevelEx" Value="25">
-        <Description>The AccessLevelEx attribute is writable.</Description>
-      </Field>
+      <Field Name="AccessLevel" Value="0" />
+      <Field Name="ArrayDimensions" Value="1" />
+      <Field Name="BrowseName" Value="2" />
+      <Field Name="ContainsNoLoops" Value="3" />
+      <Field Name="DataType" Value="4" />
+      <Field Name="Description" Value="5" />
+      <Field Name="DisplayName" Value="6" />
+      <Field Name="EventNotifier" Value="7" />
+      <Field Name="Executable" Value="8" />
+      <Field Name="Historizing" Value="9" />
+      <Field Name="InverseName" Value="10" />
+      <Field Name="IsAbstract" Value="11" />
+      <Field Name="MinimumSamplingInterval" Value="12" />
+      <Field Name="NodeClass" Value="13" />
+      <Field Name="NodeId" Value="14" />
+      <Field Name="Symmetric" Value="15" />
+      <Field Name="UserAccessLevel" Value="16" />
+      <Field Name="UserExecutable" Value="17" />
+      <Field Name="UserWriteMask" Value="18" />
+      <Field Name="ValueRank" Value="19" />
+      <Field Name="WriteMask" Value="20" />
+      <Field Name="ValueForVariableType" Value="21" />
+      <Field Name="DataTypeDefinition" Value="22" />
+      <Field Name="RolePermissions" Value="23" />
+      <Field Name="AccessRestrictions" Value="24" />
+      <Field Name="AccessLevelEx" Value="25" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15036" BrowseName="OptionSetValues" ParentNodeId="i=347" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15036" BrowseName="OptionSetValues" ParentNodeId="i=347" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2581,25 +1801,18 @@
   </UAVariable>
   <UADataType NodeId="i=510" BrowseName="BrowseDirection" Purpose="ServicesOnly">
     <DisplayName>BrowseDirection</DisplayName>
-    <Description>The directions of the references to return.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7603</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="BrowseDirection">
-      <Field Name="Forward" Value="0">
-        <Description>Return forward references.</Description>
-      </Field>
-      <Field Name="Inverse" Value="1">
-        <Description>Return inverse references.</Description>
-      </Field>
-      <Field Name="Both" Value="2">
-        <Description>Return forward and inverse references.</Description>
-      </Field>
+      <Field Name="Forward" Value="0" />
+      <Field Name="Inverse" Value="1" />
+      <Field Name="Both" Value="2" />
       <Field Name="Invalid" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7603" BrowseName="EnumStrings" ParentNodeId="i=510" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7603" BrowseName="EnumStrings" ParentNodeId="i=510" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2633,90 +1846,49 @@
   </UAVariable>
   <UADataType NodeId="i=511" BrowseName="ViewDescription" Purpose="ServicesOnly">
     <DisplayName>ViewDescription</DisplayName>
-    <Description>The view to browse.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ViewDescription">
-      <Field Name="ViewId" DataType="i=17">
-        <Description>The node id of the view.</Description>
-      </Field>
-      <Field Name="Timestamp" DataType="i=294">
-        <Description>Browses the view at or before this time.</Description>
-      </Field>
-      <Field Name="ViewVersion" DataType="i=7">
-        <Description>Browses a specific version of the view .</Description>
-      </Field>
+      <Field Name="ViewId" DataType="i=17" />
+      <Field Name="Timestamp" DataType="i=294" />
+      <Field Name="ViewVersion" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=514" BrowseName="BrowseDescription" Purpose="ServicesOnly">
     <DisplayName>BrowseDescription</DisplayName>
-    <Description>A request to browse the the references from a node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseDescription">
-      <Field Name="NodeId" DataType="i=17">
-        <Description>The id of the node to browse.</Description>
-      </Field>
-      <Field Name="BrowseDirection" DataType="i=510">
-        <Description>The direction of the references to return.</Description>
-      </Field>
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of references to return.</Description>
-      </Field>
-      <Field Name="IncludeSubtypes" DataType="i=1">
-        <Description>Includes subtypes of the reference type.</Description>
-      </Field>
-      <Field Name="NodeClassMask" DataType="i=7">
-        <Description>A mask indicating which node classes to return. 0 means return all nodes.</Description>
-      </Field>
-      <Field Name="ResultMask" DataType="i=7">
-        <Description>A mask indicating which fields should be returned in the results.</Description>
-      </Field>
+      <Field Name="NodeId" DataType="i=17" />
+      <Field Name="BrowseDirection" DataType="i=510" />
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IncludeSubtypes" DataType="i=1" />
+      <Field Name="NodeClassMask" DataType="i=7" />
+      <Field Name="ResultMask" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=517" BrowseName="BrowseResultMask" Purpose="ServicesOnly">
     <DisplayName>BrowseResultMask</DisplayName>
-    <Description>A bit mask which specifies what should be returned in a browse response.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=11883</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="BrowseResultMask">
-      <Field Name="None" Value="0">
-        <Description>Return only the node id.</Description>
-      </Field>
-      <Field Name="ReferenceTypeId" Value="1">
-        <Description>Return the reference type id.</Description>
-      </Field>
-      <Field Name="IsForward" Value="2">
-        <Description>Return the flag indicating whether the reference is a forward reference.</Description>
-      </Field>
-      <Field Name="NodeClass" Value="4">
-        <Description>Return the node class.</Description>
-      </Field>
-      <Field Name="BrowseName" Value="8">
-        <Description>Return the browse name.</Description>
-      </Field>
-      <Field Name="DisplayName" Value="16">
-        <Description>Return the display name.</Description>
-      </Field>
-      <Field Name="TypeDefinition" Value="32">
-        <Description>Return the type definition.</Description>
-      </Field>
-      <Field Name="All" Value="63">
-        <Description>Return all fields.</Description>
-      </Field>
-      <Field Name="ReferenceTypeInfo" Value="3">
-        <Description>Return the reference type information.</Description>
-      </Field>
-      <Field Name="TargetInfo" Value="60">
-        <Description>Return the information about the target node.</Description>
-      </Field>
+      <Field Name="None" Value="0" />
+      <Field Name="ReferenceTypeId" Value="1" />
+      <Field Name="IsForward" Value="2" />
+      <Field Name="NodeClass" Value="4" />
+      <Field Name="BrowseName" Value="8" />
+      <Field Name="DisplayName" Value="16" />
+      <Field Name="TypeDefinition" Value="32" />
+      <Field Name="All" Value="63" />
+      <Field Name="ReferenceTypeInfo" Value="3" />
+      <Field Name="TargetInfo" Value="60" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11883" BrowseName="EnumValues" ParentNodeId="i=517" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11883" BrowseName="EnumValues" ParentNodeId="i=517" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2737,11 +1909,6 @@
                 </Locale>
                 <Text>None</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return only the node id.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2757,11 +1924,6 @@
                 </Locale>
                 <Text>ReferenceTypeId</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the reference type id.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2777,11 +1939,6 @@
                 </Locale>
                 <Text>IsForward</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the flag indicating whether the reference is a forward reference.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2797,11 +1954,6 @@
                 </Locale>
                 <Text>NodeClass</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the node class.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2817,11 +1969,6 @@
                 </Locale>
                 <Text>BrowseName</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the browse name.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2837,11 +1984,6 @@
                 </Locale>
                 <Text>DisplayName</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the display name.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2857,11 +1999,6 @@
                 </Locale>
                 <Text>TypeDefinition</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the type definition.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2877,11 +2014,6 @@
                 </Locale>
                 <Text>All</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return all fields.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2897,11 +2029,6 @@
                 </Locale>
                 <Text>ReferenceTypeInfo</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the reference type information.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2917,11 +2044,6 @@
                 </Locale>
                 <Text>TargetInfo</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>Return the information about the target node.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -2930,326 +2052,212 @@
   </UAVariable>
   <UADataType NodeId="i=518" BrowseName="ReferenceDescription" Purpose="ServicesOnly">
     <DisplayName>ReferenceDescription</DisplayName>
-    <Description>The description of a reference.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ReferenceDescription">
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of references.</Description>
-      </Field>
-      <Field Name="IsForward" DataType="i=1">
-        <Description>TRUE if the reference is a forward reference.</Description>
-      </Field>
-      <Field Name="NodeId" DataType="i=18">
-        <Description>The id of the target node.</Description>
-      </Field>
-      <Field Name="BrowseName" DataType="i=20">
-        <Description>The browse name of the target node.</Description>
-      </Field>
-      <Field Name="DisplayName" DataType="i=21">
-        <Description>The display name of the target node.</Description>
-      </Field>
-      <Field Name="NodeClass" DataType="i=257">
-        <Description>The node class of the target node.</Description>
-      </Field>
-      <Field Name="TypeDefinition" DataType="i=18">
-        <Description>The type definition of the target node.</Description>
-      </Field>
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IsForward" DataType="i=1" />
+      <Field Name="NodeId" DataType="i=18" />
+      <Field Name="BrowseName" DataType="i=20" />
+      <Field Name="DisplayName" DataType="i=21" />
+      <Field Name="NodeClass" DataType="i=257" />
+      <Field Name="TypeDefinition" DataType="i=18" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=521" BrowseName="ContinuationPoint">
     <DisplayName>ContinuationPoint</DisplayName>
-    <Description>An identifier for a suspended query or browse operation.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=522" BrowseName="BrowseResult" Purpose="ServicesOnly">
     <DisplayName>BrowseResult</DisplayName>
-    <Description>The result of a browse operation.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseResult">
-      <Field Name="StatusCode" DataType="i=19">
-        <Description>A code indicating any error during the operation.</Description>
-      </Field>
-      <Field Name="ContinuationPoint" DataType="i=521">
-        <Description>A value that indicates the operation is incomplete and can be continued by calling BrowseNext.</Description>
-      </Field>
-      <Field Name="References" DataType="i=518" ValueRank="1">
-        <Description>A list of references that meet the criteria specified in the request.</Description>
-      </Field>
+      <Field Name="StatusCode" DataType="i=19" />
+      <Field Name="ContinuationPoint" DataType="i=521" />
+      <Field Name="References" DataType="i=518" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=525" BrowseName="BrowseRequest" Purpose="ServicesOnly">
     <DisplayName>BrowseRequest</DisplayName>
-    <Description>Browse the references for one or more nodes from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="View" DataType="i=511">
-        <Description>The view to browse.</Description>
-      </Field>
-      <Field Name="RequestedMaxReferencesPerNode" DataType="i=289">
-        <Description>The maximum number of references to return in the response.</Description>
-      </Field>
-      <Field Name="NodesToBrowse" DataType="i=514" ValueRank="1">
-        <Description>The list of nodes to browse.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="View" DataType="i=511" />
+      <Field Name="RequestedMaxReferencesPerNode" DataType="i=289" />
+      <Field Name="NodesToBrowse" DataType="i=514" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=528" BrowseName="BrowseResponse" Purpose="ServicesOnly">
     <DisplayName>BrowseResponse</DisplayName>
-    <Description>Browse the references for one or more nodes from the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=522" ValueRank="1">
-        <Description>The results for the browse operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=522" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=531" BrowseName="BrowseNextRequest" Purpose="ServicesOnly">
     <DisplayName>BrowseNextRequest</DisplayName>
-    <Description>Continues one or more browse operations.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseNextRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="ReleaseContinuationPoints" DataType="i=1">
-        <Description>If TRUE the continuation points are released and no results are returned.</Description>
-      </Field>
-      <Field Name="ContinuationPoints" DataType="i=521" ValueRank="1">
-        <Description>The contination points returned from a previous call to Browse and BrowseNext.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="ReleaseContinuationPoints" DataType="i=1" />
+      <Field Name="ContinuationPoints" DataType="i=521" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=534" BrowseName="BrowseNextResponse" Purpose="ServicesOnly">
     <DisplayName>BrowseNextResponse</DisplayName>
-    <Description>Continues one or more browse operations.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowseNextResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=522" ValueRank="1">
-        <Description>The results for the browse operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=522" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=537" BrowseName="RelativePathElement">
     <DisplayName>RelativePathElement</DisplayName>
-    <Description>An element in a relative path.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RelativePathElement">
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The type of reference to follow.</Description>
-      </Field>
-      <Field Name="IsInverse" DataType="i=1">
-        <Description>If TRUE the reverse reference is followed.</Description>
-      </Field>
-      <Field Name="IncludeSubtypes" DataType="i=1">
-        <Description>If TRUE then subtypes of the reference type are followed.</Description>
-      </Field>
-      <Field Name="TargetName" DataType="i=20">
-        <Description>The browse name of the target.</Description>
-      </Field>
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IsInverse" DataType="i=1" />
+      <Field Name="IncludeSubtypes" DataType="i=1" />
+      <Field Name="TargetName" DataType="i=20" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=540" BrowseName="RelativePath">
     <DisplayName>RelativePath</DisplayName>
-    <Description>A relative path constructed from reference types and browse names.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RelativePath">
-      <Field Name="Elements" DataType="i=537" ValueRank="1">
-        <Description>A list of elements in the path.</Description>
-      </Field>
+      <Field Name="Elements" DataType="i=537" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=543" BrowseName="BrowsePath" Purpose="ServicesOnly">
     <DisplayName>BrowsePath</DisplayName>
-    <Description>A request to translate a path into a node id.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowsePath">
-      <Field Name="StartingNode" DataType="i=17">
-        <Description>The starting point for the search.</Description>
-      </Field>
-      <Field Name="RelativePath" DataType="i=540">
-        <Description>The path to follow.</Description>
-      </Field>
+      <Field Name="StartingNode" DataType="i=17" />
+      <Field Name="RelativePath" DataType="i=540" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=546" BrowseName="BrowsePathTarget" Purpose="ServicesOnly">
     <DisplayName>BrowsePathTarget</DisplayName>
-    <Description>The target of the translated path.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowsePathTarget">
-      <Field Name="TargetId" DataType="i=18">
-        <Description>The id of the target node.</Description>
-      </Field>
-      <Field Name="RemainingPathIndex" DataType="i=17588">
-        <Description>The index of the target in the relative path. UInt32.MaxValue if the entire path was processed.</Description>
-      </Field>
+      <Field Name="TargetId" DataType="i=18" />
+      <Field Name="RemainingPathIndex" DataType="i=17588" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=549" BrowseName="BrowsePathResult" Purpose="ServicesOnly">
     <DisplayName>BrowsePathResult</DisplayName>
-    <Description>The result of a translate opearation.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="BrowsePathResult">
-      <Field Name="StatusCode" DataType="i=19">
-        <Description>A code indicating any error during the operation.</Description>
-      </Field>
-      <Field Name="Targets" DataType="i=546" ValueRank="1">
-        <Description>A list of nodes found. The first element matches the type definition.</Description>
-      </Field>
+      <Field Name="StatusCode" DataType="i=19" />
+      <Field Name="Targets" DataType="i=546" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=552" BrowseName="TranslateBrowsePathsToNodeIdsRequest" Purpose="ServicesOnly">
     <DisplayName>TranslateBrowsePathsToNodeIdsRequest</DisplayName>
-    <Description>Translates one or more paths in the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="TranslateBrowsePathsToNodeIdsRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="BrowsePaths" DataType="i=543" ValueRank="1">
-        <Description>The list of paths to translate.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="BrowsePaths" DataType="i=543" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=555" BrowseName="TranslateBrowsePathsToNodeIdsResponse" Purpose="ServicesOnly">
     <DisplayName>TranslateBrowsePathsToNodeIdsResponse</DisplayName>
-    <Description>Translates one or more paths in the server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="TranslateBrowsePathsToNodeIdsResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="Results" DataType="i=549" ValueRank="1">
-        <Description>The results for the translate operations.</Description>
-      </Field>
-      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1">
-        <Description>The diagnostics associated with the results.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="Results" DataType="i=549" ValueRank="1" />
+      <Field Name="DiagnosticInfos" DataType="i=25" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=558" BrowseName="RegisterNodesRequest" Purpose="ServicesOnly">
     <DisplayName>RegisterNodesRequest</DisplayName>
-    <Description>Registers one or more nodes for repeated use within a session.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RegisterNodesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="NodesToRegister" DataType="i=17" ValueRank="1">
-        <Description>The list of nodes to register.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="NodesToRegister" DataType="i=17" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=561" BrowseName="RegisterNodesResponse" Purpose="ServicesOnly">
     <DisplayName>RegisterNodesResponse</DisplayName>
-    <Description>Registers one or more nodes for repeated use within a session.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="RegisterNodesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
-      <Field Name="RegisteredNodeIds" DataType="i=17" ValueRank="1">
-        <Description>The list of node ids that can be used for fast access to the nodes.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
+      <Field Name="RegisteredNodeIds" DataType="i=17" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=564" BrowseName="UnregisterNodesRequest" Purpose="ServicesOnly">
     <DisplayName>UnregisterNodesRequest</DisplayName>
-    <Description>Unregisters one or more previously registered nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="UnregisterNodesRequest">
-      <Field Name="RequestHeader" DataType="i=389">
-        <Description>A standard header included in all requests sent to a server.</Description>
-      </Field>
-      <Field Name="NodesToUnregister" DataType="i=17" ValueRank="1">
-        <Description>The list of nodes to unregister.</Description>
-      </Field>
+      <Field Name="RequestHeader" DataType="i=389" />
+      <Field Name="NodesToUnregister" DataType="i=17" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=567" BrowseName="UnregisterNodesResponse" Purpose="ServicesOnly">
     <DisplayName>UnregisterNodesResponse</DisplayName>
-    <Description>Unregisters one or more previously registered nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="UnregisterNodesResponse">
-      <Field Name="ResponseHeader" DataType="i=392">
-        <Description>A standard header included in all responses returned by servers.</Description>
-      </Field>
+      <Field Name="ResponseHeader" DataType="i=392" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=289" BrowseName="Counter">
     <DisplayName>Counter</DisplayName>
-    <Description>A monotonically increasing value.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=291" BrowseName="NumericRange">
     <DisplayName>NumericRange</DisplayName>
-    <Description>Specifies a range of array indexes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=292" BrowseName="Time">
     <DisplayName>Time</DisplayName>
-    <Description>A time value specified as HH:MM:SS.SSS.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=293" BrowseName="Date">
     <DisplayName>Date</DisplayName>
-    <Description>A date value.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=13</Reference>
     </References>
@@ -3320,7 +2328,7 @@
       <Field Name="BitwiseOr" Value="17" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7605" BrowseName="EnumStrings" ParentNodeId="i=576" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7605" BrowseName="EnumStrings" ParentNodeId="i=576" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3609,7 +2617,7 @@
       <Field Name="Invalid" Value="4" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7606" BrowseName="EnumStrings" ParentNodeId="i=625" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7606" BrowseName="EnumStrings" ParentNodeId="i=625" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3875,7 +2883,7 @@
       <Field Name="Delete" Value="4" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11884" BrowseName="EnumValues" ParentNodeId="i=11234" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11884" BrowseName="EnumValues" ParentNodeId="i=11234" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3896,7 +2904,6 @@
                 </Locale>
                 <Text>Insert</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -3912,7 +2919,6 @@
                 </Locale>
                 <Text>Replace</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -3928,7 +2934,6 @@
                 </Locale>
                 <Text>Update</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -3944,7 +2949,6 @@
                 </Locale>
                 <Text>Delete</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -3964,7 +2968,7 @@
       <Field Name="Remove" Value="4" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11885" BrowseName="EnumValues" ParentNodeId="i=11293" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11885" BrowseName="EnumValues" ParentNodeId="i=11293" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3985,7 +2989,6 @@
                 </Locale>
                 <Text>Insert</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -4001,7 +3004,6 @@
                 </Locale>
                 <Text>Replace</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -4017,7 +3019,6 @@
                 </Locale>
                 <Text>Update</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -4033,7 +3034,6 @@
                 </Locale>
                 <Text>Remove</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -4188,7 +3188,7 @@
       <Field Name="Reporting" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7608" BrowseName="EnumStrings" ParentNodeId="i=716" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7608" BrowseName="EnumStrings" ParentNodeId="i=716" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4227,7 +3227,7 @@
       <Field Name="StatusValueTimestamp" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7609" BrowseName="EnumStrings" ParentNodeId="i=717" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7609" BrowseName="EnumStrings" ParentNodeId="i=717" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4266,7 +3266,7 @@
       <Field Name="Percent" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7610" BrowseName="EnumStrings" ParentNodeId="i=718" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7610" BrowseName="EnumStrings" ParentNodeId="i=718" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

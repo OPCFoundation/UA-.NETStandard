@@ -245,6 +245,51 @@ namespace Opc.Ua
         public const uint EndpointType = 15528;
 
         /// <summary>
+        /// The identifier for the RationalNumber DataType.
+        /// </summary>
+        public const uint RationalNumber = 18806;
+
+        /// <summary>
+        /// The identifier for the Vector DataType.
+        /// </summary>
+        public const uint Vector = 18807;
+
+        /// <summary>
+        /// The identifier for the ThreeDVector DataType.
+        /// </summary>
+        public const uint ThreeDVector = 18808;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates DataType.
+        /// </summary>
+        public const uint CartesianCoordinates = 18809;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates DataType.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinates = 18810;
+
+        /// <summary>
+        /// The identifier for the Orientation DataType.
+        /// </summary>
+        public const uint Orientation = 18811;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation DataType.
+        /// </summary>
+        public const uint ThreeDOrientation = 18812;
+
+        /// <summary>
+        /// The identifier for the Frame DataType.
+        /// </summary>
+        public const uint Frame = 18813;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame DataType.
+        /// </summary>
+        public const uint ThreeDFrame = 18814;
+
+        /// <summary>
         /// The identifier for the OpenFileMode DataType.
         /// </summary>
         public const uint OpenFileMode = 11939;
@@ -3955,11 +4000,6 @@ namespace Opc.Ua
         public const uint ModellingRule_ExposesItsArray = 83;
 
         /// <summary>
-        /// The identifier for the ModellingRule_MandatoryShared Object.
-        /// </summary>
-        public const uint ModellingRule_MandatoryShared = 79;
-
-        /// <summary>
         /// The identifier for the ModellingRule_OptionalPlaceholder Object.
         /// </summary>
         public const uint ModellingRule_OptionalPlaceholder = 11508;
@@ -4308,6 +4348,31 @@ namespace Opc.Ua
         /// The identifier for the WellKnownRole_SecurityAdmin Object.
         /// </summary>
         public const uint WellKnownRole_SecurityAdmin = 15704;
+
+        /// <summary>
+        /// The identifier for the DictionaryEntryType_DictionaryEntryName_Placeholder Object.
+        /// </summary>
+        public const uint DictionaryEntryType_DictionaryEntryName_Placeholder = 17590;
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType_DictionaryFolderName_Placeholder Object.
+        /// </summary>
+        public const uint DictionaryFolderType_DictionaryFolderName_Placeholder = 17592;
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType_DictionaryEntryName_Placeholder Object.
+        /// </summary>
+        public const uint DictionaryFolderType_DictionaryEntryName_Placeholder = 17593;
+
+        /// <summary>
+        /// The identifier for the Dictionaries Object.
+        /// </summary>
+        public const uint Dictionaries = 17594;
+
+        /// <summary>
+        /// The identifier for the InterfaceTypes Object.
+        /// </summary>
+        public const uint InterfaceTypes = 17708;
 
         /// <summary>
         /// The identifier for the AlarmConditionType_ShelvingState Object.
@@ -5318,6 +5383,51 @@ namespace Opc.Ua
         /// The identifier for the EndpointType_Encoding_DefaultBinary Object.
         /// </summary>
         public const uint EndpointType_Encoding_DefaultBinary = 15671;
+
+        /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint RationalNumber_Encoding_DefaultBinary = 18815;
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultBinary = 18816;
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ThreeDVector_Encoding_DefaultBinary = 18817;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint CartesianCoordinates_Encoding_DefaultBinary = 18818;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinates_Encoding_DefaultBinary = 18819;
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint Orientation_Encoding_DefaultBinary = 18820;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ThreeDOrientation_Encoding_DefaultBinary = 18821;
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint Frame_Encoding_DefaultBinary = 18822;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ThreeDFrame_Encoding_DefaultBinary = 18823;
 
         /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultBinary Object.
@@ -6735,6 +6845,51 @@ namespace Opc.Ua
         public const uint EndpointType_Encoding_DefaultXml = 15949;
 
         /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint RationalNumber_Encoding_DefaultXml = 18851;
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultXml = 18852;
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint ThreeDVector_Encoding_DefaultXml = 18853;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint CartesianCoordinates_Encoding_DefaultXml = 18854;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinates_Encoding_DefaultXml = 18855;
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint Orientation_Encoding_DefaultXml = 18856;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint ThreeDOrientation_Encoding_DefaultXml = 18857;
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint Frame_Encoding_DefaultXml = 18858;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint ThreeDFrame_Encoding_DefaultXml = 18859;
+
+        /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint IdentityMappingRuleType_Encoding_DefaultXml = 15728;
@@ -8148,6 +8303,51 @@ namespace Opc.Ua
         /// The identifier for the EndpointType_Encoding_DefaultJson Object.
         /// </summary>
         public const uint EndpointType_Encoding_DefaultJson = 16150;
+
+        /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint RationalNumber_Encoding_DefaultJson = 19064;
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultJson = 19065;
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint ThreeDVector_Encoding_DefaultJson = 19066;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint CartesianCoordinates_Encoding_DefaultJson = 19067;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinates_Encoding_DefaultJson = 19068;
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint Orientation_Encoding_DefaultJson = 19069;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint ThreeDOrientation_Encoding_DefaultJson = 19070;
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint Frame_Encoding_DefaultJson = 19071;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint ThreeDFrame_Encoding_DefaultJson = 19072;
 
         /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultJson Object.
@@ -9910,6 +10110,31 @@ namespace Opc.Ua
         public const uint RoleMappingRuleChangedAuditEventType = 17641;
 
         /// <summary>
+        /// The identifier for the DictionaryEntryType ObjectType.
+        /// </summary>
+        public const uint DictionaryEntryType = 17589;
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType ObjectType.
+        /// </summary>
+        public const uint DictionaryFolderType = 17591;
+
+        /// <summary>
+        /// The identifier for the IrdiDictionaryEntryType ObjectType.
+        /// </summary>
+        public const uint IrdiDictionaryEntryType = 17598;
+
+        /// <summary>
+        /// The identifier for the UriDictionaryEntryType ObjectType.
+        /// </summary>
+        public const uint UriDictionaryEntryType = 17600;
+
+        /// <summary>
+        /// The identifier for the BaseInterfaceType ObjectType.
+        /// </summary>
+        public const uint BaseInterfaceType = 17602;
+
+        /// <summary>
         /// The identifier for the ConditionType ObjectType.
         /// </summary>
         public const uint ConditionType = 2782;
@@ -10710,6 +10935,21 @@ namespace Opc.Ua
         public const uint HasGuard = 15112;
 
         /// <summary>
+        /// The identifier for the HasDictionaryEntry ReferenceType.
+        /// </summary>
+        public const uint HasDictionaryEntry = 17597;
+
+        /// <summary>
+        /// The identifier for the HasInterface ReferenceType.
+        /// </summary>
+        public const uint HasInterface = 17603;
+
+        /// <summary>
+        /// The identifier for the HasAddIn ReferenceType.
+        /// </summary>
+        public const uint HasAddIn = 17604;
+
+        /// <summary>
         /// The identifier for the HasTrueSubState ReferenceType.
         /// </summary>
         public const uint HasTrueSubState = 9004;
@@ -10770,9 +11010,19 @@ namespace Opc.Ua
         public const uint HasDataSetWriter = 15296;
 
         /// <summary>
+        /// The identifier for the HasWriterGroup ReferenceType.
+        /// </summary>
+        public const uint HasWriterGroup = 18804;
+
+        /// <summary>
         /// The identifier for the HasDataSetReader ReferenceType.
         /// </summary>
         public const uint HasDataSetReader = 15297;
+
+        /// <summary>
+        /// The identifier for the HasReaderGroup ReferenceType.
+        /// </summary>
+        public const uint HasReaderGroup = 18805;
     }
     #endregion
 
@@ -10833,11 +11083,6 @@ namespace Opc.Ua
         /// The identifier for the ModellingRule_ExposesItsArray_NamingRule Variable.
         /// </summary>
         public const uint ModellingRule_ExposesItsArray_NamingRule = 114;
-
-        /// <summary>
-        /// The identifier for the ModellingRule_MandatoryShared_NamingRule Variable.
-        /// </summary>
-        public const uint ModellingRule_MandatoryShared_NamingRule = 116;
 
         /// <summary>
         /// The identifier for the ModellingRule_OptionalPlaceholder_NamingRule Variable.
@@ -14348,6 +14593,141 @@ namespace Opc.Ua
         /// The identifier for the ExpressionGuardVariableType_Expression Variable.
         /// </summary>
         public const uint ExpressionGuardVariableType_Expression = 15129;
+
+        /// <summary>
+        /// The identifier for the RationalNumberType_Numerator Variable.
+        /// </summary>
+        public const uint RationalNumberType_Numerator = 17712;
+
+        /// <summary>
+        /// The identifier for the RationalNumberType_Denominator Variable.
+        /// </summary>
+        public const uint RationalNumberType_Denominator = 17713;
+
+        /// <summary>
+        /// The identifier for the VectorType_VectorUnit Variable.
+        /// </summary>
+        public const uint VectorType_VectorUnit = 17715;
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_X Variable.
+        /// </summary>
+        public const uint ThreeDVectorType_X = 18769;
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_Y Variable.
+        /// </summary>
+        public const uint ThreeDVectorType_Y = 18770;
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_Z Variable.
+        /// </summary>
+        public const uint ThreeDVectorType_Z = 18771;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinatesType_LengthUnit Variable.
+        /// </summary>
+        public const uint CartesianCoordinatesType_LengthUnit = 18773;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_X Variable.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinatesType_X = 18776;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_Y Variable.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinatesType_Y = 18777;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_Z Variable.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinatesType_Z = 18778;
+
+        /// <summary>
+        /// The identifier for the OrientationType_AngleUnit Variable.
+        /// </summary>
+        public const uint OrientationType_AngleUnit = 18780;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_A Variable.
+        /// </summary>
+        public const uint ThreeDOrientationType_A = 18783;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_B Variable.
+        /// </summary>
+        public const uint ThreeDOrientationType_B = 18784;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_C Variable.
+        /// </summary>
+        public const uint ThreeDOrientationType_C = 18785;
+
+        /// <summary>
+        /// The identifier for the FrameType_CartesianCoordinates Variable.
+        /// </summary>
+        public const uint FrameType_CartesianCoordinates = 18801;
+
+        /// <summary>
+        /// The identifier for the FrameType_Orientation Variable.
+        /// </summary>
+        public const uint FrameType_Orientation = 18787;
+
+        /// <summary>
+        /// The identifier for the FrameType_Constant Variable.
+        /// </summary>
+        public const uint FrameType_Constant = 18788;
+
+        /// <summary>
+        /// The identifier for the FrameType_BaseFrame Variable.
+        /// </summary>
+        public const uint FrameType_BaseFrame = 18789;
+
+        /// <summary>
+        /// The identifier for the FrameType_FixedBase Variable.
+        /// </summary>
+        public const uint FrameType_FixedBase = 18790;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_CartesianCoordinates = 18796;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_Orientation = 18792;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_X Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_CartesianCoordinates_X = 18798;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_Y Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_CartesianCoordinates_Y = 18799;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_Z Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_CartesianCoordinates_Z = 18800;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_A Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_Orientation_A = 19074;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_B Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_Orientation_B = 19075;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_C Variable.
+        /// </summary>
+        public const uint ThreeDFrameType_Orientation_C = 19076;
 
         /// <summary>
         /// The identifier for the TransitionEventType_Transition Variable.
@@ -27520,6 +27900,51 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_EndpointType = 15734;
 
         /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_RationalNumber Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_RationalNumber = 18824;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Vector Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_Vector = 18827;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDVector Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_ThreeDVector = 18830;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_CartesianCoordinates Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_CartesianCoordinates = 18833;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDCartesianCoordinates Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_ThreeDCartesianCoordinates = 18836;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Orientation Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_Orientation = 18839;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDOrientation Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_ThreeDOrientation = 18842;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Frame Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_Frame = 18845;
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDFrame Variable.
+        /// </summary>
+        public const uint OpcUa_BinarySchema_ThreeDFrame = 18848;
+
+        /// <summary>
         /// The identifier for the OpcUa_BinarySchema_IdentityMappingRuleType Variable.
         /// </summary>
         public const uint OpcUa_BinarySchema_IdentityMappingRuleType = 15738;
@@ -28123,6 +28548,51 @@ namespace Opc.Ua
         /// The identifier for the OpcUa_XmlSchema_EndpointType Variable.
         /// </summary>
         public const uint OpcUa_XmlSchema_EndpointType = 16024;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_RationalNumber Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_RationalNumber = 18860;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Vector Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_Vector = 18863;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDVector Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_ThreeDVector = 18866;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_CartesianCoordinates Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_CartesianCoordinates = 18869;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDCartesianCoordinates Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_ThreeDCartesianCoordinates = 19049;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Orientation Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_Orientation = 19052;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDOrientation Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_ThreeDOrientation = 19055;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Frame Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_Frame = 19058;
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDFrame Variable.
+        /// </summary>
+        public const uint OpcUa_XmlSchema_ThreeDFrame = 19061;
 
         /// <summary>
         /// The identifier for the OpcUa_XmlSchema_IdentityMappingRuleType Variable.
@@ -28850,6 +29320,51 @@ namespace Opc.Ua
         public const uint ElseGuardVariableType = 15317;
 
         /// <summary>
+        /// The identifier for the RationalNumberType VariableType.
+        /// </summary>
+        public const uint RationalNumberType = 17709;
+
+        /// <summary>
+        /// The identifier for the VectorType VariableType.
+        /// </summary>
+        public const uint VectorType = 17714;
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType VariableType.
+        /// </summary>
+        public const uint ThreeDVectorType = 17716;
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinatesType VariableType.
+        /// </summary>
+        public const uint CartesianCoordinatesType = 18772;
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType VariableType.
+        /// </summary>
+        public const uint ThreeDCartesianCoordinatesType = 18774;
+
+        /// <summary>
+        /// The identifier for the OrientationType VariableType.
+        /// </summary>
+        public const uint OrientationType = 18779;
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType VariableType.
+        /// </summary>
+        public const uint ThreeDOrientationType = 18781;
+
+        /// <summary>
+        /// The identifier for the FrameType VariableType.
+        /// </summary>
+        public const uint FrameType = 18786;
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType VariableType.
+        /// </summary>
+        public const uint ThreeDFrameType = 18791;
+
+        /// <summary>
         /// The identifier for the DataItemType VariableType.
         /// </summary>
         public const uint DataItemType = 2365;
@@ -29163,6 +29678,51 @@ namespace Opc.Ua
         /// The identifier for the EndpointType DataType.
         /// </summary>
         public static readonly NodeId EndpointType = new NodeId(Opc.Ua.DataTypes.EndpointType);
+
+        /// <summary>
+        /// The identifier for the RationalNumber DataType.
+        /// </summary>
+        public static readonly NodeId RationalNumber = new NodeId(Opc.Ua.DataTypes.RationalNumber);
+
+        /// <summary>
+        /// The identifier for the Vector DataType.
+        /// </summary>
+        public static readonly NodeId Vector = new NodeId(Opc.Ua.DataTypes.Vector);
+
+        /// <summary>
+        /// The identifier for the ThreeDVector DataType.
+        /// </summary>
+        public static readonly NodeId ThreeDVector = new NodeId(Opc.Ua.DataTypes.ThreeDVector);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates DataType.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinates = new NodeId(Opc.Ua.DataTypes.CartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates DataType.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinates = new NodeId(Opc.Ua.DataTypes.ThreeDCartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the Orientation DataType.
+        /// </summary>
+        public static readonly NodeId Orientation = new NodeId(Opc.Ua.DataTypes.Orientation);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation DataType.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientation = new NodeId(Opc.Ua.DataTypes.ThreeDOrientation);
+
+        /// <summary>
+        /// The identifier for the Frame DataType.
+        /// </summary>
+        public static readonly NodeId Frame = new NodeId(Opc.Ua.DataTypes.Frame);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame DataType.
+        /// </summary>
+        public static readonly NodeId ThreeDFrame = new NodeId(Opc.Ua.DataTypes.ThreeDFrame);
 
         /// <summary>
         /// The identifier for the OpenFileMode DataType.
@@ -32875,11 +33435,6 @@ namespace Opc.Ua
         public static readonly NodeId ModellingRule_ExposesItsArray = new NodeId(Opc.Ua.Objects.ModellingRule_ExposesItsArray);
 
         /// <summary>
-        /// The identifier for the ModellingRule_MandatoryShared Object.
-        /// </summary>
-        public static readonly NodeId ModellingRule_MandatoryShared = new NodeId(Opc.Ua.Objects.ModellingRule_MandatoryShared);
-
-        /// <summary>
         /// The identifier for the ModellingRule_OptionalPlaceholder Object.
         /// </summary>
         public static readonly NodeId ModellingRule_OptionalPlaceholder = new NodeId(Opc.Ua.Objects.ModellingRule_OptionalPlaceholder);
@@ -33228,6 +33783,31 @@ namespace Opc.Ua
         /// The identifier for the WellKnownRole_SecurityAdmin Object.
         /// </summary>
         public static readonly NodeId WellKnownRole_SecurityAdmin = new NodeId(Opc.Ua.Objects.WellKnownRole_SecurityAdmin);
+
+        /// <summary>
+        /// The identifier for the DictionaryEntryType_DictionaryEntryName_Placeholder Object.
+        /// </summary>
+        public static readonly NodeId DictionaryEntryType_DictionaryEntryName_Placeholder = new NodeId(Opc.Ua.Objects.DictionaryEntryType_DictionaryEntryName_Placeholder);
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType_DictionaryFolderName_Placeholder Object.
+        /// </summary>
+        public static readonly NodeId DictionaryFolderType_DictionaryFolderName_Placeholder = new NodeId(Opc.Ua.Objects.DictionaryFolderType_DictionaryFolderName_Placeholder);
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType_DictionaryEntryName_Placeholder Object.
+        /// </summary>
+        public static readonly NodeId DictionaryFolderType_DictionaryEntryName_Placeholder = new NodeId(Opc.Ua.Objects.DictionaryFolderType_DictionaryEntryName_Placeholder);
+
+        /// <summary>
+        /// The identifier for the Dictionaries Object.
+        /// </summary>
+        public static readonly NodeId Dictionaries = new NodeId(Opc.Ua.Objects.Dictionaries);
+
+        /// <summary>
+        /// The identifier for the InterfaceTypes Object.
+        /// </summary>
+        public static readonly NodeId InterfaceTypes = new NodeId(Opc.Ua.Objects.InterfaceTypes);
 
         /// <summary>
         /// The identifier for the AlarmConditionType_ShelvingState Object.
@@ -34238,6 +34818,51 @@ namespace Opc.Ua
         /// The identifier for the EndpointType_Encoding_DefaultBinary Object.
         /// </summary>
         public static readonly NodeId EndpointType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.EndpointType_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId RationalNumber_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RationalNumber_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId Vector_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Vector_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId ThreeDVector_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ThreeDVector_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinates_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CartesianCoordinates_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinates_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ThreeDCartesianCoordinates_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId Orientation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Orientation_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ThreeDOrientation_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId Frame_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Frame_Encoding_DefaultBinary);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly NodeId ThreeDFrame_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ThreeDFrame_Encoding_DefaultBinary);
 
         /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultBinary Object.
@@ -35655,6 +36280,51 @@ namespace Opc.Ua
         public static readonly NodeId EndpointType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.EndpointType_Encoding_DefaultXml);
 
         /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId RationalNumber_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RationalNumber_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId Vector_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Vector_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId ThreeDVector_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ThreeDVector_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinates_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CartesianCoordinates_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinates_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ThreeDCartesianCoordinates_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId Orientation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Orientation_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ThreeDOrientation_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId Frame_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Frame_Encoding_DefaultXml);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly NodeId ThreeDFrame_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ThreeDFrame_Encoding_DefaultXml);
+
+        /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly NodeId IdentityMappingRuleType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.IdentityMappingRuleType_Encoding_DefaultXml);
@@ -37068,6 +37738,51 @@ namespace Opc.Ua
         /// The identifier for the EndpointType_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly NodeId EndpointType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointType_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the RationalNumber_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId RationalNumber_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RationalNumber_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId Vector_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Vector_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the ThreeDVector_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId ThreeDVector_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDVector_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinates_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinates_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CartesianCoordinates_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinates_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinates_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDCartesianCoordinates_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the Orientation_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId Orientation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Orientation_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientation_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDOrientation_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the Frame_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId Frame_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Frame_Encoding_DefaultJson);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrame_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly NodeId ThreeDFrame_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDFrame_Encoding_DefaultJson);
 
         /// <summary>
         /// The identifier for the IdentityMappingRuleType_Encoding_DefaultJson Object.
@@ -38830,6 +39545,31 @@ namespace Opc.Ua
         public static readonly NodeId RoleMappingRuleChangedAuditEventType = new NodeId(Opc.Ua.ObjectTypes.RoleMappingRuleChangedAuditEventType);
 
         /// <summary>
+        /// The identifier for the DictionaryEntryType ObjectType.
+        /// </summary>
+        public static readonly NodeId DictionaryEntryType = new NodeId(Opc.Ua.ObjectTypes.DictionaryEntryType);
+
+        /// <summary>
+        /// The identifier for the DictionaryFolderType ObjectType.
+        /// </summary>
+        public static readonly NodeId DictionaryFolderType = new NodeId(Opc.Ua.ObjectTypes.DictionaryFolderType);
+
+        /// <summary>
+        /// The identifier for the IrdiDictionaryEntryType ObjectType.
+        /// </summary>
+        public static readonly NodeId IrdiDictionaryEntryType = new NodeId(Opc.Ua.ObjectTypes.IrdiDictionaryEntryType);
+
+        /// <summary>
+        /// The identifier for the UriDictionaryEntryType ObjectType.
+        /// </summary>
+        public static readonly NodeId UriDictionaryEntryType = new NodeId(Opc.Ua.ObjectTypes.UriDictionaryEntryType);
+
+        /// <summary>
+        /// The identifier for the BaseInterfaceType ObjectType.
+        /// </summary>
+        public static readonly NodeId BaseInterfaceType = new NodeId(Opc.Ua.ObjectTypes.BaseInterfaceType);
+
+        /// <summary>
         /// The identifier for the ConditionType ObjectType.
         /// </summary>
         public static readonly NodeId ConditionType = new NodeId(Opc.Ua.ObjectTypes.ConditionType);
@@ -39630,6 +40370,21 @@ namespace Opc.Ua
         public static readonly NodeId HasGuard = new NodeId(Opc.Ua.ReferenceTypes.HasGuard);
 
         /// <summary>
+        /// The identifier for the HasDictionaryEntry ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasDictionaryEntry = new NodeId(Opc.Ua.ReferenceTypes.HasDictionaryEntry);
+
+        /// <summary>
+        /// The identifier for the HasInterface ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasInterface = new NodeId(Opc.Ua.ReferenceTypes.HasInterface);
+
+        /// <summary>
+        /// The identifier for the HasAddIn ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasAddIn = new NodeId(Opc.Ua.ReferenceTypes.HasAddIn);
+
+        /// <summary>
         /// The identifier for the HasTrueSubState ReferenceType.
         /// </summary>
         public static readonly NodeId HasTrueSubState = new NodeId(Opc.Ua.ReferenceTypes.HasTrueSubState);
@@ -39690,9 +40445,19 @@ namespace Opc.Ua
         public static readonly NodeId HasDataSetWriter = new NodeId(Opc.Ua.ReferenceTypes.HasDataSetWriter);
 
         /// <summary>
+        /// The identifier for the HasWriterGroup ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasWriterGroup = new NodeId(Opc.Ua.ReferenceTypes.HasWriterGroup);
+
+        /// <summary>
         /// The identifier for the HasDataSetReader ReferenceType.
         /// </summary>
         public static readonly NodeId HasDataSetReader = new NodeId(Opc.Ua.ReferenceTypes.HasDataSetReader);
+
+        /// <summary>
+        /// The identifier for the HasReaderGroup ReferenceType.
+        /// </summary>
+        public static readonly NodeId HasReaderGroup = new NodeId(Opc.Ua.ReferenceTypes.HasReaderGroup);
     }
     #endregion
 
@@ -39753,11 +40518,6 @@ namespace Opc.Ua
         /// The identifier for the ModellingRule_ExposesItsArray_NamingRule Variable.
         /// </summary>
         public static readonly NodeId ModellingRule_ExposesItsArray_NamingRule = new NodeId(Opc.Ua.Variables.ModellingRule_ExposesItsArray_NamingRule);
-
-        /// <summary>
-        /// The identifier for the ModellingRule_MandatoryShared_NamingRule Variable.
-        /// </summary>
-        public static readonly NodeId ModellingRule_MandatoryShared_NamingRule = new NodeId(Opc.Ua.Variables.ModellingRule_MandatoryShared_NamingRule);
 
         /// <summary>
         /// The identifier for the ModellingRule_OptionalPlaceholder_NamingRule Variable.
@@ -43268,6 +44028,141 @@ namespace Opc.Ua
         /// The identifier for the ExpressionGuardVariableType_Expression Variable.
         /// </summary>
         public static readonly NodeId ExpressionGuardVariableType_Expression = new NodeId(Opc.Ua.Variables.ExpressionGuardVariableType_Expression);
+
+        /// <summary>
+        /// The identifier for the RationalNumberType_Numerator Variable.
+        /// </summary>
+        public static readonly NodeId RationalNumberType_Numerator = new NodeId(Opc.Ua.Variables.RationalNumberType_Numerator);
+
+        /// <summary>
+        /// The identifier for the RationalNumberType_Denominator Variable.
+        /// </summary>
+        public static readonly NodeId RationalNumberType_Denominator = new NodeId(Opc.Ua.Variables.RationalNumberType_Denominator);
+
+        /// <summary>
+        /// The identifier for the VectorType_VectorUnit Variable.
+        /// </summary>
+        public static readonly NodeId VectorType_VectorUnit = new NodeId(Opc.Ua.Variables.VectorType_VectorUnit);
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_X Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDVectorType_X = new NodeId(Opc.Ua.Variables.ThreeDVectorType_X);
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_Y Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDVectorType_Y = new NodeId(Opc.Ua.Variables.ThreeDVectorType_Y);
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType_Z Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDVectorType_Z = new NodeId(Opc.Ua.Variables.ThreeDVectorType_Z);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinatesType_LengthUnit Variable.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinatesType_LengthUnit = new NodeId(Opc.Ua.Variables.CartesianCoordinatesType_LengthUnit);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_X Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinatesType_X = new NodeId(Opc.Ua.Variables.ThreeDCartesianCoordinatesType_X);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_Y Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinatesType_Y = new NodeId(Opc.Ua.Variables.ThreeDCartesianCoordinatesType_Y);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType_Z Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinatesType_Z = new NodeId(Opc.Ua.Variables.ThreeDCartesianCoordinatesType_Z);
+
+        /// <summary>
+        /// The identifier for the OrientationType_AngleUnit Variable.
+        /// </summary>
+        public static readonly NodeId OrientationType_AngleUnit = new NodeId(Opc.Ua.Variables.OrientationType_AngleUnit);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_A Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientationType_A = new NodeId(Opc.Ua.Variables.ThreeDOrientationType_A);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_B Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientationType_B = new NodeId(Opc.Ua.Variables.ThreeDOrientationType_B);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType_C Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientationType_C = new NodeId(Opc.Ua.Variables.ThreeDOrientationType_C);
+
+        /// <summary>
+        /// The identifier for the FrameType_CartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId FrameType_CartesianCoordinates = new NodeId(Opc.Ua.Variables.FrameType_CartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the FrameType_Orientation Variable.
+        /// </summary>
+        public static readonly NodeId FrameType_Orientation = new NodeId(Opc.Ua.Variables.FrameType_Orientation);
+
+        /// <summary>
+        /// The identifier for the FrameType_Constant Variable.
+        /// </summary>
+        public static readonly NodeId FrameType_Constant = new NodeId(Opc.Ua.Variables.FrameType_Constant);
+
+        /// <summary>
+        /// The identifier for the FrameType_BaseFrame Variable.
+        /// </summary>
+        public static readonly NodeId FrameType_BaseFrame = new NodeId(Opc.Ua.Variables.FrameType_BaseFrame);
+
+        /// <summary>
+        /// The identifier for the FrameType_FixedBase Variable.
+        /// </summary>
+        public static readonly NodeId FrameType_FixedBase = new NodeId(Opc.Ua.Variables.FrameType_FixedBase);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_CartesianCoordinates = new NodeId(Opc.Ua.Variables.ThreeDFrameType_CartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_Orientation = new NodeId(Opc.Ua.Variables.ThreeDFrameType_Orientation);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_X Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_CartesianCoordinates_X = new NodeId(Opc.Ua.Variables.ThreeDFrameType_CartesianCoordinates_X);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_Y Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_CartesianCoordinates_Y = new NodeId(Opc.Ua.Variables.ThreeDFrameType_CartesianCoordinates_Y);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_CartesianCoordinates_Z Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_CartesianCoordinates_Z = new NodeId(Opc.Ua.Variables.ThreeDFrameType_CartesianCoordinates_Z);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_A Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_Orientation_A = new NodeId(Opc.Ua.Variables.ThreeDFrameType_Orientation_A);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_B Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_Orientation_B = new NodeId(Opc.Ua.Variables.ThreeDFrameType_Orientation_B);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType_Orientation_C Variable.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType_Orientation_C = new NodeId(Opc.Ua.Variables.ThreeDFrameType_Orientation_C);
 
         /// <summary>
         /// The identifier for the TransitionEventType_Transition Variable.
@@ -56440,6 +57335,51 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_EndpointType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_EndpointType);
 
         /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_RationalNumber Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_RationalNumber = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_RationalNumber);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Vector Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_Vector = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_Vector);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDVector Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_ThreeDVector = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ThreeDVector);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_CartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_CartesianCoordinates = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDCartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_ThreeDCartesianCoordinates = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ThreeDCartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Orientation Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_Orientation = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_Orientation);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDOrientation Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_ThreeDOrientation = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ThreeDOrientation);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_Frame Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_Frame = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_Frame);
+
+        /// <summary>
+        /// The identifier for the OpcUa_BinarySchema_ThreeDFrame Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_BinarySchema_ThreeDFrame = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ThreeDFrame);
+
+        /// <summary>
         /// The identifier for the OpcUa_BinarySchema_IdentityMappingRuleType Variable.
         /// </summary>
         public static readonly NodeId OpcUa_BinarySchema_IdentityMappingRuleType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_IdentityMappingRuleType);
@@ -57043,6 +57983,51 @@ namespace Opc.Ua
         /// The identifier for the OpcUa_XmlSchema_EndpointType Variable.
         /// </summary>
         public static readonly NodeId OpcUa_XmlSchema_EndpointType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_EndpointType);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_RationalNumber Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_RationalNumber = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_RationalNumber);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Vector Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_Vector = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_Vector);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDVector Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_ThreeDVector = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ThreeDVector);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_CartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_CartesianCoordinates = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDCartesianCoordinates Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_ThreeDCartesianCoordinates = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ThreeDCartesianCoordinates);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Orientation Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_Orientation = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_Orientation);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDOrientation Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_ThreeDOrientation = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ThreeDOrientation);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_Frame Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_Frame = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_Frame);
+
+        /// <summary>
+        /// The identifier for the OpcUa_XmlSchema_ThreeDFrame Variable.
+        /// </summary>
+        public static readonly NodeId OpcUa_XmlSchema_ThreeDFrame = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ThreeDFrame);
 
         /// <summary>
         /// The identifier for the OpcUa_XmlSchema_IdentityMappingRuleType Variable.
@@ -57770,6 +58755,51 @@ namespace Opc.Ua
         public static readonly NodeId ElseGuardVariableType = new NodeId(Opc.Ua.VariableTypes.ElseGuardVariableType);
 
         /// <summary>
+        /// The identifier for the RationalNumberType VariableType.
+        /// </summary>
+        public static readonly NodeId RationalNumberType = new NodeId(Opc.Ua.VariableTypes.RationalNumberType);
+
+        /// <summary>
+        /// The identifier for the VectorType VariableType.
+        /// </summary>
+        public static readonly NodeId VectorType = new NodeId(Opc.Ua.VariableTypes.VectorType);
+
+        /// <summary>
+        /// The identifier for the ThreeDVectorType VariableType.
+        /// </summary>
+        public static readonly NodeId ThreeDVectorType = new NodeId(Opc.Ua.VariableTypes.ThreeDVectorType);
+
+        /// <summary>
+        /// The identifier for the CartesianCoordinatesType VariableType.
+        /// </summary>
+        public static readonly NodeId CartesianCoordinatesType = new NodeId(Opc.Ua.VariableTypes.CartesianCoordinatesType);
+
+        /// <summary>
+        /// The identifier for the ThreeDCartesianCoordinatesType VariableType.
+        /// </summary>
+        public static readonly NodeId ThreeDCartesianCoordinatesType = new NodeId(Opc.Ua.VariableTypes.ThreeDCartesianCoordinatesType);
+
+        /// <summary>
+        /// The identifier for the OrientationType VariableType.
+        /// </summary>
+        public static readonly NodeId OrientationType = new NodeId(Opc.Ua.VariableTypes.OrientationType);
+
+        /// <summary>
+        /// The identifier for the ThreeDOrientationType VariableType.
+        /// </summary>
+        public static readonly NodeId ThreeDOrientationType = new NodeId(Opc.Ua.VariableTypes.ThreeDOrientationType);
+
+        /// <summary>
+        /// The identifier for the FrameType VariableType.
+        /// </summary>
+        public static readonly NodeId FrameType = new NodeId(Opc.Ua.VariableTypes.FrameType);
+
+        /// <summary>
+        /// The identifier for the ThreeDFrameType VariableType.
+        /// </summary>
+        public static readonly NodeId ThreeDFrameType = new NodeId(Opc.Ua.VariableTypes.ThreeDFrameType);
+
+        /// <summary>
         /// The identifier for the DataItemType VariableType.
         /// </summary>
         public static readonly NodeId DataItemType = new NodeId(Opc.Ua.VariableTypes.DataItemType);
@@ -57883,6 +58913,11 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
+        /// <summary>
+        /// The BrowseName for the A component.
+        /// </summary>
+        public const string A = "A";
+
         /// <summary>
         /// The BrowseName for the AccessHistoryDataCapability component.
         /// </summary>
@@ -58409,6 +59444,11 @@ namespace Opc.Ua
         public const string AnalogUnitType = "AnalogUnitType";
 
         /// <summary>
+        /// The BrowseName for the AngleUnit component.
+        /// </summary>
+        public const string AngleUnit = "AngleUnit";
+
+        /// <summary>
         /// The BrowseName for the Annotation component.
         /// </summary>
         public const string Annotation = "Annotation";
@@ -58804,6 +59844,11 @@ namespace Opc.Ua
         public const string AxisScaleType = "AxisScaleType";
 
         /// <summary>
+        /// The BrowseName for the B component.
+        /// </summary>
+        public const string B = "B";
+
+        /// <summary>
         /// The BrowseName for the BaseAnalogType component.
         /// </summary>
         public const string BaseAnalogType = "BaseAnalogType";
@@ -58829,6 +59874,11 @@ namespace Opc.Ua
         public const string BaseEventType = "BaseEventType";
 
         /// <summary>
+        /// The BrowseName for the BaseFrame component.
+        /// </summary>
+        public const string BaseFrame = "BaseFrame";
+
+        /// <summary>
         /// The BrowseName for the BaseHighHighLimit component.
         /// </summary>
         public const string BaseHighHighLimit = "BaseHighHighLimit";
@@ -58837,6 +59887,11 @@ namespace Opc.Ua
         /// The BrowseName for the BaseHighLimit component.
         /// </summary>
         public const string BaseHighLimit = "BaseHighLimit";
+
+        /// <summary>
+        /// The BrowseName for the BaseInterfaceType component.
+        /// </summary>
+        public const string BaseInterfaceType = "BaseInterfaceType";
 
         /// <summary>
         /// The BrowseName for the BaseLowLimit component.
@@ -59029,6 +60084,11 @@ namespace Opc.Ua
         public const string ByteString = "ByteString";
 
         /// <summary>
+        /// The BrowseName for the C component.
+        /// </summary>
+        public const string C = "C";
+
+        /// <summary>
         /// The BrowseName for the CallCount component.
         /// </summary>
         public const string CallCount = "CallCount";
@@ -59062,6 +60122,16 @@ namespace Opc.Ua
         /// The BrowseName for the CancelResponse component.
         /// </summary>
         public const string CancelResponse = "CancelResponse";
+
+        /// <summary>
+        /// The BrowseName for the CartesianCoordinates component.
+        /// </summary>
+        public const string CartesianCoordinates = "CartesianCoordinates";
+
+        /// <summary>
+        /// The BrowseName for the CartesianCoordinatesType component.
+        /// </summary>
+        public const string CartesianCoordinatesType = "CartesianCoordinatesType";
 
         /// <summary>
         /// The BrowseName for the Certificate component.
@@ -59332,6 +60402,11 @@ namespace Opc.Ua
         /// The BrowseName for the ConnectionTransportType component.
         /// </summary>
         public const string ConnectionTransportType = "ConnectionTransportType";
+
+        /// <summary>
+        /// The BrowseName for the Constant component.
+        /// </summary>
+        public const string Constant = "Constant";
 
         /// <summary>
         /// The BrowseName for the ContentFilter component.
@@ -59994,6 +61069,11 @@ namespace Opc.Ua
         public const string DeleteSubscriptionsResponse = "DeleteSubscriptionsResponse";
 
         /// <summary>
+        /// The BrowseName for the Denominator component.
+        /// </summary>
+        public const string Denominator = "Denominator";
+
+        /// <summary>
         /// The BrowseName for the Deprecated component.
         /// </summary>
         public const string Deprecated = "Deprecated";
@@ -60027,6 +61107,31 @@ namespace Opc.Ua
         /// The BrowseName for the DialogState component.
         /// </summary>
         public const string DialogState = "DialogState";
+
+        /// <summary>
+        /// The BrowseName for the Dictionaries component.
+        /// </summary>
+        public const string Dictionaries = "Dictionaries";
+
+        /// <summary>
+        /// The BrowseName for the DictionaryEntryName_Placeholder component.
+        /// </summary>
+        public const string DictionaryEntryName_Placeholder = "<DictionaryEntryName>";
+
+        /// <summary>
+        /// The BrowseName for the DictionaryEntryType component.
+        /// </summary>
+        public const string DictionaryEntryType = "DictionaryEntryType";
+
+        /// <summary>
+        /// The BrowseName for the DictionaryFolderName_Placeholder component.
+        /// </summary>
+        public const string DictionaryFolderName_Placeholder = "<DictionaryFolderName>";
+
+        /// <summary>
+        /// The BrowseName for the DictionaryFolderType component.
+        /// </summary>
+        public const string DictionaryFolderType = "DictionaryFolderType";
 
         /// <summary>
         /// The BrowseName for the DictionaryFragment component.
@@ -60514,6 +61619,11 @@ namespace Opc.Ua
         public const string FirstInGroupFlag = "FirstInGroupFlag";
 
         /// <summary>
+        /// The BrowseName for the FixedBase component.
+        /// </summary>
+        public const string FixedBase = "FixedBase";
+
+        /// <summary>
         /// The BrowseName for the Float component.
         /// </summary>
         public const string Float = "Float";
@@ -60522,6 +61632,16 @@ namespace Opc.Ua
         /// The BrowseName for the FolderType component.
         /// </summary>
         public const string FolderType = "FolderType";
+
+        /// <summary>
+        /// The BrowseName for the Frame component.
+        /// </summary>
+        public const string Frame = "Frame";
+
+        /// <summary>
+        /// The BrowseName for the FrameType component.
+        /// </summary>
+        public const string FrameType = "FrameType";
 
         /// <summary>
         /// The BrowseName for the FromState component.
@@ -60644,6 +61764,11 @@ namespace Opc.Ua
         public const string HaltedToReady = "HaltedToReady";
 
         /// <summary>
+        /// The BrowseName for the HasAddIn component.
+        /// </summary>
+        public const string HasAddIn = "HasAddIn";
+
+        /// <summary>
         /// The BrowseName for the HasAlarmSuppressionGroup component.
         /// </summary>
         public const string HasAlarmSuppressionGroup = "HasAlarmSuppressionGroup";
@@ -60687,6 +61812,11 @@ namespace Opc.Ua
         /// The BrowseName for the HasDescription component.
         /// </summary>
         public const string HasDescription = "HasDescription";
+
+        /// <summary>
+        /// The BrowseName for the HasDictionaryEntry component.
+        /// </summary>
+        public const string HasDictionaryEntry = "HasDictionaryEntry";
 
         /// <summary>
         /// The BrowseName for the HasEffect component.
@@ -60739,6 +61869,11 @@ namespace Opc.Ua
         public const string HasHistoricalConfiguration = "HasHistoricalConfiguration";
 
         /// <summary>
+        /// The BrowseName for the HasInterface component.
+        /// </summary>
+        public const string HasInterface = "HasInterface";
+
+        /// <summary>
         /// The BrowseName for the HasModellingRule component.
         /// </summary>
         public const string HasModellingRule = "HasModellingRule";
@@ -60769,6 +61904,11 @@ namespace Opc.Ua
         public const string HasPubSubConnection = "HasPubSubConnection";
 
         /// <summary>
+        /// The BrowseName for the HasReaderGroup component.
+        /// </summary>
+        public const string HasReaderGroup = "HasReaderGroup";
+
+        /// <summary>
         /// The BrowseName for the HasSubStateMachine component.
         /// </summary>
         public const string HasSubStateMachine = "HasSubStateMachine";
@@ -60787,6 +61927,11 @@ namespace Opc.Ua
         /// The BrowseName for the HasTypeDefinition component.
         /// </summary>
         public const string HasTypeDefinition = "HasTypeDefinition";
+
+        /// <summary>
+        /// The BrowseName for the HasWriterGroup component.
+        /// </summary>
+        public const string HasWriterGroup = "HasWriterGroup";
 
         /// <summary>
         /// The BrowseName for the HeaderLayoutUri component.
@@ -61109,6 +62254,11 @@ namespace Opc.Ua
         public const string IntegerId = "IntegerId";
 
         /// <summary>
+        /// The BrowseName for the InterfaceTypes component.
+        /// </summary>
+        public const string InterfaceTypes = "InterfaceTypes";
+
+        /// <summary>
         /// The BrowseName for the IntermediateResult component.
         /// </summary>
         public const string IntermediateResult = "IntermediateResult";
@@ -61127,6 +62277,11 @@ namespace Opc.Ua
         /// The BrowseName for the InvocationCreationTime component.
         /// </summary>
         public const string InvocationCreationTime = "InvocationCreationTime";
+
+        /// <summary>
+        /// The BrowseName for the IrdiDictionaryEntryType component.
+        /// </summary>
+        public const string IrdiDictionaryEntryType = "IrdiDictionaryEntryType";
 
         /// <summary>
         /// The BrowseName for the IsDeleteModified component.
@@ -61312,6 +62467,11 @@ namespace Opc.Ua
         /// The BrowseName for the LatePublishRequestCount component.
         /// </summary>
         public const string LatePublishRequestCount = "LatePublishRequestCount";
+
+        /// <summary>
+        /// The BrowseName for the LengthUnit component.
+        /// </summary>
+        public const string LengthUnit = "LengthUnit";
 
         /// <summary>
         /// The BrowseName for the LimitAlarmType component.
@@ -61709,11 +62869,6 @@ namespace Opc.Ua
         public const string ModellingRule_MandatoryPlaceholder = "MandatoryPlaceholder";
 
         /// <summary>
-        /// The BrowseName for the ModellingRule_MandatoryShared component.
-        /// </summary>
-        public const string ModellingRule_MandatoryShared = "MandatoryShared";
-
-        /// <summary>
         /// The BrowseName for the ModellingRule_Optional component.
         /// </summary>
         public const string ModellingRule_Optional = "Optional";
@@ -62094,6 +63249,11 @@ namespace Opc.Ua
         public const string Number = "Number";
 
         /// <summary>
+        /// The BrowseName for the Numerator component.
+        /// </summary>
+        public const string Numerator = "Numerator";
+
+        /// <summary>
         /// The BrowseName for the NumericRange component.
         /// </summary>
         public const string NumericRange = "NumericRange";
@@ -62262,6 +63422,16 @@ namespace Opc.Ua
         /// The BrowseName for the Organizes component.
         /// </summary>
         public const string Organizes = "Organizes";
+
+        /// <summary>
+        /// The BrowseName for the Orientation component.
+        /// </summary>
+        public const string Orientation = "Orientation";
+
+        /// <summary>
+        /// The BrowseName for the OrientationType component.
+        /// </summary>
+        public const string OrientationType = "OrientationType";
 
         /// <summary>
         /// The BrowseName for the OutOfServiceState component.
@@ -62687,6 +63857,16 @@ namespace Opc.Ua
         /// The BrowseName for the Rate component.
         /// </summary>
         public const string Rate = "Rate";
+
+        /// <summary>
+        /// The BrowseName for the RationalNumber component.
+        /// </summary>
+        public const string RationalNumber = "RationalNumber";
+
+        /// <summary>
+        /// The BrowseName for the RationalNumberType component.
+        /// </summary>
+        public const string RationalNumberType = "RationalNumberType";
 
         /// <summary>
         /// The BrowseName for the Read component.
@@ -64114,6 +65294,46 @@ namespace Opc.Ua
         public const string TestingConditionSubClassType = "TestingConditionSubClassType";
 
         /// <summary>
+        /// The BrowseName for the ThreeDCartesianCoordinates component.
+        /// </summary>
+        public const string ThreeDCartesianCoordinates = "3DCartesianCoordinates";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDCartesianCoordinatesType component.
+        /// </summary>
+        public const string ThreeDCartesianCoordinatesType = "3DCartesianCoordinatesType";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDFrame component.
+        /// </summary>
+        public const string ThreeDFrame = "3DFrame";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDFrameType component.
+        /// </summary>
+        public const string ThreeDFrameType = "3DFrameType";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDOrientation component.
+        /// </summary>
+        public const string ThreeDOrientation = "3DOrientation";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDOrientationType component.
+        /// </summary>
+        public const string ThreeDOrientationType = "3DOrientationType";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDVector component.
+        /// </summary>
+        public const string ThreeDVector = "3DVector";
+
+        /// <summary>
+        /// The BrowseName for the ThreeDVectorType component.
+        /// </summary>
+        public const string ThreeDVectorType = "3DVectorType";
+
+        /// <summary>
         /// The BrowseName for the Time component.
         /// </summary>
         public const string Time = "Time";
@@ -64524,6 +65744,11 @@ namespace Opc.Ua
         public const string UpdateStructureDataDetails = "UpdateStructureDataDetails";
 
         /// <summary>
+        /// The BrowseName for the UriDictionaryEntryType component.
+        /// </summary>
+        public const string UriDictionaryEntryType = "UriDictionaryEntryType";
+
+        /// <summary>
         /// The BrowseName for the UrisVersion component.
         /// </summary>
         public const string UrisVersion = "UrisVersion";
@@ -64607,6 +65832,21 @@ namespace Opc.Ua
         /// The BrowseName for the VariableTypesFolder component.
         /// </summary>
         public const string VariableTypesFolder = "VariableTypes";
+
+        /// <summary>
+        /// The BrowseName for the Vector component.
+        /// </summary>
+        public const string Vector = "Vector";
+
+        /// <summary>
+        /// The BrowseName for the VectorType component.
+        /// </summary>
+        public const string VectorType = "VectorType";
+
+        /// <summary>
+        /// The BrowseName for the VectorUnit component.
+        /// </summary>
+        public const string VectorUnit = "VectorUnit";
 
         /// <summary>
         /// The BrowseName for the VendorCapability_Placeholder component.
@@ -64769,6 +66009,11 @@ namespace Opc.Ua
         public const string WriteValue = "WriteValue";
 
         /// <summary>
+        /// The BrowseName for the X component.
+        /// </summary>
+        public const string X = "X";
+
+        /// <summary>
         /// The BrowseName for the X509IdentityToken component.
         /// </summary>
         public const string X509IdentityToken = "X509IdentityToken";
@@ -64799,6 +66044,11 @@ namespace Opc.Ua
         public const string XYArrayItemType = "XYArrayItemType";
 
         /// <summary>
+        /// The BrowseName for the Y component.
+        /// </summary>
+        public const string Y = "Y";
+
+        /// <summary>
         /// The BrowseName for the YArrayItemType component.
         /// </summary>
         public const string YArrayItemType = "YArrayItemType";
@@ -64807,6 +66057,11 @@ namespace Opc.Ua
         /// The BrowseName for the YAxisDefinition component.
         /// </summary>
         public const string YAxisDefinition = "YAxisDefinition";
+
+        /// <summary>
+        /// The BrowseName for the Z component.
+        /// </summary>
+        public const string Z = "Z";
 
         /// <summary>
         /// The BrowseName for the ZAxisDefinition component.
