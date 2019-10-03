@@ -3564,12 +3564,6 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // limit the number of keep alives sent.
-                if (OutstandingRequestCount > SubscriptionCount + 10)
-                {
-                    return;
-                }
-
                 RequestHeader requestHeader = new RequestHeader();
 
                 requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_keepAliveCounter);
