@@ -37,6 +37,8 @@ using System.Threading;
 using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System.IO.Ports;
+using System.IO;
 
 namespace Quickstarts.WeightScale.Server
 {
@@ -71,7 +73,78 @@ namespace Quickstarts.WeightScale.Server
             }
         }
         #endregion
-        
+
+        /// <summary>
+        /// Called when the OnTare method is called.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="method">The method.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <returns></returns>
+        public ServiceResult OnTare(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            lock(m_COMLock)
+            {
+                try
+                {
+                    SerialPort port = new SerialPort("COM2", 9600, Parity.None, 8, StopBits.One);
+                    string response = "T\r\n";
+                    byte[] sData;
+                    sData = Encoding.ASCII.GetBytes(response);
+                    port.Open();
+                    port.BaseStream.Write(sData, 0, sData.Length);
+                    port.Close();
+
+                }
+                catch (Exception ee)
+                {
+
+                }
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Called when the OnZero method is called.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="method">The method.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <returns></returns>
+        public ServiceResult OnZero(
+            ISystemContext context,
+            MethodState method,
+            IList<object> inputArguments,
+            IList<object> outputArguments)
+        {
+            lock (m_COMLock)
+            {
+                try
+                {
+                    SerialPort port = new SerialPort("COM2", 9600, Parity.None, 8, StopBits.One);
+                    string response = "Z\r\n";
+                    byte[] sData;
+                    sData = Encoding.ASCII.GetBytes(response);
+                    port.Open();
+                    port.BaseStream.Write(sData, 0, sData.Length);
+                    port.Close();
+
+                }
+                catch (Exception ee)
+                {
+
+                }
+            }
+            return ServiceResult.Good;
+        }
+
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -143,27 +216,15 @@ namespace Quickstarts.WeightScale.Server
             lock (Lock)
             {
                 LoadPredefinedNodes(SystemContext, externalReferences);
-                
-                // find the untyped Boiler1 node that was created when the model was loaded.
-                //BaseObjectState passiveNode = (BaseObjectState)FindPredefinedNode(new NodeId(Objects.Boiler1, NamespaceIndexes[0]), typeof(BaseObjectState));
 
-                //// convert the untyped node to a typed node that can be manipulated within the server.
-                //m_boiler1 = new BoilerState(null);
-                //m_boiler1.Create(SystemContext, passiveNode);
+                // Add method handler
+                MethodState methodState;
 
-                //// replaces the untyped predefined nodes with their strongly typed versions.
-                //AddPredefinedNode(SystemContext, m_boiler1);
+                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3), typeof(MethodState));
+                methodState.OnCallMethod = OnTare;
 
-                //// create a boiler node.
-                //m_boiler2 = new BoilerState(null);
-
-                //// initialize it from the type model and assign unique node ids.
-                //m_boiler2.Create(
-                //    SystemContext,
-                //    null,
-                //    new QualifiedName("Boiler #2", NamespaceIndexes[1]),
-                //    null,
-                //    true);
+                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Zero, 3), typeof(MethodState));
+                methodState.OnCallMethod = OnZero;
 
                 // link root to objects folder.
                 IList<IReference> references = null;
@@ -282,8 +343,7 @@ namespace Quickstarts.WeightScale.Server
 
         #region Private Fields
         private WeightScaleServerConfiguration m_configuration;
-        //private BoilerState m_boiler1;
-        //private BoilerState m_boiler2;
+        private object m_COMLock = new object();
         private uint m_nodeIdCounter;
         private Timer m_simulationTimer;
         #endregion

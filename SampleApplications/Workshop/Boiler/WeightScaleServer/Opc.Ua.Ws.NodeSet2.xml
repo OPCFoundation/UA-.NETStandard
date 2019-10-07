@@ -66,7 +66,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15269</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=15339" BrowseName="2:weightScale" ParentNodeId="ns=1;i=15270" DataType="Double">
+  <UAVariable NodeId="ns=1;i=15339" BrowseName="1:weightScale" ParentNodeId="ns=1;i=15270" DataType="Double">
     <DisplayName>weightScale</DisplayName>
     <Description>Actual weight.</Description>
     <References>
@@ -98,7 +98,7 @@
     <DisplayName>EngineeringUnits</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
-      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15339</Reference>
     </References>
   </UAVariable>
@@ -129,4 +129,135 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15272</Reference>
     </References>
   </UAMethod>
+  <UAObject NodeId="ns=1;i=15001" BrowseName="1:WeightScale01" EventNotifier="1">
+    <DisplayName>WeightScale01</DisplayName>
+    <Description>Weight scale number 01</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=15002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15026</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15027</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15028</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15029</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15031</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15033</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=15035</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=5001</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=15269</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=15002" BrowseName="1:ParameterSet" ParentNodeId="ns=1;i=15001">
+    <DisplayName>ParameterSet</DisplayName>
+    <Description>Flat list of Parameters</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=15071</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=15071" BrowseName="1:weightScale" ParentNodeId="ns=1;i=15002" DataType="Double">
+    <DisplayName>weightScale</DisplayName>
+    <Description>Actual weight.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=15076</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2368</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15076" BrowseName="EngineeringUnits" ParentNodeId="ns=1;i=15071" DataType="i=887">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15071</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=15004" BrowseName="1:MethodSet" ParentNodeId="ns=1;i=15001">
+    <DisplayName>MethodSet</DisplayName>
+    <Description>Flat list of Methods</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=15077</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=15078</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=15077" BrowseName="1:Tare" ParentNodeId="ns=1;i=15004" MethodDeclarationId="ns=1;i=15345">
+    <DisplayName>Tare</DisplayName>
+    <Description>Tare balnace.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15004</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=15078" BrowseName="1:Zero" ParentNodeId="ns=1;i=15004" MethodDeclarationId="ns=1;i=15346">
+    <DisplayName>Zero</DisplayName>
+    <Description>Zero balnace.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15004</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=15024" BrowseName="2:Manufacturer" ParentNodeId="ns=1;i=15001" DataType="LocalizedText">
+    <DisplayName>Manufacturer</DisplayName>
+    <Description>Name of the company that manufactured the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15026" BrowseName="2:Model" ParentNodeId="ns=1;i=15001" DataType="LocalizedText">
+    <DisplayName>Model</DisplayName>
+    <Description>Model name of the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15027" BrowseName="2:HardwareRevision" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>HardwareRevision</DisplayName>
+    <Description>Revision level of the hardware of the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15028" BrowseName="2:SoftwareRevision" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>SoftwareRevision</DisplayName>
+    <Description>Revision level of the software/firmware of the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15029" BrowseName="2:DeviceRevision" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>DeviceRevision</DisplayName>
+    <Description>Overall revision level of the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15031" BrowseName="2:DeviceManual" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>DeviceManual</DisplayName>
+    <Description>Address (pathname in the file system or a URL | Web address) of user manual for the device</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15033" BrowseName="2:SerialNumber" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <Description>Identifier that uniquely identifies, within a manufacturer, a device instance</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15035" BrowseName="2:RevisionCounter" ParentNodeId="ns=1;i=15001" DataType="Int32">
+    <DisplayName>RevisionCounter</DisplayName>
+    <Description>An incremental counter indicating the number of times the static data within the Device has been modified</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+  </UAVariable>
 </UANodeSet>
