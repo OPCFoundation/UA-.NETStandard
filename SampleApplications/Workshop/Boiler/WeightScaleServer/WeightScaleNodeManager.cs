@@ -38,7 +38,7 @@ using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 using System.IO.Ports;
-using System.IO;
+
 
 namespace Quickstarts.WeightScale.Server
 {
