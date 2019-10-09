@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-01-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-09-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2019-01-31T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.3" PublicationDate="2019-09-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -71,220 +71,189 @@
   </Aliases>
   <UAObject NodeId="i=3062" BrowseName="Default Binary" SymbolicName="DefaultBinary">
     <DisplayName>Default Binary</DisplayName>
-    <Description>The default binary encoding for a data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="i=3063" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
-    <Description>The default XML encoding for a data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
   </UAObject>
   <UADataType NodeId="i=24" BrowseName="BaseDataType" IsAbstract="true">
     <DisplayName>BaseDataType</DisplayName>
-    <Description>Describes a value that can have any valid DataType.</Description>
     <References />
   </UADataType>
   <UADataType NodeId="i=26" BrowseName="Number" IsAbstract="true">
     <DisplayName>Number</DisplayName>
-    <Description>Describes a value that can have any numeric DataType.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=27" BrowseName="Integer" IsAbstract="true">
     <DisplayName>Integer</DisplayName>
-    <Description>Describes a value that can have any integer DataType.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=28" BrowseName="UInteger" IsAbstract="true">
     <DisplayName>UInteger</DisplayName>
-    <Description>Describes a value that can have any unsigned integer DataType.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=29" BrowseName="Enumeration" IsAbstract="true">
     <DisplayName>Enumeration</DisplayName>
-    <Description>Describes a value that is an enumerated DataType.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=1" BrowseName="Boolean">
     <DisplayName>Boolean</DisplayName>
-    <Description>Describes a value that is either TRUE or FALSE.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=2" BrowseName="SByte">
     <DisplayName>SByte</DisplayName>
-    <Description>Describes a value that is an integer between -128 and 127.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=3" BrowseName="Byte">
     <DisplayName>Byte</DisplayName>
-    <Description>Describes a value that is an integer between 0 and 255.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=4" BrowseName="Int16">
     <DisplayName>Int16</DisplayName>
-    <Description>Describes a value that is an integer between −32,768 and 32,767.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=5" BrowseName="UInt16">
     <DisplayName>UInt16</DisplayName>
-    <Description>Describes a value that is an integer between 0 and 65535.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=6" BrowseName="Int32">
     <DisplayName>Int32</DisplayName>
-    <Description>Describes a value that is an integer between −2,147,483,648  and 2,147,483,647.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=7" BrowseName="UInt32">
     <DisplayName>UInt32</DisplayName>
-    <Description>Describes a value that is an integer between 0 and 4,294,967,295.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=8" BrowseName="Int64">
     <DisplayName>Int64</DisplayName>
-    <Description>Describes a value that is an integer between −9,223,372,036,854,775,808 and 9,223,372,036,854,775,807.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=9" BrowseName="UInt64">
     <DisplayName>UInt64</DisplayName>
-    <Description>Describes a value that is an integer between 0 and 18,446,744,073,709,551,615.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=10" BrowseName="Float">
     <DisplayName>Float</DisplayName>
-    <Description>Describes a value that is an IEEE 754-1985 single precision floating point number.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=11" BrowseName="Double">
     <DisplayName>Double</DisplayName>
-    <Description>Describes a value that is an IEEE 754-1985 double precision floating point number.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12" BrowseName="String">
     <DisplayName>String</DisplayName>
-    <Description>Describes a value that is a sequence of printable Unicode characters.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=13" BrowseName="DateTime">
     <DisplayName>DateTime</DisplayName>
-    <Description>Describes a value that is a Gregorian calender date and time.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=14" BrowseName="Guid">
     <DisplayName>Guid</DisplayName>
-    <Description>Describes a value that is a 128-bit globally unique identifier.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=15" BrowseName="ByteString">
     <DisplayName>ByteString</DisplayName>
-    <Description>Describes a value that is a sequence of bytes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=16" BrowseName="XmlElement">
     <DisplayName>XmlElement</DisplayName>
-    <Description>Describes a value that is an XML element.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=17" BrowseName="NodeId">
     <DisplayName>NodeId</DisplayName>
-    <Description>Describes a value that is an identifier for a node within a Server address space.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=20" BrowseName="QualifiedName">
     <DisplayName>QualifiedName</DisplayName>
-    <Description>Describes a value that is a name qualified by a namespace.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=21" BrowseName="LocalizedText">
     <DisplayName>LocalizedText</DisplayName>
-    <Description>Describes a value that is human readable Unicode text with a locale identifier.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
     <DisplayName>Structure</DisplayName>
-    <Description>Describes a value that is any type of structure that can be described with a data encoding.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=30" BrowseName="Image" IsAbstract="true">
     <DisplayName>Image</DisplayName>
-    <Description>Describes a value that is an image encoded as a string of bytes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=50" BrowseName="Decimal">
     <DisplayName>Decimal</DisplayName>
-    <Description>Describes an arbitrary precision decimal value.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UAReferenceType NodeId="i=31" BrowseName="References" IsAbstract="true" Symmetric="true">
     <DisplayName>References</DisplayName>
-    <Description>The abstract base type for all references.</Description>
     <References />
   </UAReferenceType>
-  <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true" Symmetric="true">
+  <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true">
     <DisplayName>NonHierarchicalReferences</DisplayName>
-    <Description>The abstract base type for all non-hierarchical references.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
+    <InverseName>NonHierarchicalReferences</InverseName>
   </UAReferenceType>
   <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
     <DisplayName>HierarchicalReferences</DisplayName>
-    <Description>The abstract base type for all hierarchical references.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
@@ -292,7 +261,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=34" BrowseName="HasChild" IsAbstract="true">
     <DisplayName>HasChild</DisplayName>
-    <Description>The abstract base type for all non-looping hierarchical references.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -300,7 +268,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=35" BrowseName="Organizes">
     <DisplayName>Organizes</DisplayName>
-    <Description>The type for hierarchical references that are used to organize nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -308,7 +275,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=36" BrowseName="HasEventSource">
     <DisplayName>HasEventSource</DisplayName>
-    <Description>The type for non-looping hierarchical references that are used to organize event sources.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -316,7 +282,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=37" BrowseName="HasModellingRule">
     <DisplayName>HasModellingRule</DisplayName>
-    <Description>The type for references from instance declarations to modelling rule nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -324,7 +289,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=38" BrowseName="HasEncoding">
     <DisplayName>HasEncoding</DisplayName>
-    <Description>The type for references from data type nodes to to data type encoding nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -332,7 +296,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=39" BrowseName="HasDescription">
     <DisplayName>HasDescription</DisplayName>
-    <Description>The type for references from data type encoding nodes to data type description nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -340,7 +303,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=40" BrowseName="HasTypeDefinition">
     <DisplayName>HasTypeDefinition</DisplayName>
-    <Description>The type for references from a instance node its type defintion node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -348,7 +310,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=41" BrowseName="GeneratesEvent">
     <DisplayName>GeneratesEvent</DisplayName>
-    <Description>The type for references from a node to an event type that is raised by node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -356,7 +317,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=3065" BrowseName="AlwaysGeneratesEvent">
     <DisplayName>AlwaysGeneratesEvent</DisplayName>
-    <Description>The type for references from a node to an event type that is always raised by node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=41</Reference>
     </References>
@@ -364,7 +324,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=44" BrowseName="Aggregates" IsAbstract="true">
     <DisplayName>Aggregates</DisplayName>
-    <Description>The type for non-looping hierarchical references that are used to aggregate nodes into complex types.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -372,7 +331,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=45" BrowseName="HasSubtype">
     <DisplayName>HasSubtype</DisplayName>
-    <Description>The type for non-looping hierarchical references that are used to define sub types.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -380,7 +338,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=46" BrowseName="HasProperty">
     <DisplayName>HasProperty</DisplayName>
-    <Description>The type for non-looping hierarchical reference from a node to its property.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -388,7 +345,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=47" BrowseName="HasComponent">
     <DisplayName>HasComponent</DisplayName>
-    <Description>The type for non-looping hierarchical reference from a node to its component.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -396,7 +352,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=48" BrowseName="HasNotifier">
     <DisplayName>HasNotifier</DisplayName>
-    <Description>The type for non-looping hierarchical references that are used to indicate how events propagate from node to node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=36</Reference>
     </References>
@@ -404,7 +359,6 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=49" BrowseName="HasOrderedComponent">
     <DisplayName>HasOrderedComponent</DisplayName>
-    <Description>The type for non-looping hierarchical reference from a node to its component when the order of references matters.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -412,7 +366,6 @@
   </UAReferenceType>
   <UADataType NodeId="i=120" BrowseName="NamingRuleType">
     <DisplayName>NamingRuleType</DisplayName>
-    <Description>Describes a value that specifies the significance of the BrowseName for an instance declaration.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=12169</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -429,7 +382,7 @@
       </Field>
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=12169" BrowseName="EnumValues" ParentNodeId="i=120" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=12169" BrowseName="EnumValues" ParentNodeId="i=120" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -517,161 +470,138 @@
   </UAReferenceType>
   <UAVariable NodeId="i=3068" BrowseName="NodeVersion" DataType="String" ValueRank="-2">
     <DisplayName>NodeVersion</DisplayName>
-    <Description>The version number of the node (used to indicate changes to references of the owning node).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=12170" BrowseName="ViewVersion" DataType="UInt32" ValueRank="-2">
     <DisplayName>ViewVersion</DisplayName>
-    <Description>The version number of the view.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3067" BrowseName="Icon" DataType="i=30" ValueRank="-2">
     <DisplayName>Icon</DisplayName>
-    <Description>A small image representing the object.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3069" BrowseName="LocalTime" DataType="i=8912" ValueRank="-2">
     <DisplayName>LocalTime</DisplayName>
-    <Description>The local time where the owning variable value was collected.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=3070" BrowseName="AllowNulls" DataType="Boolean" ValueRank="-2">
     <DisplayName>AllowNulls</DisplayName>
-    <Description>Whether the value of the owning variable is allowed to be null.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11433" BrowseName="ValueAsText" DataType="LocalizedText" ValueRank="-2">
     <DisplayName>ValueAsText</DisplayName>
-    <Description>The string representation of the current value for a variable with an enumerated data type.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11498" BrowseName="MaxStringLength" DataType="UInt32" ValueRank="-2">
     <DisplayName>MaxStringLength</DisplayName>
-    <Description>The maximum number of bytes supported by the DataVariable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=15002" BrowseName="MaxCharacters" DataType="UInt32" ValueRank="-2">
     <DisplayName>MaxCharacters</DisplayName>
-    <Description>The maximum number of Unicode characters supported by the DataVariable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=12908" BrowseName="MaxByteStringLength" DataType="UInt32" ValueRank="-2">
     <DisplayName>MaxByteStringLength</DisplayName>
-    <Description>The maximum length for a byte string that can be stored in the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11512" BrowseName="MaxArrayLength" DataType="UInt32" ValueRank="-2">
     <DisplayName>MaxArrayLength</DisplayName>
-    <Description>The maximum length for an array that can be stored in the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=11513" BrowseName="EngineeringUnits" DataType="i=887" ValueRank="-2">
     <DisplayName>EngineeringUnits</DisplayName>
-    <Description>The engineering units for the value of the owning variable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=11432" BrowseName="EnumStrings" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=11432" BrowseName="EnumStrings" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
-    <Description>The human readable strings associated with the values of an enumerated value (when values are sequential).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=3071" BrowseName="EnumValues" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=3071" BrowseName="EnumValues" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
-    <Description>The human readable strings associated with the values of an enumerated value (when values have no sequence).</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=12745" BrowseName="OptionSetValues" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=12745" BrowseName="OptionSetValues" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
-    <Description>Contains the human-readable representation for each bit of the bit mask.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=3072" BrowseName="InputArguments" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=3072" BrowseName="InputArguments" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
-    <Description>The input arguments for a method.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=3073" BrowseName="OutputArguments" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=3073" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
-    <Description>The output arguments for a method.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=16306" BrowseName="DefaultInputValues" ValueRank="1">
+  <UAVariable NodeId="i=16306" BrowseName="DefaultInputValues" ValueRank="1" ArrayDimensions="0">
     <DisplayName>DefaultInputValues</DisplayName>
-    <Description>Specifies the default values for optional input arguments.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="i=17605" BrowseName="DefaultInstanceBrowseName" DataType="QualifiedName">
     <DisplayName>DefaultInstanceBrowseName</DisplayName>
-    <Description>Allows the definition of BrowseName on an ObjectType that all instances should use by default.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
   <UADataType NodeId="i=2000" BrowseName="ImageBMP">
     <DisplayName>ImageBMP</DisplayName>
-    <Description>An image encoded in BMP format.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=2001" BrowseName="ImageGIF">
     <DisplayName>ImageGIF</DisplayName>
-    <Description>An image encoded in GIF format.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=2002" BrowseName="ImageJPG">
     <DisplayName>ImageJPG</DisplayName>
-    <Description>An image encoded in JPEG format.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=2003" BrowseName="ImagePNG">
     <DisplayName>ImagePNG</DisplayName>
-    <Description>An image encoded in PNG format.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=16307" BrowseName="AudioDataType">
     <DisplayName>AudioDataType</DisplayName>
-    <Description>An image encoded in PNG format.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
@@ -688,27 +618,18 @@
   </UADataType>
   <UADataType NodeId="i=256" BrowseName="IdType">
     <DisplayName>IdType</DisplayName>
-    <Description>The type of identifier used in a node id.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=7591</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="IdType">
-      <Field Name="Numeric" Value="0">
-        <Description>The identifier is a numeric value. 0 is a null value.</Description>
-      </Field>
-      <Field Name="String" Value="1">
-        <Description>The identifier is a string value. An empty string is a null value.</Description>
-      </Field>
-      <Field Name="Guid" Value="2">
-        <Description>The identifier is a 16 byte structure. 16 zero bytes is a null value.</Description>
-      </Field>
-      <Field Name="Opaque" Value="3">
-        <Description>The identifier is an array of bytes. A zero length array is a null value.</Description>
-      </Field>
+      <Field Name="Numeric" Value="0" />
+      <Field Name="String" Value="1" />
+      <Field Name="Guid" Value="2" />
+      <Field Name="Opaque" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=7591" BrowseName="EnumStrings" ParentNodeId="i=256" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=7591" BrowseName="EnumStrings" ParentNodeId="i=256" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -742,42 +663,23 @@
   </UAVariable>
   <UADataType NodeId="i=257" BrowseName="NodeClass">
     <DisplayName>NodeClass</DisplayName>
-    <Description>A mask specifying the class of the node.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=11878</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="NodeClass">
-      <Field Name="Unspecified" Value="0">
-        <Description>No classes are selected.</Description>
-      </Field>
-      <Field Name="Object" Value="1">
-        <Description>The node is an object.</Description>
-      </Field>
-      <Field Name="Variable" Value="2">
-        <Description>The node is a variable.</Description>
-      </Field>
-      <Field Name="Method" Value="4">
-        <Description>The node is a method.</Description>
-      </Field>
-      <Field Name="ObjectType" Value="8">
-        <Description>The node is an object type.</Description>
-      </Field>
-      <Field Name="VariableType" Value="16">
-        <Description>The node is an variable type.</Description>
-      </Field>
-      <Field Name="ReferenceType" Value="32">
-        <Description>The node is a reference type.</Description>
-      </Field>
-      <Field Name="DataType" Value="64">
-        <Description>The node is a data type.</Description>
-      </Field>
-      <Field Name="View" Value="128">
-        <Description>The node is a view.</Description>
-      </Field>
+      <Field Name="Unspecified" Value="0" />
+      <Field Name="Object" Value="1" />
+      <Field Name="Variable" Value="2" />
+      <Field Name="Method" Value="4" />
+      <Field Name="ObjectType" Value="8" />
+      <Field Name="VariableType" Value="16" />
+      <Field Name="ReferenceType" Value="32" />
+      <Field Name="DataType" Value="64" />
+      <Field Name="View" Value="128" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=11878" BrowseName="EnumValues" ParentNodeId="i=257" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11878" BrowseName="EnumValues" ParentNodeId="i=257" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -798,11 +700,6 @@
                 </Locale>
                 <Text>Unspecified</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>No classes are selected.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -818,11 +715,6 @@
                 </Locale>
                 <Text>Object</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is an object.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -838,11 +730,6 @@
                 </Locale>
                 <Text>Variable</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is a variable.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -858,11 +745,6 @@
                 </Locale>
                 <Text>Method</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is a method.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -878,11 +760,6 @@
                 </Locale>
                 <Text>ObjectType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is an object type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -898,11 +775,6 @@
                 </Locale>
                 <Text>VariableType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is an variable type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -918,11 +790,6 @@
                 </Locale>
                 <Text>ReferenceType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is a reference type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -938,11 +805,6 @@
                 </Locale>
                 <Text>DataType</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is a data type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -958,11 +820,6 @@
                 </Locale>
                 <Text>View</Text>
               </DisplayName>
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The node is a view.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -995,7 +852,7 @@
       <Field Name="AddNode" Value="16" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15030" BrowseName="OptionSetValues" ParentNodeId="i=94" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15030" BrowseName="OptionSetValues" ParentNodeId="i=94" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1108,7 +965,7 @@
       <Field Name="TimestampWrite" Value="6" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15032" BrowseName="OptionSetValues" ParentNodeId="i=15031" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15032" BrowseName="OptionSetValues" ParentNodeId="i=15031" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1174,7 +1031,7 @@
       <Field Name="WriteFullArrayOnly" Value="10" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15407" BrowseName="OptionSetValues" ParentNodeId="i=15406" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15407" BrowseName="OptionSetValues" ParentNodeId="i=15406" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1253,7 +1110,7 @@
       <Field Name="HistoryWrite" Value="3" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15034" BrowseName="OptionSetValues" ParentNodeId="i=15033" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15034" BrowseName="OptionSetValues" ParentNodeId="i=15033" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1297,7 +1154,7 @@
       <Field Name="SessionRequired" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=15035" BrowseName="OptionSetValues" ParentNodeId="i=95" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=15035" BrowseName="OptionSetValues" ParentNodeId="i=95" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OptionSetValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1352,7 +1209,7 @@
       <Field Name="Union" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=14528" BrowseName="EnumStrings" ParentNodeId="i=98" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=14528" BrowseName="EnumStrings" ParentNodeId="i=98" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1417,44 +1274,21 @@
   </UADataType>
   <UADataType NodeId="i=258" BrowseName="Node" Purpose="CodeGenerator">
     <DisplayName>Node</DisplayName>
-    <Description>Specifies the attributes which belong to all nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="Node">
-      <Field Name="NodeId" DataType="i=17">
-        <Description>A unique identifier for the node.</Description>
-      </Field>
-      <Field Name="NodeClass" DataType="i=257">
-        <Description>The class of the node.</Description>
-      </Field>
-      <Field Name="BrowseName" DataType="i=20">
-        <Description>The browse name of the node.</Description>
-      </Field>
-      <Field Name="DisplayName" DataType="i=21">
-        <Description>The display name of the node.</Description>
-      </Field>
-      <Field Name="Description" DataType="i=21">
-        <Description>The description of the node.</Description>
-      </Field>
-      <Field Name="WriteMask" DataType="i=7">
-        <Description>A mask indicating which attributes are writable.</Description>
-      </Field>
-      <Field Name="UserWriteMask" DataType="i=7">
-        <Description>A mask indicating which attributes are writable by the current user.</Description>
-      </Field>
-      <Field Name="RolePermissions" DataType="i=96" ValueRank="1">
-        <Description>A list of permissions for the node assigned to roles.</Description>
-      </Field>
-      <Field Name="UserRolePermissions" DataType="i=96" ValueRank="1">
-        <Description>A list of permissions for the node assigned to roles which are available to the current session.</Description>
-      </Field>
-      <Field Name="AccessRestrictions" DataType="i=5">
-        <Description>A mask indicating any access restrictions that apply to the node.</Description>
-      </Field>
-      <Field Name="References" DataType="i=285" ValueRank="1">
-        <Description>The references that belong to the node.</Description>
-      </Field>
+      <Field Name="NodeId" DataType="i=17" />
+      <Field Name="NodeClass" DataType="i=257" />
+      <Field Name="BrowseName" DataType="i=20" />
+      <Field Name="DisplayName" DataType="i=21" />
+      <Field Name="Description" DataType="i=21" />
+      <Field Name="WriteMask" DataType="i=7" />
+      <Field Name="UserWriteMask" DataType="i=7" />
+      <Field Name="RolePermissions" DataType="i=96" ValueRank="1" />
+      <Field Name="UserRolePermissions" DataType="i=96" ValueRank="1" />
+      <Field Name="AccessRestrictions" DataType="i=5" />
+      <Field Name="References" DataType="i=285" ValueRank="1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=11879" BrowseName="InstanceNode">
@@ -1471,119 +1305,71 @@
   </UADataType>
   <UADataType NodeId="i=261" BrowseName="ObjectNode" Purpose="CodeGenerator">
     <DisplayName>ObjectNode</DisplayName>
-    <Description>Specifies the attributes which belong to object nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11879</Reference>
     </References>
     <Definition Name="ObjectNode">
-      <Field Name="EventNotifier" DataType="i=3">
-        <Description>A mask indicating whether events are produced by the object.</Description>
-      </Field>
+      <Field Name="EventNotifier" DataType="i=3" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=264" BrowseName="ObjectTypeNode" Purpose="CodeGenerator">
     <DisplayName>ObjectTypeNode</DisplayName>
-    <Description>Specifies the attributes which belong to object type nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11880</Reference>
     </References>
     <Definition Name="ObjectTypeNode">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=267" BrowseName="VariableNode" Purpose="CodeGenerator">
     <DisplayName>VariableNode</DisplayName>
-    <Description>Specifies the attributes which belong to variable nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11879</Reference>
     </References>
     <Definition Name="VariableNode">
-      <Field Name="Value">
-        <Description>The current value.</Description>
-      </Field>
-      <Field Name="DataType" DataType="i=17">
-        <Description>The data type of the value.</Description>
-      </Field>
-      <Field Name="ValueRank" DataType="i=6">
-        <Description>Whether the value is an array type and the rank of the array if it is.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
-        <Description>The number of dimensions if the value is an array type and one or more dimensions have a fixed length.</Description>
-      </Field>
-      <Field Name="AccessLevel" DataType="i=3">
-        <Description>A bit mask specifying how the value may be accessed.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" DataType="i=3">
-        <Description>A bit mask specifying how the value may be accessed by the current user.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" DataType="i=290">
-        <Description>The minimum possible sampling interval for the value.</Description>
-      </Field>
-      <Field Name="Historizing" DataType="i=1">
-        <Description>TRUE if the server is current storing the history of the value.</Description>
-      </Field>
-      <Field Name="AccessLevelEx" DataType="i=7">
-        <Description>A bit mask specifying how the value may be accessed.</Description>
-      </Field>
+      <Field Name="Value" />
+      <Field Name="DataType" DataType="i=17" />
+      <Field Name="ValueRank" DataType="i=6" />
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1" />
+      <Field Name="AccessLevel" DataType="i=3" />
+      <Field Name="UserAccessLevel" DataType="i=3" />
+      <Field Name="MinimumSamplingInterval" DataType="i=290" />
+      <Field Name="Historizing" DataType="i=1" />
+      <Field Name="AccessLevelEx" DataType="i=7" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=270" BrowseName="VariableTypeNode" Purpose="CodeGenerator">
     <DisplayName>VariableTypeNode</DisplayName>
-    <Description>Specifies the attributes which belong to variable type nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11880</Reference>
     </References>
     <Definition Name="VariableTypeNode">
-      <Field Name="Value">
-        <Description>The default value when creating new instances.</Description>
-      </Field>
-      <Field Name="DataType" DataType="i=17">
-        <Description>The data type of the value.</Description>
-      </Field>
-      <Field Name="ValueRank" DataType="i=6">
-        <Description>Whether the value is an array type and the rank of the array if it is.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
-        <Description>The number of dimensions if the value is an array type and one or more dimensions have a fixed length.</Description>
-      </Field>
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
+      <Field Name="Value" />
+      <Field Name="DataType" DataType="i=17" />
+      <Field Name="ValueRank" DataType="i=6" />
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1" />
+      <Field Name="IsAbstract" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=273" BrowseName="ReferenceTypeNode" Purpose="CodeGenerator">
     <DisplayName>ReferenceTypeNode</DisplayName>
-    <Description>Specifies the attributes which belong to reference type nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11880</Reference>
     </References>
     <Definition Name="ReferenceTypeNode">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
-      <Field Name="Symmetric" DataType="i=1">
-        <Description>If TRUE the reference type has the same semantics in both directions.</Description>
-      </Field>
-      <Field Name="InverseName" DataType="i=21">
-        <Description>The display name for the reference when following it from target to source.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
+      <Field Name="Symmetric" DataType="i=1" />
+      <Field Name="InverseName" DataType="i=21" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=276" BrowseName="MethodNode" Purpose="CodeGenerator">
     <DisplayName>MethodNode</DisplayName>
-    <Description>Specifies the attributes which belong to method nodes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11879</Reference>
     </References>
     <Definition Name="MethodNode">
-      <Field Name="Executable" DataType="i=1">
-        <Description>If TRUE the method can be called.</Description>
-      </Field>
-      <Field Name="UserExecutable" DataType="i=1">
-        <Description>If TRUE the method can be called by the current user.</Description>
-      </Field>
+      <Field Name="Executable" DataType="i=1" />
+      <Field Name="UserExecutable" DataType="i=1" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=279" BrowseName="ViewNode" Purpose="CodeGenerator">
@@ -1592,12 +1378,8 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11879</Reference>
     </References>
     <Definition Name="ViewNode">
-      <Field Name="ContainsNoLoops" DataType="i=1">
-        <Description>If TRUE the view contains a tree of non-looping hierarchical references.</Description>
-      </Field>
-      <Field Name="EventNotifier" DataType="i=3">
-        <Description>A mask indicating whether events are produced by the view.</Description>
-      </Field>
+      <Field Name="ContainsNoLoops" DataType="i=1" />
+      <Field Name="EventNotifier" DataType="i=3" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=282" BrowseName="DataTypeNode" Purpose="CodeGenerator">
@@ -1606,72 +1388,43 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11880</Reference>
     </References>
     <Definition Name="DataTypeNode">
-      <Field Name="IsAbstract" DataType="i=1">
-        <Description>If TRUE the type is abstract and only subtypes of it appear in the address space.</Description>
-      </Field>
-      <Field Name="DataTypeDefinition" DataType="i=22">
-        <Description>Provides the metadata and encoding information for custom DataTypes.</Description>
-      </Field>
+      <Field Name="IsAbstract" DataType="i=1" />
+      <Field Name="DataTypeDefinition" DataType="i=22" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=285" BrowseName="ReferenceNode" Purpose="CodeGenerator">
     <DisplayName>ReferenceNode</DisplayName>
-    <Description>Specifies a reference which belongs to a node.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="ReferenceNode">
-      <Field Name="ReferenceTypeId" DataType="i=17">
-        <Description>The node id of the reference type for the reference.</Description>
-      </Field>
-      <Field Name="IsInverse" DataType="i=1">
-        <Description>The reference is an inverse reference.</Description>
-      </Field>
-      <Field Name="TargetId" DataType="i=18">
-        <Description>The node id for the target of the reference.</Description>
-      </Field>
+      <Field Name="ReferenceTypeId" DataType="i=17" />
+      <Field Name="IsInverse" DataType="i=1" />
+      <Field Name="TargetId" DataType="i=18" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=296" BrowseName="Argument">
     <DisplayName>Argument</DisplayName>
-    <Description>An argument for a method.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="Argument">
-      <Field Name="Name" DataType="i=12">
-        <Description>The name of the argument.</Description>
-      </Field>
-      <Field Name="DataType" DataType="i=17">
-        <Description>The data type of the argument.</Description>
-      </Field>
-      <Field Name="ValueRank" DataType="i=6">
-        <Description>Whether the argument is an array type and the rank of the array if it is.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1">
-        <Description>The number of dimensions if the argument is an array type and one or more dimensions have a fixed length.</Description>
-      </Field>
-      <Field Name="Description" DataType="i=21">
-        <Description>The description for the argument.</Description>
-      </Field>
+      <Field Name="Name" DataType="i=12" />
+      <Field Name="DataType" DataType="i=17" />
+      <Field Name="ValueRank" DataType="i=6" />
+      <Field Name="ArrayDimensions" DataType="i=7" ValueRank="1" />
+      <Field Name="Description" DataType="i=21" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=7594" BrowseName="EnumValueType">
     <DisplayName>EnumValueType</DisplayName>
-    <Description>A mapping between a value of an enumerated type and a name and description.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="EnumValueType">
-      <Field Name="Value" DataType="i=8">
-        <Description>The value of the enumeration.</Description>
-      </Field>
-      <Field Name="DisplayName" DataType="i=21">
-        <Description>Human readable name for the value.</Description>
-      </Field>
-      <Field Name="Description" DataType="i=21">
-        <Description>A description of the value.</Description>
-      </Field>
+      <Field Name="Value" DataType="i=8" />
+      <Field Name="DisplayName" DataType="i=21" />
+      <Field Name="Description" DataType="i=21" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=102" BrowseName="EnumField">
@@ -1685,78 +1438,64 @@
   </UADataType>
   <UADataType NodeId="i=12755" BrowseName="OptionSet">
     <DisplayName>OptionSet</DisplayName>
-    <Description>This abstract Structured DataType is the base DataType for all DataTypes representing a bit mask.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
     <Definition Name="OptionSet">
-      <Field Name="Value" DataType="i=15">
-        <Description>Array of bytes representing the bits in the option set.</Description>
-      </Field>
-      <Field Name="ValidBits" DataType="i=15">
-        <Description>Array of bytes with same size as value representing the valid bits in the value parameter.</Description>
-      </Field>
+      <Field Name="Value" DataType="i=15" />
+      <Field Name="ValidBits" DataType="i=15" />
     </Definition>
   </UADataType>
   <UADataType NodeId="i=12756" BrowseName="Union" IsAbstract="true">
     <DisplayName>Union</DisplayName>
-    <Description>This abstract DataType is the base DataType for all union DataTypes.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12877" BrowseName="NormalizedString">
     <DisplayName>NormalizedString</DisplayName>
-    <Description>A string normalized based on the rules in the unicode specification.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12878" BrowseName="DecimalString">
     <DisplayName>DecimalString</DisplayName>
-    <Description>An arbitraty numeric value.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12879" BrowseName="DurationString">
     <DisplayName>DurationString</DisplayName>
-    <Description>A period of time formatted as defined in ISO 8601-2000.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12880" BrowseName="TimeString">
     <DisplayName>TimeString</DisplayName>
-    <Description>A time formatted as defined in ISO 8601-2000.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12881" BrowseName="DateString">
     <DisplayName>DateString</DisplayName>
-    <Description>A date formatted as defined in ISO 8601-2000.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=290" BrowseName="Duration">
     <DisplayName>Duration</DisplayName>
-    <Description>A period of time measured in milliseconds.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=294" BrowseName="UtcTime">
     <DisplayName>UtcTime</DisplayName>
-    <Description>A date/time value specified in Universal Coordinated Time (UTC).</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=13</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=295" BrowseName="LocaleId">
     <DisplayName>LocaleId</DisplayName>
-    <Description>An identifier for a user locale.</Description>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>

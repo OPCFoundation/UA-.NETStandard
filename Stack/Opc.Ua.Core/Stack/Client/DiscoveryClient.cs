@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 
@@ -31,9 +32,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            EndpointConfiguration configuration = EndpointConfiguration.Create();
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, configuration, new ServiceMessageContext());
-            return new DiscoveryClient(channel);
+            return DiscoveryClient.Create(discoveryUrl, null);
         }
 
         /// <summary>
@@ -44,17 +43,46 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
         {
-            if (configuration == null)
+            return DiscoveryClient.Create(discoveryUrl, null, null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <returns></returns>
+        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration endpointConfiguration, ApplicationConfiguration applicationConfiguration)
+        {
+            if (endpointConfiguration == null)
             {
-                configuration = EndpointConfiguration.Create();
+                endpointConfiguration = EndpointConfiguration.Create();
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, configuration, new ServiceMessageContext());
+            // check if application configuration contains instance certificate.
+            X509Certificate2 clientCertificate = null;
+
+            try
+            {
+                if (applicationConfiguration != null &&
+                    applicationConfiguration.SecurityConfiguration != null &&
+                    applicationConfiguration.SecurityConfiguration.ApplicationCertificate != null)
+                {
+                    clientCertificate = applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
+                }
+            }
+            catch
+            {
+                //ignore erros
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
             return new DiscoveryClient(channel);
         }
 
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -168,7 +196,8 @@ namespace Opc.Ua
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext)
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
         {
             // create a dummy description.
             EndpointDescription endpoint = new EndpointDescription();
@@ -183,7 +212,7 @@ namespace Opc.Ua
                 null,
                 endpoint,
                 endpointConfiguration,
-                (System.Security.Cryptography.X509Certificates.X509Certificate2)null,
+                clientCertificate,
                 messageContext);
 
             return channel;

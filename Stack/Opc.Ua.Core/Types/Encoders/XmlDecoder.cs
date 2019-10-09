@@ -1158,7 +1158,7 @@ namespace Opc.Ua
 
             if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex)
             {
-                value.SetServerIndex(m_serverMappings[value.NamespaceIndex]);
+                value.SetServerIndex(m_serverMappings[value.ServerIndex]);
             }
 
             return value;

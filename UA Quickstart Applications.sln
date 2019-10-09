@@ -54,6 +54,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataTypes Server", "SampleApplications\Workshop\DataTypes\Server\DataTypes Server.csproj", "{2E23571F-9987-4EBD-A9FD-5D5DD639E071}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataTypes Library", "SampleApplications\Workshop\DataTypes\Common\DataTypes Library.csproj", "{A5F4C543-387E-41C6-94A3-B2F1C866D17C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{17B6F98C-B58C-419F-AE58-63B9883F211A} = {17B6F98C-B58C-419F-AE58-63B9883F211A}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Empty Client", "SampleApplications\Workshop\Empty\Client\Empty Client.csproj", "{00FE42A0-219C-4FC7-9EC5-B3F8F1FA058F}"
 EndProject
@@ -104,6 +107,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Client Controls", "SampleApplications\Samples\ClientControls.Net4\UA Client Controls.csproj", "{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "SampleApplications\Samples\ServerControls.Net4\UA Server Controls.csproj", "{80056988-44E7-4EF4-9F59-50BCF215CB03}"
+	ProjectSection(ProjectDependencies) = postProject
+		{4A1B6008-293A-4C85-8D33-4194A446AAF5} = {4A1B6008-293A-4C85-8D33-4194A446AAF5}
+		{26F0D36F-1348-4AED-B011-234131871D35} = {26F0D36F-1348-4AED-B011-234131871D35}
+		{17B6F98C-B58C-419F-AE58-63B9883F211A} = {17B6F98C-B58C-419F-AE58-63B9883F211A}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

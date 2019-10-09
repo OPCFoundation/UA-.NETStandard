@@ -68,7 +68,7 @@ namespace Opc.Ua.Client
             Initialize();
 
             if (template != null)
-            {                    
+            {
                 string displayName = template.DisplayName;
 
                 if (String.IsNullOrEmpty(displayName))
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_StateChanged               = template.m_StateChanged;
-                    m_PublishStatusChanged        = template.m_PublishStatusChanged;
+                    m_PublishStatusChanged       = template.m_PublishStatusChanged;
                     m_fastDataChangeCallback     = template.m_fastDataChangeCallback;
                     m_fastEventCallback          = template.m_fastEventCallback;
                 }
@@ -118,11 +118,10 @@ namespace Opc.Ua.Client
                 // copy the list of monitored items.
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
-                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers);
-                    clone.Subscription = this;
+                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers, true);
                     clone.DisplayName = monitoredItem.DisplayName;
-                    m_monitoredItems.Add(clone.ClientHandle, clone);
-                }      
+                    AddItem(clone);
+                }
             }
         }
 
@@ -701,8 +700,8 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(m_currentPublishingInterval*m_currentKeepAliveCount);   
-                                        
+                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
+
                     if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval+500) < DateTime.UtcNow)
                     {
                         return true;
@@ -847,13 +846,13 @@ namespace Opc.Ua.Client
                 m_lastNotificationTime = DateTime.MinValue;
             }
 
-            int keepAliveInterval = (int)(m_currentPublishingInterval*m_currentKeepAliveCount);       
-            
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+
             m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
 
             // send initial publish.
-            m_session.BeginPublish(keepAliveInterval*3);
+            m_session.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue /3)*3);
         }
 
         /// <summary>

@@ -1153,12 +1153,13 @@ namespace Opc.Ua.Client.Controls
         private bool DiscoverEndpoints(Uri discoveryUrl, out String message)
         {
             // use a short timeout.
-            EndpointConfiguration configuration = EndpointConfiguration.Create(m_configuration);
-            configuration.OperationTimeout = m_discoveryTimeout;
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
+            endpointConfiguration.OperationTimeout = m_discoveryTimeout;
 
             DiscoveryClient client = DiscoveryClient.Create(
                 discoveryUrl,
-                EndpointConfiguration.Create(m_configuration));
+                EndpointConfiguration.Create(m_configuration),
+                m_configuration);
 
             try
             {

@@ -169,7 +169,7 @@ namespace Opc.Ua
 
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            return StatusCodes.BadNotSupported;
         }
 
         public List<X509CRL> EnumerateCRLs()

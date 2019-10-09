@@ -1254,9 +1254,9 @@ namespace Opc.Ua.Export {
         
         private string arrayDimensionsField;
         
-        private byte accessLevelField;
+        private uint accessLevelField;
         
-        private byte userAccessLevelField;
+        private uint userAccessLevelField;
         
         private double minimumSamplingIntervalField;
         
@@ -1331,8 +1331,8 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "1")]
-        public byte AccessLevel {
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "1")]
+        public uint AccessLevel {
             get {
                 return this.accessLevelField;
             }
@@ -1343,8 +1343,8 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "1")]
-        public byte UserAccessLevel {
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "1")]
+        public uint UserAccessLevel {
             get {
                 return this.userAccessLevelField;
             }

@@ -32,6 +32,7 @@ namespace Opc.Ua
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
             m_rejectSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
+            m_rejectUnknownRevocationStatus = false;
             m_minimumCertificateKeySize = CertificateFactory.defaultKeySize;
         }
         #endregion
@@ -170,6 +171,7 @@ namespace Opc.Ua
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
                 m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
+                m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
                 m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
@@ -252,6 +254,7 @@ namespace Opc.Ua
                 {
                     case StatusCodes.BadCertificateHostNameInvalid:
                     case StatusCodes.BadCertificateIssuerRevocationUnknown:
+                    case StatusCodes.BadCertificateChainIncomplete:
                     case StatusCodes.BadCertificateIssuerTimeInvalid:
                     case StatusCodes.BadCertificateIssuerUseNotAllowed:
                     case StatusCodes.BadCertificateRevocationUnknown:
@@ -267,6 +270,10 @@ namespace Opc.Ua
 
                     default:
                         {
+                            // write the invalid certificate to rejected store if specified.
+                            Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                            SaveCertificate(certificate);
+
                             throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                         }
                 }
@@ -287,17 +294,9 @@ namespace Opc.Ua
                 // throw if rejected.
                 if (!accept)
                 {
-                    // write the invalid certificate to a directory if specified.
-                    lock (m_lock)
-                    {
-                        Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
-
-                        if (m_rejectedCertificateStore != null)
-                        {
-                            Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
-                            SaveCertificate(certificate);
-                        }
-                    }
+                    // write the invalid certificate to rejected store if specified.
+                    Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                    SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
@@ -305,33 +304,40 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    m_validatedCertificates[certificate.Thumbprint] = certificate;
+                    m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
         }
 
         /// <summary>
-        /// Saves the certificate in the invalid certificate directory.
+        /// Saves the certificate in the rejected certificate store.
         /// </summary>
         private void SaveCertificate(X509Certificate2 certificate)
         {
-            try
+            lock (m_lock)
             {
-                ICertificateStore store = m_rejectedCertificateStore.OpenStore();
+                if (m_rejectedCertificateStore != null)
+                {
+                    Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                    try
+                    {
+                        ICertificateStore store = m_rejectedCertificateStore.OpenStore();
 
-                try
-                {
-                    store.Delete(certificate.Thumbprint);
-                    store.Add(certificate);
+                        try
+                        {
+                            store.Delete(certificate.Thumbprint);
+                            store.Add(certificate);
+                        }
+                        finally
+                        {
+                            store.Close();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                    }
                 }
-                finally
-                {
-                    store.Close();
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
             }
         }
 
@@ -564,6 +570,12 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
+            // check if self-signed.
+            if (Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+            {
+                return null;
+            }
+
             string subjectName = certificate.IssuerName.Name;
             string keyId = null;
             string serialNumber = null;
@@ -631,9 +643,21 @@ namespace Opc.Ua
                                 {
                                     StatusCode status = store.IsRevoked(issuer, certificate);
 
-                                    if (StatusCode.IsBad(status))
+                                    if (StatusCode.IsBad(status) && status != StatusCodes.BadNotSupported)
                                     {
-                                        if (status != StatusCodes.BadNotSupported && status != StatusCodes.BadCertificateRevocationUnknown)
+                                        if (status == StatusCodes.BadCertificateRevocationUnknown)
+                                        {
+                                            if (CertificateFactory.IsCertificateAuthority(certificate))
+                                            {
+                                                status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
+                                            }
+
+                                            if(m_rejectUnknownRevocationStatus)
+                                            {
+                                                throw new ServiceResultException(status);
+                                            }
+                                        }
+                                        else
                                         {
                                             throw new ServiceResultException(status);
                                         }
@@ -771,7 +795,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!chainStatusChecked || chainIncomplete)
+            if (issuedByCA && (!chainStatusChecked || chainIncomplete))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadCertificateChainIncomplete,
@@ -806,12 +830,13 @@ namespace Opc.Ua
                 }
             }
 
-#if TODO    // test if cert is valid for use as app/sw or user cert
-            if ()
+            // check if certificate is valid for use as app/sw or user cert
+            X509KeyUsageFlags certificateKeyUsage = CertificateFactory.GetKeyUsage(certificate);
+
+            if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed, "Usage of certificate is not allowed.");
             }
-#endif
 
             // check if minimum requirements are met
             if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
@@ -823,7 +848,6 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "Certificate doesn't meet minimum key length requirement");
             }
-
         }
 
         /// <summary>
@@ -995,6 +1019,7 @@ namespace Opc.Ua
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
         private bool m_rejectSHA1SignedCertificates;
+        private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
 #endregion
     }

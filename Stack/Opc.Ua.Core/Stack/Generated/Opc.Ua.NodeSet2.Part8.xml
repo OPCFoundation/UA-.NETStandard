@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-01-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2019-09-09T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2019-01-31T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.3" PublicationDate="2019-09-09T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -71,7 +71,6 @@
   </Aliases>
   <UAVariableType NodeId="i=2365" BrowseName="DataItemType" ValueRank="-2">
     <DisplayName>DataItemType</DisplayName>
-    <Description>A variable that contains live automation data.</Description>
     <References>
       <Reference ReferenceType="HasProperty">i=2366</Reference>
       <Reference ReferenceType="HasProperty">i=2367</Reference>
@@ -80,7 +79,6 @@
   </UAVariableType>
   <UAVariable NodeId="i=2366" BrowseName="Definition" ParentNodeId="i=2365" DataType="String">
     <DisplayName>Definition</DisplayName>
-    <Description>A vendor-specific, human readable string that specifies how the value of this DataItem is calculated.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -89,7 +87,6 @@
   </UAVariable>
   <UAVariable NodeId="i=2367" BrowseName="ValuePrecision" ParentNodeId="i=2365" DataType="Double">
     <DisplayName>ValuePrecision</DisplayName>
-    <Description>The maximum precision that the server can maintain for the item based on restrictions in the target environment.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -211,7 +208,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2372</Reference>
     </References>
   </UAVariableType>
-  <UAVariable NodeId="i=2377" BrowseName="EnumStrings" ParentNodeId="i=2376" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=2377" BrowseName="EnumStrings" ParentNodeId="i=2376" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -227,7 +224,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2372</Reference>
     </References>
   </UAVariableType>
-  <UAVariable NodeId="i=11241" BrowseName="EnumValues" ParentNodeId="i=11238" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=11241" BrowseName="EnumValues" ParentNodeId="i=11238" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -388,7 +385,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12021</Reference>
     </References>
   </UAVariableType>
-  <UAVariable NodeId="i=12076" BrowseName="AxisDefinition" ParentNodeId="i=12068" DataType="i=12079" ValueRank="1">
+  <UAVariable NodeId="i=12076" BrowseName="AxisDefinition" ParentNodeId="i=12068" DataType="i=12079" ValueRank="1" ArrayDimensions="0">
     <DisplayName>AxisDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -430,7 +427,7 @@
       <Field Name="Ln" Value="2" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=12078" BrowseName="EnumStrings" ParentNodeId="i=12077" DataType="LocalizedText" ValueRank="1">
+  <UAVariable NodeId="i=12078" BrowseName="EnumStrings" ParentNodeId="i=12077" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

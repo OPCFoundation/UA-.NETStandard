@@ -1231,7 +1231,7 @@ public class CertificateFactory
     /// <summary>
     /// Determines whether the certificate is issued by a Certificate Authority.
     /// </summary>
-    private static bool IsCertificateAuthority(X509Certificate2 certificate)
+    public static bool IsCertificateAuthority(X509Certificate2 certificate)
     {
         X509BasicConstraintsExtension constraints = null;
 
