@@ -98,6 +98,26 @@ public ServiceResult OnTare(
     return ServiceResult.Good;
 }
 ```
-Argumenty obslužnej metódy _OnTare_ sú dané. Kód posiela cez COM port **T**, čo pre váhu znamená príkaz tare. Podobne vyzerá aj kód pre metódu _OnZero_, akurát že posiela **Z**.
+Argumenty obslužnej metódy _OnTare_ sú dané dátovým typom _GenericMethodCalledEventHandler_. Kód posiela cez COM port **T**, čo pre váhu znamená príkaz tare. Podobne vyzerá aj kód pre metódu _OnZero_, akurát že posiela **Z**.
 
+Ďalej je potrebné priradiť oblužné metódy príslušným uzlom:
+
+```
+public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+{
+    lock (Lock)
+    {
+        LoadPredefinedNodes(SystemContext, externalReferences);
+
+        // Add method handler
+        MethodState methodState;
+
+        methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3), typeof(MethodState));
+        methodState.OnCallMethod = OnTare;
+
+        methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Zero, 3), typeof(MethodState));
+        methodState.OnCallMethod = OnZero;
+...
+```
+Hore uvedený kód sa nachádza v súbore [WeightScaleNodeManager.cs](WeightScaleNodeManager.cs).
 Check [Is there any solution to import nodeset xml file to opc ua server in C#? #546](https://github.com/OPCFoundation/UA-.NETStandard/issues/546)
