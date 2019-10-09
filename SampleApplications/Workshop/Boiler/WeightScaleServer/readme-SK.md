@@ -67,6 +67,37 @@ Takto upravný program je potrebné skompilovať a spustiť.
 Na overenie obsahu adresného priestoru je možné použit program [UaExpert](https://www.unified-automation.com/products/development-tools/uaexpert.html) a pridať server podľa návodu.
 ![UAExpert.PNG](UAExpert.PNG)
 
+## Vytvorenie obslužného kódu pre metódy _Tare_ a _Zero_ adresného priestoru _WeightScale_
+Kompiler _OPC UA Model Compiler_ vytvoril metódy iba v adresnom priestore. Ak by sme túto metódu dopytovali z OPC UA klienta prišla by nám zo serveru odpoveď že metóda nie je implementovaná: **_BadNotImplemented_**.
+Preto je potrebné vytvoriť obslužný kód, ktorý môže vyzerať nasledovne:
+```
+public ServiceResult OnTare(
+    ISystemContext context,
+    MethodState method,
+    IList<object> inputArguments,
+    IList<object> outputArguments)
+{
+    lock(m_COMLock)
+    {
+        try
+        {
+            SerialPort port = new SerialPort("COM2", 9600, Parity.None, 8, StopBits.One);
+            string response = "T\r\n";
+            byte[] sData;
+            sData = Encoding.ASCII.GetBytes(response);
+            port.Open();
+            port.BaseStream.Write(sData, 0, sData.Length);
+            port.Close();
 
+        }
+        catch (Exception ee)
+        {
+
+        }
+    }
+    return ServiceResult.Good;
+}
+```
+Argumenty obslužnej metódy _OnTare_ sú dané. Kód posiela cez COM port **T**, čo pre váhu znamená príkaz tare. Podobne vyzerá aj kód pre metódu _OnZero_, akurát že posiela **Z**.
 
 Check [Is there any solution to import nodeset xml file to opc ua server in C#? #546](https://github.com/OPCFoundation/UA-.NETStandard/issues/546)
