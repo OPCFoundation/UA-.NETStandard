@@ -1,17 +1,36 @@
-<xs:schema 
+<xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd" 
-  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" 
-  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" 
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
   elementFormDefault="qualified"
 >
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
-  
+
+  <xs:simpleType  name="EngineType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Petrol_1" />
+      <xs:enumeration value="Diesel_2" />
+      <xs:enumeration value="Electric_3" />
+      <xs:enumeration value="Hybrid_4" />
+      <xs:enumeration value="Manual_5" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="EngineType" type="tns:EngineType" />
+
+  <xs:complexType name="ListOfEngineType">
+    <xs:sequence>
+      <xs:element name="EngineType" type="tns:EngineType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfEngineType" type="tns:ListOfEngineType" nillable="true"></xs:element>
+
   <xs:complexType name="VehicleType">
-  	<xs:sequence>
+    <xs:sequence>
       <xs:element name="Make" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="Model" type="xs:string" minOccurs="0" nillable="true" />
-  	</xs:sequence>
+      <xs:element name="Engine" type="tns:EngineType" minOccurs="0" />
+    </xs:sequence>
   </xs:complexType>
   <xs:element name="VehicleType" type="tns:VehicleType" />
 
@@ -57,5 +76,5 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfTruckType" type="tns:ListOfTruckType" nillable="true"></xs:element>
-  
+
 </xs:schema>

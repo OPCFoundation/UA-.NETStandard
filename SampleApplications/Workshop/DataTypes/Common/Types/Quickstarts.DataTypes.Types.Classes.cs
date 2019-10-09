@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -53,7 +52,7 @@ namespace Quickstarts.DataTypes.Types
         public DriverState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -73,6 +72,15 @@ namespace Quickstarts.DataTypes.Types
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -81,36 +89,40 @@ namespace Quickstarts.DataTypes.Types
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADcAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5" +
-           "cGVz/////wRggAABAAAAAQASAAAARHJpdmVyVHlwZUluc3RhbmNlAQFVAQEBVQH/////AgAAABVgqQoC" +
-           "AAAAAQAOAAAAUHJpbWFyeVZlaGljbGUBAVYBAC4ARFYBAAAWAQE+AQKcAAAAPENhclR5cGUgeG1sbnM9" +
-           "Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9EYXRhVHlwZXMvVHlwZXMiPjxN" +
-           "YWtlPlRveW90YTwvTWFrZT48TW9kZWw+UHJpdXM8L01vZGVsPjxOb09mUGFzc2VuZ2Vycz40PC9Ob09m" +
-           "UGFzc2VuZ2Vycz48L0NhclR5cGU+AQE6Af////8DA/////8AAAAAFWCpCgIAAAABAA0AAABPd25lZFZl" +
-           "aGljbGVzAQFYAQAuAERYAQAAlgIAAAABAT8BAp0AAAA8VHJ1Y2tUeXBlIHhtbG5zPSJodHRwOi8vb3Bj" +
-           "Zm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVzIj48TWFrZT5Eb2RnZTwv" +
-           "TWFrZT48TW9kZWw+UmFtPC9Nb2RlbD48Q2FyZ29DYXBhY2l0eT41MDA8L0NhcmdvQ2FwYWNpdHk+PC9U" +
-           "cnVja1R5cGU+AQE+AQLwAAAAPFZlaGljbGVUeXBlIHhzaTp0eXBlPSJDYXJUeXBlIiB4bWxuczp4c2k9" +
-           "Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIiB4bWxucz0iaHR0cDovL29w" +
-           "Y2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFUeXBlcy9UeXBlcyI+PE1ha2U+UG9yY2hl" +
-           "PC9NYWtlPjxNb2RlbD5Sb2Fkc3RlcjwvTW9kZWw+PE5vT2ZQYXNzZW5nZXJzPjI8L05vT2ZQYXNzZW5n" +
-           "ZXJzPjwvVmVoaWNsZVR5cGU+AQE6AQEAAAADA/////8AAAAA";
+           "cGVz/////wRggAIBAAAAAQASAAAARHJpdmVyVHlwZUluc3RhbmNlAQFVAQEBVQFVAQAA/////wIAAAAV" +
+           "YKkKAgAAAAEADgAAAFByaW1hcnlWZWhpY2xlAQFWAQAuAERWAQAAFgEBPgECtQAAADxDYXJUeXBlIHht" +
+           "bG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVz" +
+           "Ij48TWFrZT5Ub3lvdGE8L01ha2U+PE1vZGVsPlByaXVzPC9Nb2RlbD48RW5naW5lPkh5YnJpZF80PC9F" +
+           "bmdpbmU+PE5vT2ZQYXNzZW5nZXJzPjQ8L05vT2ZQYXNzZW5nZXJzPjwvQ2FyVHlwZT4BAToB/////wMD" +
+           "/////wAAAAAXYKkKAgAAAAEADQAAAE93bmVkVmVoaWNsZXMBAVgBAC4ARFgBAACWAwAAAAEBPwECtgAA" +
+           "ADxUcnVja1R5cGUgeG1sbnM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9E" +
+           "YXRhVHlwZXMvVHlwZXMiPjxNYWtlPkRvZGdlPC9NYWtlPjxNb2RlbD5SYW08L01vZGVsPjxFbmdpbmU+" +
+           "RGllc2VsXzI8L0VuZ2luZT48Q2FyZ29DYXBhY2l0eT41MDA8L0NhcmdvQ2FwYWNpdHk+PC9UcnVja1R5" +
+           "cGU+AQE+AQIKAQAAPFZlaGljbGVUeXBlIHhzaTp0eXBlPSJDYXJUeXBlIiB4bWxuczp4c2k9Imh0dHA6" +
+           "Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIiB4bWxucz0iaHR0cDovL29wY2ZvdW5k" +
+           "YXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFUeXBlcy9UeXBlcyI+PE1ha2U+UG9yc2NoZTwvTWFr" +
+           "ZT48TW9kZWw+Um9hZHN0ZXI8L01vZGVsPjxFbmdpbmU+UGV0cm9sXzE8L0VuZ2luZT48Tm9PZlBhc3Nl" +
+           "bmdlcnM+MjwvTm9PZlBhc3NlbmdlcnM+PC9WZWhpY2xlVHlwZT4BAT4BAgkBAAA8VmVoaWNsZVR5cGUg" +
+           "eHNpOnR5cGU9IkNhclR5cGUiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hl" +
+           "bWEtaW5zdGFuY2UiIHhtbG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMv" +
+           "RGF0YVR5cGVzL1R5cGVzIj48TWFrZT5UZXNsYTwvTWFrZT48TW9kZWw+TW9kZWwgWDwvTW9kZWw+PEVu" +
+           "Z2luZT5FbGVjdHJpY18zPC9FbmdpbmU+PE5vT2ZQYXNzZW5nZXJzPjQ8L05vT2ZQYXNzZW5nZXJzPjwv" +
+           "VmVoaWNsZVR5cGU+AQE6AQEAAAABAAAAAAAAAAMD/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the PrimaryVehicle Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<VehicleType> PrimaryVehicle
         {
             get
-            { 
-                return m_primaryVehicle;  
+            {
+                return m_primaryVehicle;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_primaryVehicle, value))
@@ -122,16 +134,14 @@ namespace Quickstarts.DataTypes.Types
             }
         }
 
-        /// <summary>
-        /// A description for the OwnedVehicles Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<VehicleType[]> OwnedVehicles
         {
             get
-            { 
-                return m_ownedVehicles;  
+            {
+                return m_ownedVehicles;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_ownedVehicles, value))

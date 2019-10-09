@@ -13,10 +13,21 @@
     <opc:Namespace Name="DataTypes" Prefix="Quickstarts.DataTypes.Types" InternalPrefix="Quickstarts.DataTypes.Types">http://opcfoundation.org/UA/Quickstarts/DataTypes/Types</opc:Namespace>
   </opc:Namespaces>
 
+  <opc:DataType SymbolicName="EngineType" BaseType="ua:Enumeration">
+    <opc:Fields>
+      <opc:Field Name="Petrol" Identifier="1"></opc:Field>
+      <opc:Field Name="Diesel" Identifier="2"></opc:Field>
+      <opc:Field Name="Electric" Identifier="3"></opc:Field>
+      <opc:Field Name="Hybrid" Identifier="4"></opc:Field>
+      <opc:Field Name="Manual" Identifier="5"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
   <opc:DataType SymbolicName="VehicleType" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="Make" DataType="ua:String"></opc:Field>
       <opc:Field Name="Model" DataType="ua:String"></opc:Field>
+      <opc:Field Name="Engine" DataType="EngineType"></opc:Field>
     </opc:Fields>
   </opc:DataType>
 
@@ -41,6 +52,7 @@
               <CarType>
                 <Make>Toyota</Make>
                 <Model>Prius</Model>
+                <Engine>Hybrid_4</Engine>
                 <NoOfPassengers>4</NoOfPassengers>
               </CarType>
             </uax:Body>
@@ -55,6 +67,7 @@
                 <TruckType>
                   <Make>Dodge</Make>
                   <Model>Ram</Model>
+                  <Engine>Diesel_2</Engine>
                   <CargoCapacity>500</CargoCapacity>
                 </TruckType>
               </uax:Body>
@@ -62,9 +75,20 @@
             <uax:ExtensionObject>
               <uax:Body>
                 <VehicleType xsi:type="CarType">
-                  <Make>Porche</Make>
+                  <Make>Porsche</Make>
                   <Model>Roadster</Model>
+                  <Engine>Petrol_1</Engine>
                   <NoOfPassengers>2</NoOfPassengers>
+                </VehicleType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <VehicleType xsi:type="CarType">
+                  <Make>Tesla</Make>
+                  <Model>Model X</Model>
+                  <Engine>Electric_3</Engine>
+                  <NoOfPassengers>4</NoOfPassengers>
                 </VehicleType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -73,5 +97,4 @@
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
-    
 </opc:ModelDesign>
