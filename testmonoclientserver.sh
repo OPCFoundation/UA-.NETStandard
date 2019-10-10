@@ -11,7 +11,7 @@ echo start server
 cd bin/Debug/net46
 mono MonoConsoleServer.exe -t 60 -a &
 serverpid="$!"
-cd $workdir
+cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo build client
@@ -21,7 +21,7 @@ echo start client
 cd bin/Debug/net46
 mono MonoConsoleClient.exe -t 20 -a &
 clientpid="$!"
-cd $workdir
+cd "$workdir"
 
 echo wait for client
 wait $clientpid
