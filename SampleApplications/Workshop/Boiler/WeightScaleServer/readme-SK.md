@@ -3,7 +3,7 @@
 
 Projekt je odvodený od **Boiler Server**. Jeho cieľom je vytvorenie OPC UA serveru s _informačným modelom (IM)_ založeným na _Device Information Model (DI)_.
 DI IM je z git [OPCFoundation/UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset) vetva v1.04, pretože aktuálny _NETStandard stack_ používa túto verziu.
-## Pridanie DI a WS name space (menného priestoru) do address space (adresného priestoru)
+## 1. Pridanie DI a WS name space (menného priestoru) do address space (adresného priestoru)
 Menný priestor váhy _Weight Scale (WS)_ používa objekty definované v mennom priestore DI, preto je potrebné nahrať do adresného priestoru oba menné priestory.
 Súbory popisujúce menné priestory sú tieto:
 
@@ -67,7 +67,7 @@ Takto upravný program je potrebné skompilovať a spustiť.
 Na overenie obsahu adresného priestoru je možné použit program [UaExpert](https://www.unified-automation.com/products/development-tools/uaexpert.html) a pridať server podľa návodu.
 ![UAExpert.PNG](UAExpert.PNG)
 
-## Vytvorenie obslužného kódu pre metódy _Tare_ a _Zero_ adresného priestoru _WeightScale_
+## 2. Vytvorenie obslužného kódu pre metódy _Tare_ a _Zero_ adresného priestoru _WeightScale_
 Kompiler _OPC UA Model Compiler_ vytvoril metódy iba v adresnom priestore. Ak by sme túto metódu dopytovali z OPC UA klienta prišla by nám zo serveru odpoveď že metóda nie je implementovaná: **_BadNotImplemented_**.
 Preto je potrebné vytvoriť obslužný kód, ktorý môže vyzerať nasledovne:
 ```
@@ -121,6 +121,7 @@ public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> e
 }
 ```
 Inštancia `new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3)` vytvorí objekt _NodeId_ na základe jedinečnej kombinácie menného priestoru: _3_ a identifikátoru uzla: _Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare_. Na základe identifikátora uzla je možné pomocou metódy `FindPredefinedNode` získať dopytovaný uzol. 
+
 Hore uvedený kód sa nachádza v súbore [WeightScaleNodeManager.cs](WeightScaleNodeManager.cs).
 
 Check [Is there any solution to import nodeset xml file to opc ua server in C#? #546](https://github.com/OPCFoundation/UA-.NETStandard/issues/546)
