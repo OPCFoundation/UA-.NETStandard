@@ -93,11 +93,11 @@ namespace Opc.Ua.Ws
         private const string InitializationString =
            "AgAAAB4AAABodHRwOi8vcGhpLXdhcmUuY29tL0ZFSVNUVS9XUy8fAAAAaHR0cDovL29wY2ZvdW5kYXRp" +
            "b24ub3JnL1VBL0RJL/////+EYIACAQAAAAEAFwAAAFdlaWdodFNjYWxlVHlwZUluc3RhbmNlAQGlOwEB" +
-           "pTulOwAAAf////8KAAAAJGCACgEAAAABAAwAAABQYXJhbWV0ZXJTZXQBAaY7AwAAAAAXAAAARmxhdCBs" +
+           "pTulOwAAAf////8LAAAAJGCACgEAAAABAAwAAABQYXJhbWV0ZXJTZXQBAaY7AwAAAAAXAAAARmxhdCBs" +
            "aXN0IG9mIFBhcmFtZXRlcnMALwA6pjsAAP////8BAAAANWCJCgIAAAABAAsAAAB3ZWlnaHRTY2FsZQEB" +
-           "6zsDAAAAAA4AAABBY3R1YWwgd2VpZ2h0LgAvAQBACes7AAAAC/////8BAf////8DAAAAFWCJCgIAAAAA" +
-           "AA8AAABJbnN0cnVtZW50UmFuZ2UBAe47AC4ARO47AAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "BwAAAEVVUmFuZ2UBAe87AC4ARO87AAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAEVuZ2lu" +
+           "6zsDAAAAAA4AAABBY3R1YWwgd2VpZ2h0LgAvAQBACes7AAAAC/////8DA/////8DAAAAFWCJCgIAAAAB" +
+           "AA8AAABJbnN0cnVtZW50UmFuZ2UBAe47AC4ARO47AAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAEA" +
+           "BwAAAEVVUmFuZ2UBAe87AC4ARO87AAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAEAEAAAAEVuZ2lu" +
            "ZWVyaW5nVW5pdHMBAfA7AC4ARPA7AAABAHcD/////wEB/////wAAAAAkYIAKAQAAAAEACQAAAE1ldGhv" +
            "ZFNldAEBqDsDAAAAABQAAABGbGF0IGxpc3Qgb2YgTWV0aG9kcwAvADqoOwAA/////wIAAAAkYYIKBAAA" +
            "AAEABAAAAFRhcmUBAfE7AwAAAAANAAAAVGFyZSBiYWxuYWNlLgAvAQHxO/E7AAABAf////8AAAAAJGGC" +
@@ -118,18 +118,102 @@ namespace Opc.Ua.Ws
            "dmljZSBpbnN0YW5jZQAuAETFOwAAAAz/////AQH/////AAAAADVgiQoCAAAAAgAPAAAAUmV2aXNpb25D" +
            "b3VudGVyAQHHOwMAAAAAaQAAAEFuIGluY3JlbWVudGFsIGNvdW50ZXIgaW5kaWNhdGluZyB0aGUgbnVt" +
            "YmVyIG9mIHRpbWVzIHRoZSBzdGF0aWMgZGF0YSB3aXRoaW4gdGhlIERldmljZSBoYXMgYmVlbiBtb2Rp" +
-           "ZmllZAAuAETHOwAAAAb/////AQH/////AAAAAA==";
+           "ZmllZAAuAETHOwAAAAb/////AQH/////AAAAABVgiQoCAAAAAQAEAAAAdGVzdAEB6ToALgBE6ToAAAAL" +
+           "/////wMD/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
+        /// <remarks />
+        public PropertyState<double> test
+        {
+            get
+            {
+                return m_test;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_test, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_test = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_test != null)
+            {
+                children.Add(m_test);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.Ws.BrowseNames.test:
+                {
+                    if (createOrReplace)
+                    {
+                        if (test == null)
+                        {
+                            if (replacement == null)
+                            {
+                                test = new PropertyState<double>(this);
+                            }
+                            else
+                            {
+                                test = (PropertyState<double>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = test;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
         #endregion
 
         #region Private Fields
+        private PropertyState<double> m_test;
         #endregion
     }
     #endif

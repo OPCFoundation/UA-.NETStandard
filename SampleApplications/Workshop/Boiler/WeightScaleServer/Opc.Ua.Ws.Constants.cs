@@ -307,6 +307,11 @@ namespace Opc.Ua.Ws
         public const uint WeightScaleType_CPIdentifier_Lock_BreakLock_OutputArguments = 15326;
 
         /// <summary>
+        /// The identifier for the WeightScaleType_test Variable.
+        /// </summary>
+        public const uint WeightScaleType_test = 15081;
+
+        /// <summary>
         /// The identifier for the WeightScaleType_ParameterSet_weightScale Variable.
         /// </summary>
         public const uint WeightScaleType_ParameterSet_weightScale = 15339;
@@ -455,6 +460,11 @@ namespace Opc.Ua.Ws
         /// The identifier for the WeightScale01_CPIdentifier_Lock_BreakLock_OutputArguments Variable.
         /// </summary>
         public const uint WeightScale01_CPIdentifier_Lock_BreakLock_OutputArguments = 15058;
+
+        /// <summary>
+        /// The identifier for the WeightScale01_test Variable.
+        /// </summary>
+        public const uint WeightScale01_test = 15082;
 
         /// <summary>
         /// The identifier for the WeightScale01_ParameterSet_weightScale Variable.
@@ -737,6 +747,11 @@ namespace Opc.Ua.Ws
         public static readonly ExpandedNodeId WeightScaleType_CPIdentifier_Lock_BreakLock_OutputArguments = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScaleType_CPIdentifier_Lock_BreakLock_OutputArguments, Opc.Ua.Ws.Namespaces.OpcUaWs);
 
         /// <summary>
+        /// The identifier for the WeightScaleType_test Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId WeightScaleType_test = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScaleType_test, Opc.Ua.Ws.Namespaces.OpcUaWs);
+
+        /// <summary>
         /// The identifier for the WeightScaleType_ParameterSet_weightScale Variable.
         /// </summary>
         public static readonly ExpandedNodeId WeightScaleType_ParameterSet_weightScale = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScaleType_ParameterSet_weightScale, Opc.Ua.Ws.Namespaces.OpcUaWs);
@@ -887,6 +902,11 @@ namespace Opc.Ua.Ws
         public static readonly ExpandedNodeId WeightScale01_CPIdentifier_Lock_BreakLock_OutputArguments = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScale01_CPIdentifier_Lock_BreakLock_OutputArguments, Opc.Ua.Ws.Namespaces.OpcUaWs);
 
         /// <summary>
+        /// The identifier for the WeightScale01_test Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId WeightScale01_test = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScale01_test, Opc.Ua.Ws.Namespaces.OpcUaWs);
+
+        /// <summary>
         /// The identifier for the WeightScale01_ParameterSet_weightScale Variable.
         /// </summary>
         public static readonly ExpandedNodeId WeightScale01_ParameterSet_weightScale = new ExpandedNodeId(Opc.Ua.Ws.Variables.WeightScale01_ParameterSet_weightScale, Opc.Ua.Ws.Namespaces.OpcUaWs);
@@ -914,6 +934,11 @@ namespace Opc.Ua.Ws
         /// The BrowseName for the ParameterSet component.
         /// </summary>
         public const string ParameterSet = "ParameterSet";
+
+        /// <summary>
+        /// The BrowseName for the test component.
+        /// </summary>
+        public const string test = "test";
 
         /// <summary>
         /// The BrowseName for the WeightScale01 component.

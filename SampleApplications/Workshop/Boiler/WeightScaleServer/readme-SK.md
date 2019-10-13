@@ -123,5 +123,13 @@ public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> e
 Inštancia `new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3)` vytvorí objekt _NodeId_ na základe jedinečnej kombinácie menného priestoru: _3_ a identifikátoru uzla: _Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare_. Na základe identifikátora uzla je možné pomocou metódy `FindPredefinedNode` získať dopytovaný uzol. 
 
 Hore uvedený kód sa nachádza v súbore [WeightScaleNodeManager.cs](WeightScaleNodeManager.cs).
+```
+Opc.Ua.BaseDataVariableState m_weightScaleState;
+
+m_weightScaleState = (Opc.Ua.BaseDataVariableState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Variables.WeightScale01_ParameterSet_weightScale, 3),
+    typeof(Opc.Ua.BaseDataVariableState));
+m_weightScaleState.Value = 100;
+m_weightScaleState.ClearChangeMasks(SystemContext, true);
+```
 
 Check [Is there any solution to import nodeset xml file to opc ua server in C#? #546](https://github.com/OPCFoundation/UA-.NETStandard/issues/546)

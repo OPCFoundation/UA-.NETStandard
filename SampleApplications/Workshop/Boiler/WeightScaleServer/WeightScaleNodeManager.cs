@@ -220,11 +220,24 @@ namespace Quickstarts.WeightScale.Server
                 // Add method handler
                 MethodState methodState;
 
-                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3), typeof(MethodState));
+                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Tare, 3),
+                    typeof(MethodState));
                 methodState.OnCallMethod = OnTare;
 
-                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Zero, 3), typeof(MethodState));
+                methodState = (MethodState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Methods.WeightScale01_MethodSet_Zero, 3),
+                    typeof(MethodState));
                 methodState.OnCallMethod = OnZero;
+
+                Opc.Ua.BaseDataVariableState m_weightScaleState;
+
+                m_weightScaleState = (Opc.Ua.BaseDataVariableState)FindPredefinedNode(new NodeId(Opc.Ua.Ws.Variables.WeightScale01_ParameterSet_weightScale, 3),
+                    typeof(Opc.Ua.BaseDataVariableState));
+                m_weightScaleState.Value = 100;
+                m_weightScaleState.ClearChangeMasks(SystemContext, true);
+                //value1 = ((int)(++value1))%100;
+                //m_boiler1.Drum.LevelIndicator.Output.Value = value1;
+                //m_boiler1.ClearChangeMasks(SystemContext, true);
+
 
                 // link root to objects folder.
                 IList<IReference> references = null;
@@ -324,6 +337,7 @@ namespace Quickstarts.WeightScale.Server
         {
             try
             {
+
                 //double value1 = m_boiler1.Drum.LevelIndicator.Output.Value;
                 //value1 = ((int)(++value1))%100;
                 //m_boiler1.Drum.LevelIndicator.Output.Value = value1;
@@ -343,6 +357,7 @@ namespace Quickstarts.WeightScale.Server
 
         #region Private Fields
         private WeightScaleServerConfiguration m_configuration;
+        private Opc.Ua.BaseDataVariableState m_weightScaleState;
         private object m_COMLock = new object();
         private uint m_nodeIdCounter;
         private Timer m_simulationTimer;
