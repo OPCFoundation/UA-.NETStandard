@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -91,31 +91,33 @@ namespace Quickstarts.DataTypes.Types
         #region Initialization String
         private const string InitializationString =
            "AQAAADcAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5" +
-           "cGVz/////wRggAIBAAAAAQASAAAARHJpdmVyVHlwZUluc3RhbmNlAQFVAQEBVQFVAQAA/////wIAAAAV" +
-           "YKkKAgAAAAEADgAAAFByaW1hcnlWZWhpY2xlAQFWAQAuAERWAQAAFgEBPgECtQAAADxDYXJUeXBlIHht" +
-           "bG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVz" +
-           "Ij48TWFrZT5Ub3lvdGE8L01ha2U+PE1vZGVsPlByaXVzPC9Nb2RlbD48RW5naW5lPkh5YnJpZF80PC9F" +
-           "bmdpbmU+PE5vT2ZQYXNzZW5nZXJzPjQ8L05vT2ZQYXNzZW5nZXJzPjwvQ2FyVHlwZT4BAToB/////wMD" +
-           "/////wAAAAAXYKkKAgAAAAEADQAAAE93bmVkVmVoaWNsZXMBAVgBAC4ARFgBAACWAwAAAAEBPwECtgAA" +
-           "ADxUcnVja1R5cGUgeG1sbnM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9E" +
-           "YXRhVHlwZXMvVHlwZXMiPjxNYWtlPkRvZGdlPC9NYWtlPjxNb2RlbD5SYW08L01vZGVsPjxFbmdpbmU+" +
-           "RGllc2VsXzI8L0VuZ2luZT48Q2FyZ29DYXBhY2l0eT41MDA8L0NhcmdvQ2FwYWNpdHk+PC9UcnVja1R5" +
-           "cGU+AQE+AQIKAQAAPFZlaGljbGVUeXBlIHhzaTp0eXBlPSJDYXJUeXBlIiB4bWxuczp4c2k9Imh0dHA6" +
-           "Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIiB4bWxucz0iaHR0cDovL29wY2ZvdW5k" +
-           "YXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFUeXBlcy9UeXBlcyI+PE1ha2U+UG9yc2NoZTwvTWFr" +
-           "ZT48TW9kZWw+Um9hZHN0ZXI8L01vZGVsPjxFbmdpbmU+UGV0cm9sXzE8L0VuZ2luZT48Tm9PZlBhc3Nl" +
-           "bmdlcnM+MjwvTm9PZlBhc3NlbmdlcnM+PC9WZWhpY2xlVHlwZT4BAT4BAgkBAAA8VmVoaWNsZVR5cGUg" +
-           "eHNpOnR5cGU9IkNhclR5cGUiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hl" +
-           "bWEtaW5zdGFuY2UiIHhtbG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMv" +
-           "RGF0YVR5cGVzL1R5cGVzIj48TWFrZT5UZXNsYTwvTWFrZT48TW9kZWw+TW9kZWwgWDwvTW9kZWw+PEVu" +
-           "Z2luZT5FbGVjdHJpY18zPC9FbmdpbmU+PE5vT2ZQYXNzZW5nZXJzPjQ8L05vT2ZQYXNzZW5nZXJzPjwv" +
-           "VmVoaWNsZVR5cGU+AQE6AQEAAAABAAAAAAAAAAMD/////wAAAAA=";
+           "cGVz/////wRggAABAAAAAQASAAAARHJpdmVyVHlwZUluc3RhbmNlAQFVAQEBVQH/////AgAAABVgqQoC" +
+           "AAAAAQAOAAAAUHJpbWFyeVZlaGljbGUBAVYBAC4ARFYBAAAWAQE+AQK1AAAAPENhclR5cGUgeG1sbnM9" +
+           "Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9EYXRhVHlwZXMvVHlwZXMiPjxN" +
+           "YWtlPlRveW90YTwvTWFrZT48TW9kZWw+UHJpdXM8L01vZGVsPjxFbmdpbmU+SHlicmlkXzQ8L0VuZ2lu" +
+           "ZT48Tm9PZlBhc3NlbmdlcnM+NDwvTm9PZlBhc3NlbmdlcnM+PC9DYXJUeXBlPgEBOgH/////AwP/////" +
+           "AAAAABVgqQoCAAAAAQANAAAAT3duZWRWZWhpY2xlcwEBWAEALgBEWAEAAJYDAAAAAQE/AQK2AAAAPFRy" +
+           "dWNrVHlwZSB4bWxucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFU" +
+           "eXBlcy9UeXBlcyI+PE1ha2U+RG9kZ2U8L01ha2U+PE1vZGVsPlJhbTwvTW9kZWw+PEVuZ2luZT5EaWVz" +
+           "ZWxfMjwvRW5naW5lPjxDYXJnb0NhcGFjaXR5PjUwMDwvQ2FyZ29DYXBhY2l0eT48L1RydWNrVHlwZT4B" +
+           "AT4BAgoBAAA8VmVoaWNsZVR5cGUgeHNpOnR5cGU9IkNhclR5cGUiIHhtbG5zOnhzaT0iaHR0cDovL3d3" +
+           "dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zPSJodHRwOi8vb3BjZm91bmRhdGlv" +
+           "bi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVzIj48TWFrZT5Qb3JzY2hlPC9NYWtlPjxN" +
+           "b2RlbD5Sb2Fkc3RlcjwvTW9kZWw+PEVuZ2luZT5QZXRyb2xfMTwvRW5naW5lPjxOb09mUGFzc2VuZ2Vy" +
+           "cz4yPC9Ob09mUGFzc2VuZ2Vycz48L1ZlaGljbGVUeXBlPgEBPgECCQEAADxWZWhpY2xlVHlwZSB4c2k6" +
+           "dHlwZT0iQ2FyVHlwZSIgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1p" +
+           "bnN0YW5jZSIgeG1sbnM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9EYXRh" +
+           "VHlwZXMvVHlwZXMiPjxNYWtlPlRlc2xhPC9NYWtlPjxNb2RlbD5Nb2RlbCBYPC9Nb2RlbD48RW5naW5l" +
+           "PkVsZWN0cmljXzM8L0VuZ2luZT48Tm9PZlBhc3NlbmdlcnM+NDwvTm9PZlBhc3NlbmdlcnM+PC9WZWhp" +
+           "Y2xlVHlwZT4BAToBAQAAAAMD/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <remarks />
+        /// <summary>
+        /// A description for the PrimaryVehicle Property.
+        /// </summary>
         public PropertyState<VehicleType> PrimaryVehicle
         {
             get
@@ -134,7 +136,9 @@ namespace Quickstarts.DataTypes.Types
             }
         }
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the OwnedVehicles Property.
+        /// </summary>
         public PropertyState<VehicleType[]> OwnedVehicles
         {
             get

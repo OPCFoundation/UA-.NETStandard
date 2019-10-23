@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -39,30 +39,40 @@ namespace Quickstarts.DataTypes.Types
     #region EngineType Enumeration
     #if (!OPCUA_EXCLUDE_EngineType)
     /// <summary>
-    /// 
+    /// A description for the EngineType DataType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Quickstarts.DataTypes.Types.Namespaces.DataTypes)]
     public enum EngineType
     {
-        /// <remarks />
+        /// <summary>
+        /// A description for the Petrol field.
+        /// </summary>
         [EnumMember(Value = "Petrol_1")]
         Petrol = 1,
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Diesel field.
+        /// </summary>
         [EnumMember(Value = "Diesel_2")]
         Diesel = 2,
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Electric field.
+        /// </summary>
         [EnumMember(Value = "Electric_3")]
         Electric = 3,
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Hybrid field.
+        /// </summary>
         [EnumMember(Value = "Hybrid_4")]
         Hybrid = 4,
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Manual field.
+        /// </summary>
         [EnumMember(Value = "Manual_5")]
         Manual = 5,
     }
@@ -157,7 +167,7 @@ namespace Quickstarts.DataTypes.Types
     #region VehicleType Class
     #if (!OPCUA_EXCLUDE_VehicleType)
     /// <summary>
-    /// 
+    /// A description for the VehicleType DataType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -194,7 +204,9 @@ namespace Quickstarts.DataTypes.Types
         #endregion
 
         #region Public Properties
-        /// <remarks />
+        /// <summary>
+        /// A description for the Make field.
+        /// </summary>
         [DataMember(Name = "Make", IsRequired = false, Order = 1)]
         public string Make
         {
@@ -202,7 +214,9 @@ namespace Quickstarts.DataTypes.Types
             set { m_make = value; }
         }
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Model field.
+        /// </summary>
         [DataMember(Name = "Model", IsRequired = false, Order = 2)]
         public string Model
         {
@@ -210,7 +224,9 @@ namespace Quickstarts.DataTypes.Types
             set { m_model = value; }
         }
 
-        /// <remarks />
+        /// <summary>
+        /// A description for the Engine field.
+        /// </summary>
         [DataMember(Name = "Engine", IsRequired = false, Order = 3)]
         public EngineType Engine
         {
@@ -402,7 +418,7 @@ namespace Quickstarts.DataTypes.Types
     #region CarType Class
     #if (!OPCUA_EXCLUDE_CarType)
     /// <summary>
-    /// 
+    /// A description for the CarType DataType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -437,7 +453,9 @@ namespace Quickstarts.DataTypes.Types
         #endregion
 
         #region Public Properties
-        /// <remarks />
+        /// <summary>
+        /// A description for the NoOfPassengers field.
+        /// </summary>
         [DataMember(Name = "NoOfPassengers", IsRequired = false, Order = 1)]
         public uint NoOfPassengers
         {
@@ -624,7 +642,7 @@ namespace Quickstarts.DataTypes.Types
     #region TruckType Class
     #if (!OPCUA_EXCLUDE_TruckType)
     /// <summary>
-    /// 
+    /// A description for the TruckType DataType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -659,7 +677,9 @@ namespace Quickstarts.DataTypes.Types
         #endregion
 
         #region Public Properties
-        /// <remarks />
+        /// <summary>
+        /// A description for the CargoCapacity field.
+        /// </summary>
         [DataMember(Name = "CargoCapacity", IsRequired = false, Order = 1)]
         public uint CargoCapacity
         {

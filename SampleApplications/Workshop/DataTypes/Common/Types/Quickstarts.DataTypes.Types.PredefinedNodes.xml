@@ -48,6 +48,7 @@
                     <uax:Locale></uax:Locale>
                     <uax:Text>Petrol</uax:Text>
                   </uax:DisplayName>
+                  <uax:Description xsi:nil="true" />
                 </uax:EnumValueType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -62,6 +63,7 @@
                     <uax:Locale></uax:Locale>
                     <uax:Text>Diesel</uax:Text>
                   </uax:DisplayName>
+                  <uax:Description xsi:nil="true" />
                 </uax:EnumValueType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -76,6 +78,7 @@
                     <uax:Locale></uax:Locale>
                     <uax:Text>Electric</uax:Text>
                   </uax:DisplayName>
+                  <uax:Description xsi:nil="true" />
                 </uax:EnumValueType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -90,6 +93,7 @@
                     <uax:Locale></uax:Locale>
                     <uax:Text>Hybrid</uax:Text>
                   </uax:DisplayName>
+                  <uax:Description xsi:nil="true" />
                 </uax:EnumValueType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -104,6 +108,7 @@
                     <uax:Locale></uax:Locale>
                     <uax:Text>Manual</uax:Text>
                   </uax:DisplayName>
+                  <uax:Description xsi:nil="true" />
                 </uax:EnumValueType>
               </uax:Body>
             </uax:ExtensionObject>
@@ -114,7 +119,6 @@
         <uax:Identifier>i=7594</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
-      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </EnumValues>
@@ -281,7 +285,6 @@
         <uax:Identifier>ns=1;i=314</uax:Identifier>
       </uax:DataType>
       <uax:ValueRank>1</uax:ValueRank>
-      <uax:ArrayDimensions>0</uax:ArrayDimensions>
       <uax:AccessLevel>3</uax:AccessLevel>
       <uax:UserAccessLevel>3</uax:UserAccessLevel>
     </OwnedVehicles>
@@ -462,6 +465,10 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceUri</uax:Name>
       </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>A URI that uniquely identifies the dictionary.</uax:Text>
+      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -490,6 +497,10 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>Deprecated</uax:Name>
       </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</uax:Text>
+      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -792,6 +803,10 @@ YWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>NamespaceUri</uax:Name>
       </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>A URI that uniquely identifies the dictionary.</uax:Text>
+      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>
@@ -820,6 +835,10 @@ YWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
         <uax:NamespaceIndex>0</uax:NamespaceIndex>
         <uax:Name>Deprecated</uax:Name>
       </uax:BrowseName>
+      <uax:Description>
+        <uax:Locale></uax:Locale>
+        <uax:Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</uax:Text>
+      </uax:Description>
       <uax:ReferenceTypeId>
         <uax:Identifier>i=46</uax:Identifier>
       </uax:ReferenceTypeId>

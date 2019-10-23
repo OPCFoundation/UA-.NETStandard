@@ -133,7 +133,11 @@ namespace Quickstarts.DataTypes
                 m_session = ConnectServerCTRL.Session;
 
                 // browse the instances in the server.
-                BrowseCTRL.Initialize(m_session, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, ReferenceTypeIds.Aggregates);
+                BrowseCTRL.Initialize(m_session, 
+                    ObjectIds.RootFolder, 
+                    ReferenceTypeIds.Organizes, 
+                    ReferenceTypeIds.Aggregates,
+                    ReferenceTypeIds.HierarchicalReferences);
             }
             catch (Exception exception)
             {

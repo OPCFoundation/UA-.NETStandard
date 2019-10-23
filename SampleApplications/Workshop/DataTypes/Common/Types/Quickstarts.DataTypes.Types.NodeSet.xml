@@ -174,7 +174,10 @@ YWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
         <Locale></Locale>
         <Text>NamespaceUri</Text>
       </DisplayName>
-      <Description i:nil="true" />
+      <Description>
+        <Locale></Locale>
+        <Text>A URI that uniquely identifies the dictionary.</Text>
+      </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
       <RolePermissions />
@@ -362,7 +365,10 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
         <Locale></Locale>
         <Text>NamespaceUri</Text>
       </DisplayName>
-      <Description i:nil="true" />
+      <Description>
+        <Locale></Locale>
+        <Text>A URI that uniquely identifies the dictionary.</Text>
+      </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
       <RolePermissions />
@@ -1455,9 +1461,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
         <Identifier>ns=1;i=314</Identifier>
       </DataType>
       <ValueRank>1</ValueRank>
-      <ArrayDimensions>
-        <UInt32>0</UInt32>
-      </ArrayDimensions>
+      <ArrayDimensions />
       <AccessLevel>3</AccessLevel>
       <UserAccessLevel>3</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
@@ -1477,7 +1481,10 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
         <Locale></Locale>
         <Text>Deprecated</Text>
       </DisplayName>
-      <Description i:nil="true" />
+      <Description>
+        <Locale></Locale>
+        <Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</Text>
+      </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
       <RolePermissions />
@@ -1532,7 +1539,10 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
         <Locale></Locale>
         <Text>Deprecated</Text>
       </DisplayName>
-      <Description i:nil="true" />
+      <Description>
+        <Locale></Locale>
+        <Text>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</Text>
+      </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
       <RolePermissions />
@@ -1801,6 +1811,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
                     <Locale></Locale>
                     <Text>Petrol</Text>
                   </DisplayName>
+                  <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
                 </EnumValueType>
               </Body>
             </ExtensionObject>
@@ -1815,6 +1826,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
                     <Locale></Locale>
                     <Text>Diesel</Text>
                   </DisplayName>
+                  <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
                 </EnumValueType>
               </Body>
             </ExtensionObject>
@@ -1829,6 +1841,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
                     <Locale></Locale>
                     <Text>Electric</Text>
                   </DisplayName>
+                  <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
                 </EnumValueType>
               </Body>
             </ExtensionObject>
@@ -1843,6 +1856,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
                     <Locale></Locale>
                     <Text>Hybrid</Text>
                   </DisplayName>
+                  <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
                 </EnumValueType>
               </Body>
             </ExtensionObject>
@@ -1857,6 +1871,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
                     <Locale></Locale>
                     <Text>Manual</Text>
                   </DisplayName>
+                  <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
                 </EnumValueType>
               </Body>
             </ExtensionObject>
@@ -1867,9 +1882,7 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
         <Identifier>i=7594</Identifier>
       </DataType>
       <ValueRank>1</ValueRank>
-      <ArrayDimensions>
-        <UInt32>0</UInt32>
-      </ArrayDimensions>
+      <ArrayDimensions />
       <AccessLevel>1</AccessLevel>
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
