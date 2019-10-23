@@ -609,6 +609,11 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Gets the data type system dictionaries in use.
+        /// </summary>
+        public Dictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
+
+        /// <summary>
         /// Gets the subscriptions owned by the session.
         /// </summary>
         public IEnumerable<Subscription> Subscriptions
@@ -1343,7 +1348,7 @@ namespace Opc.Ua.Client
 
 
         /// <summary>
-        ///  Returns the data dictionary that constains the description.
+        ///  Returns the data dictionary that contains the description.
         /// </summary>
         /// <param name="descriptionId">The description id.</param>
         /// <returns></returns>
@@ -1383,6 +1388,79 @@ namespace Opc.Ua.Client
             m_dictionaries[dictionaryId] = dictionaryToLoad;
 
             return dictionaryToLoad;
+        }
+
+        /// <summary>
+        ///  Returns the data dictionary that contains the description.
+        /// </summary>
+        /// <param name="dictionaryId">The dictionary id.</param>
+        /// <returns></returns>
+        public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
+        {
+            // check if the dictionary has already been loaded.
+            DataDictionary dictionary;
+            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, m_namespaceUris);
+            if (!forceReload &&
+                m_dictionaries.TryGetValue(dictionaryId, out dictionary))
+            { 
+                return dictionary;
+            }
+
+            // load the dictionary.
+            DataDictionary dictionaryToLoad = new DataDictionary(this);
+            await dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString());
+            m_dictionaries[dictionaryId] = dictionaryToLoad;
+            return dictionaryToLoad;
+        }
+
+        /// <summary>
+        /// Loads all dictionaries of the OPC binary or Xml schema type system.
+        /// </summary>
+        /// <param name="dataTypeSystem">The type system.</param>
+        /// <returns></returns>
+        public async Task<Dictionary<NodeId,DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
+        {
+            if (dataTypeSystem == null)
+            {
+                dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
+            }
+            else 
+            if (!Utils.Equals(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.Equals(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
+            }
+
+            // find the dictionary for the description.
+            Browser browser = new Browser(this);
+
+            browser.BrowseDirection = BrowseDirection.Forward;
+            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            browser.IncludeSubtypes = false;
+            browser.NodeClassMask = 0;
+
+            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
+
+            if (references.Count == 0)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Type system does not contain a valid data dictionary.");
+            }
+
+            // read all type dictionaries in the type system
+            foreach (var r in references)
+            {
+                DataDictionary dictionaryToLoad = null;
+                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_namespaceUris);
+                if (dictionaryId.NamespaceIndex != 0 &&
+                    !m_dictionaries.TryGetValue(dictionaryId, out dictionaryToLoad))
+                {
+                    dictionaryToLoad = new DataDictionary(this);
+                    await dictionaryToLoad.Load(r);
+                    m_dictionaries[dictionaryId] = dictionaryToLoad;
+                }
+            }
+
+            return m_dictionaries;
         }
 
         /// <summary>
@@ -1719,7 +1797,7 @@ namespace Opc.Ua.Client
 
                         if (value != null)
                         {
-                            dataTypeNode.DataTypeDefinition = new ExtensionObject(attributes[Attributes.DataTypeDefinition].Value);
+                            dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
                         }
 
                         node = dataTypeNode;
