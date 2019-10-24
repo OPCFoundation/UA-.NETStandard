@@ -152,6 +152,8 @@ namespace Opc.Ua.Client
         {
             Initialize();
 
+            ValidateClientConfiguration(configuration);
+
             // save configuration information.
             m_configuration = configuration;
             m_endpoint = endpoint;
@@ -272,6 +274,38 @@ namespace Opc.Ua.Client
             m_defaultSubscription.LifetimeCount = 1000;
             m_defaultSubscription.Priority = 255;
             m_defaultSubscription.PublishingEnabled = true;
+        }
+
+        /// <summary>
+        /// Check if all required configuration fields are populated.
+        /// </summary>
+        private void ValidateClientConfiguration(ApplicationConfiguration configuration)
+        {
+            String configurationField;
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (configuration.ClientConfiguration == null)
+            {
+                configurationField = "ClientConfiguration";
+            }
+            else if (configuration.SecurityConfiguration == null)
+            {
+                configurationField = "SecurityConfiguration";
+            }
+            else if (configuration.CertificateValidator == null)
+            {
+                configurationField = "CertificateValidator";
+            }
+            else
+            {
+                return;
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadConfigurationError,
+                $"The client configuration does not specify the {configurationField}.");
         }
 
         private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
