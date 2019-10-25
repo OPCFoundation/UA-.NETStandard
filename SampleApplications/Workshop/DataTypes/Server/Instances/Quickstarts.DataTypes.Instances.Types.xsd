@@ -1,14 +1,14 @@
-<xs:schema 
+<xs:schema
   xmlns:s1="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd" 
-  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances" 
-  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances" 
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances"
+  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances"
   elementFormDefault="qualified"
 >
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
   <xs:import namespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" />
-  
+
   <xs:simpleType  name="ParkingLotType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Open_1" />
@@ -24,12 +24,29 @@
   </xs:complexType>
   <xs:element name="ListOfParkingLotType" type="tns:ListOfParkingLotType" nillable="true"></xs:element>
 
-  <xs:complexType name="BicycleType">
+  <xs:complexType name="TwoWheelerType">
     <xs:complexContent mixed="false">
       <xs:extension base="s1:VehicleType">
         <xs:sequence>
+          <xs:element name="ManufacturerName" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TwoWheelerType" type="tns:TwoWheelerType" />
+
+  <xs:complexType name="ListOfTwoWheelerType">
+    <xs:sequence>
+      <xs:element name="TwoWheelerType" type="tns:TwoWheelerType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTwoWheelerType" type="tns:ListOfTwoWheelerType" nillable="true"></xs:element>
+
+  <xs:complexType name="BicycleType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TwoWheelerType">
+        <xs:sequence>
           <xs:element name="NoOfGears" type="xs:unsignedInt" minOccurs="0" />
-          <xs:element name="ManufacterName" type="ua:QualifiedName" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -42,5 +59,23 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfBicycleType" type="tns:ListOfBicycleType" nillable="true"></xs:element>
-  
+
+  <xs:complexType name="ScooterType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TwoWheelerType">
+        <xs:sequence>
+          <xs:element name="NoOfSeats" type="xs:unsignedInt" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ScooterType" type="tns:ScooterType" />
+
+  <xs:complexType name="ListOfScooterType">
+    <xs:sequence>
+      <xs:element name="ScooterType" type="tns:ScooterType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfScooterType" type="tns:ListOfScooterType" nillable="true"></xs:element>
+
 </xs:schema>

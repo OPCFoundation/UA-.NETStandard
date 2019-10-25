@@ -91,6 +91,12 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static int GetImageIndex(uint attributeId, object value)
         {
+            // Workaround to avoid exception when accessing ImageList
+            // Original ImageStream has been removed a long time ago
+            // now there is only a single image for all types.
+            // TODO: add license free images back in
+            return 0;
+
             if (attributeId == Attributes.Value)
             {
                 TypeInfo typeInfo = TypeInfo.Construct(value);

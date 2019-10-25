@@ -1,28 +1,39 @@
 <opc:TypeDictionary
   xmlns:opc="http://opcfoundation.org/BinarySchema/"
-  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.bsd"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
   xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
   DefaultByteOrder="LittleEndian"
-  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"  
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
 >
   <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
-  
-  <opc:StructuredType Name="VehicleType">
+
+  <opc:EnumeratedType Name="EngineType" LengthInBits="32">
+    <opc:EnumeratedValue Name="Petrol" Value="1" />
+    <opc:EnumeratedValue Name="Diesel" Value="2" />
+    <opc:EnumeratedValue Name="Electric" Value="3" />
+    <opc:EnumeratedValue Name="Hybrid" Value="4" />
+    <opc:EnumeratedValue Name="Manual" Value="5" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="VehicleType" BaseType="ua:ExtensionObject">
     <opc:Field Name="Make" TypeName="opc:String" />
     <opc:Field Name="Model" TypeName="opc:String" />
+    <opc:Field Name="Engine" TypeName="tns:EngineType" />
   </opc:StructuredType>
 
-  <opc:StructuredType Name="CarType">
-    <opc:Field Name="Make" TypeName="opc:String" />
-    <opc:Field Name="Model" TypeName="opc:String" />
+  <opc:StructuredType Name="CarType" BaseType="tns:VehicleType">
+    <opc:Field Name="Make" TypeName="opc:String" SourceType="tns:VehicleType" />
+    <opc:Field Name="Model" TypeName="opc:String" SourceType="tns:VehicleType" />
+    <opc:Field Name="Engine" TypeName="tns:EngineType" SourceType="tns:VehicleType" />
     <opc:Field Name="NoOfPassengers" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
-  <opc:StructuredType Name="TruckType">
-    <opc:Field Name="Make" TypeName="opc:String" />
-    <opc:Field Name="Model" TypeName="opc:String" />
+  <opc:StructuredType Name="TruckType" BaseType="tns:VehicleType">
+    <opc:Field Name="Make" TypeName="opc:String" SourceType="tns:VehicleType" />
+    <opc:Field Name="Model" TypeName="opc:String" SourceType="tns:VehicleType" />
+    <opc:Field Name="Engine" TypeName="tns:EngineType" SourceType="tns:VehicleType" />
     <opc:Field Name="CargoCapacity" TypeName="opc:UInt32" />
   </opc:StructuredType>
-  
+
 </opc:TypeDictionary>

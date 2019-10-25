@@ -21,18 +21,33 @@
       <opc:Field Name="Covered" Identifier="2"></opc:Field>
     </opc:Fields>
   </opc:DataType>
-  
-  <opc:DataType SymbolicName="BicycleType" BaseType="s0:VehicleType">
+
+  <opc:DataType SymbolicName="TwoWheelerType" BaseType="s0:VehicleType">
     <opc:Fields>
-      <opc:Field Name="NoOfGears" DataType="ua:UInt32"></opc:Field>
-      <opc:Field Name="ManufacterName" DataType="ua:QualifiedName"></opc:Field>  
+      <opc:Field Name="ManufacturerName" DataType="ua:String"></opc:Field>
     </opc:Fields>
   </opc:DataType>
-  
+
+  <opc:DataType SymbolicName="BicycleType" BaseType="TwoWheelerType">
+    <opc:Fields>
+      <opc:Field Name="NoOfGears" DataType="ua:UInt32"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ScooterType" BaseType="TwoWheelerType">
+    <opc:Fields>
+      <opc:Field Name="NoOfSeats" DataType="ua:UInt32"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
   <opc:Object SymbolicName="ParkingLot">
     <opc:Children>
-      <opc:Property SymbolicName="LotType" DataType="ParkingLotType" AccessLevel="ReadWrite"></opc:Property>
-        <opc:Object SymbolicName="DriverOfTheMonth" TypeDefinition="s0:DriverType">
+      <opc:Property SymbolicName="LotType" DataType="ParkingLotType" AccessLevel="ReadWrite">
+        <opc:DefaultValue>
+          <uax:Int32>2</uax:Int32>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Object SymbolicName="DriverOfTheMonth" TypeDefinition="s0:DriverType">
         <opc:Children>
           <opc:Property SymbolicName="s0:PrimaryVehicle">
             <opc:DefaultValue>
@@ -41,19 +56,74 @@
                   <BicycleType>
                     <s0:Make>Trek</s0:Make>
                     <s0:Model>Compact</s0:Model>
+                    <s0:Engine>Manual_5</s0:Engine>
+                    <ManufacturerName>Cube</ManufacturerName>
                     <NoOfGears>10</NoOfGears>
-                    <ManufacterName>
-                      <uax:NamespaceIndex>1</uax:NamespaceIndex>
-                      <uax:Name>Hello</uax:Name>
-                    </ManufacterName>
                   </BicycleType>
                 </uax:Body>
               </uax:ExtensionObject>
-            </opc:DefaultValue>            
+            </opc:DefaultValue>
           </opc:Property>
         </opc:Children>
       </opc:Object>
-      <opc:Variable SymbolicName="VehiclesInLot" DataType="s0:VehicleType" ValueRank="Array"  AccessLevel="ReadWrite"></opc:Variable>
+      <opc:Variable SymbolicName="VehiclesInLot" DataType="s0:VehicleType" ValueRank="Array"  AccessLevel="ReadWrite">
+        <opc:DefaultValue>
+          <uax:ListOfExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <s0:TruckType>
+                  <s0:Make>Dodge</s0:Make>
+                  <s0:Model>Ram</s0:Model>
+                  <s0:Engine>Diesel_2</s0:Engine>
+                  <s0:CargoCapacity>500</s0:CargoCapacity>
+                </s0:TruckType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <s0:VehicleType xsi:type="s0:CarType">
+                  <s0:Make>Porsche</s0:Make>
+                  <s0:Model>Roadster</s0:Model>
+                  <s0:Engine>Petrol_1</s0:Engine>
+                  <s0:NoOfPassengers>2</s0:NoOfPassengers>
+                </s0:VehicleType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <s0:VehicleType xsi:type="s0:CarType">
+                  <s0:Make>Tesla</s0:Make>
+                  <s0:Model>Model X</s0:Model>
+                  <s0:Engine>Electric_3</s0:Engine>
+                  <s0:NoOfPassengers>4</s0:NoOfPassengers>
+                </s0:VehicleType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <BicycleType>
+                  <s0:Make>Giant</s0:Make>
+                  <s0:Model>Cruiser</s0:Model>
+                  <s0:Engine>Manual_5</s0:Engine>
+                  <ManufacturerName>Canyon</ManufacturerName>
+                  <NoOfGears>18</NoOfGears>
+                </BicycleType>
+              </uax:Body>
+            </uax:ExtensionObject>
+            <uax:ExtensionObject>
+              <uax:Body>
+                <ScooterType>
+                  <s0:Make>Lucky</s0:Make>
+                  <s0:Model>Pro Kick</s0:Model>
+                  <s0:Engine>Electric_3</s0:Engine>
+                  <ManufacturerName>Dafra</ManufacturerName>
+                  <NoOfSeats>1</NoOfSeats>
+                </ScooterType>
+              </uax:Body>
+            </uax:ExtensionObject>
+          </uax:ListOfExtensionObject>
+        </opc:DefaultValue>
+      </opc:Variable>
     </opc:Children>
     <opc:References>
       <opc:Reference IsInverse="true">
@@ -62,5 +132,5 @@
       </opc:Reference>
     </opc:References>
   </opc:Object>
-    
+
 </opc:ModelDesign>
