@@ -676,7 +676,7 @@ namespace Opc.Ua.Bindings
                     {
                         // avoid a stack overflow due to recursion
 #if !NETSTANDARD1_4 && !NETSTANDARD1_3
-                        StackTrace stackTrace = new StackTrace();
+                        StackTrace stackTrace = new StackTrace(false);
                         if(stackTrace.FrameCount > ServiceMessageContext.GlobalContext.MaxEncodingNestingLevels)
                         {
 #endif
