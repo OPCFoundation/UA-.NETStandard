@@ -790,8 +790,8 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-#endregion
-#region Write Handling
+        #endregion
+        #region Write Handling
         /// <summary>
         /// Sends a buffer.
         /// </summary>
@@ -809,14 +809,14 @@ namespace Opc.Ua.Bindings
             eventArgs.m_args.SocketError = SocketError.NotConnected;
             return m_socket.SendAsync(eventArgs.m_args);
         }
-#endregion
-#region Event factory
+        #endregion
+        #region Event factory
         public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
         {
             return new TcpMessageSocketAsyncEventArgs();
         }
-#endregion
-#region Private Fields
+        #endregion
+        #region Private Fields
         private IMessageSink m_sink;
         private BufferManager m_bufferManager;
         private int m_receiveBufferSize;
@@ -833,6 +833,6 @@ namespace Opc.Ua.Bindings
         private int m_bytesReceived;
         private int m_bytesToReceive;
         private int m_incomingMessageSize;
-#endregion
+        #endregion
     }
 }
