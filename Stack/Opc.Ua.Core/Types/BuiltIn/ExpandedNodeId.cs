@@ -754,7 +754,7 @@ namespace Opc.Ua
 			}
 
             // just compare node ids.
-            if (String.IsNullOrEmpty(m_namespaceUri))
+            if (!this.IsAbsolute)
             {
                 if (this.m_nodeId != null)
                 {
