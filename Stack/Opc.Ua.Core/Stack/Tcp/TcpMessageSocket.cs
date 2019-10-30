@@ -654,7 +654,6 @@ namespace Opc.Ua.Bindings
                 {
                     return;
                 }
-
             }
 
             BufferManager.LockBuffer(m_receiveBuffer);
@@ -674,24 +673,8 @@ namespace Opc.Ua.Bindings
                     }
                     else
                     {
-                        // avoid a stack overflow due to recursion
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
-                        StackTrace stackTrace = new StackTrace(false);
-                        if(stackTrace.FrameCount > ServiceMessageContext.GlobalContext.MaxEncodingNestingLevels)
-                        {
-#endif
-                            Task.Run(() =>
-                            {
-                                m_ReadComplete(null, args);
-                            });
-
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
-                        }
-                        else
-                        {
-                            m_ReadComplete(null, args);
-                        }
-#endif
+                        // avoid recursive calls
+                        Task.Run(() => m_ReadComplete(null, args));
                     }
                 }
             }
