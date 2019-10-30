@@ -33,6 +33,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -306,6 +307,9 @@ namespace Opc.Ua.Client.Controls
 
             // raise an event.
             DoConnectComplete(null);
+
+            var typeSystemLoader = new ComplexTypeSystem(m_session);
+            await typeSystemLoader.Load();
 
             // return the new session.
             return m_session;
