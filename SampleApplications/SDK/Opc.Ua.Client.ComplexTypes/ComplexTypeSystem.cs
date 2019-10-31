@@ -138,93 +138,100 @@ namespace Opc.Ua.Client.ComplexTypes
             // create custom types for all dictionaries
             foreach (var dictionaryId in typeSystem)
             {
-                var dictionary = dictionaryId.Value;
-                var structureList = new List<Schema.Binary.TypeDescription>();
-                var enumList = new List<Opc.Ua.Schema.Binary.TypeDescription>();
-
-                // split into enumeration and structure types and sort
-                // types with dependencies to the end of the list.
-                SplitAndSortDictionary(dictionary, structureList, enumList);
-
-                // create assembly for all types in the same namespace
-                var complexTypeBuilder = new ComplexTypeBuilder(
-                    dictionary.TypeDictionary.TargetNamespace,
-                    m_session.NamespaceUris.GetIndex(dictionary.TypeDictionary.TargetNamespace));
-
-                // Add all unknown enumeration types 
-                AddEnumTypes(complexTypeBuilder, enumList, serverEnumTypes);
-
-                // build structured types
-                foreach (var item in structureList)
+                try
                 {
-                    var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
-                    if (structuredObject != null)
+                    var dictionary = dictionaryId.Value;
+                    var structureList = new List<Schema.Binary.TypeDescription>();
+                    var enumList = new List<Opc.Ua.Schema.Binary.TypeDescription>();
+
+                    // split into enumeration and structure types and sort
+                    // types with dependencies to the end of the list.
+                    SplitAndSortDictionary(dictionary, structureList, enumList);
+
+                    // create assembly for all types in the same namespace
+                    var complexTypeBuilder = new ComplexTypeBuilder(
+                        dictionary.TypeDictionary.TargetNamespace,
+                        m_session.NamespaceUris.GetIndex(dictionary.TypeDictionary.TargetNamespace));
+
+                    // Add all unknown enumeration types 
+                    AddEnumTypes(complexTypeBuilder, enumList, serverEnumTypes);
+
+                    // build structured types
+                    foreach (var item in structureList)
                     {
-                        var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
-
-                        // find the data type node and the binary encoding id
-                        ExpandedNodeId typeId;
-                        ExpandedNodeId binaryEncodingId;
-                        DataTypeNode dataTypeNode;
-                        bool newTypeDescription = BrowseTypeIdsForDictionaryComponent(
-                            ExpandedNodeId.ToNodeId(nodeId.NodeId, m_session.NamespaceUris),
-                            out typeId,
-                            out binaryEncodingId,
-                            out dataTypeNode);
-
-                        if (!newTypeDescription)
+                        var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
+                        if (structuredObject != null)
                         {
-                            Utils.TraceDebug($"Skip the type definition of {item.Name} because the data type node was not found.");
-                            continue;
-                        }
+                            var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
 
-                        if (GetSystemType(typeId) != null)
-                        {
-                            Utils.TraceDebug($"Skip the type definition of {item.Name} because the type already exists.");
-                            continue;
-                        }
+                            // find the data type node and the binary encoding id
+                            ExpandedNodeId typeId;
+                            ExpandedNodeId binaryEncodingId;
+                            DataTypeNode dataTypeNode;
+                            bool newTypeDescription = BrowseTypeIdsForDictionaryComponent(
+                                ExpandedNodeId.ToNodeId(nodeId.NodeId, m_session.NamespaceUris),
+                                out typeId,
+                                out binaryEncodingId,
+                                out dataTypeNode);
 
-                        // Use DataTypeDefinition attribute, if available (>=V1.04)
-                        StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
-                        if (structureDefinition == null)
-                        {
-                            try
+                            if (!newTypeDescription)
                             {
-                                // convert the binary schema description to a StructureDefinition
-                                structureDefinition = structuredObject.ToStructureDefinition(
-                                    binaryEncodingId,
-                                    allTypes,
-                                    m_session.NamespaceUris);
-                            }
-                            catch (ServiceResultException sre)
-                            {
-                                Utils.TraceDebug($"Skip the type definition of {item.Name}. Error: {sre.Message}");
+                                Utils.TraceDebug($"Skip the type definition of {item.Name} because the data type node was not found.");
                                 continue;
                             }
-                        }
 
-                        Type complexType = null;
-                        if (structureDefinition != null)
-                        {
-                            // build the actual structured type in an assembly
-                            complexType = AddStructuredType(
-                                complexTypeBuilder,
-                                structureDefinition,
-                                dataTypeNode.BrowseName.Name);
-
-                            // Add new type to factory
-                            if (complexType != null)
+                            if (GetSystemType(typeId) != null)
                             {
-                                AddEncodeableType(binaryEncodingId, complexType);
-                                AddEncodeableType(typeId, complexType);
+                                Utils.TraceDebug($"Skip the type definition of {item.Name} because the type already exists.");
+                                continue;
+                            }
+
+                            // Use DataTypeDefinition attribute, if available (>=V1.04)
+                            StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                            if (structureDefinition == null)
+                            {
+                                try
+                                {
+                                    // convert the binary schema description to a StructureDefinition
+                                    structureDefinition = structuredObject.ToStructureDefinition(
+                                        binaryEncodingId,
+                                        allTypes,
+                                        m_session.NamespaceUris);
+                                }
+                                catch (ServiceResultException sre)
+                                {
+                                    Utils.TraceDebug($"Skip the type definition of {item.Name}. Error: {sre.Message}");
+                                    continue;
+                                }
+                            }
+
+                            Type complexType = null;
+                            if (structureDefinition != null)
+                            {
+                                // build the actual structured type in an assembly
+                                complexType = AddStructuredType(
+                                    complexTypeBuilder,
+                                    structureDefinition,
+                                    dataTypeNode.BrowseName.Name);
+
+                                // Add new type to factory
+                                if (complexType != null)
+                                {
+                                    AddEncodeableType(binaryEncodingId, complexType);
+                                    AddEncodeableType(typeId, complexType);
+                                }
+                            }
+
+                            if (complexType == null)
+                            {
+                                Utils.TraceDebug($"Warning: Skipped the type definition of {item.Name}.");
                             }
                         }
-
-                        if (complexType == null)
-                        {
-                            Utils.TraceDebug($"Warning: Skipped the type definition of {item.Name}.");
-                        }
                     }
+                } catch (ServiceResultException sre)
+                {
+                    Utils.TraceDebug(
+                        $"Warning: Unexpected error processing {dictionaryId.Value.Name}: {sre.Message}.");
                 }
             }
         }
@@ -733,9 +740,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     enumList.Add(item);
                 }
+                else if (item is Opc.Ua.Schema.Binary.OpaqueType)
+                {
+                    // TODO
+                }
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Unexpected Type in binary schema.");
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError, $"Unexpected Type in binary schema: {item.GetType().Name}.");
                 }
             }
         }

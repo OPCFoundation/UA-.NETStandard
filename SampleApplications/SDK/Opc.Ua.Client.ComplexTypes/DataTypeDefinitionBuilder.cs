@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (lastField.Name != field.LengthField)
                     {
                         throw new ServiceResultException(StatusCodes.BadNotSupported,
-                            "Length and type fields of arrays must be consecutive. The length field must precede the type field.");
+                            "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
                     lastField.DataType = field.TypeName.ToNodeId(typeDictionary, namespaceTable);
@@ -245,11 +245,18 @@ namespace Opc.Ua.Client.ComplexTypes
             if (typeName.Namespace == Namespaces.OpcBinarySchema ||
                 typeName.Namespace == Namespaces.OpcUa)
             {
-                if (typeName.Name == "CharArray")
+                switch (typeName.Name)
                 {
-                    typeName = new System.Xml.XmlQualifiedName("String", typeName.Namespace);
+                    case "CharArray": return DataTypeIds.String;
+                    case "Variant": return DataTypeIds.BaseDataType;
+                    case "ExtensionObject": return DataTypeIds.Structure;
                 }
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
+                if (internalField == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
+                        $"The type {typeName.Name} was not found in the internal type factory.");
+                }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
             else
@@ -261,8 +268,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     // TODO: servers may have multiple dictionaries with different
                     // target namespace but types are stored for all in the same namespace.
+                    // Find a way to find the right namespace here
                     referenceId = typeCollection.Where(t =>
                         t.DisplayName == typeName.Name).FirstOrDefault();
+                    if (referenceId == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
+                            $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
+                    }
                 }
                 return ExpandedNodeId.ToNodeId(referenceId.NodeId, namespaceTable);
             }
