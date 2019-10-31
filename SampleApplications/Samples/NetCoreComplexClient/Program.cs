@@ -238,6 +238,12 @@ namespace NetCoreConsoleClient
             var complexTypeSystem = new ComplexTypeSystem(session);
             await complexTypeSystem.Load();
 
+            Console.WriteLine($"Defined types:");
+            foreach (var type in complexTypeSystem.GetDefinedTypes())
+            {
+                Console.WriteLine($"{type.Namespace}.{type.Name}");
+            }
+
             Console.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
             foreach (var dictionary in session.DataTypeSystem)
             {

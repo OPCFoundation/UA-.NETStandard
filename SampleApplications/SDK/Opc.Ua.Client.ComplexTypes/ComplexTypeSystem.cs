@@ -112,6 +112,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.TraceDebug($"Failed to load the custom type dictionary: {sre.Message}.");
             }
         }
+
+        /// <summary>
+        /// Get the types defined in this type system.
+        /// </summary>
+        public Type[] GetDefinedTypes()
+        {
+            return m_assemblyModuleFactory.GetTypes();
+        }
         #endregion
 
         #region Private Members
