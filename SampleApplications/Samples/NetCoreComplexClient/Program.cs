@@ -52,6 +52,7 @@ namespace NetCoreConsoleClient
         ErrorMonitoredItem = 0x16,
         ErrorAddSubscription = 0x17,
         ErrorRunning = 0x18,
+        ErrorLoadTypeDictionary = 0x19,
         ErrorNoKeepAlive = 0x30,
         ErrorInvalidCommandLine = 0x100
     };
@@ -187,7 +188,7 @@ namespace NetCoreConsoleClient
 
             ApplicationInstance application = new ApplicationInstance
             {
-                ApplicationName = "UA Core Sample Client",
+                ApplicationName = "UA Core Complex Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ComplexClient"
             };
@@ -231,177 +232,25 @@ namespace NetCoreConsoleClient
             // register keep alive handler
             session.KeepAlive += Client_KeepAlive;
 
-            Console.WriteLine("4 - Browse the OPC UA data dictionary.");
-            exitCode = ExitCode.ErrorBrowseNamespace;
-            ReferenceDescriptionCollection references;
-            Byte[] continuationPoint;
-
-            session.Browse(
-                null,
-                null,
-                DataTypeIds.Enumeration,
-                0u,
-                BrowseDirection.Forward,
-                ReferenceTypeIds.HasSubtype,
-                false,
-                (uint)NodeClass.DataType,
-                out continuationPoint,
-                out references);
+            Console.WriteLine("4 - Load the server type dictionary.");
+            exitCode = ExitCode.ErrorLoadTypeDictionary;
 
             var complexTypeSystem = new ComplexTypeSystem(session);
             await complexTypeSystem.Load();
 
-            var nodes = new List<Node>();
-            var values = new List<DataValue>();
-
-            // UA Ansi C++ server
-            var testId = new NodeId("Demo.Static.Scalar.Structures", 2);
-            if (TestNodeId(testId))
+            Console.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
+            foreach (var dictionary in session.DataTypeSystem)
             {
-                session.Browse(
-                    null,
-                    null,
-                    testId,
-                    0u,
-                    BrowseDirection.Forward,
-                    ReferenceTypeIds.HierarchicalReferences,
-                    true,
-                    (uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-                    out continuationPoint,
-                    out references);
-
-                foreach (var reference in references)
+                Console.WriteLine($" + {dictionary.Value.Name}");
+                foreach (var type in dictionary.Value.DataTypes)
                 {
-                    var node = session.ReadNode(ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris));
-                    nodes.Add(node);
-                    Console.WriteLine($"{node.BrowseName}");
-                    try
-                    {
-                        var nodeValue = session.ReadValue(ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris));
-                        values.Add(nodeValue);
-                        Console.WriteLine($"{nodeValue.Value}");
-                    }
-                    catch { }
+                    Console.WriteLine($" -- {type.Key}:{type.Value}");
                 }
-
-                var vectorNodeId = new NodeId("Demo.Static.Arrays.Vector", 2);
-                var vectorNode = session.ReadNode(vectorNodeId);
-                var vectorValue = session.ReadValue(vectorNodeId);
-
-                var workOrderNodeId = new NodeId("Demo.Static.Arrays.WorkOrder", 2);
-                var workOrderNode = session.ReadNode(workOrderNodeId);
-                var workOrderValue = session.ReadValue(workOrderNodeId);
-
-                var workOrderVarNodeId = new NodeId("Demo.WorkOrder.WorkOrderVariable", 2);
-                var workOrderVarNode = session.ReadNode(workOrderVarNodeId);
-                var workOrderVarValue = session.ReadValue(workOrderVarNodeId);
-
-                var workOrderVarNodeId2 = new NodeId("Demo.WorkOrder.WorkOrderVariable2", 2);
-                var workOrderVarNode2 = session.ReadNode(workOrderVarNodeId2);
-                var workOrderVarValue2 = session.ReadValue(workOrderVarNodeId2);
-
-                nodes.Add(vectorNode);
-                nodes.Add(workOrderNode);
-                nodes.Add(workOrderVarNode);
-                nodes.Add(workOrderVarNode2);
-
-                values.Add(vectorValue);
-                values.Add(workOrderValue);
-                values.Add(workOrderVarValue);
-                values.Add(workOrderVarValue2);
-
             }
 
-            // UA Ansi C server
-            if (TestNodeId(new NodeId("Demo.WorkOrder.WorkOrderVariable2.StatusComments", 4)))
-            {
-                // WorkOrderStatusType
-                var workOrderNodeId = new NodeId("Demo.WorkOrder.WorkOrderVariable2.StatusComments", 4);
-                var statusCommentNodeId = session.ReadNode(workOrderNodeId);
-                var statusComment = session.ReadValue(workOrderNodeId);
-
-                //workOrderNodeId = new NodeId("Demo.WorkOrder.WorkOrderVariable", 4);
-                //var workOrder = session.ReadNode(workOrderNodeId);
-                //var workOrderValue = session.ReadValue(workOrderNodeId);
-
-                // Vector
-                var nodeId = new NodeId("Demo.Static.Scalar.Vector", 4);
-                var vector = session.ReadNode(nodeId);
-                var vectorValue = session.ReadValue(nodeId);
-
-                // Work Order
-                nodeId = new NodeId("Demo.Static.Scalar.WorkOrder", 4);
-                var workOrder = session.ReadNode(nodeId);
-                var workOrderValue = session.ReadValue(nodeId);
-
-                // Union
-                nodeId = new NodeId("Demo.Static.Scalar.Union", 4);
-                var union = session.ReadNode(nodeId);
-                var unionValue = session.ReadValue(nodeId);
-
-                nodeId = new NodeId("Demo.Static.Arrays.Vector", 4);
-                var vectorArray = session.ReadNode(nodeId);
-                var vectorArrayValue = session.ReadValue(nodeId);
-
-                nodeId = new NodeId("Demo.Static.Matrix.Vector", 4);
-                var vectorMatrix = session.ReadNode(nodeId);
-                var vectorMatrixValue = session.ReadValue(nodeId);
-
-                nodeId = new NodeId("Demo.Static.Scalar.OptionalFields", 4);
-                var optionalFields = session.ReadNode(nodeId);
-                var optionalFieldsValue = session.ReadValue(nodeId);
-
-                nodeId = new NodeId("Demo.Static.Scalar.Priority", 4);
-                var priority = session.ReadNode(nodeId);
-                var priorityValue = session.ReadValue(nodeId);
-
-                nodeId = new NodeId("Demo.BoilerDemo.Boiler1.HeaterStatus", 4);
-                var heater = session.ReadNode(nodeId);
-                var heaterValue = session.ReadValue(nodeId);
-
-                // AccessRights
-                nodeId = new NodeId("Demo.Static.Scalar.OptionSet", 4);
-                var optionSet = session.ReadNode(nodeId);
-                var optionSetValue = session.ReadValue(nodeId);
-
-                // structure
-                nodeId = new NodeId("Demo.Static.Scalar.Structure", 4);
-                var node = session.ReadNode(nodeId);
-                var value = session.ReadValue(nodeId);
-            }
-
-            // Quickstart DataTypes server
-            if (TestNodeId(new NodeId(283, 4)))
-            {
-                // read various nodes...
-                var vehiclesInLotNode = session.ReadNode(new NodeId(283, 4));
-                var parkingLotNode = session.ReadNode(new NodeId(281, 4));
-
-                //var vehiclesInLot = session.ReadValue(new NodeId(283, 4));
-                var lotTypeNodeId = session.ReadNode(new NodeId(380, 4));
-                var lotType = session.ReadValue(new NodeId(380, 4));
-                var ownedVehiclesNodeId = session.ReadNode(new NodeId(377, 4));
-                var ownedVehicles = session.ReadValue(new NodeId(377, 4));
-                Console.WriteLine(ownedVehicles);
-                var primaryVehicleNode = session.ReadNode(new NodeId(376, 4));
-                var primaryVehicle = session.ReadValue(new NodeId(376, 4));
-                Console.WriteLine(primaryVehicle);
-                var vehiclesInLot = session.ReadValue(new NodeId(283, 4));
-                Console.WriteLine(vehiclesInLot);
-            }
-
-            var jsonEncoder = new JsonEncoder(session.MessageContext, true);
-
-            int v = 1;
-            foreach (var value in values)
-            {
-                jsonEncoder.WriteDataValue($"Value{v++}", value);
-            }
-            var textbuffer = jsonEncoder.CloseAndReturnText();
-
-            Console.WriteLine(textbuffer);
-
-            Console.WriteLine("4 - Browse the OPC UA server namespace.");
+            ReferenceDescriptionCollection references;
+            Byte[] continuationPoint;
+            Console.WriteLine("5 - Browse the OPC UA server namespace.");
             exitCode = ExitCode.ErrorBrowseNamespace;
 
             session.Browse(
@@ -440,11 +289,11 @@ namespace NetCoreConsoleClient
                 }
             }
 
-            Console.WriteLine("5 - Create a subscription with publishing interval of 1 second.");
+            Console.WriteLine("6 - Create a subscription with publishing interval of 1 second.");
             exitCode = ExitCode.ErrorCreateSubscription;
             var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
 
-            Console.WriteLine("6 - Add a list of items (server current time and status) to the subscription.");
+            Console.WriteLine("7 - Add a list of items (server current time and status) to the subscription.");
             exitCode = ExitCode.ErrorMonitoredItem;
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
@@ -455,12 +304,12 @@ namespace NetCoreConsoleClient
             list.ForEach(i => i.Notification += OnNotification);
             subscription.AddItems(list);
 
-            Console.WriteLine("7 - Add the subscription to the session.");
+            Console.WriteLine("8 - Add the subscription to the session.");
             exitCode = ExitCode.ErrorAddSubscription;
             session.AddSubscription(subscription);
             subscription.Create();
 
-            Console.WriteLine("8 - Running...Press Ctrl-C to exit...");
+            Console.WriteLine("9 - Running...Press Ctrl-C to exit...");
             exitCode = ExitCode.ErrorRunning;
         }
 
