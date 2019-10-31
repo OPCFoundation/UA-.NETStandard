@@ -4,9 +4,9 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
   schemaLocation="./Schema/ApplicationConfiguration.xsd"
 >
-  <ApplicationName>UA Core Sample Client</ApplicationName>
-  <ApplicationUri>urn:localhost:OPCFoundation:CoreSampleClient</ApplicationUri>
-  <ProductUri>http://opcfoundation.org/UA/CoreSampleClient</ProductUri>
+  <ApplicationName>UA Core Complex Client</ApplicationName>
+  <ApplicationUri>urn:localhost:OPCFoundation:CoreComplexClient</ApplicationUri>
+  <ProductUri>http://opcfoundation.org/UA/CoreComplexClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
 
   <SecurityConfiguration>
@@ -15,7 +15,7 @@
     <ApplicationCertificate>
       <StoreType>X509Store</StoreType>
       <StorePath>CurrentUser\My</StorePath>
-      <SubjectName>CN=UA Core Sample Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <SubjectName>CN=UA Core Complex Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -77,7 +77,7 @@
   </ClientConfiguration>
   
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.CoreSampleClient.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/Logs/Opc.Ua.CoreComplexClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
