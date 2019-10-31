@@ -29,6 +29,7 @@
 
 
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -46,20 +47,15 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the object with default values.
         /// </summary>
         public ComplexTypeBuilder(
+            AssemblyModuleFactory moduleFactory,
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null,
-            string assemblyName = null)
+            string moduleName = null)
         {
             m_targetNamespace = targetNamespace;
             m_targetNamespaceIndex = targetNamespaceIndex;
-            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()), AssemblyBuilderAccess.Run);
-            var moduleBuilder = assemblyBuilder.GetDynamicModule(moduleName ?? m_opcTypesModuleName);
-            if (moduleBuilder == null)
-            {
-                moduleBuilder = assemblyBuilder.DefineDynamicModule(moduleName ?? m_opcTypesModuleName);
-            }
-            m_moduleBuilder = moduleBuilder;
+            m_moduleName = FindModuleName(moduleName, targetNamespace, targetNamespaceIndex);
+            m_moduleBuilder = moduleFactory.GetModuleBuilder();
         }
         #endregion
 
@@ -77,7 +73,10 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(enumeratedType));
             }
-            var enumBuilder = m_moduleBuilder.DefineEnum(enumeratedType.Name, TypeAttributes.Public, typeof(int));
+            var enumBuilder = m_moduleBuilder.DefineEnum(
+                GetFullQualifiedTypeName(enumeratedType.Name),
+                TypeAttributes.Public, 
+                typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var enumValue in enumeratedType.EnumeratedValue)
             {
@@ -99,7 +98,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(typeDefinition));
             }
 
-            var enumBuilder = m_moduleBuilder.DefineEnum(typeName, TypeAttributes.Public, typeof(int));
+            var enumBuilder = m_moduleBuilder.DefineEnum(
+                GetFullQualifiedTypeName(typeName),
+                TypeAttributes.Public, 
+                typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var enumValue in enumDefinition.Fields)
             {
@@ -120,7 +122,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(enumDefinition));
             }
 
-            var enumBuilder = m_moduleBuilder.DefineEnum(typeName, TypeAttributes.Public, typeof(int));
+            var enumBuilder = m_moduleBuilder.DefineEnum(
+                GetFullQualifiedTypeName(typeName),
+                TypeAttributes.Public, 
+                typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var extensionObject in enumDefinition)
             {
@@ -143,7 +148,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(enumDefinition));
             }
 
-            var enumBuilder = m_moduleBuilder.DefineEnum(typeName, TypeAttributes.Public, typeof(int));
+            var enumBuilder = m_moduleBuilder.DefineEnum(
+                GetFullQualifiedTypeName(typeName),
+                TypeAttributes.Public,
+                typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             int value = 1;
             foreach (var enumValue in enumDefinition)
@@ -168,7 +176,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(structureDefinition));
             }
-            var structureBuilder = m_moduleBuilder.DefineType(name,
+            var structureBuilder = m_moduleBuilder.DefineType(
+                GetFullQualifiedTypeName(name),
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
                 typeof(BaseComplexType));
             structureBuilder.DataContractAttribute(m_targetNamespace);
@@ -177,10 +186,30 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion
 
+        #region Private Members
+        private string FindModuleName(string moduleName, string targetNamespace, int targetNamespaceIndex)
+        {
+            if (String.IsNullOrWhiteSpace(moduleName))
+            {
+                Uri uri = new Uri(targetNamespace);
+                string tempName = uri.AbsolutePath;
+                tempName = tempName.Replace("/", "");
+                var splitName = tempName.Split(':');
+                moduleName = splitName.Last();
+            }
+            return moduleName;
+        }
+
+        private string GetFullQualifiedTypeName(string name)
+        {
+            return "Opc.Ua.ComplexTypes." + m_moduleName + "." + name;
+        }
+        #endregion
+
         #region Private Fields
-        private const string m_opcTypesModuleName = "Opc.Ua.ComplexType.Assembly";
         private ModuleBuilder m_moduleBuilder;
         private string m_targetNamespace;
+        private string m_moduleName;
         private int m_targetNamespaceIndex;
         #endregion
     }
