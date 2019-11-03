@@ -35,6 +35,7 @@ using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -142,9 +143,11 @@ namespace NetCoreConsoleClient
 
         public void Run()
         {
+            Session session;
+
             try
             {
-                ConsoleSampleClient().Wait();
+                session = ConsoleSampleClient().Result;
             }
             catch (Exception ex)
             {
@@ -166,6 +169,14 @@ namespace NetCoreConsoleClient
             {
             }
 
+            bool eventResult = quitEvent.WaitOne(5000);
+            if (!eventResult)
+            {
+                Console.WriteLine(" --- Start simulated reconnect... --- ");
+                reconnectHandler = new SessionReconnectHandler();
+                reconnectHandler.BeginReconnect(session, 1000, Client_ReconnectComplete);
+            }
+
             // wait for timeout or Ctrl-C
             quitEvent.WaitOne(clientRunTime);
 
@@ -181,7 +192,7 @@ namespace NetCoreConsoleClient
 
         public static ExitCode ExitCode => exitCode;
 
-        private async Task ConsoleSampleClient()
+        private async Task<Session> ConsoleSampleClient()
         {
             Console.WriteLine("1 - Create an Application Configuration.");
             exitCode = ExitCode.ErrorCreateApplication;
@@ -238,7 +249,7 @@ namespace NetCoreConsoleClient
             var complexTypeSystem = new ComplexTypeSystem(session);
             await complexTypeSystem.Load();
 
-            Console.WriteLine($"Defined types:");
+            Console.WriteLine($"Custom types defined for this session:");
             foreach (var type in complexTypeSystem.GetDefinedTypes())
             {
                 Console.WriteLine($"{type.Namespace}.{type.Name}");
@@ -254,52 +265,22 @@ namespace NetCoreConsoleClient
                 }
             }
 
-            ReferenceDescriptionCollection references;
-            Byte[] continuationPoint;
-            Console.WriteLine("5 - Browse the OPC UA server namespace.");
-            exitCode = ExitCode.ErrorBrowseNamespace;
+            Console.WriteLine("5 - Read all custom type values.");
+            var allVariableNodes = BrowseAllVariables(session);
+            var allStructures = allVariableNodes.Where(n => ((VariableNode)n).DataType == DataTypeIds.Structure).ToList();
+            var allCustomTypeVariables = allVariableNodes.Where(n => ((VariableNode)n).DataType.NamespaceIndex != 0).ToList();
 
-            session.Browse(
-                null,
-                null,
-                ObjectIds.ObjectsFolder,
-                0u,
-                BrowseDirection.Forward,
-                ReferenceTypeIds.HierarchicalReferences,
-                true,
-                (uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-                out continuationPoint,
-                out references);
-
-            Console.WriteLine(" DisplayName, BrowseName, NodeClass");
-            foreach (var rd in references)
+            foreach (VariableNode variableNode in allCustomTypeVariables)
             {
-                Console.WriteLine(" {0}, {1}, {2}", rd.DisplayName, rd.BrowseName, rd.NodeClass);
-                ReferenceDescriptionCollection nextRefs;
-                byte[] nextCp;
-                session.Browse(
-                    null,
-                    null,
-                    ExpandedNodeId.ToNodeId(rd.NodeId, session.NamespaceUris),
-                    0u,
-                    BrowseDirection.Forward,
-                    ReferenceTypeIds.HierarchicalReferences,
-                    true,
-                    (uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-                    out nextCp,
-                    out nextRefs);
-
-                foreach (var nextRd in nextRefs)
-                {
-                    Console.WriteLine("   + {0}, {1}, {2}", nextRd.DisplayName, nextRd.BrowseName, nextRd.NodeClass);
-                }
+                var value = session.ReadValue(variableNode.NodeId);
+                Console.WriteLine($" -- {variableNode}:{value}");
             }
 
             Console.WriteLine("6 - Create a subscription with publishing interval of 1 second.");
             exitCode = ExitCode.ErrorCreateSubscription;
             var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
 
-            Console.WriteLine("7 - Add a list of items (server current time and status) to the subscription.");
+            Console.WriteLine("7 - Add all custom values and the server time to the subscription.");
             exitCode = ExitCode.ErrorMonitoredItem;
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
@@ -308,6 +289,18 @@ namespace NetCoreConsoleClient
                 }
             };
             list.ForEach(i => i.Notification += OnNotification);
+
+            foreach (var customVariable in allCustomTypeVariables)
+            {
+                var newItem = new MonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = customVariable.DisplayName.Text,
+                    StartNodeId = ExpandedNodeId.ToNodeId(customVariable.NodeId, session.NamespaceUris)
+                };
+                newItem.Notification += OnComplexTypeNotification;
+                list.Add(newItem);
+            }
+
             subscription.AddItems(list);
 
             Console.WriteLine("8 - Add the subscription to the session.");
@@ -317,6 +310,40 @@ namespace NetCoreConsoleClient
 
             Console.WriteLine("9 - Running...Press Ctrl-C to exit...");
             exitCode = ExitCode.ErrorRunning;
+
+            return session;
+        }
+
+        private IList<INode> BrowseAllVariables(Session session)
+        {
+            var result = new List<INode>();
+            var nodesToBrowse = new ExpandedNodeIdCollection();
+            nodesToBrowse.Add(ObjectIds.ObjectsFolder);
+
+            while (nodesToBrowse.Count > 0)
+            {
+                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                foreach (var node in nodesToBrowse)
+                {
+                    var response = session.NodeCache.FindReferences(
+                        node,
+                        ReferenceTypeIds.Organizes,
+                        false,
+                        false);
+                    var components = session.NodeCache.FindReferences(
+                        node,
+                        ReferenceTypeIds.HasComponent,
+                        false,
+                        false);
+                    nextNodesToBrowse.AddRange(response
+                        .Where(n => n is ObjectNode)
+                        .Select(n => n.NodeId).ToList());
+                    result.AddRange(response.Where(n => n is VariableNode));
+                    result.AddRange(components.Where(n => n is VariableNode));
+                }
+                nodesToBrowse = nextNodesToBrowse;
+            }
+            return result;
         }
 
         private bool TestNodeId(NodeId nodeId)
@@ -367,6 +394,15 @@ namespace NetCoreConsoleClient
             foreach (var value in item.DequeueValues())
             {
                 Console.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+            }
+        }
+
+        private static void OnComplexTypeNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
+        {
+            foreach (var value in item.DequeueValues())
+            {
+                Console.WriteLine("{0}: {1}, {2}", item.DisplayName, value.SourceTimestamp, value.StatusCode);
+                Console.WriteLine(value.Value);
             }
         }
 
