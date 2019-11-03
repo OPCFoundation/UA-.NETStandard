@@ -100,10 +100,12 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             try
             {
+                // ensure the types loaded by the session are using a cloned type factory
+                m_session.CloneFactory();
+
                 // load server types
                 var serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
                 var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
-
                 LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
                 await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
             }
@@ -240,7 +242,8 @@ namespace Opc.Ua.Client.ComplexTypes
                             }
                         }
                     }
-                } catch (ServiceResultException sre)
+                }
+                catch (ServiceResultException sre)
                 {
                     Utils.TraceDebug(
                         $"Warning: Unexpected error processing {dictionaryId.Value.Name}: {sre.Message}.");
@@ -276,7 +279,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         string targetNamespace = m_session.NamespaceUris.GetString(i);
                         complexTypeBuilder = new ComplexTypeBuilder(
                             m_assemblyModuleFactory,
-                            targetNamespace, 
+                            targetNamespace,
                             (int)i);
                     }
                     foreach (var enumType in enumTypes)
@@ -671,6 +674,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (fieldType == typeof(Byte[]))
                     {
                         collectionType = typeof(ByteStringCollection);
+                    }
+                    else if (fieldType == typeof(Single))
+                    {
+                        collectionType = typeof(FloatCollection);
                     }
                     else
                     {
