@@ -32,7 +32,7 @@ namespace Opc.Ua
     /// <summary>
     /// Ensures the operation context is set up correctly.
     /// </summary>
-    public class ServiceMessageContextMessageInspector : IClientMessageInspector, IEndpointBehaviour
+    public class ServiceMessageContextMessageInspector : IClientMessageInspector, IEndpointBehavior
     {
         /// <summary>
         /// Initializes the object with the message context to use.
