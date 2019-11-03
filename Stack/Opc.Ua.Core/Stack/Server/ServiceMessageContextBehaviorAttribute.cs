@@ -106,7 +106,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="endpoint">The endpoint that is to be customized.</param>
         /// <param name="clientRuntime">The client runtime to be customized.</param>
-        public void ApplyClientBehaviour(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
+        public void ApplyClientBehavior(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
         {
             clientRuntime.ClientMessageInspectors.Add(this);
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="endpoint">The endpoint that exposes the contract.</param>
         /// <param name="endpointDispatcher">The endpoint dispatcher to be modified or extended.</param>
-        public void ApplyDispatchBehaviour(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
+        public void ApplyDispatchBehavior(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
         {
         }
 
