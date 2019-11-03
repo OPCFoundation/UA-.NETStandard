@@ -452,7 +452,7 @@ struct S_OpcUa_Port_CallTable
      */
     OpcUa_UInt32        (OPCUA_DLLCALL* InetAddr)                 ( OpcUa_StringA               sRemoteAddress);
 
-    /** @brief Create a socket manager with the ability to host nSockets sockets and use the given runtime behavior flags.
+    /** @brief Create a socket manager with the ability to host nSockets sockets and use the given runtime behaviour flags.
      *  @ingroup opcua_platformlayer_interface
      */
     OpcUa_StatusCode    (OPCUA_DLLCALL* SocketManagerCreate)      ( OpcUa_SocketManager*        ppSocketManager,

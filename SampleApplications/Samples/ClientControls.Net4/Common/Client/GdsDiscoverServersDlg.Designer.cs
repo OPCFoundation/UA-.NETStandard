@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Controls
             this.ServersLV.Name = "ServersLV";
             this.ServersLV.Size = new System.Drawing.Size(784, 163);
             this.ServersLV.TabIndex = 7;
-            this.ServersLV.UseCompatibleStateImageBehavior = false;
+            this.ServersLV.UseCompatibleStateImageBehaviour = false;
             this.ServersLV.View = System.Windows.Forms.View.Details;
             this.ServersLV.SelectedIndexChanged += new System.EventHandler(this.ServersLV_SelectedIndexChanged);
             // 

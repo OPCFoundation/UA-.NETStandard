@@ -384,7 +384,7 @@ namespace Opc.Ua.Sample.Controls
             this.ResultsLV.Name = "ResultsLV";
             this.ResultsLV.Size = new System.Drawing.Size(565, 433);
             this.ResultsLV.TabIndex = 0;
-            this.ResultsLV.UseCompatibleStateImageBehavior = false;
+            this.ResultsLV.UseCompatibleStateImageBehaviour = false;
             this.ResultsLV.View = System.Windows.Forms.View.Details;
             // 
             // IndexCH

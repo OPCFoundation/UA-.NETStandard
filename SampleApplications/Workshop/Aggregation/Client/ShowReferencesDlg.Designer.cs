@@ -123,7 +123,7 @@ namespace AggregationClient
             this.ReferencesLV.Name = "ReferencesLV";
             this.ReferencesLV.Size = new System.Drawing.Size(803, 388);
             this.ReferencesLV.TabIndex = 1;
-            this.ReferencesLV.UseCompatibleStateImageBehavior = false;
+            this.ReferencesLV.UseCompatibleStateImageBehaviour = false;
             this.ReferencesLV.View = System.Windows.Forms.View.Details;
             // 
             // ReferenceTypeCH

@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Controls
             this.FieldsLV.Name = "FieldsLV";
             this.FieldsLV.Size = new System.Drawing.Size(546, 360);
             this.FieldsLV.TabIndex = 6;
-            this.FieldsLV.UseCompatibleStateImageBehavior = false;
+            this.FieldsLV.UseCompatibleStateImageBehaviour = false;
             this.FieldsLV.View = System.Windows.Forms.View.Details;
             // 
             // FieldCH

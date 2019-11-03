@@ -118,7 +118,7 @@ namespace Quickstarts.HistoricalEvents.Client
             this.DeclarationsLV.Name = "DeclarationsLV";
             this.DeclarationsLV.Size = new System.Drawing.Size(674, 483);
             this.DeclarationsLV.TabIndex = 7;
-            this.DeclarationsLV.UseCompatibleStateImageBehavior = false;
+            this.DeclarationsLV.UseCompatibleStateImageBehaviour = false;
             this.DeclarationsLV.View = System.Windows.Forms.View.Details;
             // 
             // BrowsePathCH

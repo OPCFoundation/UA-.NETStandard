@@ -332,7 +332,7 @@ namespace Quickstarts.DataAccessClient
             this.AttributesLV.Name = "AttributesLV";
             this.AttributesLV.Size = new System.Drawing.Size(489, 278);
             this.AttributesLV.TabIndex = 0;
-            this.AttributesLV.UseCompatibleStateImageBehavior = false;
+            this.AttributesLV.UseCompatibleStateImageBehaviour = false;
             this.AttributesLV.View = System.Windows.Forms.View.Details;
             // 
             // AttributeNameCH
@@ -369,7 +369,7 @@ namespace Quickstarts.DataAccessClient
             this.MonitoredItemsLV.Name = "MonitoredItemsLV";
             this.MonitoredItemsLV.Size = new System.Drawing.Size(884, 120);
             this.MonitoredItemsLV.TabIndex = 0;
-            this.MonitoredItemsLV.UseCompatibleStateImageBehavior = false;
+            this.MonitoredItemsLV.UseCompatibleStateImageBehaviour = false;
             this.MonitoredItemsLV.View = System.Windows.Forms.View.Details;
             // 
             // MonitoredItemIdCH

@@ -127,7 +127,7 @@ namespace Quickstarts.AlarmConditionClient
             this.EventsLV.Name = "EventsLV";
             this.EventsLV.Size = new System.Drawing.Size(880, 520);
             this.EventsLV.TabIndex = 0;
-            this.EventsLV.UseCompatibleStateImageBehavior = false;
+            this.EventsLV.UseCompatibleStateImageBehaviour = false;
             this.EventsLV.View = System.Windows.Forms.View.Details;
             // 
             // SourceCH

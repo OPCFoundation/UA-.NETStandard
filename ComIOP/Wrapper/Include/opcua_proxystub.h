@@ -73,7 +73,7 @@ typedef struct _OpcUa_ProxyStubConfiguration
     /** The maximum number of bytes per message in total. */
     OpcUa_Int32     iSerializer_MaxMessageSize;
 
-    /** Be careful! Enabling the threadpool has severe implications on the behavior of your server! */
+    /** Be careful! Enabling the threadpool has severe implications on the behaviour of your server! */
     /** Controls wether the secure listener uses a thread pool to dispatch received requests. */
     OpcUa_Boolean   bSecureListener_ThreadPool_Enabled;
     /** The minimum number of threads in the thread pool. */

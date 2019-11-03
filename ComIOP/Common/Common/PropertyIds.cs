@@ -116,7 +116,7 @@ namespace Opc.Ua.Com
 		/// <remarks/>
 		public const int ConsistencyWindow = 605;
 		/// <remarks/>
-		public const int WriteBehavoir = 606;
+		public const int WriteBehaviour = 606;
 		/// <remarks/>
 		public const int UnconvertedItemId = 607;
 		/// <remarks/>
@@ -214,7 +214,7 @@ namespace Opc.Ua.Com
 				case PropertyIds.Dictionary:        { return DataTypes.String;   }
 				case PropertyIds.TypeDescription:   { return DataTypes.String;   }
 				case PropertyIds.ConsistencyWindow: { return DataTypes.String;   }
-				case PropertyIds.WriteBehavoir:     { return DataTypes.String;   }
+				case PropertyIds.WriteBehaviour:     { return DataTypes.String;   }
 				case PropertyIds.UnconvertedItemId: { return DataTypes.String;   }
 				case PropertyIds.UnfilteredItemId:  { return DataTypes.String;   }
                 case PropertyIds.DataFilterValue:   { return DataTypes.String;   }
@@ -272,7 +272,7 @@ namespace Opc.Ua.Com
 				case PropertyIds.Dictionary:        { return VarEnum.VT_BSTR;    }
 				case PropertyIds.TypeDescription:   { return VarEnum.VT_BSTR;    }
 				case PropertyIds.ConsistencyWindow: { return VarEnum.VT_BSTR;    }
-				case PropertyIds.WriteBehavoir:     { return VarEnum.VT_BSTR;    }
+				case PropertyIds.WriteBehaviour:     { return VarEnum.VT_BSTR;    }
 				case PropertyIds.UnconvertedItemId: { return VarEnum.VT_BSTR;    }
 				case PropertyIds.UnfilteredItemId:  { return VarEnum.VT_BSTR;    }
 				case PropertyIds.DataFilterValue:   { return VarEnum.VT_BSTR;    }
@@ -373,7 +373,7 @@ namespace Opc.Ua.Com
 				case PropertyIds.Dictionary:        { return "Dictionary";              }
 				case PropertyIds.TypeDescription:   { return "Type Description";        }
 				case PropertyIds.ConsistencyWindow: { return "Consistency Window";      }
-				case PropertyIds.WriteBehavoir:     { return "Write Behavior";          }
+				case PropertyIds.WriteBehaviour:     { return "Write Behaviour";          }
 				case PropertyIds.UnconvertedItemId: { return "Unconverted Item Id";     }
 				case PropertyIds.UnfilteredItemId:  { return "Unfiltered Item Id";      }
 				case PropertyIds.DataFilterValue:   { return "Data Filter Value";       }

@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Controls
             this.ItemsLV.Name = "ItemsLV";
             this.ItemsLV.Size = new System.Drawing.Size(541, 412);
             this.ItemsLV.TabIndex = 0;
-            this.ItemsLV.UseCompatibleStateImageBehavior = false;
+            this.ItemsLV.UseCompatibleStateImageBehaviour = false;
             this.ItemsLV.View = System.Windows.Forms.View.Details;
             this.ItemsLV.DragEnter += new System.Windows.Forms.DragEventHandler(this.ItemsLV_DragEnter);
             this.ItemsLV.DragDrop += new System.Windows.Forms.DragEventHandler(this.ItemsLV_DragDrop);

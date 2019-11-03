@@ -126,7 +126,7 @@ namespace TutorialClient
             this.ArgumentsLV.Name = "ArgumentsLV";
             this.ArgumentsLV.Size = new System.Drawing.Size(516, 266);
             this.ArgumentsLV.TabIndex = 1;
-            this.ArgumentsLV.UseCompatibleStateImageBehavior = false;
+            this.ArgumentsLV.UseCompatibleStateImageBehaviour = false;
             this.ArgumentsLV.View = System.Windows.Forms.View.Details;
             // 
             // NameCH

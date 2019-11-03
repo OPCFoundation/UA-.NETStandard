@@ -199,7 +199,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <value>A new instance of a ServiceMessageContext object.</value>
-        [Obsolete("Warning: Behavoir changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
+        [Obsolete("Warning: Behaviour changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
         public ServiceMessageContext MessageContext
         {
             get
@@ -340,7 +340,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                // should not be here but need to preserve old behavoir.
+                // should not be here but need to preserve old behaviour.
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
                     configuration.TraceConfiguration.ApplySettings();

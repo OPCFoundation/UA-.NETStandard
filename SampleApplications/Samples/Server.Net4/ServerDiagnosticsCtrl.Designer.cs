@@ -132,7 +132,7 @@ namespace Opc.Ua.Sample
             this.SessionsLV.Name = "SessionsLV";
             this.SessionsLV.Size = new System.Drawing.Size(522, 108);
             this.SessionsLV.TabIndex = 0;
-            this.SessionsLV.UseCompatibleStateImageBehavior = false;
+            this.SessionsLV.UseCompatibleStateImageBehaviour = false;
             this.SessionsLV.View = System.Windows.Forms.View.Details;
             // 
             // SessionIdCH
@@ -179,7 +179,7 @@ namespace Opc.Ua.Sample
             this.SubscriptionsLV.Name = "SubscriptionsLV";
             this.SubscriptionsLV.Size = new System.Drawing.Size(522, 133);
             this.SubscriptionsLV.TabIndex = 1;
-            this.SubscriptionsLV.UseCompatibleStateImageBehavior = false;
+            this.SubscriptionsLV.UseCompatibleStateImageBehaviour = false;
             this.SubscriptionsLV.View = System.Windows.Forms.View.Details;
             // 
             // SubscriptionIdCH

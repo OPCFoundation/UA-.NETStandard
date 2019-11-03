@@ -18,12 +18,12 @@ using System.ServiceModel.Dispatcher;
 
 namespace Opc.Ua
 {
-    #region ServiceMessageContextBehaviorAttribute Class
+    #region ServiceMessageContextBehaviourAttribute Class
     /// <summary>
     /// Uses to indicate that a service endpoint uses the UA stack.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public sealed class ServiceMessageContextBehaviorAttribute : Attribute
+    public sealed class ServiceMessageContextBehaviourAttribute : Attribute
     {
     }
     #endregion
@@ -32,7 +32,7 @@ namespace Opc.Ua
     /// <summary>
     /// Ensures the operation context is set up correctly.
     /// </summary>
-    public class ServiceMessageContextMessageInspector : IClientMessageInspector, IEndpointBehavior
+    public class ServiceMessageContextMessageInspector : IClientMessageInspector, IEndpointBehaviour
     {
         /// <summary>
         /// Initializes the object with the message context to use.
@@ -91,12 +91,12 @@ namespace Opc.Ua
 
         private ServiceMessageContext m_messageContext;
 
-        #region IEndpointBehavior Members
+        #region IEndpointBehaviour Members
         /// <summary>
-        /// Implement to pass data at runtime to bindings to support custom behavior.
+        /// Implement to pass data at runtime to bindings to support custom behaviour.
         /// </summary>
         /// <param name="endpoint">The endpoint to modify.</param>
-        /// <param name="bindingParameters">The objects that binding elements require to support the behavior.</param>
+        /// <param name="bindingParameters">The objects that binding elements require to support the behaviour.</param>
         public void AddBindingParameters(ServiceEndpoint endpoint, BindingParameterCollection bindingParameters)
         {
         }
@@ -106,7 +106,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="endpoint">The endpoint that is to be customized.</param>
         /// <param name="clientRuntime">The client runtime to be customized.</param>
-        public void ApplyClientBehavior(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
+        public void ApplyClientBehaviour(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
         {
             clientRuntime.ClientMessageInspectors.Add(this);
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="endpoint">The endpoint that exposes the contract.</param>
         /// <param name="endpointDispatcher">The endpoint dispatcher to be modified or extended.</param>
-        public void ApplyDispatchBehavior(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
+        public void ApplyDispatchBehaviour(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
         {
         }
 

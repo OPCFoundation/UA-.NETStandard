@@ -463,7 +463,7 @@ namespace Quickstarts.AlarmConditionClient
             this.ConditionsLV.Name = "ConditionsLV";
             this.ConditionsLV.Size = new System.Drawing.Size(622, 300);
             this.ConditionsLV.TabIndex = 0;
-            this.ConditionsLV.UseCompatibleStateImageBehavior = false;
+            this.ConditionsLV.UseCompatibleStateImageBehaviour = false;
             this.ConditionsLV.View = System.Windows.Forms.View.Details;
             // 
             // SourceCH

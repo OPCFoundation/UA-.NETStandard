@@ -1282,9 +1282,9 @@ namespace OpcRcw.Da
 		public const string OPC_CONSISTENCY_WINDOW_UNKNOWN        = "Unknown";
 		public const string OPC_CONSISTENCY_WINDOW_NOT_CONSISTENT = "Not Consistent";
 
-		// complex data write behavoir values.
-		public const string OPC_WRITE_BEHAVIOR_BEST_EFFORT        = "Best Effort";
-		public const string OPC_WRITE_BEHAVIOR_ALL_OR_NOTHING     = "All or Nothing";
+		// complex data write behaviour values.
+		public const string OPC_WRITE_BEHAVIOUR_BEST_EFFORT        = "Best Effort";
+		public const string OPC_WRITE_BEHAVIOUR_ALL_OR_NOTHING     = "All or Nothing";
 	}
 
     /// <exclude />
@@ -1372,7 +1372,7 @@ namespace OpcRcw.Da
 		public const int OPC_PROPERTY_DICTIONARY          = 603;
 		public const int OPC_PROPERTY_TYPE_DESCRIPTION    = 604;
 		public const int OPC_PROPERTY_CONSISTENCY_WINDOW  = 605;
-		public const int OPC_PROPERTY_WRITE_BEHAVIOR      = 606;
+		public const int OPC_PROPERTY_WRITE_BEHAVIOUR      = 606;
 		public const int OPC_PROPERTY_UNCONVERTED_ITEM_ID = 607;
 		public const int OPC_PROPERTY_UNFILTERED_ITEM_ID  = 608;
 		public const int OPC_PROPERTY_DATA_FILTER_VALUE   = 609;
@@ -1417,7 +1417,7 @@ namespace OpcRcw.Da
 		public const string OPC_PROPERTY_DESC_DICTIONARY          = "Dictionary";
 		public const string OPC_PROPERTY_DESC_TYPE_DESCRIPTION    = "Type Description";
 		public const string OPC_PROPERTY_DESC_CONSISTENCY_WINDOW  = "Consistency Window";
-		public const string OPC_PROPERTY_DESC_WRITE_BEHAVIOR      = "Write Behavior";
+		public const string OPC_PROPERTY_DESC_WRITE_BEHAVIOUR      = "Write Behaviour";
 		public const string OPC_PROPERTY_DESC_UNCONVERTED_ITEM_ID = "Unconverted Item ID";
 		public const string OPC_PROPERTY_DESC_UNFILTERED_ITEM_ID  = "Unfiltered Item ID";
 		public const string OPC_PROPERTY_DESC_DATA_FILTER_VALUE   = "Data Filter Value";

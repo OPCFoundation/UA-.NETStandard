@@ -120,7 +120,7 @@ namespace Quickstarts.HistoricalEvents.Client
             this.EventFieldsLV.Name = "EventFieldsLV";
             this.EventFieldsLV.Size = new System.Drawing.Size(804, 431);
             this.EventFieldsLV.TabIndex = 7;
-            this.EventFieldsLV.UseCompatibleStateImageBehavior = false;
+            this.EventFieldsLV.UseCompatibleStateImageBehaviour = false;
             this.EventFieldsLV.View = System.Windows.Forms.View.Details;
             // 
             // BrowsePathCH

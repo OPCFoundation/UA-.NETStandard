@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.Controls
             this.AttributesLV.Name = "AttributesLV";
             this.AttributesLV.Size = new System.Drawing.Size(1003, 569);
             this.AttributesLV.TabIndex = 2;
-            this.AttributesLV.UseCompatibleStateImageBehavior = false;
+            this.AttributesLV.UseCompatibleStateImageBehaviour = false;
             this.AttributesLV.View = System.Windows.Forms.View.Details;
             this.AttributesLV.DoubleClick += new System.EventHandler(this.AttributesLV_DoubleClick);
             // 

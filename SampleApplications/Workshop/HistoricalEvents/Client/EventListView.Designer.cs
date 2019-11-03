@@ -74,7 +74,7 @@ namespace Quickstarts.HistoricalEvents.Client
             this.EventsLV.Name = "EventsLV";
             this.EventsLV.Size = new System.Drawing.Size(961, 570);
             this.EventsLV.TabIndex = 2;
-            this.EventsLV.UseCompatibleStateImageBehavior = false;
+            this.EventsLV.UseCompatibleStateImageBehaviour = false;
             this.EventsLV.View = System.Windows.Forms.View.Details;
             // 
             // PopupMenu

@@ -694,7 +694,7 @@ namespace Opc.Ua.Com
 			return results[0].pItf;
 		}
 
-        // COM impersonation is a nice feature but variations between behavoirs on different
+        // COM impersonation is a nice feature but variations between behaviours on different
         // windows platforms make it virtually impossible to support. This code is left here 
         // in case it becomes a critical requirement in the future.
         #if COM_IMPERSONATION_SUPPORT

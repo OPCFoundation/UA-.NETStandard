@@ -204,7 +204,7 @@ namespace Quickstarts.SimpleEvents.Client
             this.EventsLV.Name = "EventsLV";
             this.EventsLV.Size = new System.Drawing.Size(880, 400);
             this.EventsLV.TabIndex = 1;
-            this.EventsLV.UseCompatibleStateImageBehavior = false;
+            this.EventsLV.UseCompatibleStateImageBehaviour = false;
             this.EventsLV.View = System.Windows.Forms.View.Details;
             // 
             // SourceCH

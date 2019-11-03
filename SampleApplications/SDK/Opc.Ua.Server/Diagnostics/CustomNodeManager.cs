@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// This node manager is a base class used in multiple samples. It implements the INodeManager
     /// interface and allows sub-classes to override only the methods that they need. This example
     /// is not part of the SDK because most real implementations of a INodeManager will need to
-    /// modify the behavoir of the base class.
+    /// modify the behaviour of the base class.
     /// </remarks>
     public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
     {
