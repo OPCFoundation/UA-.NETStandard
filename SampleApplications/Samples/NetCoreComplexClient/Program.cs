@@ -54,6 +54,7 @@ namespace NetCoreConsoleClient
         ErrorAddSubscription = 0x17,
         ErrorRunning = 0x18,
         ErrorLoadTypeDictionary = 0x19,
+        ErrorReadComplexTypes = 0x1a,
         ErrorNoKeepAlive = 0x30,
         ErrorInvalidCommandLine = 0x100
     };
@@ -266,14 +267,26 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("5 - Read all custom type values.");
+            exitCode = ExitCode.ErrorReadComplexTypes;
+
             var allVariableNodes = BrowseAllVariables(session);
-            var allStructures = allVariableNodes.Where(n => ((VariableNode)n).DataType == DataTypeIds.Structure).ToList();
-            var allCustomTypeVariables = allVariableNodes.Where(n => ((VariableNode)n).DataType.NamespaceIndex != 0).ToList();
+            var allCustomTypeVariables = allVariableNodes.Where(n => ((VariableNode)n).DataType == DataTypeIds.Structure).ToList();
+            allCustomTypeVariables.AddRange(allVariableNodes.Where(n => ((VariableNode)n).DataType.NamespaceIndex != 0).ToList());
 
             foreach (VariableNode variableNode in allCustomTypeVariables)
             {
-                var value = session.ReadValue(variableNode.NodeId);
-                Console.WriteLine($" -- {variableNode}:{value}");
+                try
+                {
+                    var value = session.ReadValue(variableNode.NodeId);
+                    Console.WriteLine($" -- {variableNode}:{value}");
+                }
+                catch (ServiceResultException sre)
+                {
+                    if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
+                    {
+                        Console.WriteLine($" -- {variableNode}: Access denied!");
+                    }
+                }
             }
 
             Console.WriteLine("6 - Create a subscription with publishing interval of 1 second.");
@@ -325,38 +338,44 @@ namespace NetCoreConsoleClient
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 foreach (var node in nodesToBrowse)
                 {
-                    var response = session.NodeCache.FindReferences(
-                        node,
-                        ReferenceTypeIds.Organizes,
-                        false,
-                        false);
-                    var components = session.NodeCache.FindReferences(
-                        node,
-                        ReferenceTypeIds.HasComponent,
-                        false,
-                        false);
-                    nextNodesToBrowse.AddRange(response
-                        .Where(n => n is ObjectNode)
-                        .Select(n => n.NodeId).ToList());
-                    result.AddRange(response.Where(n => n is VariableNode));
-                    result.AddRange(components.Where(n => n is VariableNode));
+                    try
+                    {
+                        var organizers = session.NodeCache.FindReferences(
+                            node,
+                            ReferenceTypeIds.Organizes,
+                            false,
+                            false);
+                        var components = session.NodeCache.FindReferences(
+                            node,
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            false);
+                        var properties = session.NodeCache.FindReferences(
+                            node,
+                            ReferenceTypeIds.HasProperty,
+                            false,
+                            false);
+                        nextNodesToBrowse.AddRange(organizers
+                            .Where(n => n is ObjectNode)
+                            .Select(n => n.NodeId).ToList());
+                        nextNodesToBrowse.AddRange(components
+                            .Where(n => n is ObjectNode)
+                            .Select(n => n.NodeId).ToList());
+                        result.AddRange(organizers.Where(n => n is VariableNode));
+                        result.AddRange(components.Where(n => n is VariableNode));
+                        result.AddRange(properties.Where(n => n is VariableNode));
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
+                        {
+                            Console.WriteLine($"Access denied: Skip node {node}.");
+                        }
+                    }
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
             return result;
-        }
-
-        private bool TestNodeId(NodeId nodeId)
-        {
-            try
-            {
-                session.ReadNode(nodeId);
-                return true;
-            }
-            catch
-            {
-            }
-            return false;
         }
 
         private void Client_KeepAlive(Session sender, KeepAliveEventArgs e)
