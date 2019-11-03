@@ -543,7 +543,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The behavoir to use when reading or writing all or part of the object.
+        /// The behavior to use when reading or writing all or part of the object.
         /// </summary>
         /// <value>The copy policy that specifies the policies to use when handling reads and write to value.</value>
         /// <remarks>
@@ -1502,7 +1502,7 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            // check if the read behavoir has been overridden.
+            // check if the read behavior has been overridden.
             if (OnReadValue != null)
             {
                 result = OnReadValue(
@@ -1528,7 +1528,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            // use default behavoir.
+            // use default behavior.
             if (OnSimpleReadValue != null)
             {
                 result = OnSimpleReadValue(
@@ -1871,7 +1871,7 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            // check if the write behavoir has been overridden.
+            // check if the write behavior has been overridden.
             if (OnWriteValue != null)
             {
                 result = OnWriteValue(
@@ -2389,7 +2389,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The behavoir to use when reading or writing all or part of the object.
+        /// The behavior to use when reading or writing all or part of the object.
         /// </summary>
         public VariableCopyPolicy CopyPolicy
         {

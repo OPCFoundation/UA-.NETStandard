@@ -491,7 +491,7 @@ namespace Opc.Ua
 
             VariableCopyPolicy copyPolicy = VariableCopyPolicy.CopyOnRead;
 
-            // use default behavoir.
+            // use default behavior.
             if (OnSimpleReadValue != null)
             {
                 result = OnSimpleReadValue(
