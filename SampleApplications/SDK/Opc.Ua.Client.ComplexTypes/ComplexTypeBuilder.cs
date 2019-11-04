@@ -176,10 +176,18 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(structureDefinition));
             }
+            Type baseType;
+            switch (structureDefinition.StructureType)
+            {
+                case StructureType.StructureWithOptionalFields: baseType = typeof(OptionalFieldsComplexType); break;
+                case StructureType.Union: baseType = typeof(UnionComplexType); break;
+                case StructureType.Structure:
+                default: baseType = typeof(BaseComplexType); break;
+            }
             var structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
-                typeof(BaseComplexType));
+                baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
             structureBuilder.StructureDefinitonAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder);

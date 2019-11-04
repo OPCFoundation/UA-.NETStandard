@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public new object MemberwiseClone()
+        public new virtual object MemberwiseClone()
         {
             Type thisType = this.GetType();
             BaseComplexType clone = Activator.CreateInstance(thisType) as BaseComplexType;
@@ -134,7 +134,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public void Encode(IEncoder encoder)
+        public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
@@ -142,107 +142,24 @@ namespace Opc.Ua.Client.ComplexTypes
                 GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
 
             var properties = GetType().GetProperties();
-            if (attribute.StructureType == StructureType.StructureWithOptionalFields)
+            foreach (var property in properties)
             {
-                UInt32 optionalFields = 0;
-                UInt32 bitSelector = 1;
-                foreach (var property in properties)
+                var fieldAttribute = (StructureFieldAttribute)
+                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                if (fieldAttribute == null)
                 {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    if (fieldAttribute.IsOptional)
-                    {
-                        if (property.GetValue(this) != null)
-                        {
-                            optionalFields |= bitSelector;
-                        }
-                        bitSelector <<= 1;
-                    }
+                    continue;
                 }
 
-                encoder.WriteUInt32("OptionalField", optionalFields);
-
-                bitSelector = 1;
-                foreach (var property in properties)
-                {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    if (fieldAttribute.IsOptional)
-                    {
-                        if ((optionalFields & bitSelector) != 0)
-                        {
-                            EncodeProperty(encoder, property, fieldAttribute.ValueRank);
-                        }
-                        bitSelector <<= 1;
-                    }
-                }
+                EncodeProperty(encoder, property, fieldAttribute.ValueRank);
             }
-            else if (attribute.StructureType == StructureType.Union)
-            {
-                UInt32 unionSelector = 1;
-                int valueRank = -1;
-                PropertyInfo unionProperty = null;
-                foreach (var property in properties)
-                {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
 
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    if (property.GetValue(this) != null)
-                    {
-                        valueRank = fieldAttribute.ValueRank;
-                        unionProperty = property;
-                        break;
-                    }
-                    unionSelector++;
-                }
-
-                if (unionProperty != null)
-                {
-                    encoder.WriteUInt32("SwitchField", unionSelector);
-                    EncodeProperty(encoder, unionProperty);
-                }
-                else
-                {
-                    encoder.WriteUInt32("SwitchField", 0);
-                }
-            }
-            else
-            {
-                foreach (var property in properties)
-                {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    EncodeProperty(encoder, property, fieldAttribute.ValueRank);
-                }
-            }
             encoder.PopNamespace();
         }
 
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public void Decode(IDecoder decoder)
+        public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
@@ -250,76 +167,24 @@ namespace Opc.Ua.Client.ComplexTypes
                 GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
 
             var properties = GetType().GetProperties();
-            if (attribute.StructureType == StructureType.StructureWithOptionalFields)
+            foreach (var property in properties)
             {
-                UInt32 optionalFields = decoder.ReadUInt32("OptionalField");
-                UInt32 bitSelector = 1;
-                foreach (var property in properties)
+                var fieldAttribute = (StructureFieldAttribute)
+                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                if (fieldAttribute == null)
                 {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    if (fieldAttribute.IsOptional)
-                    {
-                        var testSelector = bitSelector;
-                        bitSelector <<= 1;
-                        if ((testSelector & optionalFields) == 0)
-                        {
-                            continue;
-                        }
-                    }
-
-                    DecodeProperty(decoder, property, fieldAttribute.ValueRank);
+                    continue;
                 }
+
+                DecodeProperty(decoder, property, fieldAttribute.ValueRank);
             }
-            else if (attribute.StructureType == StructureType.Union)
-            {
-                UInt32 unionSelector = decoder.ReadUInt32("SwitchField");
-                if (unionSelector > 0)
-                {
-                    foreach (var property in properties)
-                    {
-                        var fieldAttribute = (StructureFieldAttribute)
-                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
 
-                        if (fieldAttribute == null)
-                        {
-                            continue;
-                        }
-
-                        if (--unionSelector == 0)
-                        {
-                            DecodeProperty(decoder, property, fieldAttribute.ValueRank);
-                            break;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                foreach (var property in properties)
-                {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    DecodeProperty(decoder, property, fieldAttribute.ValueRank);
-                }
-            }
             decoder.PopNamespace();
         }
 
         /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public bool IsEqual(IEncodeable equalValue)
+        public virtual bool IsEqual(IEncodeable equalValue)
         {
             if (Object.ReferenceEquals(this, equalValue))
             {
@@ -372,7 +237,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public virtual string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -381,63 +246,17 @@ namespace Opc.Ua.Client.ComplexTypes
                     GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
 
                 var properties = GetType().GetProperties();
-                if (attribute.StructureType == StructureType.StructureWithOptionalFields)
+                foreach (var property in properties)
                 {
-                    foreach (var property in properties)
+                    StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
+                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                    if (fieldAttribute == null)
                     {
-                        var fieldAttribute = (StructureFieldAttribute)
-                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                        if (fieldAttribute == null)
-                        {
-                            continue;
-                        }
-
-                        if (fieldAttribute.IsOptional)
-                        {
-                            if (property.GetValue(this) == null)
-                            {
-                                continue;
-                            }
-                        }
-
-                        AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
+                        continue;
                     }
-                }
-                else if (attribute.StructureType == StructureType.Union)
-                {
-                    foreach (var property in properties)
-                    {
-                        var fieldAttribute = (StructureFieldAttribute)
-                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
 
-                        if (fieldAttribute == null)
-                        {
-                            continue;
-                        }
-
-                        object unionProperty = property.GetValue(this);
-                        if (unionProperty != null)
-                        {
-                            AppendPropertyValue(formatProvider, body, unionProperty, fieldAttribute.ValueRank);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (var property in properties)
-                    {
-                        StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
-                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                        if (fieldAttribute == null)
-                        {
-                            continue;
-                        }
-
-                        AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
-                    }
+                    AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -479,7 +298,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Append a property to the value string.
         /// Handle arrays and enumerations.
         /// </summary>
-        private void AppendPropertyValue(
+        protected void AppendPropertyValue(
             IFormatProvider formatProvider,
             StringBuilder body,
             object value,
@@ -535,7 +354,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        private void EncodeProperty(IEncoder encoder, PropertyInfo property, int valueRank)
+        protected void EncodeProperty(IEncoder encoder, PropertyInfo property, int valueRank)
         {
             if (valueRank < 0)
             {
@@ -802,7 +621,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        private void DecodeProperty(IDecoder decoder, PropertyInfo property, int valueRank)
+        protected void DecodeProperty(IDecoder decoder, PropertyInfo property, int valueRank)
         {
             if (valueRank < 0)
             {

@@ -119,6 +119,16 @@ namespace Opc.Ua.Client.ComplexTypes
                     "The structure definition combines a Union and a bit filed, both of which are not supported in a single structure.");
             }
 
+            if (isUnionType)
+            {
+                structureDefinition.StructureType = StructureType.Union;
+            }
+
+            if (hasBitField)
+            {
+                structureDefinition.StructureType = StructureType.StructureWithOptionalFields;
+            }
+
             byte switchFieldBitPosition = 0;
             Int32 dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
