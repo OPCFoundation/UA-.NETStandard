@@ -795,6 +795,17 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Enforce to use a local copy of the type factory instead of the global factory.
+        /// Used when new types are loaded which should be local to a session context.
+        /// </summary>
+        public void CloneFactory()
+        {
+            m_factory = new EncodeableFactory(m_factory);
+            m_systemContext.EncodeableFactory = m_factory;
+            TransportChannel.MessageContext.Factory = m_factory;
+        }
         #endregion
 
         #region Public Static Methods
@@ -938,14 +949,18 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template)
         {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
                 template.m_configuration,
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ? template.m_instanceCertificateChain : null,
-                template.m_configuration.CreateMessageContext());
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ? 
+                    template.m_instanceCertificateChain : null,
+                messageContext);
 
             // create the session object.
             Session session = new Session(channel, template, true);
@@ -975,6 +990,7 @@ namespace Opc.Ua.Client
             return session;
         }
         #endregion
+
         #region Delegates and Events
         /// <summary>
         /// Used to handle renews of user identity tokens before reconnect.
@@ -992,6 +1008,7 @@ namespace Opc.Ua.Client
 
         private event RenewUserIdentityEventHandler m_RenewUserIdentity;
         #endregion
+
         #region Public Methods
         /// <summary>
         /// Reconnects to the server after a network failure.
@@ -2999,6 +3016,7 @@ namespace Opc.Ua.Client
             }
         }
         #endregion
+
         #region Close Methods
         /// <summary>
         /// Disconnects from the server and frees any network resources.

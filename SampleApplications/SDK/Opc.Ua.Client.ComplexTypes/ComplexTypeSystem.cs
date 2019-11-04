@@ -57,6 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(Session session)
         {
             m_session = session;
+            m_assemblyModuleFactory = new AssemblyModuleFactory();
         }
         #endregion
 
@@ -99,10 +100,12 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             try
             {
+                // ensure the types loaded by the session are using a cloned type factory
+                m_session.CloneFactory();
+
                 // load server types
                 var serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
                 var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
-
                 LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
                 await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
             }
@@ -110,6 +113,14 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 Utils.TraceDebug($"Failed to load the custom type dictionary: {sre.Message}.");
             }
+        }
+
+        /// <summary>
+        /// Get the types defined in this type system.
+        /// </summary>
+        public Type[] GetDefinedTypes()
+        {
+            return m_assemblyModuleFactory.GetTypes();
         }
         #endregion
 
@@ -141,6 +152,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 try
                 {
                     var dictionary = dictionaryId.Value;
+                    var targetNamespace = dictionary.TypeDictionary.TargetNamespace;
                     var structureList = new List<Schema.Binary.TypeDescription>();
                     var enumList = new List<Opc.Ua.Schema.Binary.TypeDescription>();
 
@@ -148,10 +160,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     // types with dependencies to the end of the list.
                     SplitAndSortDictionary(dictionary, structureList, enumList);
 
-                    // create assembly for all types in the same namespace
+                    // create assembly for all types in the same module
                     var complexTypeBuilder = new ComplexTypeBuilder(
-                        dictionary.TypeDictionary.TargetNamespace,
-                        m_session.NamespaceUris.GetIndex(dictionary.TypeDictionary.TargetNamespace));
+                        m_assemblyModuleFactory,
+                        targetNamespace,
+                        m_session.NamespaceUris.GetIndex(targetNamespace),
+                        dictionary.Name);
 
                     // Add all unknown enumeration types 
                     AddEnumTypes(complexTypeBuilder, enumList, serverEnumTypes);
@@ -228,7 +242,8 @@ namespace Opc.Ua.Client.ComplexTypes
                             }
                         }
                     }
-                } catch (ServiceResultException sre)
+                }
+                catch (ServiceResultException sre)
                 {
                     Utils.TraceDebug(
                         $"Warning: Unexpected error processing {dictionaryId.Value.Name}: {sre.Message}.");
@@ -251,22 +266,25 @@ namespace Opc.Ua.Client.ComplexTypes
             // add new enum Types for all namespaces
             var enumTypesToDoList = new List<INode>();
             int namespaceCount = m_session.NamespaceUris.Count;
-            var complexTypeBuilders = new ComplexTypeBuilder[namespaceCount];
 
             // create enumeration types for all namespaces
             for (uint i = 0; i < namespaceCount; i++)
             {
+                ComplexTypeBuilder complexTypeBuilder = null;
                 var enumTypes = serverEnumTypes.Where(node => node.NodeId.NamespaceIndex == i).ToList();
                 if (enumTypes.Count != 0)
                 {
-                    if (complexTypeBuilders[i] == null)
+                    if (complexTypeBuilder == null)
                     {
                         string targetNamespace = m_session.NamespaceUris.GetString(i);
-                        complexTypeBuilders[i] = new ComplexTypeBuilder(targetNamespace, (int)i);
+                        complexTypeBuilder = new ComplexTypeBuilder(
+                            m_assemblyModuleFactory,
+                            targetNamespace,
+                            (int)i);
                     }
                     foreach (var enumType in enumTypes)
                     {
-                        var newType = AddEnumType(complexTypeBuilders[i], enumType as DataTypeNode);
+                        var newType = AddEnumType(complexTypeBuilder, enumType as DataTypeNode);
                         if (newType != null)
                         {
                             // match namespace and add to type factory
@@ -290,15 +308,17 @@ namespace Opc.Ua.Client.ComplexTypes
                 retryAddStructType = false;
                 for (uint i = 0; i < namespaceCount; i++)
                 {
+                    ComplexTypeBuilder complexTypeBuilder = null;
                     var structTypes = structTypesWorkList.Where(node => node.NodeId.NamespaceIndex == i).ToList();
                     if (structTypes.Count != 0)
                     {
-                        if (complexTypeBuilders[i] == null)
+                        if (complexTypeBuilder == null)
                         {
                             string targetNamespace = m_session.NamespaceUris.GetString(i);
-                            complexTypeBuilders[i] = new ComplexTypeBuilder(
+                            complexTypeBuilder = new ComplexTypeBuilder(
+                                m_assemblyModuleFactory,
                                 targetNamespace,
-                                m_session.NamespaceUris.GetIndex(targetNamespace));
+                                (int)i);
                         }
                         foreach (INode structType in structTypes)
                         {
@@ -309,7 +329,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             {
                                 try
                                 {
-                                    newType = AddStructuredType(complexTypeBuilders[i], structureDefinition, dataTypeNode.BrowseName.Name);
+                                    newType = AddStructuredType(complexTypeBuilder, structureDefinition, dataTypeNode.BrowseName.Name);
                                 }
                                 catch
                                 {
@@ -521,7 +541,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             if (dataType.DataTypeDefinition != null)
                             {
-                                // 1. use DataTypeDefinition 
+                                // 2. use DataTypeDefinition 
                                 newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, dataType.DataTypeDefinition);
                             }
                             else
@@ -655,6 +675,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         collectionType = typeof(ByteStringCollection);
                     }
+                    else if (fieldType == typeof(Single))
+                    {
+                        collectionType = typeof(FloatCollection);
+                    }
                     else
                     {
                         var assemblyQualifiedName = typeof(StatusCode).Assembly;
@@ -754,6 +778,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
         Session m_session;
+        AssemblyModuleFactory m_assemblyModuleFactory;
+        const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }
 

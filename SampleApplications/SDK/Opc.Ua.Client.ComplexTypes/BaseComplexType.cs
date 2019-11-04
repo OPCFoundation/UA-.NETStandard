@@ -29,14 +29,16 @@
 
 
 using System;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-    public class BaseComplexType : IEncodeable, IComplexTypeInstance
+    public class BaseComplexType : IEncodeable, IFormattable, IComplexTypeInstance
     {
         #region Constructors
         /// <summary>
@@ -352,9 +354,184 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return true;
         }
+
+        /// <summary cref="object.ToString()" />
+        public override string ToString()
+        {
+            return ToString(null, null);
+        }
         #endregion
 
+        #region IFormattable Members
+        /// <summary>
+        /// Returns the string representation of the complex type.
+        /// </summary>
+        /// <param name="format">(Unused). Leave this as null</param>
+        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
+        /// <returns>
+        /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
+        /// </returns>
+        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            if (format == null)
+            {
+                StringBuilder body = new StringBuilder();
+                var attribute = (StructureDefinitionAttribute)
+                    GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
+
+                var properties = GetType().GetProperties();
+                if (attribute.StructureType == StructureType.StructureWithOptionalFields)
+                {
+                    foreach (var property in properties)
+                    {
+                        var fieldAttribute = (StructureFieldAttribute)
+                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                        if (fieldAttribute == null)
+                        {
+                            continue;
+                        }
+
+                        if (fieldAttribute.IsOptional)
+                        {
+                            if (property.GetValue(this) == null)
+                            {
+                                continue;
+                            }
+                        }
+
+                        AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
+                    }
+                }
+                else if (attribute.StructureType == StructureType.Union)
+                {
+                    foreach (var property in properties)
+                    {
+                        var fieldAttribute = (StructureFieldAttribute)
+                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                        if (fieldAttribute == null)
+                        {
+                            continue;
+                        }
+
+                        object unionProperty = property.GetValue(this);
+                        if (unionProperty != null)
+                        {
+                            AppendPropertyValue(formatProvider, body, unionProperty, fieldAttribute.ValueRank);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var property in properties)
+                    {
+                        StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
+                            property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                        if (fieldAttribute == null)
+                        {
+                            continue;
+                        }
+
+                        AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
+                    }
+                }
+
+                if (body.Length > 0)
+                {
+                    body.Append("}");
+                    return body.ToString();
+                }
+
+                if (!NodeId.IsNull(this.TypeId))
+                {
+                    return String.Format(formatProvider, "{{{0}}}", this.TypeId);
+                }
+
+                return "(null)";
+            }
+
+            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+        }
+        #endregion
+
+
         #region Private Members
+        /// <summary>
+        /// Formatting helper.
+        /// </summary>
+        private void AddSeparator(StringBuilder body)
+        {
+            if (body.Length == 0)
+            {
+                body.Append("{");
+            }
+            else
+            {
+                body.Append(" | ");
+            }
+        }
+
+        /// <summary>
+        /// Append a property to the value string.
+        /// Handle arrays and enumerations.
+        /// </summary>
+        private void AppendPropertyValue(
+            IFormatProvider formatProvider,
+            StringBuilder body,
+            object value,
+            int valueRank)
+        {
+            AddSeparator(body);
+            if (valueRank >= 0 &&
+                value is IEnumerable)
+            {
+                bool first = true;
+                var enumerable = value as IEnumerable;
+                body.Append("[");
+                foreach (var item in enumerable)
+                {
+                    if (!first)
+                    {
+                        body.Append(",");
+                    }
+                    AppendPropertyValue(formatProvider, body, item);
+                    first = false;
+                }
+                body.Append("]");
+            }
+            else
+            {
+                AppendPropertyValue(formatProvider, body, value);
+            }
+        }
+
+        /// <summary>
+        /// Append a property to the value string.
+        /// </summary>
+        private void AppendPropertyValue(
+            IFormatProvider formatProvider,
+            StringBuilder body,
+            object value)
+        {
+            if (value is byte[])
+            {
+                body.AppendFormat(formatProvider, "Byte[{0}]", ((byte[])value).Length);
+                return;
+            }
+
+            if (value is XmlElement)
+            {
+                body.AppendFormat(formatProvider, "<{0}>", ((XmlElement)value).Name);
+                return;
+            }
+
+            body.AppendFormat("{0}", value);
+        }
+
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
