@@ -259,7 +259,6 @@ namespace Opc.Ua
                     case StatusCodes.BadCertificateIssuerUseNotAllowed:
                     case StatusCodes.BadCertificateRevocationUnknown:
                     case StatusCodes.BadCertificateTimeInvalid:
-                    case StatusCodes.BadCertificateUriInvalid:
                     case StatusCodes.BadCertificatePolicyCheckFailed:
                     case StatusCodes.BadCertificateUseNotAllowed:
                     case StatusCodes.BadCertificateUntrusted:
