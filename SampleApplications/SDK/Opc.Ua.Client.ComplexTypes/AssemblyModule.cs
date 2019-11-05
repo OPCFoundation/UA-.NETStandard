@@ -38,13 +38,13 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Use a single assembly and module builder instance to build the type system.
     /// </summary>
-    public class AssemblyModuleFactory
+    public class AssemblyModule
     {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public AssemblyModuleFactory(string assemblyName = null)
+        public AssemblyModule(string assemblyName = null)
         {
             m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),

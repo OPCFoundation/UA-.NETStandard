@@ -38,7 +38,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Extensions to build attributes for the complex type builder.
     /// </summary>
-    public static class ComplexTypesAttributeExtension
+    public static class AttributeExtensions
     {
         #region Extensions
         /// <summary>

@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(Session session)
         {
             m_session = session;
-            m_assemblyModuleFactory = new AssemblyModuleFactory();
+            m_assemblyModuleFactory = new AssemblyModule();
         }
         #endregion
 
@@ -796,7 +796,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
         Session m_session;
-        AssemblyModuleFactory m_assemblyModuleFactory;
+        AssemblyModule m_assemblyModuleFactory;
         const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }

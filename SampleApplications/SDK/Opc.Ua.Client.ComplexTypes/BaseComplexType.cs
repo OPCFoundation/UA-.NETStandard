@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion
 
-        #region IComplexType
+        #region IComplexTypeProperties
         /// <summary cref="IComplexTypeProperties.GetPropertyCount()" />
         public virtual int GetPropertyCount()
         {
@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Sorted enumerator for properties.
+        /// Ordered enumerator for properties.      
         /// </summary>
         public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
         {

@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the object with default values.
         /// </summary>
         public ComplexTypeBuilder(
-            AssemblyModuleFactory moduleFactory,
+            AssemblyModule moduleFactory,
             string targetNamespace,
             int targetNamespaceIndex,
             string moduleName = null)
@@ -233,19 +233,20 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Constructors
         public ComplexTypeFieldBuilder(TypeBuilder structureBuilder)
         {
-            m_structureBuilder = structureBuilder;
+            StructureBuilder = structureBuilder;
         }
         #endregion
 
         #region Public Properties
-        public TypeBuilder StructureBuilder => m_structureBuilder;
+        public TypeBuilder StructureBuilder { get; private set; }
+
         /// <summary>
         /// Create a property field of a class with get and set.
         /// </summary>
         public void AddField(StructureField field, Type fieldType, int order)
         {
-            var fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
-            var propertyBuilder = m_structureBuilder.DefineProperty(
+            var fieldBuilder = StructureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
+            var propertyBuilder = StructureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
                 fieldType,
@@ -255,14 +256,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 System.Reflection.MethodAttributes.HideBySig |
                 System.Reflection.MethodAttributes.Virtual;
 
-            var setBuilder = m_structureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
+            var setBuilder = StructureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
             var setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
             setIl.Emit(OpCodes.Ret);
 
-            var getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
+            var getBuilder = StructureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
             var getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
             getIl.Emit(OpCodes.Ldfld, fieldBuilder);
@@ -279,14 +280,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Type CreateType()
         {
-            var complexType = m_structureBuilder.CreateType();
-            m_structureBuilder = null;
+            var complexType = StructureBuilder.CreateType();
+            StructureBuilder = null;
             return complexType;
         }
-        #endregion
-
-        #region Private Fields
-        private TypeBuilder m_structureBuilder;
         #endregion
     }
 }//namespace
