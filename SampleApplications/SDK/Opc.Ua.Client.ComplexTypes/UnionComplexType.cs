@@ -78,36 +78,24 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-            var properties = GetType().GetProperties();
-
-            int unionSelector = 1;
-            int valueRank = -1;
-            PropertyInfo unionProperty = null;
-            foreach (var property in properties)
-            {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
-                {
-                    continue;
-                }
-
-                if (unionSelector == m_unionSelector)
-                {
-                    valueRank = fieldAttribute.ValueRank;
-                    unionProperty = property;
-                    break;
-                }
-
-                unionSelector++;
-            }
-
             encoder.WriteUInt32("SwitchField", m_unionSelector);
-            EncodeProperty(encoder, unionProperty, valueRank);
+            if (m_unionSelector != 0)
+            {
+                int unionSelector = 1;
+                int valueRank = -1;
+                PropertyInfo unionProperty = null;
+                foreach (var property in GetPropertyEnumerator())
+                {
+                    if (unionSelector == m_unionSelector)
+                    {
+                        valueRank = property.ValueRank;
+                        unionProperty = property.PropertyInfo;
+                        break;
+                    }
+                    unionSelector++;
+                }
+                EncodeProperty(encoder, unionProperty, valueRank);
+            }
 
             encoder.PopNamespace();
         }
@@ -117,27 +105,16 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-            var properties = GetType().GetProperties();
             m_unionSelector = decoder.ReadUInt32("SwitchField");
+
             UInt32 unionSelector = m_unionSelector;
             if (unionSelector > 0)
             {
-                foreach (var property in properties)
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, property, fieldAttribute.ValueRank);
+                        DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
                         break;
                     }
                 }
@@ -170,25 +147,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var properties = this.GetType().GetProperties();
-            UInt32 unionSelector = m_unionSelector;
-            foreach (var property in properties)
+            if (m_unionSelector != 0)
             {
-                if (property.CustomAttributes.Count() == 0)
+                UInt32 unionSelector = m_unionSelector;
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    continue;
-                }
-
-                if (--unionSelector == 0)
-                {
-                    if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                    if (--unionSelector == 0)
                     {
-                        return false;
+                        if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                        {
+                            return false;
+                        }
+                        break;
                     }
-                    break;
                 }
             }
-
             return true;
         }
         #endregion
@@ -208,26 +181,17 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 StringBuilder body = new StringBuilder();
-                var attribute = (StructureDefinitionAttribute)
-                    GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-                var properties = GetType().GetProperties();
-                UInt32 unionSelector = m_unionSelector;
-                foreach (var property in properties)
+                if (m_unionSelector != 0)
                 {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
+                    UInt32 unionSelector = m_unionSelector;
+                    foreach (var property in GetPropertyEnumerator())
                     {
-                        continue;
-                    }
-
-                    if (--unionSelector == 0)
-                    {
-                        object unionProperty = property.GetValue(this);
-                        AppendPropertyValue(formatProvider, body, unionProperty, fieldAttribute.ValueRank);
-                        break;
+                        if (--unionSelector == 0)
+                        {
+                            object unionProperty = property.GetValue(this);
+                            AppendPropertyValue(formatProvider, body, unionProperty, property.ValueRank);
+                            break;
+                        }
                     }
                 }
 
@@ -247,9 +211,62 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Private Members
+        /// <summary>
+        /// Access property values by index.
+        /// </summary>
+        public override object this[int index]
+        {
+            get
+            {
+                if (index < 0 && UnionSelector != 0)
+                {
+                    return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
+                }
+                if (UnionSelector == index + 1)
+                {
+                    return m_propertyList.ElementAt(index).GetValue(this);
+                }
+                return null;
+            }
+            set
+            {
+                m_propertyList.ElementAt(index).SetValue(this, value);
+                m_unionSelector = (value != null) ? (uint)(index + 1) : 0;
+            }
+        }
+
+        /// <summary>
+        /// Access property values by name.
+        /// </summary>
+        public override object this[string name]
+        {
+            get
+            {
+                ComplexTypePropertyAttribute property;
+                if (m_propertyDict.TryGetValue(name, out property))
+                {
+                    if (m_unionSelector == property.Order)
+                    {
+                        return m_propertyDict[name].GetValue(this);
+                    }
+                    return null;
+                }
+                return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
+            }
+            set
+            {
+                ComplexTypePropertyAttribute property;
+                if (m_propertyDict.TryGetValue(name, out property))
+                {
+                    int order = property.Order;
+                    property.SetValue(this, value);
+                    m_unionSelector = (value != null) ? (uint)(property.Order) : 0;
+                    return;
+                }
+                m_unionSelector = 0;
+            }
+        }
         #endregion
 
         #region Private Fields

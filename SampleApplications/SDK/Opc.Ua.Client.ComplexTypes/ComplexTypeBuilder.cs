@@ -195,6 +195,9 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Members
+        /// <summary>
+        /// Create a unique namespace module name for the type.
+        /// </summary>
         private string FindModuleName(string moduleName, string targetNamespace, int targetNamespaceIndex)
         {
             if (String.IsNullOrWhiteSpace(moduleName))
@@ -235,19 +238,10 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Public Properties
-#if NOT_USED
-        public void AddField(string fieldName, Type fieldType, int order)
-        {
-            var field = new StructureField
-            {
-                Name = fieldName,
-                ValueRank = -1,
-                MaxStringLength = 0,
-                IsOptional = false
-            };
-            AddField(field, fieldType, order);
-        }
-#endif
+        public TypeBuilder StructureBuilder => m_structureBuilder;
+        /// <summary>
+        /// Create a property field of a class with get and set.
+        /// </summary>
         public void AddField(StructureField field, Type fieldType, int order)
         {
             var fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
@@ -280,6 +274,9 @@ namespace Opc.Ua.Client.ComplexTypes
             propertyBuilder.StructureFieldAttribute(field);
         }
 
+        /// <summary>
+        /// Finish the type creation and returns the new type.
+        /// </summary>
         public Type CreateType()
         {
             var complexType = m_structureBuilder.CreateType();

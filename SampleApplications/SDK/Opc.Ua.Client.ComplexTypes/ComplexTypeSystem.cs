@@ -226,7 +226,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                 complexType = AddStructuredType(
                                     complexTypeBuilder,
                                     structureDefinition,
-                                    dataTypeNode.BrowseName.Name);
+                                    dataTypeNode.BrowseName.Name,
+                                    typeId,
+                                    binaryEncodingId);
 
                                 // Add new type to factory
                                 if (complexType != null)
@@ -329,7 +331,13 @@ namespace Opc.Ua.Client.ComplexTypes
                             {
                                 try
                                 {
-                                    newType = AddStructuredType(complexTypeBuilder, structureDefinition, dataTypeNode.BrowseName.Name);
+                                    newType = AddStructuredType(
+                                        complexTypeBuilder, 
+                                        structureDefinition, 
+                                        dataTypeNode.BrowseName.Name,
+                                        structType.NodeId,
+                                        structureDefinition.DefaultEncodingId
+                                        );
                                 }
                                 catch
                                 {
@@ -627,7 +635,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private Type AddStructuredType(
             ComplexTypeBuilder complexTypeBuilder,
             StructureDefinition structureDefinition,
-            string typeName)
+            string typeName,
+            ExpandedNodeId complexTypeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId = null
+            )
         {
             // check all types
             var typeList = new List<Type>();
@@ -642,21 +654,27 @@ namespace Opc.Ua.Client.ComplexTypes
                 typeList.Add(newType);
             }
 
-            var structureBuilder = complexTypeBuilder.AddStructuredType(
+            var fieldBuilder = complexTypeBuilder.AddStructuredType(
                 typeName,
                 structureDefinition
                 );
 
-            int order = 10;
+            fieldBuilder.StructureBuilder.StructureTypeIdAttribute(
+                complexTypeId,
+                binaryEncodingId,
+                xmlEncodingId
+                );
+
+            int order = 1;
             var typeListEnumerator = typeList.GetEnumerator();
             foreach (StructureField field in structureDefinition.Fields)
             {
                 typeListEnumerator.MoveNext();
-                structureBuilder.AddField(field, typeListEnumerator.Current, order);
-                order += 10;
+                fieldBuilder.AddField(field, typeListEnumerator.Current, order);
+                order += 1;
             }
 
-            return structureBuilder.CreateType();
+            return fieldBuilder.CreateType();
         }
 
         /// <summary>

@@ -29,7 +29,8 @@
 
 
 using System;
-using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -77,34 +78,19 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-            var properties = GetType().GetProperties();
             encoder.WriteUInt32("OptionalField", m_optionalFields);
 
-            UInt32 bitSelector = 1;
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
+                if (property.IsOptional)
                 {
-                    continue;
-                }
-
-                if (fieldAttribute.IsOptional)
-                {
-                    UInt32 testselector = bitSelector;
-                    bitSelector <<= 1;
-                    if ((m_optionalFields & testselector) == 0)
+                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
                     {
                         continue;
                     }
                 }
 
-                EncodeProperty(encoder, property, fieldAttribute.ValueRank);
+                EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
             }
             encoder.PopNamespace();
         }
@@ -114,34 +100,19 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
             m_optionalFields = decoder.ReadUInt32("OptionalField");
 
-            var properties = GetType().GetProperties();
-            UInt32 bitSelector = 1;
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
+                if (property.IsOptional)
                 {
-                    continue;
-                }
-
-                if (fieldAttribute.IsOptional)
-                {
-                    var testSelector = bitSelector;
-                    bitSelector <<= 1;
-                    if ((testSelector & m_optionalFields) == 0)
+                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
                     {
                         continue;
                     }
                 }
 
-                DecodeProperty(decoder, property, fieldAttribute.ValueRank);
+                DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
             }
             decoder.PopNamespace();
         }
@@ -171,24 +142,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var properties = this.GetType().GetProperties();
-            UInt32 unionSelector = m_optionalFields;
-            UInt32 bitSelector = 1;
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
+                if (property.IsOptional)
                 {
-                    continue;
-                }
-
-                if (fieldAttribute.IsOptional)
-                {
-                    UInt32 testSelector = bitSelector;
-                    bitSelector <<= 1;
-                    if ((testSelector & m_optionalFields) == 0)
+                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
                     {
                         continue;
                     }
@@ -219,32 +177,17 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 StringBuilder body = new StringBuilder();
-                var attribute = (StructureDefinitionAttribute)
-                    GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-                var properties = GetType().GetProperties();
-                UInt32 bitSelector = 1;
-                foreach (var property in properties)
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    var fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
+                    if (property.IsOptional)
                     {
-                        continue;
-                    }
-
-                    if (fieldAttribute.IsOptional)
-                    {
-                        UInt32 testSelector = bitSelector;
-                        bitSelector <<= 1;
-                        if ((testSelector & m_optionalFields) == 0)
+                        if ((property.OptionalFieldMask & m_optionalFields) == 0)
                         {
                             continue;
                         }
                     }
 
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
+                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -263,11 +206,99 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
+        /// <summary>
+        /// Access property values by index.
+        /// </summary>
+        public override object this[int index]
+        {
+            get
+            {
+                var property = m_propertyList.ElementAt(index);
+                if (property.IsOptional &&
+                    (property.OptionalFieldMask & m_optionalFields) == 0)
+                {
+                    return null;
+                }
+                return property.GetValue(this);
+            }
+            set
+            {
+                var property = m_propertyList.ElementAt(index);
+                property.SetValue(this, value);
+                if (property.IsOptional)
+                {
+                    if (value == null)
+                    {
+                        m_optionalFields &= ~property.OptionalFieldMask;
+                    }
+                    else
+                    {
+                        m_optionalFields |= property.OptionalFieldMask;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Access property values by name.
+        /// </summary>
+        public override object this[string name]
+        {
+            get
+            {
+                ComplexTypePropertyAttribute property;
+                if (m_propertyDict.TryGetValue(name, out property))
+                {
+                    if (property.IsOptional &&
+                        (property.OptionalFieldMask & m_optionalFields) == 0)
+                    {
+                        return null;
+                    }
+                    return property.GetValue(this);
+                }
+                throw new KeyNotFoundException();
+            }
+            set
+            {
+                ComplexTypePropertyAttribute property;
+                if (m_propertyDict.TryGetValue(name, out property))
+                {
+                    property.SetValue(this, value);
+                    if (value == null)
+                    {
+                        m_optionalFields &= ~property.OptionalFieldMask;
+                    }
+                    else
+                    {
+                        m_optionalFields |= property.OptionalFieldMask;
+                    }
+                }
+                else
+                {
+                    throw new KeyNotFoundException();
+                }
+            }
+        }
+        #endregion
         #region Private Members
-        #endregion
+        protected override void InitializePropertyAttributes()
+        {
+            base.InitializePropertyAttributes();
 
+            // build optional field mask attribute
+            UInt32 optionalFieldMask = 1;
+            foreach (var property in GetPropertyEnumerator())
+            {
+                property.OptionalFieldMask = 0;
+                if (property.IsOptional)
+                {
+                    property.OptionalFieldMask = optionalFieldMask;
+                    optionalFieldMask <<= 1;
+                }
+            }
+        }
+        #endregion
         #region Private Fields
         private UInt32 m_optionalFields;
         #endregion

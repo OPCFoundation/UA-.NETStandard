@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -38,7 +39,9 @@ using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-    public class BaseComplexType : IEncodeable, IFormattable, IComplexTypeInstance
+
+    public class BaseComplexType :
+        IEncodeable, IFormattable, IComplexTypeInstance, IComplexTypeProperties
     {
         #region Constructors
         /// <summary>
@@ -50,6 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
             BinaryEncodingId = ExpandedNodeId.Null;
             XmlEncodingId = ExpandedNodeId.Null;
             m_context = MessageContextExtension.CurrentContext;
+            InitializePropertyAttributes();
         }
 
         /// <summary>
@@ -59,15 +63,6 @@ namespace Opc.Ua.Client.ComplexTypes
         public BaseComplexType(ExpandedNodeId typeId)
         {
             TypeId = typeId;
-        }
-
-        /// <summary>
-        /// Initializes the object with a <paramref name="typeId"/>.
-        /// </summary>
-        /// <param name="typeId">The type to copy and create an instance from</param>
-        public BaseComplexType(BaseComplexType complexType)
-        {
-            TypeId = complexType.TypeId;
         }
 
         [OnSerializing()]
@@ -112,21 +107,9 @@ namespace Opc.Ua.Client.ComplexTypes
             clone.BinaryEncodingId = BinaryEncodingId;
             clone.XmlEncodingId = XmlEncodingId;
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
             // clone all properties of derived class
-            var properties = GetType().GetProperties();
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
-                {
-                    continue;
-                }
-
                 property.SetValue(clone, Utils.Clone(property.GetValue(this)));
             }
 
@@ -138,21 +121,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-            var properties = GetType().GetProperties();
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
-                {
-                    continue;
-                }
-
-                EncodeProperty(encoder, property, fieldAttribute.ValueRank);
+                EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
             }
 
             encoder.PopNamespace();
@@ -163,21 +134,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            var attribute = (StructureDefinitionAttribute)
-                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
-
-            var properties = GetType().GetProperties();
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                var fieldAttribute = (StructureFieldAttribute)
-                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                if (fieldAttribute == null)
-                {
-                    continue;
-                }
-
-                DecodeProperty(decoder, property, fieldAttribute.ValueRank);
+                DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
             }
 
             decoder.PopNamespace();
@@ -203,14 +162,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            var properties = this.GetType().GetProperties();
-            foreach (var property in properties)
+            foreach (var property in GetPropertyEnumerator())
             {
-                if (property.CustomAttributes.Count() == 0)
-                {
-                    continue;
-                }
-
                 if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
                 {
                     return false;
@@ -242,21 +195,10 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 StringBuilder body = new StringBuilder();
-                var attribute = (StructureDefinitionAttribute)
-                    GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
 
-                var properties = GetType().GetProperties();
-                foreach (var property in properties)
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
-                        property.GetCustomAttribute(typeof(StructureFieldAttribute));
-
-                    if (fieldAttribute == null)
-                    {
-                        continue;
-                    }
-
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), fieldAttribute.ValueRank);
+                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -277,6 +219,51 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion
 
+        #region IComplexType
+        /// <summary cref="IComplexTypeProperties.GetPropertyCount()" />
+        public virtual int GetPropertyCount()
+        {
+            return m_propertyList.Count;
+        }
+
+        /// <summary cref="IComplexTypeProperties.GetPropertyNames()" />
+        public virtual IList<string> GetPropertyNames()
+        {
+            return m_propertyList.Select(p => p.Name).ToList();
+        }
+
+        /// <summary cref="IComplexTypeProperties.GetPropertyTypes()" />
+        public virtual IList<Type> GetPropertyTypes()
+        {
+            return m_propertyList.Select(p => p.PropertyType).ToList();
+        }
+
+        /// <summary>
+        /// Access property values by index.
+        /// </summary>
+        public virtual object this[int index]
+        {
+            get => m_propertyList.ElementAt(index).GetValue(this);
+            set => m_propertyList.ElementAt(index).SetValue(this, value);
+        }
+
+        /// <summary>
+        /// Access property values by name.
+        /// </summary>
+        public virtual object this[string name]
+        {
+            get => m_propertyDict[name].GetValue(this);
+            set => m_propertyDict[name].SetValue(this, value);
+        }
+
+        /// <summary>
+        /// Sorted enumerator for properties.
+        /// </summary>
+        public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
+        {
+            return m_propertyList;
+        }
+        #endregion
 
         #region Private Members
         /// <summary>
@@ -878,10 +865,57 @@ namespace Opc.Ua.Client.ComplexTypes
                     $"Unknown type {elementType} to decode.");
             }
         }
+
+        /// <summary>
+        /// Initialize the helpers for property enumerator and dictionary.
+        /// </summary>
+        protected virtual void InitializePropertyAttributes()
+        {
+            var definitionAttribute = (StructureDefinitionAttribute)
+                GetType().GetCustomAttribute(typeof(StructureDefinitionAttribute));
+            if (definitionAttribute != null)
+            {
+                m_structureBaseType = definitionAttribute.BaseDataType;
+            }
+
+            var typeAttribute = (StructureTypeIdAttribute)
+                GetType().GetCustomAttribute(typeof(StructureTypeIdAttribute));
+            if (typeAttribute != null)
+            {
+                TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
+                BinaryEncodingId = ExpandedNodeId.Parse(typeAttribute.BinaryEncodingId);
+                XmlEncodingId = ExpandedNodeId.Parse(typeAttribute.XmlEncodingId);
+            }
+
+            m_propertyList = new List<ComplexTypePropertyAttribute>();
+            var properties = GetType().GetProperties();
+            foreach (var property in properties)
+            {
+                StructureFieldAttribute fieldAttribute = (StructureFieldAttribute)
+                    property.GetCustomAttribute(typeof(StructureFieldAttribute));
+
+                if (fieldAttribute == null)
+                {
+                    continue;
+                }
+
+                DataMemberAttribute dataAttribute = (DataMemberAttribute)
+                    property.GetCustomAttribute(typeof(DataMemberAttribute));
+
+                var newProperty = new ComplexTypePropertyAttribute(property, fieldAttribute, dataAttribute);
+
+                m_propertyList.Add(newProperty);
+            }
+            m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
+            m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
+        }
         #endregion
 
         #region Private Fields
         private ServiceMessageContext m_context;
+        private StructureBaseDataType m_structureBaseType;
+        protected IList<ComplexTypePropertyAttribute> m_propertyList;
+        protected Dictionary<string, ComplexTypePropertyAttribute> m_propertyDict;
         #endregion
     }
 

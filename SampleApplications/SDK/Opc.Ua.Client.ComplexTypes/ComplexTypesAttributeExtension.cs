@@ -105,6 +105,36 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Build the StructureTypeId attribute for a complex type.
+        /// </summary>
+        public static void StructureTypeIdAttribute(
+            this TypeBuilder typeBuilder,
+            ExpandedNodeId complexTypeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId
+            )
+        {
+            var attributeType = typeof(StructureTypeIdAttribute);
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            CustomAttributeBuilder builder = new CustomAttributeBuilder(
+                ctorInfo,
+                new object[0],  // constructor arguments
+                new[]           // properties to assign
+                {
+                    attributeType.GetProperty("ComplexTypeId"),
+                    attributeType.GetProperty("BinaryEncodingId"),
+                    attributeType.GetProperty("XmlEncodingId")
+                },
+                new object[]    // values to assign
+                {
+                    complexTypeId?.ToString(),
+                    binaryEncodingId?.ToString(),
+                    xmlEncodingId?.ToString()
+                });
+            typeBuilder.SetCustomAttribute(builder);
+        }
+
+        /// <summary>
         /// Build the StructureField attribute for a complex type.
         /// </summary>
         public static void StructureFieldAttribute(
