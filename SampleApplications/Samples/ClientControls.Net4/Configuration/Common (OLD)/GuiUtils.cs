@@ -253,8 +253,14 @@ namespace Opc.Ua.Client.Controls
         {       
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not be validated: {0}\r\n\r\n", e.Error.StatusCode);
-            buffer.AppendFormat("Subject: {0}\r\n", e.Certificate.Subject);
+            buffer.AppendFormat("Certificate could not be validated!\r\n");
+            buffer.AppendFormat("Validation error(s): \r\n");
+            buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
+            if (e.Error.InnerResult != null)
+            {
+                buffer.AppendFormat("\t{0}\r\n", e.Error.InnerResult.StatusCode);
+            }
+            buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer)?"Self-signed":e.Certificate.Issuer);
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
