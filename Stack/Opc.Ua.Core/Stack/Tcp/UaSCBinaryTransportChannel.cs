@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public void Open()
         {
-            // opens when the first request is called to preserve previous behavoir.
+            // opens when the first request is called to preserve previous behavior.
         }
 
         /// <summary>
