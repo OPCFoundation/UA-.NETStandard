@@ -795,7 +795,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
         #endregion
 
         #region Public Static Methods
@@ -1495,9 +1494,16 @@ namespace Opc.Ua.Client
                 if (dictionaryId.NamespaceIndex != 0 &&
                     !m_dictionaries.TryGetValue(dictionaryId, out dictionaryToLoad))
                 {
-                    dictionaryToLoad = new DataDictionary(this);
-                    await dictionaryToLoad.Load(r);
-                    m_dictionaries[dictionaryId] = dictionaryToLoad;
+                    try
+                    {
+                        dictionaryToLoad = new DataDictionary(this);
+                        await dictionaryToLoad.Load(r);
+                        m_dictionaries[dictionaryId] = dictionaryToLoad;
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                    }
                 }
             }
 
