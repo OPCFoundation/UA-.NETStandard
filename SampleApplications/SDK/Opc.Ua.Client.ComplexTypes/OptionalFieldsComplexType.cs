@@ -281,6 +281,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
         #endregion
+
         #region Private Members
         protected override void InitializePropertyAttributes()
         {
@@ -299,6 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
         #endregion
+
         #region Private Fields
         private UInt32 m_optionalFields;
         #endregion

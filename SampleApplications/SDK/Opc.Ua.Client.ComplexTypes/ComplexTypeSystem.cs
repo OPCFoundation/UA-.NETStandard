@@ -100,9 +100,6 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             try
             {
-                // ensure the types loaded by the session are using a cloned type factory
-                m_session.CloneFactory();
-
                 // load server types
                 var serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
                 var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);

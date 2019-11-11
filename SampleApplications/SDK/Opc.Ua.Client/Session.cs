@@ -796,16 +796,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Enforce to use a local copy of the type factory instead of the global factory.
-        /// Used when new types are loaded which should be local to a session context.
-        /// </summary>
-        public void CloneFactory()
-        {
-            m_factory = new EncodeableFactory(m_factory);
-            m_systemContext.EncodeableFactory = m_factory;
-            TransportChannel.MessageContext.Factory = m_factory;
-        }
         #endregion
 
         #region Public Static Methods
