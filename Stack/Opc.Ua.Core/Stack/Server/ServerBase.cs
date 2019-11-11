@@ -739,19 +739,7 @@ namespace Opc.Ua
                     description.TransportProfileUri = Profiles.UaTcpTransport;
 
                     bool requireEncryption = RequireEncryption(description);
-
-                    if (!requireEncryption)
-                    {
-                        foreach (UserTokenPolicy userTokenPolicy in description.UserIdentityTokens)
-                        {
-                            if (userTokenPolicy.SecurityPolicyUri != SecurityPolicies.None)
-                            {
-                                requireEncryption = true;
-                                break;
-                            }
-                        }
-                    }
-
+                    
                     if (requireEncryption)
                     {
                         description.ServerCertificate = InstanceCertificate.RawData;
