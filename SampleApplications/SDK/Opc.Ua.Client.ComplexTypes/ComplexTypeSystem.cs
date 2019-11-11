@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(Session session)
         {
             m_session = session;
-            m_assemblyModuleFactory = new AssemblyModule();
+            m_assemblyModule = new AssemblyModule();
         }
         #endregion
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Type[] GetDefinedTypes()
         {
-            return m_assemblyModuleFactory.GetTypes();
+            return m_assemblyModule.GetTypes();
         }
         #endregion
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                     // create assembly for all types in the same module
                     var complexTypeBuilder = new ComplexTypeBuilder(
-                        m_assemblyModuleFactory,
+                        m_assemblyModule,
                         targetNamespace,
                         m_session.NamespaceUris.GetIndex(targetNamespace),
                         dictionary.Name);
@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         string targetNamespace = m_session.NamespaceUris.GetString(i);
                         complexTypeBuilder = new ComplexTypeBuilder(
-                            m_assemblyModuleFactory,
+                            m_assemblyModule,
                             targetNamespace,
                             (int)i);
                     }
@@ -318,7 +318,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             string targetNamespace = m_session.NamespaceUris.GetString(i);
                             complexTypeBuilder = new ComplexTypeBuilder(
-                                m_assemblyModuleFactory,
+                                m_assemblyModule,
                                 targetNamespace,
                                 (int)i);
                         }
@@ -796,7 +796,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
         Session m_session;
-        AssemblyModule m_assemblyModuleFactory;
+        AssemblyModule m_assemblyModule;
         const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }
