@@ -12,7 +12,6 @@
 
 using System;
 using System.Linq;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -461,6 +460,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ReadNextMessage()
         {
+            var args = InternalReadNextMessage();
+            if (args != null)
+            {
+                m_ReadComplete(null, args);
+            }
+        }
+
+        private SocketAsyncEventArgs InternalReadNextMessage()
+        {
             lock (m_readLock)
             {
                 // allocate a buffer large enough to a message chunk.
@@ -474,7 +482,7 @@ namespace Opc.Ua.Bindings
                 m_bytesToReceive = TcpMessageLimits.MessageTypeAndSize;
                 m_incomingMessageSize = -1;
 
-                ReadNextBlock();
+                return ReadNextBlock();
             }
         }
 
@@ -501,6 +509,50 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     error = DoReadComplete(e);
+
+                    while (ServiceResult.IsGood(error) && e != null)
+                    {
+                        e.Dispose();
+
+                        // check if more data left to read.
+                        if (m_bytesReceived < m_bytesToReceive)
+                        {
+                            e = ReadNextBlock();
+                        }
+                        // start reading the message body.
+                        else if (m_incomingMessageSize < 0)
+                        {
+                            m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
+
+                            if (m_incomingMessageSize <= 0 || m_incomingMessageSize > m_receiveBufferSize)
+                            {
+                                Utils.Trace(
+                                    "BadTcpMessageTooLarge: BufferSize={0}; MessageSize={1}",
+                                    m_receiveBufferSize,
+                                    m_incomingMessageSize);
+
+                                error = ServiceResult.Create(
+                                    StatusCodes.BadTcpMessageTooLarge,
+                                    "Messages size {1} bytes is too large for buffer of size {0}.",
+                                    m_receiveBufferSize,
+                                    m_incomingMessageSize);
+                            }
+
+                            // set up buffer for reading the message body.
+                            m_bytesToReceive = m_incomingMessageSize;
+
+                            e = ReadNextBlock();
+                        }
+                        else
+                        {
+                            e = InternalReadNextMessage();
+                        }
+
+                        if(e != null)
+                        {
+                            error = DoReadComplete(e);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -509,7 +561,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    e.Dispose();
+                    e?.Dispose();
                 }
 
                 if (ServiceResult.IsBad(error))
@@ -562,35 +614,12 @@ namespace Opc.Ua.Bindings
             // check if more data left to read.
             if (m_bytesReceived < m_bytesToReceive)
             {
-                ReadNextBlock();
-
                 return ServiceResult.Good;
             }
 
             // start reading the message body.
             if (m_incomingMessageSize < 0)
             {
-                m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
-
-                if (m_incomingMessageSize <= 0 || m_incomingMessageSize > m_receiveBufferSize)
-                {
-                    Utils.Trace(
-                        "BadTcpMessageTooLarge: BufferSize={0}; MessageSize={1}",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
-
-                    return ServiceResult.Create(
-                        StatusCodes.BadTcpMessageTooLarge,
-                        "Messages size {1} bytes is too large for buffer of size {0}.",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
-                }
-
-                // set up buffer for reading the message body.
-                m_bytesToReceive = m_incomingMessageSize;
-
-                ReadNextBlock();
-
                 return ServiceResult.Good;
             }
 
@@ -620,16 +649,13 @@ namespace Opc.Ua.Bindings
                 m_receiveBuffer = null;
             }
 
-            // start receiving next message.
-            ReadNextMessage();
-
             return ServiceResult.Good;
         }
 
         /// <summary>
         /// Reads the next block of data from the socket.
         /// </summary>
-        private void ReadNextBlock()
+        private SocketAsyncEventArgs ReadNextBlock()
         {
             Socket socket = null;
 
@@ -644,7 +670,7 @@ namespace Opc.Ua.Bindings
                         m_receiveBuffer = null;
                     }
 
-                    return;
+                    return null;
                 }
 
                 socket = m_socket;
@@ -652,8 +678,9 @@ namespace Opc.Ua.Bindings
                 // avoid stale ServiceException when socket is disconnected
                 if (!socket.Connected)
                 {
-                    return;
+                    return null;
                 }
+
             }
 
             BufferManager.LockBuffer(m_receiveBuffer);
@@ -673,8 +700,9 @@ namespace Opc.Ua.Bindings
                     }
                     else
                     {
-                        // avoid recursive calls
-                        Task.Run(() => m_ReadComplete(null, args));
+                        return args;
+                        //Root of the problem
+                        //m_ReadComplete(null, args);
                     }
                 }
             }
@@ -690,6 +718,8 @@ namespace Opc.Ua.Bindings
                 BufferManager.UnlockBuffer(m_receiveBuffer);
                 throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, ex, "BeginReceive failed.");
             }
+
+            return null;
         }
 
         /// <summary>
