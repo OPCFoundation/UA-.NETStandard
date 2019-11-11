@@ -57,7 +57,11 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Public Properties
-
+        /// <summary>
+        /// The union selector determines which property is valid.
+        /// A value of 0 means all properties are invalid, x=1..n means the
+        /// xth property is valid.
+        /// </summary>
         UInt32 UnionSelector => m_unionSelector;
 
         /// <summary>
@@ -215,6 +219,15 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by index.
         /// </summary>
+        /// <remarks>
+        /// The value of a Union is determined by the union selector.
+        /// Calling get on an unselected property returns null, 
+        /// otherwise the selected object.
+        /// Calling get with an invalid index (e.g.-1) returns the selected object.
+        /// Calling set with a valid object on a selected property sets the value and the 
+        /// union selector. 
+        /// Calling set with a null object or an invalid index unselects the union.
+        /// </remarks>
         public override object this[int index]
         {
             get
@@ -231,14 +244,28 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                m_propertyList.ElementAt(index).SetValue(this, value);
-                m_unionSelector = (value != null) ? (uint)(index + 1) : 0;
+                if (index >= 0)
+                {
+                    m_propertyList.ElementAt(index).SetValue(this, value);
+                    m_unionSelector = (value != null) ? (uint)(index + 1) : 0;
+                    return;
+                }
+                m_unionSelector = 0;
             }
         }
 
         /// <summary>
         /// Access property values by name.
         /// </summary>
+        /// <remarks>
+        /// The value of a Union is determined by the union selector.
+        /// Calling get on an unselected property returns null, 
+        /// otherwise the selected object.
+        /// Calling get with an invalid name returns the selected object.
+        /// Calling set with a valid object on a selected property sets the value and the 
+        /// union selector. 
+        /// Calling set with a null object or an invalid name unselects the union.
+        /// </remarks>
         public override object this[string name]
         {
             get
