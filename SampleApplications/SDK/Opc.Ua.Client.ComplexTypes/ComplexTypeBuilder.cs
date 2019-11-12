@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
-            int value = 1;
+            int value = 0;
             foreach (var enumValue in enumDefinition)
             {
                 var name = enumValue.Text;
