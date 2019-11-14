@@ -2631,6 +2631,63 @@ namespace Opc.Ua
                 m_rng.GetBytes(randomBytes);
                 return randomBytes;
             }
+
+            /// <summary>
+            /// Returns the length of the symmetric encryption key for a security policy.
+            /// </summary>
+            public static uint GetNonceLength(string securityPolicyUri)
+            {
+                switch (securityPolicyUri)
+                {
+                    case SecurityPolicies.Basic128Rsa15:
+                        {
+                            return 16;
+                        }
+
+                    case SecurityPolicies.Basic256:
+                    case SecurityPolicies.Basic256Sha256:
+                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    case SecurityPolicies.Aes256_Sha256_RsaPss:
+                        {
+                            return 32;
+                        }
+
+                    default:
+                    case SecurityPolicies.None:
+                        {
+                            return 0;
+                        }
+                }
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and security policy.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
+            {
+                // no nonce needed for no security.
+                if (securityMode == MessageSecurityMode.None)
+                {
+                    return true;
+                }
+
+                // check the length.
+                if (nonce == null || nonce.Length < GetNonceLength(securityPolicyUri))
+                {
+                    return false;
+                }
+
+                // try to catch programming errors by rejecting nonces with all zeros.
+                for (int ii = 0; ii < nonce.Length; ii++)
+                {
+                    if (nonce[ii] != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         }
 
         /// <summary>

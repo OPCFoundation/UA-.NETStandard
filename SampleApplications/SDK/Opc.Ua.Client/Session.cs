@@ -308,6 +308,29 @@ namespace Opc.Ua.Client
                 $"The client configuration does not specify the {configurationField}.");
         }
 
+        /// <summary>
+        /// Validates the server nonce and security parameters of user identity.
+        /// </summary>
+        private void ValidateServerNonce(IUserIdentity identity, byte[] serverNonce, string securityPolicyUri)
+        {
+            if (identity!= null && identity.TokenType != UserTokenType.Anonymous)
+            {
+                // the server nonce should be validated if the token includes a secret.
+                if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, securityPolicyUri))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is not the correct length or not random enough.");
+                }
+
+                // token encryption is mandatory over a channel without security if it includes a secret.
+                if (m_endpoint != null && m_endpoint.Description != null &&
+                    m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None &&
+                    securityPolicyUri == SecurityPolicies.None)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityModeInsufficient, "User identity cannot be sent over the current secure channel without encryption.");
+                }
+            }
+        }
+
         private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
         {
             bool domainFound = false;
@@ -1053,6 +1076,9 @@ namespace Opc.Ua.Client
                 {
                     m_identity = m_RenewUserIdentity(this, m_identity);
                 }
+
+                // validate server nonce and security parameters for user identity.
+                ValidateServerNonce(m_identity, m_serverNonce, securityPolicyUri);
 
                 // sign data with user token.
                 UserIdentityToken identityToken = m_identity.GetIdentityToken();
@@ -2534,6 +2560,9 @@ namespace Opc.Ua.Client
                     securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
+                // validate server nonce and security parameters for user identity.
+                ValidateServerNonce(identity, serverNonce, securityPolicyUri);
+
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
@@ -2693,6 +2722,9 @@ namespace Opc.Ua.Client
             {
                 m_configuration.CertificateValidator.Validate(m_serverCertificate);
             }
+
+            // validate server nonce and security parameters for user identity.
+            ValidateServerNonce(identity, serverNonce, securityPolicyUri);
 
             // sign data with user token.
             identityToken = identity.GetIdentityToken();
