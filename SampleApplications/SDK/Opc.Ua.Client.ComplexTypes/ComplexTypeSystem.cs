@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes
             // create enumeration types for all namespaces
             for (uint i = 0; i < namespaceCount; i++)
             {
-                ComplexTypeBuilder complexTypeBuilder = null;
+                IComplexTypeBuilder complexTypeBuilder = null;
                 var enumTypes = serverEnumTypes.Where(node => node.NodeId.NamespaceIndex == i).ToList();
                 if (enumTypes.Count != 0)
                 {
@@ -307,7 +307,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 retryAddStructType = false;
                 for (uint i = 0; i < namespaceCount; i++)
                 {
-                    ComplexTypeBuilder complexTypeBuilder = null;
+                    IComplexTypeBuilder complexTypeBuilder = null;
                     var structTypes = structTypesWorkList.Where(node => node.NodeId.NamespaceIndex == i).ToList();
                     if (structTypes.Count != 0)
                     {
@@ -517,7 +517,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Add an enum type defined in a binary schema dictionary.
         /// </summary>
         private void AddEnumTypes(
-            ComplexTypeBuilder complexTypeBuilder,
+            IComplexTypeBuilder complexTypeBuilder,
             IList<Opc.Ua.Schema.Binary.TypeDescription> enumList,
             IList<INode> enumerationTypes
             )
@@ -591,7 +591,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Add an enum type defined in a DataType node.
         /// </summary>
         private Type AddEnumType(
-            ComplexTypeBuilder complexTypeBuilder,
+            IComplexTypeBuilder complexTypeBuilder,
             DataTypeNode enumTypeNode
             )
         {
@@ -630,7 +630,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Add structured type to assembly with StructureDefinition.
         /// </summary>
         private Type AddStructuredType(
-            ComplexTypeBuilder complexTypeBuilder,
+            IComplexTypeBuilder complexTypeBuilder,
             StructureDefinition structureDefinition,
             string typeName,
             ExpandedNodeId complexTypeId,
@@ -656,11 +656,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 structureDefinition
                 );
 
-            fieldBuilder.StructureBuilder.StructureTypeIdAttribute(
-                complexTypeId,
-                binaryEncodingId,
-                xmlEncodingId
-                );
+            fieldBuilder.AddTypeIdAttribute(complexTypeId, binaryEncodingId, xmlEncodingId);
 
             int order = 1;
             var typeListEnumerator = typeList.GetEnumerator();

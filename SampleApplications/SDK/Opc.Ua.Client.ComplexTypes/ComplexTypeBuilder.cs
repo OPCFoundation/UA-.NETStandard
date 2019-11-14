@@ -40,7 +40,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// complex types based on the BaseComplexType class
     /// using System.Reflection.Emit.
     /// </summary>
-    public class ComplexTypeBuilder
+    public class ComplexTypeBuilder : IComplexTypeBuilder
     {
         #region Constructors
         /// <summary>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             var enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(enumeratedType.Name),
-                TypeAttributes.Public, 
+                TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var enumValue in enumeratedType.EnumeratedValue)
@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             var enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
-                TypeAttributes.Public, 
+                TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var enumValue in enumDefinition.Fields)
@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             var enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
-                TypeAttributes.Public, 
+                TypeAttributes.Public,
                 typeof(int));
             enumBuilder.DataContractAttribute(m_targetNamespace);
             foreach (var extensionObject in enumDefinition)
@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        public ComplexTypeFieldBuilder AddStructuredType(
+        public IComplexTypeFieldBuilder AddStructuredType(
             string name,
             StructureDefinition structureDefinition)
         {
@@ -228,25 +228,39 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Helper to build property fields.
     /// </summary>
-    public class ComplexTypeFieldBuilder
+    public class ComplexTypeFieldBuilder : IComplexTypeFieldBuilder
     {
         #region Constructors
         public ComplexTypeFieldBuilder(TypeBuilder structureBuilder)
         {
-            StructureBuilder = structureBuilder;
+            m_structureBuilder = structureBuilder;
         }
         #endregion
 
         #region Public Properties
-        public TypeBuilder StructureBuilder { get; private set; }
+        /// <summary>
+        /// Build the StructureTypeId attribute for a complex type.
+        /// </summary>
+        public void AddTypeIdAttribute(
+            ExpandedNodeId complexTypeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId
+            )
+        {
+            m_structureBuilder.StructureTypeIdAttribute(
+                complexTypeId,
+                binaryEncodingId,
+                xmlEncodingId
+                );
+        }
 
         /// <summary>
         /// Create a property field of a class with get and set.
         /// </summary>
         public void AddField(StructureField field, Type fieldType, int order)
         {
-            var fieldBuilder = StructureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
-            var propertyBuilder = StructureBuilder.DefineProperty(
+            var fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
+            var propertyBuilder = m_structureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
                 fieldType,
@@ -256,14 +270,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 System.Reflection.MethodAttributes.HideBySig |
                 System.Reflection.MethodAttributes.Virtual;
 
-            var setBuilder = StructureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
+            var setBuilder = m_structureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, new[] { fieldType });
             var setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
             setIl.Emit(OpCodes.Ret);
 
-            var getBuilder = StructureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
+            var getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
             var getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
             getIl.Emit(OpCodes.Ldfld, fieldBuilder);
@@ -280,10 +294,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Type CreateType()
         {
-            var complexType = StructureBuilder.CreateType();
-            StructureBuilder = null;
+            var complexType = m_structureBuilder.CreateType();
+            m_structureBuilder = null;
             return complexType;
         }
+        #endregion
+
+        #region Private Member
+        private TypeBuilder m_structureBuilder;
         #endregion
     }
 }//namespace
