@@ -408,7 +408,7 @@ namespace Opc.Ua
         /// </summary>
         public string ReadString(string fieldName, int maxStringLength)
         {
-            int length = m_reader.ReadInt32();
+            int length = ReadArrayLength();
 
             if (length == -1)
             {
@@ -485,7 +485,7 @@ namespace Opc.Ua
         /// </summary>
         public byte[] ReadByteString(string fieldName, int maxByteStringLength)
         {
-            int length = m_reader.ReadInt32();
+            int length = ReadArrayLength();
 
             if (length == -1)
             {
