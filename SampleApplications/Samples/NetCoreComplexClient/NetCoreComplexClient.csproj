@@ -11,12 +11,30 @@
     <Copyright>Copyright © 2004-2019 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-  </ItemGroup>
+  <Choose>
+    <When Condition="Exists('..\..\SDK') and '$(Configuration)'!='Nuget'">
+      <ItemGroup>
+        <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+        <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
+        <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+        <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <Choose>
+        <When Condition="'$(Configuration)'=='Release'">
+          <ItemGroup>
+            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes" Version="1.4.358" />
+          </ItemGroup>
+        </When>
+        <Otherwise>
+          <ItemGroup>
+            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes.Symbols" Version="1.4.358" />
+          </ItemGroup>
+        </Otherwise>
+      </Choose>
+    </Otherwise>
+  </Choose>
 
   <ItemGroup>
     <Folder Include="Properties\" />
