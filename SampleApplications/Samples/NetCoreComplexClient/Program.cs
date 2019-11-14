@@ -28,16 +28,17 @@
  * ======================================================================*/
 
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace NetCoreConsoleClient
 {
@@ -69,11 +70,17 @@ namespace NetCoreConsoleClient
             bool showHelp = false;
             int stopTimeout = Timeout.Infinite;
             bool autoAccept = false;
+            bool writeComplexInt = false;
+            bool loadTypeSystem = false;
+            bool verbose = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t }
+                { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t },
+                { "w|writeint", "Read and increment all complex types with an Int32.", w => writeComplexInt = w != null},
+                { "l|loadtypes", "Load the type system dictionary from the server.", n => loadTypeSystem = n != null},
+                { "v|verbose", "Verbose output.", v => verbose = v != null}
             };
 
             IList<string> extraArgs = null;
@@ -119,30 +126,32 @@ namespace NetCoreConsoleClient
             }
 
             MySampleClient client = new MySampleClient(endpointURL, autoAccept, stopTimeout);
-            client.Run();
-
-            return (int)MySampleClient.ExitCode;
+            client.Verbose = verbose;
+            client.LoadTypeSystem = loadTypeSystem;
+            client.WriteComplexInt = writeComplexInt;
+            return (int)client.Run();
         }
     }
 
     public class MySampleClient
     {
         const int ReconnectPeriod = 10;
-        Session session;
-        SessionReconnectHandler reconnectHandler;
-        string endpointURL;
-        int clientRunTime = Timeout.Infinite;
-        static bool autoAccept = false;
-        static ExitCode exitCode;
+        public ExitCode ExitCode { get; set; }
+        public bool Verbose { get; set; } = false;
+        public bool WriteComplexInt { get; set; } = false;
+        public bool LoadTypeSystem { get; set; } = false;
 
-        public MySampleClient(string _endpointURL, bool _autoAccept, int _stopTimeout)
+        public MySampleClient(
+            string endpointURL,
+            bool autoAccept,
+            int stopTimeout)
         {
-            endpointURL = _endpointURL;
-            autoAccept = _autoAccept;
-            clientRunTime = _stopTimeout <= 0 ? Timeout.Infinite : _stopTimeout * 1000;
+            _endpointURL = endpointURL;
+            _autoAccept = autoAccept;
+            _clientRunTime = stopTimeout <= 0 ? Timeout.Infinite : stopTimeout * 1000;
         }
 
-        public void Run()
+        public ExitCode Run()
         {
             Session session;
 
@@ -154,7 +163,7 @@ namespace NetCoreConsoleClient
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                return;
+                return ExitCode;
             }
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
@@ -170,33 +179,33 @@ namespace NetCoreConsoleClient
             {
             }
 
+            // Test the session reconnecthandler
             bool eventResult = quitEvent.WaitOne(5000);
             if (!eventResult)
             {
                 Console.WriteLine(" --- Start simulated reconnect... --- ");
-                reconnectHandler = new SessionReconnectHandler();
-                reconnectHandler.BeginReconnect(session, 1000, Client_ReconnectComplete);
+                _reconnectHandler = new SessionReconnectHandler();
+                _reconnectHandler.BeginReconnect(session, 1000, Client_ReconnectComplete);
             }
 
             // wait for timeout or Ctrl-C
-            quitEvent.WaitOne(clientRunTime);
+            quitEvent.WaitOne(_clientRunTime);
 
             // return error conditions
             if (session.KeepAliveStopped)
             {
-                exitCode = ExitCode.ErrorNoKeepAlive;
-                return;
+                ExitCode = ExitCode.ErrorNoKeepAlive;
+                return ExitCode;
             }
 
-            exitCode = ExitCode.Ok;
+            ExitCode = ExitCode.Ok;
+            return ExitCode;
         }
-
-        public static ExitCode ExitCode => exitCode;
 
         private async Task<Session> ConsoleSampleClient()
         {
             Console.WriteLine("1 - Create an Application Configuration.");
-            exitCode = ExitCode.ErrorCreateApplication;
+            ExitCode = ExitCode.ErrorCreateApplication;
 
             ApplicationInstance application = new ApplicationInstance
             {
@@ -220,7 +229,7 @@ namespace NetCoreConsoleClient
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
                 if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    autoAccept = true;
+                    _autoAccept = true;
                 }
                 config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
@@ -229,56 +238,105 @@ namespace NetCoreConsoleClient
                 Console.WriteLine("    WARN: missing application certificate, using unsecure connection.");
             }
 
-            Console.WriteLine("2 - Discover endpoints of {0}.", endpointURL);
-            exitCode = ExitCode.ErrorDiscoverEndpoints;
-            var selectedEndpoint = CoreClientUtils.SelectEndpoint(endpointURL, haveAppCertificate, 15000);
+            Console.WriteLine("2 - Discover endpoints of {0}.", _endpointURL);
+            ExitCode = ExitCode.ErrorDiscoverEndpoints;
+            var selectedEndpoint = CoreClientUtils.SelectEndpoint(_endpointURL, haveAppCertificate, 15000);
             Console.WriteLine("    Selected endpoint uses: {0}",
                 selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
             Console.WriteLine("3 - Create a session with OPC UA server.");
-            exitCode = ExitCode.ErrorCreateSession;
+            ExitCode = ExitCode.ErrorCreateSession;
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            session = await Session.Create(config, endpoint, false, "OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+            _session = await Session.Create(config, endpoint, false, "OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
 
             // register keep alive handler
-            session.KeepAlive += Client_KeepAlive;
+            _session.KeepAlive += Client_KeepAlive;
 
             Console.WriteLine("4 - Load the server type dictionary.");
-            exitCode = ExitCode.ErrorLoadTypeDictionary;
+            ExitCode = ExitCode.ErrorLoadTypeDictionary;
 
-            var complexTypeSystem = new ComplexTypeSystem(session);
-            await complexTypeSystem.Load();
+            Console.WriteLine("5 - Browse for all custom type variables.");
+            ExitCode = ExitCode.ErrorReadComplexTypes;
 
-            Console.WriteLine($"Custom types defined for this session:");
-            foreach (var type in complexTypeSystem.GetDefinedTypes())
-            {
-                Console.WriteLine($"{type.Namespace}.{type.Name}");
-            }
-
-            Console.WriteLine($"Loaded {session.DataTypeSystem.Count} dictionaries:");
-            foreach (var dictionary in session.DataTypeSystem)
-            {
-                Console.WriteLine($" + {dictionary.Value.Name}");
-                foreach (var type in dictionary.Value.DataTypes)
-                {
-                    Console.WriteLine($" -- {type.Key}:{type.Value}");
-                }
-            }
-
-            Console.WriteLine("5 - Read all custom type values.");
-            exitCode = ExitCode.ErrorReadComplexTypes;
-
-            var allVariableNodes = BrowseAllVariables(session);
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            var allVariableNodes = BrowseAllVariables();
             var allCustomTypeVariables = allVariableNodes.Where(n => ((VariableNode)n).DataType == DataTypeIds.Structure).ToList();
             allCustomTypeVariables.AddRange(allVariableNodes.Where(n => ((VariableNode)n).DataType.NamespaceIndex != 0).ToList());
+            stopWatch.Stop();
+
+            Console.WriteLine($" -- Browse all nodes took {stopWatch.ElapsedMilliseconds}ms.");
+            Console.WriteLine($" -- Browsed {allVariableNodes.Count} nodes, from which {allCustomTypeVariables.Count} are custom type variables.");
+
+            if (LoadTypeSystem)
+            {
+                stopWatch.Reset();
+                stopWatch.Start();
+
+                var complexTypeSystem = new ComplexTypeSystem(_session);
+                await complexTypeSystem.Load();
+
+                stopWatch.Stop();
+
+                Console.WriteLine($"Load type system took {stopWatch.ElapsedMilliseconds}ms.");
+
+                Console.WriteLine($"Custom types defined for this session:");
+                foreach (var type in complexTypeSystem.GetDefinedTypes())
+                {
+                    Console.WriteLine($"{type.Namespace}.{type.Name}");
+                }
+
+                Console.WriteLine($"Loaded {_session.DataTypeSystem.Count} dictionaries:");
+                foreach (var dictionary in _session.DataTypeSystem)
+                {
+                    Console.WriteLine($" + {dictionary.Value.Name}");
+                    foreach (var type in dictionary.Value.DataTypes)
+                    {
+                        Console.WriteLine($" -- {type.Key}:{type.Value}");
+                    }
+                }
+            }
 
             foreach (VariableNode variableNode in allCustomTypeVariables)
             {
                 try
                 {
-                    var value = session.ReadValue(variableNode.NodeId);
+                    var value = _session.ReadValue(variableNode.NodeId);
+                    CastInt32ToEnum(variableNode, value);
                     Console.WriteLine($" -- {variableNode}:{value}");
+
+                    var complexType = value.Value as BaseComplexType;
+                    if (complexType != null)
+                    {
+                        break;
+                    }
+
+                    var extensionObject = value.Value as ExtensionObject;
+                    if (extensionObject != null)
+                    {
+                        complexType = extensionObject.Body as BaseComplexType;
+                        if (complexType != null)
+                        {
+                            foreach (var item in complexType.GetPropertyEnumerator())
+                            {
+                                if (Verbose)
+                                {
+                                    Console.WriteLine($" -- -- {item.Name}:{complexType[item.Name]}");
+                                }
+                                if (WriteComplexInt && item.PropertyType == typeof(Int32))
+                                {
+                                    var data = complexType[item.Name];
+                                    if (data != null)
+                                    {
+                                        complexType[item.Name] = (Int32)data + 1;
+                                    }
+                                    Console.WriteLine($" -- -- Write: {item.Name}, {complexType[item.Name]}");
+                                    WriteValue(_session, variableNode.NodeId, value);
+                                }
+                            }
+                        }
+                    }
                 }
                 catch (ServiceResultException sre)
                 {
@@ -290,11 +348,11 @@ namespace NetCoreConsoleClient
             }
 
             Console.WriteLine("6 - Create a subscription with publishing interval of 1 second.");
-            exitCode = ExitCode.ErrorCreateSubscription;
-            var subscription = new Subscription(session.DefaultSubscription) { PublishingInterval = 1000 };
+            ExitCode = ExitCode.ErrorCreateSubscription;
+            var subscription = new Subscription(_session.DefaultSubscription) { PublishingInterval = 1000 };
 
             Console.WriteLine("7 - Add all custom values and the server time to the subscription.");
-            exitCode = ExitCode.ErrorMonitoredItem;
+            ExitCode = ExitCode.ErrorMonitoredItem;
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
                 {
@@ -308,7 +366,7 @@ namespace NetCoreConsoleClient
                 var newItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = customVariable.DisplayName.Text,
-                    StartNodeId = ExpandedNodeId.ToNodeId(customVariable.NodeId, session.NamespaceUris)
+                    StartNodeId = ExpandedNodeId.ToNodeId(customVariable.NodeId, _session.NamespaceUris)
                 };
                 newItem.Notification += OnComplexTypeNotification;
                 list.Add(newItem);
@@ -317,17 +375,20 @@ namespace NetCoreConsoleClient
             subscription.AddItems(list);
 
             Console.WriteLine("8 - Add the subscription to the session.");
-            exitCode = ExitCode.ErrorAddSubscription;
-            session.AddSubscription(subscription);
+            ExitCode = ExitCode.ErrorAddSubscription;
+            _session.AddSubscription(subscription);
             subscription.Create();
 
             Console.WriteLine("9 - Running...Press Ctrl-C to exit...");
-            exitCode = ExitCode.ErrorRunning;
+            ExitCode = ExitCode.ErrorRunning;
 
-            return session;
+            return _session;
         }
 
-        private IList<INode> BrowseAllVariables(Session session)
+        /// <summary>
+        /// Browse all variables in the objects folder.
+        /// </summary>
+        private IList<INode> BrowseAllVariables()
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection();
@@ -340,17 +401,17 @@ namespace NetCoreConsoleClient
                 {
                     try
                     {
-                        var organizers = session.NodeCache.FindReferences(
+                        var organizers = _session.NodeCache.FindReferences(
                             node,
                             ReferenceTypeIds.Organizes,
                             false,
                             false);
-                        var components = session.NodeCache.FindReferences(
+                        var components = _session.NodeCache.FindReferences(
                             node,
                             ReferenceTypeIds.HasComponent,
                             false,
                             false);
-                        var properties = session.NodeCache.FindReferences(
+                        var properties = _session.NodeCache.FindReferences(
                             node,
                             ReferenceTypeIds.HasProperty,
                             false,
@@ -384,11 +445,11 @@ namespace NetCoreConsoleClient
             {
                 Console.WriteLine("{0} {1}/{2}", e.Status, sender.OutstandingRequestCount, sender.DefunctRequestCount);
 
-                if (reconnectHandler == null)
+                if (_reconnectHandler == null)
                 {
                     Console.WriteLine("--- RECONNECTING ---");
-                    reconnectHandler = new SessionReconnectHandler();
-                    reconnectHandler.BeginReconnect(sender, ReconnectPeriod * 1000, Client_ReconnectComplete);
+                    _reconnectHandler = new SessionReconnectHandler();
+                    _reconnectHandler.BeginReconnect(sender, ReconnectPeriod * 1000, Client_ReconnectComplete);
                 }
             }
         }
@@ -396,19 +457,68 @@ namespace NetCoreConsoleClient
         private void Client_ReconnectComplete(object sender, EventArgs e)
         {
             // ignore callbacks from discarded objects.
-            if (!Object.ReferenceEquals(sender, reconnectHandler))
+            if (!Object.ReferenceEquals(sender, _reconnectHandler))
             {
                 return;
             }
 
-            session = reconnectHandler.Session;
-            reconnectHandler.Dispose();
-            reconnectHandler = null;
+            _session = _reconnectHandler.Session;
+            _reconnectHandler.Dispose();
+            _reconnectHandler = null;
 
             Console.WriteLine("--- RECONNECTED ---");
         }
 
-        private static void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
+        /// <summary>
+        /// Helper to cast a enumeration node value to an enumeration type.
+        /// </summary>
+        private void CastInt32ToEnum(VariableNode variableNode, DataValue value)
+        {
+            if (value.Value.GetType() == typeof(Int32))
+            {
+                // test if this is an enum datatype?
+                Type systemType = _session.Factory.GetSystemType(
+                    NodeId.ToExpandedNodeId(variableNode.DataType, _session.NamespaceUris)
+                    );
+                if (systemType != null)
+                {
+                    value.Value = Enum.ToObject(systemType, value.Value);
+                }
+            }
+        }
+
+        private void WriteValue(Session session, NodeId variableId, DataValue value)
+        {
+            WriteValue nodeToWrite = new WriteValue();
+            nodeToWrite.NodeId = variableId;
+            nodeToWrite.AttributeId = Attributes.Value;
+            nodeToWrite.Value = new DataValue();
+            nodeToWrite.Value.WrappedValue = value.WrappedValue;
+
+            WriteValueCollection nodesToWrite = new WriteValueCollection();
+            nodesToWrite.Add(nodeToWrite);
+
+            // read the attributes.
+            StatusCodeCollection results = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
+
+            ResponseHeader responseHeader = session.Write(
+                null,
+                nodesToWrite,
+                out results,
+                out diagnosticInfos);
+
+            ClientBase.ValidateResponse(results, nodesToWrite);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToWrite);
+
+            // check for error.
+            if (StatusCode.IsBad(results[0]))
+            {
+                throw ServiceResultException.Create(results[0], 0, diagnosticInfos, responseHeader.StringTable);
+            }
+        }
+
+        private void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
         {
             foreach (var value in item.DequeueValues())
             {
@@ -416,7 +526,7 @@ namespace NetCoreConsoleClient
             }
         }
 
-        private static void OnComplexTypeNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
+        private void OnComplexTypeNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
         {
             foreach (var value in item.DequeueValues())
             {
@@ -425,12 +535,12 @@ namespace NetCoreConsoleClient
             }
         }
 
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
+                e.Accept = _autoAccept;
+                if (_autoAccept)
                 {
                     Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                 }
@@ -440,6 +550,12 @@ namespace NetCoreConsoleClient
                 }
             }
         }
+
+        private Session _session;
+        private SessionReconnectHandler _reconnectHandler;
+        private string _endpointURL;
+        private bool _autoAccept = false;
+        private int _clientRunTime = Timeout.Infinite;
 
     }
 
