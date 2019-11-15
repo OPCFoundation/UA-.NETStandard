@@ -23,6 +23,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{54E066C7-E4B0-4911-8B90-D7FD88D9304F}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DEF30692-973F-40BC-BD2B-C1A167F71F1F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,8 +71,15 @@ Global
 		{54E066C7-E4B0-4911-8B90-D7FD88D9304F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{54E066C7-E4B0-4911-8B90-D7FD88D9304F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{54E066C7-E4B0-4911-8B90-D7FD88D9304F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEF30692-973F-40BC-BD2B-C1A167F71F1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEF30692-973F-40BC-BD2B-C1A167F71F1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEF30692-973F-40BC-BD2B-C1A167F71F1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEF30692-973F-40BC-BD2B-C1A167F71F1F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7F2BCD7F-A64E-48B3-82BC-1C951D63EAD9}
 	EndGlobalSection
 EndGlobal

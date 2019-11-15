@@ -47,6 +47,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		version.props = version.props
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{1C0A9B7C-ECBB-469F-B73F-A8CC93B4A87D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -105,6 +107,10 @@ Global
 		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E331581C-1DEB-40DA-9BD7-19DDE8449653}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C0A9B7C-ECBB-469F-B73F-A8CC93B4A87D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C0A9B7C-ECBB-469F-B73F-A8CC93B4A87D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C0A9B7C-ECBB-469F-B73F-A8CC93B4A87D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C0A9B7C-ECBB-469F-B73F-A8CC93B4A87D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
