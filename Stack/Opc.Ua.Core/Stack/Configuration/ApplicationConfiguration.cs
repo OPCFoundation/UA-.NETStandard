@@ -194,10 +194,6 @@ namespace Opc.Ua
             {
                 messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
-            else
-            {
-                messageContext.Factory = EncodeableFactory.GlobalFactory;
-            }
             return messageContext;
         }
 
