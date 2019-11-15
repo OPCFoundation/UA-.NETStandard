@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -65,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Load a single custom type with subtypes.
         /// </summary>
-        public Task LoadType(NodeId nodeId, bool subTypes)
+        public Task<bool> LoadType(NodeId nodeId, bool subTypes)
         {
             // FUTURE: Implement loader for a single type. Currently loading all types.
             return Load();
@@ -74,7 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Load all custom types of a namespace.
         /// </summary>
-        public Task LoadTypeDictionary(string nameSpace)
+        public Task<bool> LoadTypeDictionary(string nameSpace)
         {
             // FUTURE: Implement loader for all custom types of a namespace. Currently loading all types.
             return Load();
@@ -96,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Convert all structured types in the dictionaries to the DataTypeDefinion attribute, if possible.
         /// - Create all structured types from the dictionaries using the DataTypeDefinion attribute..
         /// </remarks>
-        public async Task Load()
+        public async Task<bool> Load()
         {
             try
             {
@@ -105,10 +106,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
                 LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
                 await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
+                return true;
             }
             catch (ServiceResultException sre)
             {
-                Utils.TraceDebug($"Failed to load the custom type dictionary: {sre.Message}.");
+                Utils.Trace(sre, $"Failed to load the custom type dictionary.");
+                return false;
             }
         }
 
@@ -167,85 +170,94 @@ namespace Opc.Ua.Client.ComplexTypes
                     // Add all unknown enumeration types 
                     AddEnumTypes(complexTypeBuilder, enumList, serverEnumTypes);
 
-                    // build structured types
-                    foreach (var item in structureList)
+                    int lastStructureCount = 0;
+                    while (structureList.Count > 0 &&
+                        structureList.Count != lastStructureCount)
                     {
-                        var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
-                        if (structuredObject != null)
+                        lastStructureCount = structureList.Count;
+                        var retryStructureList = new List<Schema.Binary.TypeDescription>();
+                        // build structured types
+                        foreach (var item in structureList)
                         {
-                            var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
-
-                            // find the data type node and the binary encoding id
-                            ExpandedNodeId typeId;
-                            ExpandedNodeId binaryEncodingId;
-                            DataTypeNode dataTypeNode;
-                            bool newTypeDescription = BrowseTypeIdsForDictionaryComponent(
-                                ExpandedNodeId.ToNodeId(nodeId.NodeId, m_session.NamespaceUris),
-                                out typeId,
-                                out binaryEncodingId,
-                                out dataTypeNode);
-
-                            if (!newTypeDescription)
+                            var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
+                            if (structuredObject != null)
                             {
-                                Utils.TraceDebug($"Skip the type definition of {item.Name} because the data type node was not found.");
-                                continue;
-                            }
+                                var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
 
-                            if (GetSystemType(typeId) != null)
-                            {
-                                Utils.TraceDebug($"Skip the type definition of {item.Name} because the type already exists.");
-                                continue;
-                            }
+                                // find the data type node and the binary encoding id
+                                ExpandedNodeId typeId;
+                                ExpandedNodeId binaryEncodingId;
+                                DataTypeNode dataTypeNode;
+                                bool newTypeDescription = BrowseTypeIdsForDictionaryComponent(
+                                    ExpandedNodeId.ToNodeId(nodeId.NodeId, m_session.NamespaceUris),
+                                    out typeId,
+                                    out binaryEncodingId,
+                                    out dataTypeNode);
 
-                            // Use DataTypeDefinition attribute, if available (>=V1.04)
-                            StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
-                            if (structureDefinition == null)
-                            {
-                                try
+                                if (!newTypeDescription)
                                 {
-                                    // convert the binary schema description to a StructureDefinition
-                                    structureDefinition = structuredObject.ToStructureDefinition(
-                                        binaryEncodingId,
-                                        allTypes,
-                                        m_session.NamespaceUris);
-                                }
-                                catch (ServiceResultException sre)
-                                {
-                                    Utils.TraceDebug($"Skip the type definition of {item.Name}. Error: {sre.Message}");
+                                    Utils.Trace(TraceMasks.Error, $"Skip the type definition of {item.Name} because the data type node was not found.");
                                     continue;
                                 }
-                            }
 
-                            Type complexType = null;
-                            if (structureDefinition != null)
-                            {
-                                // build the actual structured type in an assembly
-                                complexType = AddStructuredType(
-                                    complexTypeBuilder,
-                                    structureDefinition,
-                                    dataTypeNode.BrowseName.Name,
-                                    typeId,
-                                    binaryEncodingId);
-
-                                // Add new type to factory
-                                if (complexType != null)
+                                if (GetSystemType(typeId) != null)
                                 {
-                                    AddEncodeableType(binaryEncodingId, complexType);
-                                    AddEncodeableType(typeId, complexType);
+                                    Utils.Trace(TraceMasks.Information, $"Skip the type definition of {item.Name} because the type already exists.");
+                                    continue;
+                                }
+
+                                // Use DataTypeDefinition attribute, if available (>=V1.04)
+                                StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                                if (structureDefinition == null)
+                                {
+                                    try
+                                    {
+                                        // convert the binary schema description to a StructureDefinition
+                                        structureDefinition = structuredObject.ToStructureDefinition(
+                                            binaryEncodingId,
+                                            allTypes,
+                                            m_session.NamespaceUris);
+                                    }
+                                    catch (ServiceResultException sre)
+                                    {
+                                        Utils.Trace(sre, $"Skip the type definition of {item.Name}.");
+                                        continue;
+                                    }
+                                }
+
+                                Type complexType = null;
+                                if (structureDefinition != null)
+                                {
+                                    // build the actual structured type in an assembly
+                                    complexType = AddStructuredType(
+                                        complexTypeBuilder,
+                                        structureDefinition,
+                                        dataTypeNode.BrowseName.Name,
+                                        typeId,
+                                        binaryEncodingId);
+
+                                    // Add new type to factory
+                                    if (complexType != null)
+                                    {
+                                        AddEncodeableType(binaryEncodingId, complexType);
+                                        AddEncodeableType(typeId, complexType);
+                                    }
+                                }
+
+                                if (complexType == null)
+                                {
+                                    retryStructureList.Add(item);
+                                    Utils.Trace(TraceMasks.Error, $"Skipped the type definition of {item.Name}. Retry in next round.");
                                 }
                             }
-
-                            if (complexType == null)
-                            {
-                                Utils.TraceDebug($"Warning: Skipped the type definition of {item.Name}.");
-                            }
                         }
+                        structureList = retryStructureList;
                     }
                 }
                 catch (ServiceResultException sre)
                 {
-                    Utils.TraceDebug(
-                        $"Warning: Unexpected error processing {dictionaryId.Value.Name}: {sre.Message}.");
+                    Utils.Trace(sre,
+                        $"Unexpected error processing {dictionaryId.Value.Name}.");
                 }
             }
         }
@@ -329,8 +341,8 @@ namespace Opc.Ua.Client.ComplexTypes
                                 try
                                 {
                                     newType = AddStructuredType(
-                                        complexTypeBuilder, 
-                                        structureDefinition, 
+                                        complexTypeBuilder,
+                                        structureDefinition,
                                         dataTypeNode.BrowseName.Name,
                                         structType.NodeId,
                                         structureDefinition.DefaultEncodingId
@@ -751,24 +763,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else
                     {
-                        int insertIndex = 0;
-                        foreach (var field in dependentFields)
-                        {
-                            int index = structureList.FindIndex(t => t.Name == field.Name);
-                            if (index > insertIndex)
-                            {
-                                insertIndex = index;
-                            }
-                        }
-                        insertIndex++;
-                        if (structureList.Count > insertIndex)
-                        {
-                            structureList.Insert(insertIndex, structuredObject);
-                        }
-                        else
-                        {
-                            structureList.Add(structuredObject);
-                        }
+                        structureList.Add(structuredObject);
                     }
                 }
                 else if (item is Opc.Ua.Schema.Binary.EnumeratedType)

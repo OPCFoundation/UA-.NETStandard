@@ -71,7 +71,7 @@ namespace NetCoreConsoleClient
             int stopTimeout = Timeout.Infinite;
             bool autoAccept = false;
             bool writeComplexInt = false;
-            bool loadTypeSystem = false;
+            bool noloadTypes = false;
             bool verbose = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
@@ -79,7 +79,7 @@ namespace NetCoreConsoleClient
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t },
                 { "w|writeint", "Read and increment all complex types with an Int32.", w => writeComplexInt = w != null},
-                { "l|loadtypes", "Load the type system dictionary from the server.", n => loadTypeSystem = n != null},
+                { "n|noloadtypes", "Load the type system dictionary from the server.", n => noloadTypes = n != null},
                 { "v|verbose", "Verbose output.", v => verbose = v != null}
             };
 
@@ -127,7 +127,7 @@ namespace NetCoreConsoleClient
 
             MySampleClient client = new MySampleClient(endpointURL, autoAccept, stopTimeout);
             client.Verbose = verbose;
-            client.LoadTypeSystem = loadTypeSystem;
+            client.LoadTypeSystem = !noloadTypes;
             client.WriteComplexInt = writeComplexInt;
             return (int)client.Run();
         }
@@ -253,10 +253,7 @@ namespace NetCoreConsoleClient
             // register keep alive handler
             _session.KeepAlive += Client_KeepAlive;
 
-            Console.WriteLine("4 - Load the server type dictionary.");
-            ExitCode = ExitCode.ErrorLoadTypeDictionary;
-
-            Console.WriteLine("5 - Browse for all custom type variables.");
+            Console.WriteLine("4 - Browse for all custom type variables.");
             ExitCode = ExitCode.ErrorReadComplexTypes;
 
             Stopwatch stopWatch = new Stopwatch();
@@ -271,6 +268,9 @@ namespace NetCoreConsoleClient
 
             if (LoadTypeSystem)
             {
+                Console.WriteLine("5 - Load the server type dictionary.");
+                ExitCode = ExitCode.ErrorLoadTypeDictionary;
+
                 stopWatch.Reset();
                 stopWatch.Start();
 
@@ -297,25 +297,24 @@ namespace NetCoreConsoleClient
                     }
                 }
             }
+            else
+            {
+                Console.WriteLine("4 - Not loading the server type dictionary.");
+            }
 
             foreach (VariableNode variableNode in allCustomTypeVariables)
             {
                 try
                 {
                     var value = _session.ReadValue(variableNode.NodeId);
+
                     CastInt32ToEnum(variableNode, value);
                     Console.WriteLine($" -- {variableNode}:{value}");
-
-                    var complexType = value.Value as BaseComplexType;
-                    if (complexType != null)
-                    {
-                        break;
-                    }
 
                     var extensionObject = value.Value as ExtensionObject;
                     if (extensionObject != null)
                     {
-                        complexType = extensionObject.Body as BaseComplexType;
+                        var complexType = extensionObject.Body as BaseComplexType;
                         if (complexType != null)
                         {
                             foreach (var item in complexType.GetPropertyEnumerator())
@@ -474,7 +473,7 @@ namespace NetCoreConsoleClient
         /// </summary>
         private void CastInt32ToEnum(VariableNode variableNode, DataValue value)
         {
-            if (value.Value.GetType() == typeof(Int32))
+            if (value.Value?.GetType() == typeof(Int32))
             {
                 // test if this is an enum datatype?
                 Type systemType = _session.Factory.GetSystemType(
