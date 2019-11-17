@@ -1700,12 +1700,12 @@ namespace Opc.Ua.Client.Controls
                     ((IList)state.Value)[ii] = value;
                     state.Component = value;
                 }
-                
+
                 m_expanding = false;
-                int index = (int)state.ComponentIndex;
+                int index = (int)state.ComponentIndex - 1;
                 int indentCount = ItemsLV.Items[index].IndentCount;
 
-                while (ItemsLV.Items[index - 1].IndentCount == indentCount)
+                while (index > 0 && ItemsLV.Items[index - 1].IndentCount == indentCount)
                 {
                     --index;
                 }

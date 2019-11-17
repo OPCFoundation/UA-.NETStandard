@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Controls
         public ReferenceTypeCtrl()
         {
             InitializeComponent();
-            m_baseTypeId = ReferenceTypes.References;
+            m_baseTypeId = Opc.Ua.ReferenceTypeIds.References;
         }
         #endregion
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Controls
 
             if (NodeId.IsNull(m_baseTypeId))
             {
-                m_baseTypeId = ReferenceTypes.References;
+                m_baseTypeId = ReferenceTypeIds.References;
             }
 
             ReferenceTypesCB.Items.Clear();
