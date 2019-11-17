@@ -557,12 +557,38 @@ namespace Opc.Ua.Client.Controls
             
             if (dataValue != null)
             {
-                if (StatusCode.IsBad(dataValue.StatusCode))
+                StringBuilder formattedValue = new StringBuilder();
+
+                if (!StatusCode.IsGood(dataValue.StatusCode))
                 {
-                    return String.Format("{0}", dataValue.StatusCode);
+                    formattedValue.Append("[");
+                    formattedValue.AppendFormat("Q:{0}", dataValue.StatusCode);
                 }
 
-                return String.Format("{0}", dataValue.Value);
+                DateTime now = DateTime.UtcNow;
+
+                if ((dataValue != null) &&
+                    ((dataValue.ServerTimestamp > now) || (dataValue.SourceTimestamp > now)))
+                {
+                    if (formattedValue.ToString().Length > 0)
+                    {
+                        formattedValue.Append(", ");
+                    }
+                    else
+                    {
+                        formattedValue.Append("[");
+                    }
+
+                    formattedValue.Append("T:future");
+                }
+
+                if (formattedValue.ToString().Length > 0)
+                {
+                    formattedValue.Append("] ");
+                }
+
+                formattedValue.AppendFormat("{0}", dataValue.Value);
+                return formattedValue.ToString();
             }
             
             // use default formatting.
@@ -583,10 +609,16 @@ namespace Opc.Ua.Client.Controls
         {
             // get the list item to update.
             ListViewItem listitem = GetListItem(index, ref overwrite, name, type);
-                                    
-            // update list item.
-            listitem.SubItems[1].Text = GetValueText(componentValue);
-            
+            if (componentValue is StatusCode)
+            {
+                listitem.SubItems[1].Text = componentValue.ToString();
+            }
+            else
+            {
+                // update list item.
+                listitem.SubItems[1].Text = GetValueText(componentValue);
+            }            
+
             // move to next item.
             index++;
 

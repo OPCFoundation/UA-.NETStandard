@@ -446,7 +446,7 @@ namespace Opc.Ua.Client.Controls
 
                     if (text != null)
                     {
-                        return new LocalizedText(text, ltext.Locale);
+                        return new LocalizedText(ltext.Locale, text);
                     }
 
                     return null;
