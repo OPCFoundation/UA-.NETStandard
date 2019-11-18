@@ -32,7 +32,7 @@ cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreComplexClient
 echo start client for tcp connection
-dotnet run --no-restore --no-build --project NetCoreComplexClient.csproj -t 10 -a -v &
+dotnet run --no-restore --no-build --project NetCoreComplexClient.csproj -t 10 -a -v -j &
 clientpid="$!"
 cd "$workdir"
 
