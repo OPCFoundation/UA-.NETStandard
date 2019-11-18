@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29509.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{84FE2F0A-4192-4D2C-8097-9C396C2375E8}"
 EndProject
@@ -10,10 +10,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{0B97D07F-629D-47DD-8975-B1F96D434130}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{B64C8C45-7323-4353-A01C-81803F368799}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,14 +33,6 @@ Global
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCA9C101-199F-4519-9F97-4CD22817EBE8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0B97D07F-629D-47DD-8975-B1F96D434130}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0B97D07F-629D-47DD-8975-B1F96D434130}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0B97D07F-629D-47DD-8975-B1F96D434130}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0B97D07F-629D-47DD-8975-B1F96D434130}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B64C8C45-7323-4353-A01C-81803F368799}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B64C8C45-7323-4353-A01C-81803F368799}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B64C8C45-7323-4353-A01C-81803F368799}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B64C8C45-7323-4353-A01C-81803F368799}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
