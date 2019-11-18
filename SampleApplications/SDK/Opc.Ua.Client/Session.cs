@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
             {
                 m_namespaceUris = new NamespaceTable();
                 m_serverUris = new StringTable();
-                m_factory = ServiceMessageContext.GlobalContext.Factory;
+                m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
 
             // set the default preferred locales.
