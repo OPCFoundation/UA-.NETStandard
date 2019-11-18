@@ -24,8 +24,10 @@ script:
   - dotnet build -c Debug /p:NoHttps=true SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Release /p:NoHttps=true SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
+  - dotnet build -c Debug SampleApplications/Samples/NetCoreComplexClient/NetCoreComplexClient.csproj
   - dotnet build -c Debug SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
+  - dotnet build -c Release SampleApplications/Samples/NetCoreComplexClient/NetCoreComplexClient.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
   - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
