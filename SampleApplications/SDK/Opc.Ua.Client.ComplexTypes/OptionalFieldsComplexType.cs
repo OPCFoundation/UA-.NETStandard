@@ -206,7 +206,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
+        #endregion
 
+        #region IComplexTypeProperties Members
         /// <summary>
         /// Access property values by index.
         /// </summary>
@@ -302,7 +304,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
-        private UInt32 m_optionalFields;
+        protected UInt32 m_optionalFields;
         #endregion
     }
 

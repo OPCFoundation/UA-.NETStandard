@@ -215,30 +215,33 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
+        #endregion
 
+        #region IComplexTypeProperties Members
         /// <summary>
         /// Access property values by index.
         /// </summary>
         /// <remarks>
         /// The value of a Union is determined by the union selector.
         /// Calling get on an unselected property returns null, 
-        /// otherwise the selected object.
+        ///     otherwise the selected object.
         /// Calling get with an invalid index (e.g.-1) returns the selected object.
         /// Calling set with a valid object on a selected property sets the value and the 
-        /// union selector. 
+        /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
         public override object this[int index]
         {
             get
             {
-                if (index < 0 && UnionSelector != 0)
-                {
-                    return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
-                }
-                if (UnionSelector == index + 1)
+                if (index + 1 == (int)m_unionSelector)
                 {
                     return m_propertyList.ElementAt(index).GetValue(this);
+                }
+                if (index < 0 &&
+                    m_unionSelector > 0)
+                {
+                    return m_propertyList.ElementAt((int)m_unionSelector - 1).GetValue(this);
                 }
                 return null;
             }
@@ -247,8 +250,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (index >= 0)
                 {
                     m_propertyList.ElementAt(index).SetValue(this, value);
-                    m_unionSelector = (value != null) ? (uint)(index + 1) : 0;
-                    return;
+                    // note: selector is updated in SetValue by emitted code for union
+                    // m_unionSelector = (uint)(index + 1);
+                    if (value != null)
+                    {
+                        return;
+                    }
+                    // reset union selector if value is a null
                 }
                 m_unionSelector = 0;
             }
@@ -270,26 +278,36 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                ComplexTypePropertyAttribute property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (UnionSelector > 0)
                 {
-                    if (m_unionSelector == property.Order)
+                    ComplexTypePropertyAttribute property;
+                    if (m_propertyDict.TryGetValue(name, out property))
                     {
-                        return m_propertyDict[name].GetValue(this);
+                        if ((int)m_unionSelector == property.Order)
+                        {
+                            return property.GetValue(this);
+                        }
                     }
-                    return null;
+                    else
+                    {
+                        return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
+                    }
                 }
-                return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
+                return null;
             }
             set
             {
                 ComplexTypePropertyAttribute property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
-                    int order = property.Order;
                     property.SetValue(this, value);
-                    m_unionSelector = (value != null) ? (uint)(property.Order) : 0;
-                    return;
+                    // note: selector is updated in SetValue by emitted code for union
+                    // m_unionSelector = (uint)(property.Order);
+                    if (value != null)
+                    {
+                        return;
+                    }
+                    // reset union selector if value is a null
                 }
                 m_unionSelector = 0;
             }
@@ -297,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
-        private UInt32 m_unionSelector;
+        protected UInt32 m_unionSelector;
         #endregion
     }
 

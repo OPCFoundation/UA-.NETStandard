@@ -190,7 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
             structureBuilder.StructureDefinitonAttribute(structureDefinition);
-            return new ComplexTypeFieldBuilder(structureBuilder);
+            return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
         #endregion
 
@@ -231,9 +231,12 @@ namespace Opc.Ua.Client.ComplexTypes
     public class ComplexTypeFieldBuilder : IComplexTypeFieldBuilder
     {
         #region Constructors
-        public ComplexTypeFieldBuilder(TypeBuilder structureBuilder)
+        public ComplexTypeFieldBuilder(
+            TypeBuilder structureBuilder,
+            StructureType structureType)
         {
             m_structureBuilder = structureBuilder;
+            m_structureType = structureType;
         }
         #endregion
 
@@ -275,6 +278,17 @@ namespace Opc.Ua.Client.ComplexTypes
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
+            if (m_structureType == StructureType.Union)
+            {
+                // set the union selector to the new field index
+                FieldInfo unionField = typeof(UnionComplexType).GetField(
+                    "m_unionSelector",
+                    BindingFlags.NonPublic |
+                    BindingFlags.Instance);
+                setIl.Emit(OpCodes.Ldarg_0);
+                setIl.Emit(OpCodes.Ldc_I4, order);
+                setIl.Emit(OpCodes.Stfld, unionField);
+            }
             setIl.Emit(OpCodes.Ret);
 
             var getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
@@ -302,6 +316,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Member
         private TypeBuilder m_structureBuilder;
+        private StructureType m_structureType;
         #endregion
     }
 }//namespace
