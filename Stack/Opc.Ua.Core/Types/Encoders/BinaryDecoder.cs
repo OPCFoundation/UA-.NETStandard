@@ -410,7 +410,7 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
             }
@@ -487,7 +487,7 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
             }
