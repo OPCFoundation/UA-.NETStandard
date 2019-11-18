@@ -282,7 +282,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // set the union selector to the new field index
                 FieldInfo unionField = typeof(UnionComplexType).GetField(
-                    "m_unionSelector",
+                    "m_switchField",
                     BindingFlags.NonPublic |
                     BindingFlags.Instance);
                 setIl.Emit(OpCodes.Ldarg_0);

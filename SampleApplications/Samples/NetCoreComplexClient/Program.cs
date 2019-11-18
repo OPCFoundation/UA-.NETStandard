@@ -31,10 +31,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mono.Options;
+using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -73,6 +75,7 @@ namespace NetCoreConsoleClient
             bool writeComplexInt = false;
             bool noloadTypes = false;
             bool verbose = false;
+            bool json = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -80,7 +83,8 @@ namespace NetCoreConsoleClient
                 { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t },
                 { "w|writeint", "Read and increment all complex types with an Int32.", w => writeComplexInt = w != null},
                 { "n|noloadtypes", "Load the type system dictionary from the server.", n => noloadTypes = n != null},
-                { "v|verbose", "Verbose output.", v => verbose = v != null}
+                { "v|verbose", "Verbose output.", v => verbose = v != null},
+                { "j|json", "Print custom nodes as Json.", j => json = j != null},
             };
 
             IList<string> extraArgs = null;
@@ -129,6 +133,7 @@ namespace NetCoreConsoleClient
             client.Verbose = verbose;
             client.LoadTypeSystem = !noloadTypes;
             client.WriteComplexInt = writeComplexInt;
+            client.PrintAsJson = json;
             return (int)client.Run();
         }
     }
@@ -139,6 +144,7 @@ namespace NetCoreConsoleClient
         public ExitCode ExitCode { get; set; }
         public bool Verbose { get; set; } = false;
         public bool WriteComplexInt { get; set; } = false;
+        public bool PrintAsJson { get; set; } = false;
         public bool LoadTypeSystem { get; set; } = false;
 
         public MySampleClient(
@@ -334,6 +340,21 @@ namespace NetCoreConsoleClient
                                     WriteValue(_session, variableNode.NodeId, value);
                                 }
                             }
+                        }
+                    }
+                    if (PrintAsJson)
+                    {
+                        var jsonEncoder = new JsonEncoder(_session.MessageContext, false);
+                        jsonEncoder.WriteDataValue(variableNode.BrowseName.Name, value);
+                        var textbuffer = jsonEncoder.CloseAndReturnText();
+                        // prettify
+                        using (var stringReader = new StringReader(textbuffer))
+                        using (var stringWriter = new StringWriter())
+                        {
+                            var jsonReader = new JsonTextReader(stringReader);
+                            var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
+                            jsonWriter.WriteToken(jsonReader);
+                            Console.WriteLine(stringWriter.ToString());
                         }
                     }
                 }

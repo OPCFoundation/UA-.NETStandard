@@ -379,13 +379,13 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 encoder.WriteUInt16(property.Name, (UInt16)property.GetValue(this));
             }
-            else if (propertyType == typeof(Int32))
-            {
-                encoder.WriteInt32(property.Name, (Int32)property.GetValue(this));
-            }
             else if (propertyType.IsEnum)
             {
                 encoder.WriteEnumerated(property.Name, (Enum)property.GetValue(this));
+            }
+            else if (propertyType == typeof(Int32))
+            {
+                encoder.WriteInt32(property.Name, (Int32)property.GetValue(this));
             }
             else if (propertyType == typeof(UInt32))
             {
@@ -646,13 +646,13 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 property.SetValue(this, decoder.ReadUInt16(property.Name));
             }
-            else if (propertyType == typeof(Int32))
-            {
-                property.SetValue(this, decoder.ReadInt32(property.Name));
-            }
             else if (propertyType.IsEnum)
             {
                 property.SetValue(this, decoder.ReadEnumerated(property.Name, propertyType));
+            }
+            else if (propertyType == typeof(Int32))
+            {
+                property.SetValue(this, decoder.ReadInt32(property.Name));
             }
             else if (propertyType == typeof(UInt32))
             {

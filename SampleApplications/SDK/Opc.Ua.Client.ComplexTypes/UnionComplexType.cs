@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public UnionComplexType() : base()
         {
-            m_unionSelector = 0;
+            m_switchField = 0;
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="typeId">The type to copy and create an instance from</param>
         public UnionComplexType(ExpandedNodeId typeId) : base(typeId)
         {
-            m_unionSelector = 0;
+            m_switchField = 0;
         }
         #endregion
 
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// A value of 0 means all properties are invalid, x=1..n means the
         /// xth property is valid.
         /// </summary>
-        UInt32 UnionSelector => m_unionSelector;
+        UInt32 SwitchField => m_switchField;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public override object MemberwiseClone()
         {
             UnionComplexType clone = (UnionComplexType)base.MemberwiseClone();
-            clone.m_unionSelector = m_unionSelector;
+            clone.m_switchField = m_switchField;
             return clone;
         }
 
@@ -82,15 +82,15 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            encoder.WriteUInt32("SwitchField", m_unionSelector);
-            if (m_unionSelector != 0)
+            encoder.WriteUInt32("SwitchField", m_switchField);
+            if (m_switchField != 0)
             {
                 int unionSelector = 1;
                 int valueRank = -1;
                 PropertyInfo unionProperty = null;
                 foreach (var property in GetPropertyEnumerator())
                 {
-                    if (unionSelector == m_unionSelector)
+                    if (unionSelector == m_switchField)
                     {
                         valueRank = property.ValueRank;
                         unionProperty = property.PropertyInfo;
@@ -109,9 +109,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            m_unionSelector = decoder.ReadUInt32("SwitchField");
+            m_switchField = decoder.ReadUInt32("SwitchField");
 
-            UInt32 unionSelector = m_unionSelector;
+            UInt32 unionSelector = m_switchField;
             if (unionSelector > 0)
             {
                 foreach (var property in GetPropertyEnumerator())
@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            if (UnionSelector != valueBaseType.UnionSelector)
+            if (SwitchField != valueBaseType.SwitchField)
             {
                 return false;
             }
@@ -151,9 +151,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            if (m_unionSelector != 0)
+            if (m_switchField != 0)
             {
-                UInt32 unionSelector = m_unionSelector;
+                UInt32 unionSelector = m_switchField;
                 foreach (var property in GetPropertyEnumerator())
                 {
                     if (--unionSelector == 0)
@@ -185,9 +185,9 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 StringBuilder body = new StringBuilder();
-                if (m_unionSelector != 0)
+                if (m_switchField != 0)
                 {
-                    UInt32 unionSelector = m_unionSelector;
+                    UInt32 unionSelector = m_switchField;
                     foreach (var property in GetPropertyEnumerator())
                     {
                         if (--unionSelector == 0)
@@ -234,14 +234,14 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                if (index + 1 == (int)m_unionSelector)
+                if (index + 1 == (int)m_switchField)
                 {
                     return m_propertyList.ElementAt(index).GetValue(this);
                 }
                 if (index < 0 &&
-                    m_unionSelector > 0)
+                    m_switchField > 0)
                 {
-                    return m_propertyList.ElementAt((int)m_unionSelector - 1).GetValue(this);
+                    return m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
                 }
                 return null;
             }
@@ -258,7 +258,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     // reset union selector if value is a null
                 }
-                m_unionSelector = 0;
+                m_switchField = 0;
             }
         }
 
@@ -278,19 +278,19 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                if (UnionSelector > 0)
+                if (SwitchField > 0)
                 {
                     ComplexTypePropertyAttribute property;
                     if (m_propertyDict.TryGetValue(name, out property))
                     {
-                        if ((int)m_unionSelector == property.Order)
+                        if ((int)m_switchField == property.Order)
                         {
                             return property.GetValue(this);
                         }
                     }
                     else
                     {
-                        return m_propertyList.ElementAt((int)UnionSelector - 1).GetValue(this);
+                        return m_propertyList.ElementAt((int)SwitchField - 1).GetValue(this);
                     }
                 }
                 return null;
@@ -309,13 +309,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     // reset union selector if value is a null
                 }
-                m_unionSelector = 0;
+                m_switchField = 0;
             }
         }
         #endregion
 
         #region Private Fields
-        protected UInt32 m_unionSelector;
+        protected UInt32 m_switchField;
         #endregion
     }
 

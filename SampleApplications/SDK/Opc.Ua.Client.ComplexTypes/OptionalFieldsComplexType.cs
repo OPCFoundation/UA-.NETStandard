@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public OptionalFieldsComplexType()
         {
-            m_optionalFields = 0;
+            m_encodingMask = 0;
         }
 
         /// <summary>
@@ -52,13 +52,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="typeId">The type to copy and create an instance from</param>
         public OptionalFieldsComplexType(ExpandedNodeId typeId) : base(typeId)
         {
-            m_optionalFields = 0;
+            m_encodingMask = 0;
         }
         #endregion
 
         #region Public Properties
 
-        UInt32 OptionalFields => m_optionalFields;
+        UInt32 EncodingMask => m_encodingMask;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public override object MemberwiseClone()
         {
             OptionalFieldsComplexType clone = (OptionalFieldsComplexType)base.MemberwiseClone();
-            clone.m_optionalFields = m_optionalFields;
+            clone.m_encodingMask = m_encodingMask;
             return clone;
         }
 
@@ -78,13 +78,13 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            encoder.WriteUInt32("OptionalField", m_optionalFields);
+            encoder.WriteUInt32("EncodingMask", m_encodingMask);
 
             foreach (var property in GetPropertyEnumerator())
             {
                 if (property.IsOptional)
                 {
-                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
+                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
                     {
                         continue;
                     }
@@ -100,13 +100,13 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            m_optionalFields = decoder.ReadUInt32("OptionalField");
+            m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
             foreach (var property in GetPropertyEnumerator())
             {
                 if (property.IsOptional)
                 {
-                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
+                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
                     {
                         continue;
                     }
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            if (m_optionalFields != valueBaseType.OptionalFields)
+            if (m_encodingMask != valueBaseType.EncodingMask)
             {
                 return false;
             }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (property.IsOptional)
                 {
-                    if ((property.OptionalFieldMask & m_optionalFields) == 0)
+                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
                     {
                         continue;
                     }
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (property.IsOptional)
                     {
-                        if ((property.OptionalFieldMask & m_optionalFields) == 0)
+                        if ((property.OptionalFieldMask & m_encodingMask) == 0)
                         {
                             continue;
                         }
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 var property = m_propertyList.ElementAt(index);
                 if (property.IsOptional &&
-                    (property.OptionalFieldMask & m_optionalFields) == 0)
+                    (property.OptionalFieldMask & m_encodingMask) == 0)
                 {
                     return null;
                 }
@@ -232,11 +232,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (value == null)
                     {
-                        m_optionalFields &= ~property.OptionalFieldMask;
+                        m_encodingMask &= ~property.OptionalFieldMask;
                     }
                     else
                     {
-                        m_optionalFields |= property.OptionalFieldMask;
+                        m_encodingMask |= property.OptionalFieldMask;
                     }
                 }
             }
@@ -253,7 +253,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     if (property.IsOptional &&
-                        (property.OptionalFieldMask & m_optionalFields) == 0)
+                        (property.OptionalFieldMask & m_encodingMask) == 0)
                     {
                         return null;
                     }
@@ -269,11 +269,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     property.SetValue(this, value);
                     if (value == null)
                     {
-                        m_optionalFields &= ~property.OptionalFieldMask;
+                        m_encodingMask &= ~property.OptionalFieldMask;
                     }
                     else
                     {
-                        m_optionalFields |= property.OptionalFieldMask;
+                        m_encodingMask |= property.OptionalFieldMask;
                     }
                 }
                 else
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
-        protected UInt32 m_optionalFields;
+        protected UInt32 m_encodingMask;
         #endregion
     }
 
