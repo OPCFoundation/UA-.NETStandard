@@ -343,32 +343,10 @@ namespace NetCoreConsoleClient
                             }
                         }
                     }
+
                     if (PrintAsJson)
                     {
-                        var jsonEncoder = new JsonEncoder(_session.MessageContext, false);
-                        jsonEncoder.WriteDataValue(variableNode.BrowseName.Name, value);
-                        var textbuffer = jsonEncoder.CloseAndReturnText();
-                        // prettify
-                        using (var stringWriter = new StringWriter())
-                        {
-                            try
-                            {
-                                using (var stringReader = new StringReader(textbuffer))
-                                {
-                                    var jsonReader = new JsonTextReader(stringReader);
-                                    var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
-                                    jsonWriter.WriteToken(jsonReader);
-                                    Console.WriteLine(stringWriter.ToString());
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("Failed to format the JSON output:", ex.Message);
-                                Console.WriteLine(stringWriter.ToString());
-                                ExitCode = ExitCode.ErrorJSONDecode;
-                                throw ex;
-                            }
-                        }
+                        PrintValueAsJson(variableNode.BrowseName.Name, value);
                     }
                 }
                 catch (ServiceResultException sre)
@@ -551,6 +529,34 @@ namespace NetCoreConsoleClient
             }
         }
 
+        private void PrintValueAsJson(string name, DataValue value)
+        {
+            var jsonEncoder = new JsonEncoder(_session.MessageContext, false);
+            jsonEncoder.WriteDataValue(name, value);
+            var textbuffer = jsonEncoder.CloseAndReturnText();
+            // prettify
+            using (var stringWriter = new StringWriter())
+            {
+                try
+                {
+                    using (var stringReader = new StringReader(textbuffer))
+                    {
+                        var jsonReader = new JsonTextReader(stringReader);
+                        var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
+                        jsonWriter.WriteToken(jsonReader);
+                        Console.WriteLine(stringWriter.ToString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Failed to format the JSON output:", ex.Message);
+                    Console.WriteLine(stringWriter.ToString());
+                    ExitCode = ExitCode.ErrorJSONDecode;
+                    throw ex;
+                }
+            }
+        }
+
         private void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
         {
             foreach (var value in item.DequeueValues())
@@ -564,7 +570,14 @@ namespace NetCoreConsoleClient
             foreach (var value in item.DequeueValues())
             {
                 Console.WriteLine("{0}: {1}, {2}", item.DisplayName, value.SourceTimestamp, value.StatusCode);
-                Console.WriteLine(value.Value);
+                if (PrintAsJson)
+                {
+                    PrintValueAsJson(item.DisplayName, value);
+                }
+                if (Verbose)
+                {
+                    Console.WriteLine(value);
+                }
             }
         }
 
