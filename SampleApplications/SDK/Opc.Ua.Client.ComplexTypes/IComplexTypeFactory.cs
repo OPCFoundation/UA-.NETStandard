@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Factory class for the complex type builder.
     /// </summary>
-    public abstract class IComplexTypeBuilderFactory
+    public abstract class IComplexTypeFactory
     {
         /// <summary>
         /// Create a new type builder instance for this factory.
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
     }
 
     /// <summary>
-    /// Helper interface to build property fields.
+    /// Interface to build property fields.
     /// </summary>
     public interface IComplexTypeFieldBuilder
     {

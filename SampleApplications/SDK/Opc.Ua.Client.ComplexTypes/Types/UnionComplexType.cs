@@ -29,36 +29,40 @@
 
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-    public class OptionalFieldsComplexType : BaseComplexType
+    public class UnionComplexType : BaseComplexType
     {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public OptionalFieldsComplexType()
+        public UnionComplexType() : base()
         {
-            m_encodingMask = 0;
+            m_switchField = 0;
         }
 
         /// <summary>
         /// Initializes the object with a <paramref name="typeId"/>.
         /// </summary>
         /// <param name="typeId">The type to copy and create an instance from</param>
-        public OptionalFieldsComplexType(ExpandedNodeId typeId) : base(typeId)
+        public UnionComplexType(ExpandedNodeId typeId) : base(typeId)
         {
-            m_encodingMask = 0;
+            m_switchField = 0;
         }
         #endregion
 
         #region Public Properties
-
-        UInt32 EncodingMask => m_encodingMask;
+        /// <summary>
+        /// The union selector determines which property is valid.
+        /// A value of 0 means all properties are invalid, x=1..n means the
+        /// xth property is valid.
+        /// </summary>
+        UInt32 SwitchField => m_switchField;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -68,30 +72,41 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </returns>
         public override object MemberwiseClone()
         {
-            OptionalFieldsComplexType clone = (OptionalFieldsComplexType)base.MemberwiseClone();
-            clone.m_encodingMask = m_encodingMask;
+            UnionComplexType clone = (UnionComplexType)base.MemberwiseClone();
+            clone.m_switchField = m_switchField;
             return clone;
         }
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
+            bool useReversibleEncoding = GetUseReversibleEncoding(encoder);
+
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            encoder.WriteUInt32("EncodingMask", m_encodingMask);
-
-            foreach (var property in GetPropertyEnumerator())
+            if (useReversibleEncoding)
             {
-                if (property.IsOptional)
-                {
-                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
-                    {
-                        continue;
-                    }
-                }
-
-                EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
+                encoder.WriteUInt32("SwitchField", m_switchField);
             }
+
+            if (m_switchField != 0)
+            {
+                int unionSelector = 1;
+                int valueRank = -1;
+                PropertyInfo unionProperty = null;
+                foreach (var property in GetPropertyEnumerator())
+                {
+                    if (unionSelector == m_switchField)
+                    {
+                        valueRank = property.ValueRank;
+                        unionProperty = property.PropertyInfo;
+                        break;
+                    }
+                    unionSelector++;
+                }
+                EncodeProperty(encoder, unionProperty, valueRank);
+            }
+
             encoder.PopNamespace();
         }
 
@@ -100,19 +115,19 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(TypeId.NamespaceUri);
 
-            m_encodingMask = decoder.ReadUInt32("EncodingMask");
+            m_switchField = decoder.ReadUInt32("SwitchField");
 
-            foreach (var property in GetPropertyEnumerator())
+            UInt32 unionSelector = m_switchField;
+            if (unionSelector > 0)
             {
-                if (property.IsOptional)
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
+                    if (--unionSelector == 0)
                     {
-                        continue;
+                        DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
+                        break;
                     }
                 }
-
-                DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
             }
             decoder.PopNamespace();
         }
@@ -125,13 +140,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 return true;
             }
 
-            var valueBaseType = equalValue as OptionalFieldsComplexType;
+            var valueBaseType = equalValue as UnionComplexType;
             if (valueBaseType == null)
             {
                 return false;
             }
 
-            if (m_encodingMask != valueBaseType.EncodingMask)
+            if (SwitchField != valueBaseType.SwitchField)
             {
                 return false;
             }
@@ -142,22 +157,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 return false;
             }
 
-            foreach (var property in GetPropertyEnumerator())
+            if (m_switchField != 0)
             {
-                if (property.IsOptional)
+                UInt32 unionSelector = m_switchField;
+                foreach (var property in GetPropertyEnumerator())
                 {
-                    if ((property.OptionalFieldMask & m_encodingMask) == 0)
+                    if (--unionSelector == 0)
                     {
-                        continue;
+                        if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                        {
+                            return false;
+                        }
+                        break;
                     }
                 }
-
-                if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
-                {
-                    return false;
-                }
             }
-
             return true;
         }
         #endregion
@@ -177,17 +191,18 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 StringBuilder body = new StringBuilder();
-                foreach (var property in GetPropertyEnumerator())
+                if (m_switchField != 0)
                 {
-                    if (property.IsOptional)
+                    UInt32 unionSelector = m_switchField;
+                    foreach (var property in GetPropertyEnumerator())
                     {
-                        if ((property.OptionalFieldMask & m_encodingMask) == 0)
+                        if (--unionSelector == 0)
                         {
-                            continue;
+                            object unionProperty = property.GetValue(this);
+                            AppendPropertyValue(formatProvider, body, unionProperty, property.ValueRank);
+                            break;
                         }
                     }
-
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -212,54 +227,79 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by index.
         /// </summary>
+        /// <remarks>
+        /// The value of a Union is determined by the union selector.
+        /// Calling get on an unselected property returns null, 
+        ///     otherwise the selected object.
+        /// Calling get with an invalid index (e.g.-1) returns the selected object.
+        /// Calling set with a valid object on a selected property sets the value and the 
+        /// union selector.
+        /// Calling set with a null object or an invalid index unselects the union.
+        /// </remarks>
         public override object this[int index]
         {
             get
             {
-                var property = m_propertyList.ElementAt(index);
-                if (property.IsOptional &&
-                    (property.OptionalFieldMask & m_encodingMask) == 0)
+                if (index + 1 == (int)m_switchField)
                 {
-                    return null;
+                    return m_propertyList.ElementAt(index).GetValue(this);
                 }
-                return property.GetValue(this);
+                if (index < 0 &&
+                    m_switchField > 0)
+                {
+                    return m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
+                }
+                return null;
             }
             set
             {
-                var property = m_propertyList.ElementAt(index);
-                property.SetValue(this, value);
-                if (property.IsOptional)
+                if (index >= 0)
                 {
-                    if (value == null)
+                    m_propertyList.ElementAt(index).SetValue(this, value);
+                    // note: selector is updated in SetValue by emitted code for union
+                    // m_unionSelector = (uint)(index + 1);
+                    if (value != null)
                     {
-                        m_encodingMask &= ~property.OptionalFieldMask;
+                        return;
                     }
-                    else
-                    {
-                        m_encodingMask |= property.OptionalFieldMask;
-                    }
+                    // reset union selector if value is a null
                 }
+                m_switchField = 0;
             }
         }
 
         /// <summary>
         /// Access property values by name.
         /// </summary>
+        /// <remarks>
+        /// The value of a Union is determined by the union selector.
+        /// Calling get on an unselected property returns null, 
+        /// otherwise the selected object.
+        /// Calling get with an invalid name returns the selected object.
+        /// Calling set with a valid object on a selected property sets the value and the 
+        /// union selector. 
+        /// Calling set with a null object or an invalid name unselects the union.
+        /// </remarks>
         public override object this[string name]
         {
             get
             {
-                ComplexTypePropertyAttribute property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (SwitchField > 0)
                 {
-                    if (property.IsOptional &&
-                        (property.OptionalFieldMask & m_encodingMask) == 0)
+                    ComplexTypePropertyAttribute property;
+                    if (m_propertyDict.TryGetValue(name, out property))
                     {
-                        return null;
+                        if ((int)m_switchField == property.Order)
+                        {
+                            return property.GetValue(this);
+                        }
                     }
-                    return property.GetValue(this);
+                    else
+                    {
+                        return m_propertyList.ElementAt((int)SwitchField - 1).GetValue(this);
+                    }
                 }
-                throw new KeyNotFoundException();
+                return null;
             }
             set
             {
@@ -267,44 +307,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
                     property.SetValue(this, value);
-                    if (value == null)
+                    // note: selector is updated in SetValue by emitted code for union
+                    // m_unionSelector = (uint)(property.Order);
+                    if (value != null)
                     {
-                        m_encodingMask &= ~property.OptionalFieldMask;
+                        return;
                     }
-                    else
-                    {
-                        m_encodingMask |= property.OptionalFieldMask;
-                    }
+                    // reset union selector if value is a null
                 }
-                else
-                {
-                    throw new KeyNotFoundException();
-                }
-            }
-        }
-        #endregion
-
-        #region Private Members
-        protected override void InitializePropertyAttributes()
-        {
-            base.InitializePropertyAttributes();
-
-            // build optional field mask attribute
-            UInt32 optionalFieldMask = 1;
-            foreach (var property in GetPropertyEnumerator())
-            {
-                property.OptionalFieldMask = 0;
-                if (property.IsOptional)
-                {
-                    property.OptionalFieldMask = optionalFieldMask;
-                    optionalFieldMask <<= 1;
-                }
+                m_switchField = 0;
             }
         }
         #endregion
 
         #region Private Fields
-        protected UInt32 m_encodingMask;
+        protected UInt32 m_switchField;
         #endregion
     }
 

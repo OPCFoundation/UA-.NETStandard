@@ -867,6 +867,19 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Helper to determine the use of reversible encoding.
+        /// </summary>
+        protected bool GetUseReversibleEncoding(IEncoder encoder)
+        {
+            JsonEncoder jsonEncoder = encoder as JsonEncoder;
+            if (jsonEncoder != null)
+            {
+                return jsonEncoder.UseReversibleEncoding;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Initialize the helpers for property enumerator and dictionary.
         /// </summary>
         protected virtual void InitializePropertyAttributes()

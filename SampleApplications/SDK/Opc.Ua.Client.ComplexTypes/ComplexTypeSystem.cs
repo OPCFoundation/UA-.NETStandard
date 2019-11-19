@@ -66,14 +66,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public ComplexTypeSystem(
             Session session, 
-            IComplexTypeBuilderFactory complexTypeBuilderFactory)
+            IComplexTypeFactory complexTypeBuilderFactory)
         {
             Initialize(session, complexTypeBuilderFactory);
         }
 
         private void Initialize(
             Session session,
-            IComplexTypeBuilderFactory complexTypeBuilderFactory)
+            IComplexTypeFactory complexTypeBuilderFactory)
         {
             m_session = session;
             m_complexTypeBuilderFactory = complexTypeBuilderFactory;
@@ -799,7 +799,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
         Session m_session;
-        IComplexTypeBuilderFactory m_complexTypeBuilderFactory;
+        IComplexTypeFactory m_complexTypeBuilderFactory;
         const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }

@@ -230,7 +230,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Test for special Bit type used in the binary schema structure definition.
         /// </summary>
-        public static bool IsXmlBitType(this XmlQualifiedName typeName)
+        private static bool IsXmlBitType(this XmlQualifiedName typeName)
         {
             if (typeName.Namespace == Namespaces.OpcBinarySchema ||
                 typeName.Namespace == Namespaces.OpcUa)
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Look up the node id for a qualified name of a type
         /// in a binary schema type definition.
         /// </summary>
-        public static NodeId ToNodeId(
+        private static NodeId ToNodeId(
             this XmlQualifiedName typeName,
             IList<INode> typeCollection,
             NamespaceTable namespaceTable)
