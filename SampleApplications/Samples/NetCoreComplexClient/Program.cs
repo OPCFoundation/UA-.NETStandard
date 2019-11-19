@@ -58,6 +58,7 @@ namespace NetCoreConsoleClient
         ErrorRunning = 0x18,
         ErrorLoadTypeDictionary = 0x19,
         ErrorReadComplexTypes = 0x1a,
+        ErrorJSONDecode = 0x1b,
         ErrorNoKeepAlive = 0x30,
         ErrorInvalidCommandLine = 0x100
     };
@@ -348,13 +349,25 @@ namespace NetCoreConsoleClient
                         jsonEncoder.WriteDataValue(variableNode.BrowseName.Name, value);
                         var textbuffer = jsonEncoder.CloseAndReturnText();
                         // prettify
-                        using (var stringReader = new StringReader(textbuffer))
                         using (var stringWriter = new StringWriter())
                         {
-                            var jsonReader = new JsonTextReader(stringReader);
-                            var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
-                            jsonWriter.WriteToken(jsonReader);
-                            Console.WriteLine(stringWriter.ToString());
+                            try
+                            {
+                                using (var stringReader = new StringReader(textbuffer))
+                                {
+                                    var jsonReader = new JsonTextReader(stringReader);
+                                    var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
+                                    jsonWriter.WriteToken(jsonReader);
+                                    Console.WriteLine(stringWriter.ToString());
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("Failed to format the JSON output:", ex.Message);
+                                Console.WriteLine(stringWriter.ToString());
+                                ExitCode = ExitCode.ErrorJSONDecode;
+                                throw ex;
+                            }
                         }
                     }
                 }
