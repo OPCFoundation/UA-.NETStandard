@@ -57,8 +57,26 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public ComplexTypeSystem(Session session)
         {
+            Initialize(session, new ComplexTypeBuilderFactory());
+        }
+
+        /// <summary>
+        /// Initializes the type system with a session to load the custom types
+        /// and a customized type builder factory
+        /// </summary>
+        public ComplexTypeSystem(
+            Session session, 
+            IComplexTypeBuilderFactory complexTypeBuilderFactory)
+        {
+            Initialize(session, complexTypeBuilderFactory);
+        }
+
+        private void Initialize(
+            Session session,
+            IComplexTypeBuilderFactory complexTypeBuilderFactory)
+        {
             m_session = session;
-            m_assemblyModule = new AssemblyModule();
+            m_complexTypeBuilderFactory = complexTypeBuilderFactory;
         }
         #endregion
 
@@ -120,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Type[] GetDefinedTypes()
         {
-            return m_assemblyModule.GetTypes();
+            return m_complexTypeBuilderFactory.GetTypes();
         }
         #endregion
 
@@ -161,8 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     SplitAndSortDictionary(dictionary, structureList, enumList);
 
                     // create assembly for all types in the same module
-                    var complexTypeBuilder = new ComplexTypeBuilder(
-                        m_assemblyModule,
+                    var complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                         targetNamespace,
                         m_session.NamespaceUris.GetIndex(targetNamespace),
                         dictionary.Name);
@@ -288,8 +305,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (complexTypeBuilder == null)
                     {
                         string targetNamespace = m_session.NamespaceUris.GetString(i);
-                        complexTypeBuilder = new ComplexTypeBuilder(
-                            m_assemblyModule,
+                        complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                             targetNamespace,
                             (int)i);
                     }
@@ -326,8 +342,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         if (complexTypeBuilder == null)
                         {
                             string targetNamespace = m_session.NamespaceUris.GetString(i);
-                            complexTypeBuilder = new ComplexTypeBuilder(
-                                m_assemblyModule,
+                            complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                                 targetNamespace,
                                 (int)i);
                         }
@@ -784,7 +799,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Fields
         Session m_session;
-        AssemblyModule m_assemblyModule;
+        IComplexTypeBuilderFactory m_complexTypeBuilderFactory;
         const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }

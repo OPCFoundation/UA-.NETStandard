@@ -29,7 +29,6 @@
 
 
 using System;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -66,14 +65,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Get the types defined in this assembly.
         /// </summary>
         public Type[] GetTypes()
-        {
-            return m_assemblyBuilder.GetTypes();
-        }
-
-        /// <summary>
-        /// Get the types defined in this assembly.
-        /// </summary>
-        public Type[] GetDefinedTypes()
         {
             return m_assemblyBuilder.GetTypes();
         }

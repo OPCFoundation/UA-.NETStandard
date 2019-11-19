@@ -33,6 +33,25 @@ using System;
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
+    /// Factory class for the complex type builder.
+    /// </summary>
+    public abstract class IComplexTypeBuilderFactory
+    {
+        /// <summary>
+        /// Create a new type builder instance for this factory.
+        /// </summary>
+        public abstract IComplexTypeBuilder Create(
+            string targetNamespace,
+            int targetNamespaceIndex,
+            string moduleName = null);
+
+        /// <summary>
+        /// Types defined in the factory.
+        /// </summary>
+        public abstract Type[] GetTypes();
+    }
+
+    /// <summary>
     /// Interface to dynamically build custom 
     /// enum types and structured types.
     /// </summary>

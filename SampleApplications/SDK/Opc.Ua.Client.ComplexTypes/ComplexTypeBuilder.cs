@@ -36,6 +36,45 @@ using System.Reflection.Emit;
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
+    /// Factory function for the default complex type builder
+    /// using classes created with Reflection.Emit.
+    /// </summary>
+    public class ComplexTypeBuilderFactory : 
+        IComplexTypeBuilderFactory
+    {
+        AssemblyModule m_moduleFactory;
+
+        /// <summary>
+        /// Factory creates types in the assembly module.
+        /// </summary>
+        public ComplexTypeBuilderFactory(string assemblyName = null)
+        {
+            m_moduleFactory = new AssemblyModule(assemblyName);
+        }
+
+        /// <summary>
+        /// Create a new type builder which uses Reflection.Emit.
+        /// </summary>
+        public override IComplexTypeBuilder Create(
+            string targetNamespace,
+            int targetNamespaceIndex,
+            string moduleName = null)
+        {
+            return new ComplexTypeBuilder(
+                m_moduleFactory, targetNamespace,
+                targetNamespaceIndex, moduleName);
+        }
+
+        /// <summary>
+        /// Return array of all types created in this factory.
+        /// </summary>
+        public override Type[] GetTypes()
+        {
+            return m_moduleFactory.GetTypes();
+        }
+    }
+
+    /// <summary>
     /// Build an assembly with custom enum types and 
     /// complex types based on the BaseComplexType class
     /// using System.Reflection.Emit.
