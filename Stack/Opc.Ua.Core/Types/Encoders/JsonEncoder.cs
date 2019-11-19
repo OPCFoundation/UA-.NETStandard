@@ -882,13 +882,13 @@ namespace Opc.Ua
                 fieldName = "Body";
             }
 
+            if (m_commaRequired)
+            {
+                m_writer.Write(",");
+            }
+
             if (!String.IsNullOrEmpty(fieldName))
             {
-                if (m_commaRequired)
-                {
-                    m_writer.Write(",");
-                }
-
                 m_writer.Write("\"");
                 m_writer.Write(fieldName);
                 m_writer.Write("\":");
