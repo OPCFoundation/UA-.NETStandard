@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -542,7 +543,11 @@ namespace NetCoreConsoleClient
                     using (var stringReader = new StringReader(textbuffer))
                     {
                         var jsonReader = new JsonTextReader(stringReader);
-                        var jsonWriter = new JsonTextWriter(stringWriter) { Formatting = Formatting.Indented };
+                        var jsonWriter = new JsonTextWriter(stringWriter)
+                        {
+                            Formatting = Formatting.Indented,
+                            Culture = CultureInfo.InvariantCulture
+                        };
                         jsonWriter.WriteToken(jsonReader);
                         Console.WriteLine(stringWriter.ToString());
                     }
@@ -550,6 +555,7 @@ namespace NetCoreConsoleClient
                 catch (Exception ex)
                 {
                     Console.WriteLine("Failed to format the JSON output:", ex.Message);
+                    Console.WriteLine(textbuffer);
                     Console.WriteLine(stringWriter.ToString());
                     ExitCode = ExitCode.ErrorJSONDecode;
                     throw ex;
