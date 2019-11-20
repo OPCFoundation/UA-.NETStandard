@@ -391,7 +391,7 @@ namespace Opc.Ua.Sample.Controls
                 }
                 else
                 {
-                    value = GuiUtils2.EditValue(m_session, values[0].Value.Value, datatypeId, valueRank);
+                    value = GuiUtils.EditValue(m_session, values[0].Value.Value, datatypeId, valueRank);
                 }
 
                 if (value != null)

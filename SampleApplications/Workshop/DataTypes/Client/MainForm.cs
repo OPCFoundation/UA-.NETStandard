@@ -36,6 +36,7 @@ using System.IO;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Quickstarts.DataTypes
 {
@@ -138,6 +139,12 @@ namespace Quickstarts.DataTypes
                     ReferenceTypeIds.Organizes, 
                     ReferenceTypeIds.Aggregates,
                     ReferenceTypeIds.HierarchicalReferences);
+
+                if (m_session != null)
+                {
+                    var typeSystem = new ComplexTypeSystem(m_session);
+                    typeSystem.Load().Wait();
+                }
             }
             catch (Exception exception)
             {

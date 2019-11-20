@@ -118,6 +118,10 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
+      <Project>{a3c69716-df28-4626-8c18-fb70f36c81e1}</Project>
+      <Name>Opc.Ua.Client.ComplexTypes</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{7c7ad60d-c2de-460f-84ef-fa4a890104ef}</Project>
       <Name>Opc.Ua.Client</Name>

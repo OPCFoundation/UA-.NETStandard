@@ -68,7 +68,7 @@
     <opc:Documentation>A 32-bit unsigned integer.</opc:Documentation>
   </opc:OpaqueType>
 
-  <opc:OpaqueType Name="Int64" LengthInBits="32" ByteOrderSignificant="true">
+  <opc:OpaqueType Name="Int64" LengthInBits="64" ByteOrderSignificant="true">
     <opc:Documentation>A 64-bit signed integer.</opc:Documentation>
   </opc:OpaqueType>
 

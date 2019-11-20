@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
             {
                 m_namespaceUris = new NamespaceTable();
                 m_serverUris = new StringTable();
-                m_factory = ServiceMessageContext.GlobalContext.Factory;
+                m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
 
             // set the default preferred locales.
@@ -879,7 +879,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect)
@@ -961,14 +961,18 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template)
         {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
                 template.m_configuration,
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ? template.m_instanceCertificateChain : null,
-                template.m_configuration.CreateMessageContext());
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ? 
+                    template.m_instanceCertificateChain : null,
+                messageContext);
 
             // create the session object.
             Session session = new Session(channel, template, true);
@@ -998,6 +1002,7 @@ namespace Opc.Ua.Client
             return session;
         }
         #endregion
+
         #region Delegates and Events
         /// <summary>
         /// Used to handle renews of user identity tokens before reconnect.
@@ -1015,6 +1020,7 @@ namespace Opc.Ua.Client
 
         private event RenewUserIdentityEventHandler m_RenewUserIdentity;
         #endregion
+
         #region Public Methods
         /// <summary>
         /// Reconnects to the server after a network failure.
@@ -1514,9 +1520,16 @@ namespace Opc.Ua.Client
                 if (dictionaryId.NamespaceIndex != 0 &&
                     !m_dictionaries.TryGetValue(dictionaryId, out dictionaryToLoad))
                 {
-                    dictionaryToLoad = new DataDictionary(this);
-                    await dictionaryToLoad.Load(r);
-                    m_dictionaries[dictionaryId] = dictionaryToLoad;
+                    try
+                    {
+                        dictionaryToLoad = new DataDictionary(this);
+                        await dictionaryToLoad.Load(r);
+                        m_dictionaries[dictionaryId] = dictionaryToLoad;
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                    }
                 }
             }
 
@@ -3031,6 +3044,7 @@ namespace Opc.Ua.Client
             }
         }
         #endregion
+
         #region Close Methods
         /// <summary>
         /// Disconnects from the server and frees any network resources.

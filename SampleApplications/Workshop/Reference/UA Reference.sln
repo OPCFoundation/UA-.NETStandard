@@ -36,6 +36,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Sample", "..\..\Samp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Sample Controls", "..\..\Samples\Controls.Net4\UA Sample Controls.csproj", "{92AE819B-4938-4502-AC32-67063F9893CD}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +88,10 @@ Global
 		{92AE819B-4938-4502-AC32-67063F9893CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{92AE819B-4938-4502-AC32-67063F9893CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{92AE819B-4938-4502-AC32-67063F9893CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
