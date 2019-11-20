@@ -570,13 +570,12 @@ namespace NetCoreConsoleClient
             foreach (var value in item.DequeueValues())
             {
                 Console.WriteLine("{0}: {1}, {2}", item.DisplayName, value.SourceTimestamp, value.StatusCode);
-                if (PrintAsJson)
-                {
-                    PrintValueAsJson(item.DisplayName, value);
-                }
                 if (Verbose)
                 {
                     Console.WriteLine(value);
+                } else if (PrintAsJson)
+                {
+                    PrintValueAsJson(item.DisplayName, value);
                 }
             }
         }
