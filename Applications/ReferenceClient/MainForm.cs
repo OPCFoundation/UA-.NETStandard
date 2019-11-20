@@ -36,23 +36,25 @@ using System.IO;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using Opc.Ua.Client.ComplexTypes;
 
-namespace Quickstarts.ReferenceClient
+namespace Quickstarts.DataTypes
 {
     /// <summary>
-    /// The main form for a simple Quickstart Client application.
+    /// The main form for a simple Client application.
     /// </summary>
     public partial class MainForm : Form
     {
         #region Constructors
         /// <summary>
-        /// Creates an empty form.
+        /// Creates an DataTypes form.
         /// </summary>
         private MainForm()
         {
             InitializeComponent();
+            this.Icon = ClientUtils.GetAppIcon();
         }
-
+        
         /// <summary>
         /// Creates a form which uses the specified client configuration.
         /// </summary>
@@ -60,8 +62,10 @@ namespace Quickstarts.ReferenceClient
         public MainForm(ApplicationConfiguration configuration)
         {
             InitializeComponent();
+            this.Icon = ClientUtils.GetAppIcon();
+
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62555/DataTypesServer";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion
@@ -69,7 +73,6 @@ namespace Quickstarts.ReferenceClient
         #region Private Fields
         private ApplicationConfiguration m_configuration;
         private Session m_session;
-        private bool m_connectedOnce;
         #endregion
 
         #region Private Methods
@@ -79,7 +82,7 @@ namespace Quickstarts.ReferenceClient
         /// <summary>
         /// Connects to a server.
         /// </summary>
-        private async void Server_ConnectMI_Click(object sender, EventArgs e)
+        private async void Server_ConnectMI_ClickAsync(object sender, EventArgs e)
         {
             try
             {
@@ -130,14 +133,18 @@ namespace Quickstarts.ReferenceClient
             {
                 m_session = ConnectServerCTRL.Session;
 
-                // set a suitable initial state.
-                if (m_session != null && !m_connectedOnce)
-                {
-                    m_connectedOnce = true;
-                }
-
                 // browse the instances in the server.
-                BrowseCTRL.Initialize(m_session, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, ReferenceTypeIds.Aggregates);
+                BrowseCTRL.Initialize(m_session, 
+                    ObjectIds.RootFolder, 
+                    ReferenceTypeIds.Organizes, 
+                    ReferenceTypeIds.Aggregates,
+                    ReferenceTypeIds.HierarchicalReferences);
+
+                if (m_session != null)
+                {
+                    var typeSystem = new ComplexTypeSystem(m_session);
+                    typeSystem.Load().Wait();
+                }
             }
             catch (Exception exception)
             {
@@ -183,26 +190,23 @@ namespace Quickstarts.ReferenceClient
         {
             ConnectServerCTRL.Disconnect();
         }
-        #endregion
 
-        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (MessageBox.Show("Exit this application?", "Reference Client", MessageBoxButtons.YesNoCancel) == DialogResult.Yes)
-            {
-                Application.Exit();
-            }
-        }
-
-        private void Help_ContentsMI_Click(object sender, EventArgs e)
+        private void Browse_ViewValueMI_Click(object sender, EventArgs e)
         {
             try
             {
-                System.Diagnostics.Process.Start( Path.GetDirectoryName(Application.ExecutablePath) + "\\WebHelp\\overview_-_reference_client.htm");
+                ReferenceDescription reference = BrowseCTRL.SelectedNode;
+
+                if (reference != null)
+                {
+                    new EditComplexValue2Dlg().ShowDialog(m_session, (NodeId)reference.NodeId, Variant.Null, "Read/Write Value");
+                }
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                MessageBox.Show("Unable to launch help documentation. Error: " + ex.Message);
+                ClientUtils.HandleException(this.Text, exception);
             }
         }
+        #endregion
     }
 }

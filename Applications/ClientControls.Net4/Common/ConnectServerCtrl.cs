@@ -31,12 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Text;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
-using Opc.Ua.Client;
+using System.Threading.Tasks;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -60,6 +57,7 @@ namespace Opc.Ua.Client.Controls
         private ApplicationConfiguration m_configuration;
         private Session m_session;
         private int m_reconnectPeriod = 10;
+        private int m_discoverTimeout = 5000;
         private SessionReconnectHandler m_reconnectHandler;
         private CertificateValidationEventHandler m_CertificateValidation;
         private EventHandler m_ReconnectComplete;
@@ -238,10 +236,39 @@ namespace Opc.Ua.Client.Controls
         }
 
         /// <summary>
+        /// Sets the URLs shown in the control.
+        /// </summary>
+        public void SetAvailableUrls(IList<string> urls)
+        {
+            UrlCB.Items.Clear();
+
+            if (urls != null)
+            {
+                foreach (string url in urls)
+                {
+                    int index = url.LastIndexOf("/discovery", StringComparison.InvariantCultureIgnoreCase);
+
+                    if (index != -1)
+                    {
+                        UrlCB.Items.Add(url.Substring(0, index));
+                        continue;
+                    }
+
+                    UrlCB.Items.Add(url);
+                }
+
+                if (UrlCB.Items.Count > 0)
+                {
+                    UrlCB.SelectedIndex = 0;
+                }
+            }
+        }
+
+        /// <summary>
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        public Session Connect()
+        public async Task<Session> Connect()
         {
             // disconnect from existing session.
             Disconnect();
@@ -254,18 +281,23 @@ namespace Opc.Ua.Client.Controls
                 serverUrl = (string)UrlCB.SelectedItem;
             }
 
+            if (m_configuration == null)
+            {
+                throw new ArgumentNullException("m_configuration");
+            }
+
             // select the best endpoint.
-            EndpointDescription endpointDescription = ClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, m_discoverTimeout);
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            m_session = Session.Create(
+            m_session = await Session.Create(
                 m_configuration,
                 endpoint,
                 false,
                 !DisableDomainCheck,
-                (String.IsNullOrEmpty(SessionName))?m_configuration.ApplicationName:SessionName,
+                (String.IsNullOrEmpty(SessionName)) ? m_configuration.ApplicationName : SessionName,
                 60000,
                 UserIdentity,
                 PreferredLocales);
@@ -275,6 +307,9 @@ namespace Opc.Ua.Client.Controls
 
             // raise an event.
             DoConnectComplete(null);
+
+            var typeSystemLoader = new ComplexTypeSystem(m_session);
+            await typeSystemLoader.Load();
 
             // return the new session.
             return m_session;
@@ -286,11 +321,11 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public Session Connect(string serverUrl, bool useSecurity)
+        public async Task<Session> Connect(string serverUrl, bool useSecurity)
         {
             UrlCB.Text = serverUrl;
             UseSecurityCK.Checked = useSecurity;
-            return Connect();
+            return await Connect();
         }
 
         /// <summary>
@@ -368,7 +403,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // return the selected endpoint.
-                return ClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked);
+                return CoreClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked, m_discoverTimeout);
             }
             finally
             {
@@ -462,11 +497,11 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Handles a click on the connect button.
         /// </summary>
-        private void Server_ConnectMI_Click(object sender, EventArgs e)
+        private async void Server_ConnectMI_Click(object sender, EventArgs e)
         {
             try
             {
-                Connect();
+                await Connect();
             }
             catch (Exception exception)
             {
@@ -538,48 +573,6 @@ namespace Opc.Ua.Client.Controls
             catch (Exception exception)
             {
                 ClientUtils.HandleException(this.Text, exception);
-            }
-        }
-
-        /// <summary>
-        /// Handles a drop down event for the URL control.
-        /// </summary>
-        private void UrlCB_DropDown(object sender, EventArgs e)
-        {
-            UrlCB.Items.Clear();
-
-            // create a table of application descriptions that match the drop down entries.
-            List<ApplicationDescription> lookupTable = new List<ApplicationDescription>();
-            UrlCB.Tag = lookupTable;
-
-            try
-            {
-                Cursor = Cursors.WaitCursor;
-
-                try
-                {
-                    IList<string> serverUrls = ClientUtils.DiscoverServers(m_configuration);
-
-                    // populate the drop down list with the discovery URLs for the available servers.
-                    for (int ii = 0; ii < serverUrls.Count; ii++)
-                    {
-                        // remove duplicates.
-                        int index = UrlCB.FindStringExact(serverUrls[ii]);
-
-                        if (index < 0)
-                        {
-                            UrlCB.Items.Add(serverUrls[ii]);
-                        }
-                    }
-                }
-                finally
-                {
-                    Cursor = Cursors.Default;
-                }
-            }
-            catch (Exception)
-            {
-                // ignore errors.
             }
         }
         #endregion
