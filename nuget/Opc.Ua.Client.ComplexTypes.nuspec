@@ -13,10 +13,10 @@
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
       <group targetFramework="net46" >
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua" version="1.4.358.0"/>
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua" version="$version$"/>
       </group>
       <group targetFramework="netcoreapp2.0" >
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua" version="1.4.358.0"/>
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua" version="$version$"/>
         <dependency id="System.Reflection.Emit" version="4.6.0" />
       </group>
     </dependencies>
