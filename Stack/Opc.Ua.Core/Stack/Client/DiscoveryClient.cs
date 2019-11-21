@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
         {
-            return DiscoveryClient.Create(discoveryUrl, null, null);
+            return DiscoveryClient.Create(discoveryUrl, configuration, null);
         }
 
         /// <summary>
