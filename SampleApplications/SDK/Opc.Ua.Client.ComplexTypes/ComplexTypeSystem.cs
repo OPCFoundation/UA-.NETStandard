@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// and a customized type builder factory
         /// </summary>
         public ComplexTypeSystem(
-            Session session, 
+            Session session,
             IComplexTypeFactory complexTypeBuilderFactory)
         {
             Initialize(session, complexTypeBuilderFactory);
@@ -84,19 +84,87 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Load a single custom type with subtypes.
         /// </summary>
-        public Task<bool> LoadType(NodeId nodeId, bool subTypes)
+        /// <remarks>
+        /// Type dependencies are not resolved. If the new structure contains an
+        /// unknown type, the load fails. In such a case the caller should proceed
+        /// with a generic load of the whole type system.
+        /// </remarks>
+        public async Task<Type> LoadType(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false)
         {
-            // FUTURE: Implement loader for a single type. Currently loading all types.
-            return Load();
+            try
+            {
+                var subTypeNodes = LoadDataTypes(nodeId, true, true);
+                var subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
+
+                if (subTypeNodesWithoutKnownTypes.Count > 0)
+                {
+                    IList<INode> serverEnumTypes = new List<INode>();
+                    IList<INode> serverStructTypes = serverEnumTypes;
+                    var superType = m_session.NodeCache.FindSuperType(nodeId);
+                    if (superType == DataTypeIds.Enumeration)
+                    {
+                        serverEnumTypes = subTypeNodesWithoutKnownTypes;
+                    }
+                    else
+                    {
+                        serverStructTypes = subTypeNodesWithoutKnownTypes;
+                    }
+
+                    // load server types
+                    LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
+                    await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
+                }
+                return GetSystemType(nodeId);
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.Trace(sre, "Failed to load the custom type.");
+                if (throwOnError)
+                {
+                    throw sre;
+                }
+                return null;
+            }
         }
 
         /// <summary>
         /// Load all custom types of a namespace.
         /// </summary>
-        public Task<bool> LoadTypeDictionary(string nameSpace)
+        /// <remarks>
+        /// Type dependencies with other namespaces are not resolved. 
+        /// If a new structure contains an unknown enum or structured 
+        /// type from another namespace, loading such types fails. 
+        /// To load such a type the caller must load the whole type system.
+        /// </remarks>
+        public async Task<bool> LoadNamespace(string nameSpace, bool throwOnError = false)
         {
-            // FUTURE: Implement loader for all custom types of a namespace. Currently loading all types.
-            return Load();
+            try
+            {
+                int index = m_session.NamespaceUris.GetIndex(nameSpace);
+                if (index < 0)
+                {
+                    throw new ServiceResultException($"Bad argument {nameSpace}. Namespace not found.");
+                }
+                ushort nameSpaceIndex = (ushort)index;
+                var serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
+                var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
+                // filter for namespace
+                serverEnumTypes = serverEnumTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
+                serverStructTypes = serverStructTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
+                // load types
+                LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
+                await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
+                return true;
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.Trace(sre, $"Failed to load the custom type dictionary.");
+                if (throwOnError)
+                {
+                    throw sre;
+                }
+                return false;
+            }
         }
 
         /// <summary>
@@ -115,13 +183,21 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Convert all structured types in the dictionaries to the DataTypeDefinion attribute, if possible.
         /// - Create all structured types from the dictionaries using the DataTypeDefinion attribute..
         /// </remarks>
-        public async Task<bool> Load()
+        public async Task<bool> Load(bool onlyEnumTypes = false, bool throwOnError = false)
         {
             try
             {
                 // load server types
-                var serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
-                var serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
+                IList<INode> serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
+                IList<INode> serverStructTypes;
+                if (onlyEnumTypes)
+                {
+                    serverStructTypes = new List<INode>();
+                }
+                else
+                {
+                    serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
+                }
                 LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
                 await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
                 return true;
@@ -129,6 +205,10 @@ namespace Opc.Ua.Client.ComplexTypes
             catch (ServiceResultException sre)
             {
                 Utils.Trace(sre, $"Failed to load the custom type dictionary.");
+                if (throwOnError)
+                {
+                    throw sre;
+                }
                 return false;
             }
         }
@@ -162,10 +242,11 @@ namespace Opc.Ua.Client.ComplexTypes
             // load the binary schema dictionaries from the server
             var typeSystem = await m_session.LoadDataTypeSystem();
 
-            // TODO: sort dictionaries with import dependencies to the end of the list
+            // sort dictionaries with import dependencies to the end of the list
+            var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary.Import?.Count()).ToList();
 
             // create custom types for all dictionaries
-            foreach (var dictionaryId in typeSystem)
+            foreach (var dictionaryId in sortedTypeSystem)
             {
                 try
                 {
@@ -282,7 +363,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Load all custom types with DataTypeDefinition into the type factory.
         /// </summary>
-        private void LoadBaseDataTypes(
+        private bool LoadBaseDataTypes(
             IList<INode> serverEnumTypes,
             IList<INode> serverStructTypes
             )
@@ -350,6 +431,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             Type newType = null;
                             var dataTypeNode = structType as DataTypeNode;
+                            if (dataTypeNode == null)
+                            {
+                                continue;
+                            }
                             var structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
                             if (structureDefinition != null)
                             {
@@ -390,6 +475,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     structTypesToDoList = new List<INode>();
                 }
             } while (retryAddStructType);
+
+            return structTypesToDoList.Count == 0;
         }
 
 
@@ -482,11 +569,25 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Load all subTypes and optionally nested subtypes of a type definition.
         /// Filter for all subtypes or only subtypesoutside the default namespace.
         /// </summary>
-        private IList<INode> LoadDataTypes(ExpandedNodeId dataType, bool nestedSubTypes = false, bool filterUATypes = true)
+        private IList<INode> LoadDataTypes(
+            ExpandedNodeId dataType,
+            bool nestedSubTypes = false,
+            bool addRootNode = false,
+            bool filterUATypes = true)
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection();
             nodesToBrowse.Add(dataType);
+
+            if (addRootNode)
+            {
+                var rootNode = m_session.NodeCache.Find(dataType);
+                if (!(rootNode is DataTypeNode))
+                {
+                    throw new ServiceResultException("Root Node is not a DataType node.");
+                }
+                result.Add(rootNode);
+            }
 
             while (nodesToBrowse.Count > 0)
             {
@@ -635,18 +736,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     // browse for EnumFields or EnumStrings property
                     var property = BrowseForSingleProperty(enumTypeNode.NodeId);
-                    var enumArray = m_session.ReadValue(
-                        ExpandedNodeId.ToNodeId(property.NodeId,
-                        m_session.NamespaceUris));
-                    if (enumArray.Value is ExtensionObject[])
+                    if (property != null)
                     {
-                        // 2. use EnumValues
-                        newType = complexTypeBuilder.AddEnumType(name, (ExtensionObject[])enumArray.Value);
-                    }
-                    else if (enumArray.Value is LocalizedText[])
-                    {
-                        // 3. use EnumStrings
-                        newType = complexTypeBuilder.AddEnumType(name, (LocalizedText[])enumArray.Value);
+                        var enumArray = m_session.ReadValue(
+                            ExpandedNodeId.ToNodeId(property.NodeId,
+                            m_session.NamespaceUris));
+                        if (enumArray.Value is ExtensionObject[])
+                        {
+                            // 2. use EnumValues
+                            newType = complexTypeBuilder.AddEnumType(name, (ExtensionObject[])enumArray.Value);
+                        }
+                        else if (enumArray.Value is LocalizedText[])
+                        {
+                            // 3. use EnumStrings
+                            newType = complexTypeBuilder.AddEnumType(name, (LocalizedText[])enumArray.Value);
+                        }
                     }
                 }
             }
