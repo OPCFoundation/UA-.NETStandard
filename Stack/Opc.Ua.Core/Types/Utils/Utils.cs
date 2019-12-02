@@ -2665,6 +2665,14 @@ namespace Opc.Ua
             /// </summary>
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
             {
+                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and a minimum length.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
+            {
                 // no nonce needed for no security.
                 if (securityMode == MessageSecurityMode.None)
                 {
@@ -2672,7 +2680,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (nonce == null || nonce.Length < GetNonceLength(securityPolicyUri))
+                if (nonce == null || nonce.Length < minNonceLength)
                 {
                     return false;
                 }
