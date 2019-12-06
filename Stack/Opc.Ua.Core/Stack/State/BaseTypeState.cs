@@ -123,27 +123,6 @@ namespace Opc.Ua
                 m_isAbstract = value;
             }
         }
-
-        /// <summary>
-        ///Provides the metadata and encoding information for custom DataTypes.
-        /// </summary>
-        public ExtensionObject DataTypeDefinition
-        {
-            get
-            {
-                return m_dataTypeDefinition;
-            }
-
-            set
-            {
-                if (m_dataTypeDefinition != value)
-                {
-                    ChangeMasks |= NodeStateChangeMasks.NonValue;
-                }
-
-                m_dataTypeDefinition = value;
-            }
-        }
         #endregion 
 
         #region Event Callbacks
@@ -156,16 +135,6 @@ namespace Opc.Ua
         /// Raised when the IsAbstract attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteIsAbstract;
-
-        /// <summary>
-        /// Raised when the DataTypeDefinition attribute is read.
-        /// </summary>
-        public NodeAttributeEventHandler<ExtensionObject> OnReadDataTypeDefinition;
-
-        /// <summary>
-        /// Raised when the DataTypeDefinition attribute is written.
-        /// </summary>
-        public NodeAttributeEventHandler<ExtensionObject> OnWriteDataTypeDefinition;
         #endregion
 
         #region Serialization Functions
@@ -353,23 +322,6 @@ namespace Opc.Ua
 
                     return result;
                 }
-
-                case Attributes.DataTypeDefinition:
-                {
-                    ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
-
-                    if (OnReadDataTypeDefinition != null)
-                    {
-                        result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
-                    }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = dataTypeDefinition;
-                    }
-
-                    return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -460,7 +412,6 @@ namespace Opc.Ua
         #region Private Fields
         private NodeId m_superTypeId;
         private bool m_isAbstract;
-        private ExtensionObject m_dataTypeDefinition;
         #endregion
     }
 }

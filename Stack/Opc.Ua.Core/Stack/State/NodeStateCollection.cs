@@ -170,7 +170,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                nodeSet.Export(context, this[ii]);
+                nodeSet.Export(context, this[ii], true);
             }
 
             nodeSet.Write(ostrm);

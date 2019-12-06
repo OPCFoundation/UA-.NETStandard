@@ -15,7 +15,7 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all reference type nodes.
     /// </summary>
     public class DataTypeState : BaseTypeState
@@ -42,78 +42,223 @@ namespace Opc.Ua
         /// <summary>
         /// The abstract definition of the data type.
         /// </summary>
-        public UADataTypeDefinition Definition { get; set; }
+        public ExtensionObject DataTypeDefinition
+        {
+            get
+            {
+                return m_dataTypeDefinition;
+            }
+
+            set
+            {
+                if (m_dataTypeDefinition != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_dataTypeDefinition = value;
+            }
+        }
+
+        /// <summary>
+        /// A modifier applied to the datatype.
+        /// </summary>
+        public DataTypeModifier DataTypeModifier { get; set; }
+
+        /// <summary>
+        /// The purpose of the data type.
+        /// </summary>
+        public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
+        #region Serialization Functions
+        /// <summary>
+        /// Saves the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="encoder">The encoder wrapping the stream to write.</param>
+        public override void Save(ISystemContext context, XmlEncoder encoder)
+        {
+            base.Save(context, encoder);
+
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (m_dataTypeDefinition != null)
+            {
+                encoder.WriteExtensionObject("DataTypeDefinition", m_dataTypeDefinition);
+            }
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Updates the attributes from the stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="decoder">The decoder wrapping the stream to read.</param>
+        public override void Update(ISystemContext context, XmlDecoder decoder)
+        {
+            base.Update(context, decoder);
+
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            if (decoder.Peek("DataTypeDefinition"))
+            {
+                DataTypeDefinition = decoder.ReadExtensionObject("DataTypeDefinition");
+            }
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary>
+        /// Returns a mask which indicates which attributes have non-default value.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <returns>A mask the specifies the available attributes.</returns>
+        public override AttributesToSave GetAttributesToSave(ISystemContext context)
+        {
+            AttributesToSave attributesToSave = base.GetAttributesToSave(context);
+
+            if (m_dataTypeDefinition != null)
+            {
+                attributesToSave |= AttributesToSave.DataTypeDefinition;
+            }
+
+            return attributesToSave;
+        }
+
+        /// <summary>
+        /// Saves object in an binary stream.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="encoder">The encoder to write to.</param>
+        /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
+        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        {
+            base.Save(context, encoder, attributesToSave);
+
+            if ((attributesToSave & AttributesToSave.DataTypeDefinition) != 0)
+            {
+                encoder.WriteExtensionObject(null, DataTypeDefinition);
+            }
+        }
+
+        /// <summary>
+        /// Updates the specified context.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="decoder">The decoder.</param>
+        /// <param name="attibutesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        {
+            base.Update(context, decoder, attributesToLoad);
+
+            if ((attributesToLoad & AttributesToSave.DataTypeDefinition) != 0)
+            {
+                DataTypeDefinition = decoder.ReadExtensionObject(null);
+            }
+        }
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the DataTypeDefinition attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<ExtensionObject> OnReadDataTypeDefinition;
+
+        /// <summary>
+        /// Raised when the DataTypeDefinition attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<ExtensionObject> OnWriteDataTypeDefinition;
+        #endregion
+
+        #region Read Support Functions
+        /// <summary>
+        /// Reads the value for DataTypeDefinition attribute.
+        /// </summary>
+        protected override ServiceResult ReadNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            ref object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.DataTypeDefinition:
+                    {
+                        ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
+
+                        if (OnReadDataTypeDefinition != null)
+                        {
+                            result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
+                        }
+
+                        if (ServiceResult.IsGood(result))
+                        {
+                            value = dataTypeDefinition;
+                        }
+
+                        return result;
+                    }
+            }
+
+            return base.ReadNonValueAttribute(context, attributeId, ref value);
+        }
+        #endregion
+
+        #region Write Support Functions
+        /// <summary>
+        /// Write the value for DataTypeDefinition attribute.
+        /// </summary>
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
+        {
+            ServiceResult result = null;
+
+            switch (attributeId)
+            {
+                case Attributes.DataTypeDefinition:
+                    {
+                        ExtensionObject dataTypeDefinition = value as ExtensionObject;
+
+                        if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
+                        {
+                            return StatusCodes.BadNotWritable;
+                        }
+
+                        if (OnWriteDataTypeDefinition != null)
+                        {
+                            result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
+                        }
+
+                        if (ServiceResult.IsGood(result))
+                        {
+                            m_dataTypeDefinition = dataTypeDefinition;
+                        }
+
+                        return result;
+                    }
+            }
+
+            return base.WriteNonValueAttribute(context, attributeId, value);
+        }
+        #endregion
+        #region Private Fields
+        private ExtensionObject m_dataTypeDefinition;
+        #endregion
     }
 
-    /// <summary>
-    /// Defines an abstract description of a type.
-    /// </summary>
-    public class UADataTypeDefinition
+    /// <remarks />
+    public enum DataTypeModifier
     {
-        /// <summary>
-        /// The name of the type.
-        /// </summary>
-        public QualifiedName Name { get; set; }
+        /// <remarks />
+        None = 0,
 
-        /// <summary>
-        /// The symbolic name (if the name can't be used as a program symbol).
-        /// </summary>
-        public string SymbolicName { get; set; }
+        /// <remarks />
+        Union = 1,
 
-        /// <summary>
-        /// The qualified name of the base type.
-        /// </summary>
-        public QualifiedName BaseType { get; set; }
-
-        /// <summary>
-        /// The description of the data type.
-        /// </summary>
-        public LocalizedText Description { get; set; }
-
-        /// <summary>
-        /// The fields in structure.
-        /// </summary>
-        public List<DataTypeDefinitionField> Fields { get; set; }
-    }
-
-    /// <summary>
-    /// Defines a field within an abstract definition of a data type.
-    /// </summary>
-    public class DataTypeDefinitionField
-    {
-        /// <summary>
-        /// The name of the field.
-        /// </summary>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// The symbolic name (if the name can't be used as a program symbol).
-        /// </summary>
-        public string SymbolicName { get; set; }
-
-        /// <summary>
-        /// The data type of the field.
-        /// </summary>
-        public NodeId DataType { get; set; }
-
-        /// <summary>
-        /// The value rank for the field.
-        /// </summary>
-        public int ValueRank { get; set; }
-
-        /// <summary>
-        /// The description of the field.
-        /// </summary>
-        public LocalizedText Description { get; set; }
-
-        /// <summary>
-        /// A nested description of a structured field.
-        /// </summary>
-        public UADataTypeDefinition Definition { get; set; }
-
-        /// <summary>
-        /// The value of an enumerated field.
-        /// </summary>
-        public int Value { get; set; }
+        /// <remarks />
+        OptionSet = 2
     }
 }
