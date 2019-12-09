@@ -438,12 +438,6 @@ namespace Opc.Ua.Client.ComplexTypes
                             var structureDefinition = BuildStructureDefinitionWithSuperTypes(dataTypeNode);
                             if (structureDefinition != null)
                             {
-                                if (NodeId.IsNull(structureDefinition.DefaultEncodingId))
-                                {
-                                    // some servers do not return the encoding correctly
-                                    // skip type here and retry with dictionary
-                                    continue;
-                                }
                                 try
                                 {
                                     newType = AddStructuredType(
@@ -461,8 +455,12 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 if (newType != null)
                                 {
+                                    var encodings = BrowseForEncodings(structType.NodeId);
                                     // match namespace and add new type to type factory
-                                    AddEncodeableType(structureDefinition.DefaultEncodingId, newType);
+                                    foreach (var encodingId in encodings)
+                                    {
+                                        AddEncodeableType(encodingId, newType);
+                                    }
                                     AddEncodeableType(structType.NodeId, newType);
                                 }
                             }
@@ -488,8 +486,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Add structure fields from super types to the DataTypeDefinition
         /// </summary>
-        private StructureDefinition BuildStructureDefinitionWithSuperTypes(
-            DataTypeNode dataTypeNode)
+        private StructureDefinition BuildStructureDefinitionWithSuperTypes(DataTypeNode dataTypeNode)
         {
             var structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
             if (structureDefinition == null)
@@ -510,13 +507,16 @@ namespace Opc.Ua.Client.ComplexTypes
                         // Can not complete to build the data type definition
                         return null;
                     }
-                    var superTypeStruct = superDataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
-                    if (superTypeStruct == null)
+                    if (!superDataTypeNode.IsAbstract)
                     {
-                        // Can not complete to build the data type definition
-                        return null;
+                        var superTypeStruct = superDataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                        if (superTypeStruct == null)
+                        {
+                            // Can not complete to build the data type definition
+                            return null;
+                        }
+                        structureDefinition.Fields.InsertRange(0, superTypeStruct.Fields);
                     }
-                    structureDefinition.Fields.InsertRange(0, (StructureFieldCollection)superTypeStruct.Fields.MemberwiseClone());
                     superTypeNodeId = m_session.NodeCache.FindSuperType(superTypeNodeId);
                 }
             }
@@ -606,6 +606,28 @@ namespace Opc.Ua.Client.ComplexTypes
                 false
                 );
             return references.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Browse for the encodings of a type.
+        /// </summary>
+        /// <remarks>
+        /// Browse for binary encoding of a structure datatype.
+        /// </remarks>
+        /// <param name="nodeId"></param>
+        /// <returns></returns>
+        private IList<NodeId> BrowseForEncodings(
+            ExpandedNodeId nodeId)
+        {
+            var references = m_session.NodeCache.FindReferences(
+                nodeId,
+                ReferenceTypeIds.HasEncoding,
+                false,
+                false
+                );
+            // this version only supports 'Default Binary'
+            return references.Where(r => r.BrowseName.Name == BrowseNames.DefaultBinary)
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
         }
 
         /// <summary>
@@ -753,6 +775,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void AddEncodeableType(ExpandedNodeId nodeId, Type type)
         {
+            if (NodeId.IsNull(nodeId) || type == null)
+            {
+                return;
+            }
             var internalNodeId = NormalizeExpandedNodeId(nodeId);
             Utils.TraceDebug($"Adding Type {type.FullName} as: {internalNodeId.ToString()}");
             m_session.Factory.AddEncodeableType(internalNodeId, type);
