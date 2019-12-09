@@ -80,11 +80,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
-            bool useReversibleEncoding = GetUseReversibleEncoding(encoder);
-
             encoder.PushNamespace(TypeId.NamespaceUri);
 
-            if (useReversibleEncoding)
+            if (encoder.UseReversibleEncoding)
             {
                 encoder.WriteUInt32("SwitchField", m_switchField);
             }
