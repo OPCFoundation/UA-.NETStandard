@@ -305,7 +305,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
 
                                 // Use DataTypeDefinition attribute, if available (>=V1.04)
-                                StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                                StructureDefinition structureDefinition = BuildStructureDefinitionWithSuperTypes(dataTypeNode);
                                 if (structureDefinition == null)
                                 {
                                     try
@@ -430,14 +430,20 @@ namespace Opc.Ua.Client.ComplexTypes
                         foreach (INode structType in structTypes)
                         {
                             Type newType = null;
-                            var dataTypeNode = structType as DataTypeNode;
+                            DataTypeNode dataTypeNode = structType as DataTypeNode;
                             if (dataTypeNode == null)
                             {
                                 continue;
                             }
-                            var structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                            var structureDefinition = BuildStructureDefinitionWithSuperTypes(dataTypeNode);
                             if (structureDefinition != null)
                             {
+                                if (NodeId.IsNull(structureDefinition.DefaultEncodingId))
+                                {
+                                    // some servers do not return the encoding correctly
+                                    // skip type here and retry with dictionary
+                                    continue;
+                                }
                                 try
                                 {
                                     newType = AddStructuredType(
@@ -479,6 +485,43 @@ namespace Opc.Ua.Client.ComplexTypes
             return structTypesToDoList.Count == 0;
         }
 
+        /// <summary>
+        /// Add structure fields from super types to the DataTypeDefinition
+        /// </summary>
+        private StructureDefinition BuildStructureDefinitionWithSuperTypes(
+            DataTypeNode dataTypeNode)
+        {
+            var structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+            if (structureDefinition == null)
+            {
+                return null;
+            }
+            ExpandedNodeId nodeId = dataTypeNode.NodeId;
+            NodeId superTypeNodeId = m_session.NodeCache.FindSuperType(nodeId);
+            if (superTypeNodeId != DataTypeIds.Structure)
+            {
+                structureDefinition = (StructureDefinition)structureDefinition.MemberwiseClone();
+                while (superTypeNodeId != DataTypeIds.Structure)
+                {
+                    var superTypeNode = m_session.NodeCache.Find(superTypeNodeId);
+                    DataTypeNode superDataTypeNode = superTypeNode as DataTypeNode;
+                    if (superDataTypeNode == null)
+                    {
+                        // Can not complete to build the data type definition
+                        return null;
+                    }
+                    var superTypeStruct = superDataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                    if (superTypeStruct == null)
+                    {
+                        // Can not complete to build the data type definition
+                        return null;
+                    }
+                    structureDefinition.Fields.InsertRange(0, (StructureFieldCollection)superTypeStruct.Fields.MemberwiseClone());
+                    superTypeNodeId = m_session.NodeCache.FindSuperType(superTypeNodeId);
+                }
+            }
+            return structureDefinition;
+        }
 
         /// <summary>
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
