@@ -32,7 +32,7 @@ clone_depth: 5                      # clone entire repository history if not def
 
 environment:
   matrix:
-  - solution_name: "UA Reference Applications"
+  - solution_name: "UA Reference Applications.sln"
     test_name: "void"
     param: ""
 
