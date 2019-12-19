@@ -313,20 +313,18 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ValidateServerNonce(IUserIdentity identity, byte[] serverNonce, string securityPolicyUri)
         {
+            // skip validation if server nonce is not used for encryption.
+            if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
+            {
+                return;
+            }
+
             if (identity!= null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
                 if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is not the correct length or not random enough.");
-                }
-
-                // token encryption is mandatory over a channel without security if it includes a secret.
-                if (m_endpoint != null && m_endpoint.Description != null &&
-                    m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None &&
-                    securityPolicyUri == SecurityPolicies.None)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityModeInsufficient, "User identity cannot be sent over the current secure channel without encryption.");
                 }
             }
         }
