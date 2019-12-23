@@ -1,4 +1,4 @@
-﻿using Opc.Ua;
+using Opc.Ua;
 using Opc.Ua.Client.Controls;
 using System;
 using System.Reflection;
@@ -41,22 +41,23 @@ namespace Opc.Ua.Client.Controls
 
         private object Parse(string text)
         {
-            if (localValue == typeof(bool)) return Convert.ToBoolean(text);
-            if (localValue == typeof(sbyte)) return Convert.ToSByte(text);
-            if (localValue == typeof(byte)) return Convert.ToByte(text);
-            if (localValue == typeof(short)) return Convert.ToInt16(text);
-            if (localValue == typeof(ushort)) return Convert.ToUInt16(text);
-            if (localValue == typeof(int)) return Convert.ToInt32(text);
-            if (localValue == typeof(uint)) return Convert.ToUInt32(text);
-            if (localValue == typeof(long)) return Convert.ToInt64(text);
-            if (localValue == typeof(ulong)) return Convert.ToUInt64(text);
-            if (localValue == typeof(float)) return Convert.ToSingle(text);
-            if (localValue == typeof(double)) return Convert.ToDouble(text);
-            if (localValue == typeof(string)) return text;
-            if (localValue == typeof(DateTime)) return DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fff", null);
-            if (localValue == typeof(Guid)) return new Guid(text);
-            if (localValue == typeof(QualifiedName)) return new QualifiedName(text);
-            if (localValue == typeof(LocalizedText)) return new LocalizedText(text);
+            Type localValueType = localValue.GetType();
+            if (localValueType == typeof(bool)) return Convert.ToBoolean(text);
+            if (localValueType == typeof(sbyte)) return Convert.ToSByte(text);
+            if (localValueType == typeof(byte)) return Convert.ToByte(text);
+            if (localValueType == typeof(short)) return Convert.ToInt16(text);
+            if (localValueType == typeof(ushort)) return Convert.ToUInt16(text);
+            if (localValueType == typeof(int)) return Convert.ToInt32(text);
+            if (localValueType == typeof(uint)) return Convert.ToUInt32(text);
+            if (localValueType == typeof(long)) return Convert.ToInt64(text);
+            if (localValueType == typeof(ulong)) return Convert.ToUInt64(text);
+            if (localValueType == typeof(float)) return Convert.ToSingle(text);
+            if (localValueType == typeof(double)) return Convert.ToDouble(text);
+            if (localValueType == typeof(string)) return text;
+            if (localValueType == typeof(DateTime)) return DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fff", null);
+            if (localValueType == typeof(Guid)) return new Guid(text);
+            if (localValueType == typeof(QualifiedName)) return new QualifiedName(text);
+            if (localValueType == typeof(LocalizedText)) return new LocalizedText(text);
 
             throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Cannot convert type.");
         }
