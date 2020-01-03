@@ -150,8 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return true;
             }
 
-            var valueBaseType = equalValue as BaseComplexType;
-            if (valueBaseType == null)
+            if (!(equalValue is BaseComplexType valueBaseType))
             {
                 return false;
             }
@@ -241,8 +240,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by index.
         /// </summary>
-        public virtual object this[int index]
-        {
+        public virtual object this[int index] {
             get => m_propertyList.ElementAt(index).GetValue(this);
             set => m_propertyList.ElementAt(index).SetValue(this, value);
         }
@@ -250,8 +248,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by name.
         /// </summary>
-        public virtual object this[string name]
-        {
+        public virtual object this[string name] {
             get => m_propertyDict[name].GetValue(this);
             set => m_propertyDict[name].SetValue(this, value);
         }
@@ -591,8 +588,7 @@ namespace Opc.Ua.Client.ComplexTypes
             else if (typeof(IEncodeable).IsAssignableFrom(elementType))
             {
                 var value = property.GetValue(this);
-                IEncodeableCollection encodable = value as IEncodeableCollection;
-                if (encodable == null)
+                if (!(value is IEncodeableCollection encodable))
                 {
                     encodable = IEncodeableCollection.ToIEncodeableCollection(value as IEncodeable[]);
                 }
