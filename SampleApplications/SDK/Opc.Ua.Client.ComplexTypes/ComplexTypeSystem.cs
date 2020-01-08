@@ -307,7 +307,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
                             {   // note: the BrowseName contains the actual Value string of the DataType node.
-                                var nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.BrowseName.Name == item.Name)?.Value;
+                                var nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.BrowseName.Name == item.Name).Value;
                                 if (nodeId == null)
                                 {
                                     Utils.Trace(TraceMasks.Error, $"Skip the type definition of {item.Name} because the data type node was not found.");
