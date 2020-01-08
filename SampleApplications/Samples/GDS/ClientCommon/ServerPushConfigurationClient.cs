@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Client
             {
                 try
                 {
-                    Callback(this, new EventArgs());
+                    Callback(this, EventArgs.Empty);
                 }
                 catch (Exception exception)
                 {

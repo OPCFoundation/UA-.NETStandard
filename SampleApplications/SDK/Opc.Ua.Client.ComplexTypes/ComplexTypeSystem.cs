@@ -525,7 +525,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (references.Count == 1)
             {
-                encodingId = references.First().NodeId;
+                encodingId = references[0].NodeId;
                 references = m_session.NodeCache.FindReferences(
                     encodingId,
                     ReferenceTypeIds.HasEncoding,
@@ -536,7 +536,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (references.Count == 1)
                 {
-                    typeId = references.First().NodeId;
+                    typeId = references[0].NodeId;
                     dataTypeNode = m_session.NodeCache.Find(typeId) as DataTypeNode;
                     typeId = NormalizeExpandedNodeId(typeId);
                     return true;
@@ -795,7 +795,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 typeListEnumerator.MoveNext();
                 fieldBuilder.AddField(field, typeListEnumerator.Current, order);
-                order += 1;
+                order++;
             }
 
             return fieldBuilder.CreateType();
@@ -876,7 +876,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (structuredObject != null)
                 {
                     var dependentFields = structuredObject.Field.Where(f => f.TypeName.Namespace == dictionary.TypeDictionary.TargetNamespace);
-                    if (dependentFields.Count() == 0)
+                    if (!dependentFields.Any())
                     {
                         structureList.Insert(0, structuredObject);
                     }
