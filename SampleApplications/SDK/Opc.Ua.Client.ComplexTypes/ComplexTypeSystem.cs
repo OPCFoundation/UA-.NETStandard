@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -51,6 +52,29 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </remarks>
     public class ComplexTypeSystem
     {
+        #region Exception
+        public class DataTypeNotFoundException : Exception
+        {
+            public ExpandedNodeId nodeId;
+            public DataTypeNotFoundException(ExpandedNodeId nodeId)
+            {
+                this.nodeId = nodeId;
+            }
+
+            public DataTypeNotFoundException(ExpandedNodeId nodeId, string message)
+                : base(message)
+            {
+                this.nodeId = nodeId;
+            }
+
+            public DataTypeNotFoundException(ExpandedNodeId nodeId, string message, Exception inner)
+                : base(message, inner)
+            {
+                this.nodeId = nodeId;
+            }
+        }
+        #endregion
+
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -85,40 +109,39 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Load a single custom type with subtypes.
         /// </summary>
         /// <remarks>
-        /// Type dependencies are not resolved. If the new structure contains an
-        /// unknown type, the load fails. In such a case the caller should proceed
-        /// with a generic load of the whole type system.
+        /// Uses inverse references on the server to find the super type(s).
+        /// If the new structure contains a type dependency to a yet
+        /// unknown type, it loads also the dependent type(s).
+        /// For servers without DataTypeDefinition support all
+        /// custom types are loaded.
         /// </remarks>
         public async Task<Type> LoadType(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false)
         {
             try
             {
-                var subTypeNodes = LoadDataTypes(nodeId, true, true);
+                var subTypeNodes = LoadDataTypes(nodeId, subTypes, true);
                 var subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
 
                 if (subTypeNodesWithoutKnownTypes.Count > 0)
                 {
                     IList<INode> serverEnumTypes = new List<INode>();
-                    IList<INode> serverStructTypes = serverEnumTypes;
-                    var superType = m_session.NodeCache.FindSuperType(nodeId);
-                    if (superType == DataTypeIds.Enumeration)
+                    IList<INode> serverStructTypes = new List<INode>();
+                    foreach (var node in subTypeNodesWithoutKnownTypes)
                     {
-                        serverEnumTypes = subTypeNodesWithoutKnownTypes;
-                    }
-                    else
-                    {
-                        serverStructTypes = subTypeNodesWithoutKnownTypes;
+                        AddEnumerationOrStructureType(node, serverEnumTypes, serverStructTypes);
                     }
 
                     // load server types
-                    LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
-                    await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
+                    if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
+                    {
+                        await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false);
+                    }
                 }
                 return GetSystemType(nodeId);
             }
             catch (ServiceResultException sre)
             {
-                Utils.Trace(sre, "Failed to load the custom type.");
+                Utils.Trace(sre, $"Failed to load the custom type {nodeId}.");
                 if (throwOnError)
                 {
                     throw sre;
@@ -131,10 +154,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Load all custom types of a namespace.
         /// </summary>
         /// <remarks>
-        /// Type dependencies with other namespaces are not resolved. 
-        /// If a new structure contains an unknown enum or structured 
-        /// type from another namespace, loading such types fails. 
-        /// To load such a type the caller must load the whole type system.
+        /// If a new type in the namespace contains a type dependency to an
+        /// unknown type in another namespace, it loads also the dependent type(s).
+        /// For servers without DataTypeDefinition support all
+        /// custom types are loaded.
         /// </remarks>
         public async Task<bool> LoadNamespace(string nameSpace, bool throwOnError = false)
         {
@@ -152,8 +175,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 serverEnumTypes = serverEnumTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
                 serverStructTypes = serverStructTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
                 // load types
-                LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
-                await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
+                if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
+                {
+                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false);
+                }
                 return true;
             }
             catch (ServiceResultException sre)
@@ -179,9 +204,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Create all structured types using the DataTypeDefinion attribute, if available.
         /// if there are type definitions remaining
         /// - Load the binary schema dictionaries with type definitions.
-        /// - Create all enumerated custom types using the dictionaries.
+        /// - Create all remaining enumerated custom types using the dictionaries.
         /// - Convert all structured types in the dictionaries to the DataTypeDefinion attribute, if possible.
-        /// - Create all structured types from the dictionaries using the DataTypeDefinion attribute..
+        /// - Create all structured types from the dictionaries using the converted DataTypeDefinion attribute..
         /// </remarks>
         public async Task<bool> Load(bool onlyEnumTypes = false, bool throwOnError = false)
         {
@@ -189,17 +214,11 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // load server types
                 IList<INode> serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
-                IList<INode> serverStructTypes;
-                if (onlyEnumTypes)
+                IList<INode> serverStructTypes = onlyEnumTypes ? new List<INode>() : LoadDataTypes(DataTypeIds.Structure, true);
+                if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                 {
-                    serverStructTypes = new List<INode>();
+                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, true);
                 }
-                else
-                {
-                    serverStructTypes = LoadDataTypes(DataTypeIds.Structure, true);
-                }
-                LoadBaseDataTypes(serverEnumTypes, serverStructTypes);
-                await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes);
                 return true;
             }
             catch (ServiceResultException sre)
@@ -224,20 +243,25 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Private Members
         /// <summary>
-        /// Load all custom types from dictionaries into the sessions system type factory.
+        /// Load listed custom types from dictionaries
+        /// into the sessions system type factory.
         /// </summary>
-        private async Task LoadDictionaryDataTypes(
+        /// <remarks>
+        /// Loads all custom types at this time to avoid
+        /// complexity when resolving type dependencies.
+        /// </remarks>
+        private async Task<bool> LoadDictionaryDataTypes(
             IList<INode> serverEnumTypes,
-            IList<INode> serverStructTypes
+            IList<INode> serverStructTypes,
+            bool fullTypeList
             )
         {
-            // build a type dictionary with all new types
-            var allTypes = new List<INode>();
-            allTypes.AddRange(serverEnumTypes);
-            allTypes.AddRange(serverStructTypes);
+            // build a type dictionary with all known new types
+            var allEnumTypes = fullTypeList ? serverEnumTypes : LoadDataTypes(DataTypeIds.Enumeration);
+            var typeDictionary = new Dictionary<XmlQualifiedName, NodeId>();
 
-            // strip known types from the work list
-            serverEnumTypes = RemoveKnownTypes(serverEnumTypes);
+            // strip known types from list
+            serverEnumTypes = RemoveKnownTypes(allEnumTypes);
 
             // load the binary schema dictionaries from the server
             var typeSystem = await m_session.LoadDataTypeSystem();
@@ -245,13 +269,16 @@ namespace Opc.Ua.Client.ComplexTypes
             // sort dictionaries with import dependencies to the end of the list
             var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary.Import?.Count()).ToList();
 
+            bool allTypesLoaded = true;
+
             // create custom types for all dictionaries
             foreach (var dictionaryId in sortedTypeSystem)
             {
                 try
                 {
                     var dictionary = dictionaryId.Value;
-                    var targetNamespace = dictionary.TypeDictionary.TargetNamespace;
+                    var targetDictionaryNamespace = dictionary.TypeDictionary.TargetNamespace;
+                    var targetNamespaceIndex = m_session.NamespaceUris.GetIndex(targetDictionaryNamespace);
                     var structureList = new List<Schema.Binary.TypeDescription>();
                     var enumList = new List<Opc.Ua.Schema.Binary.TypeDescription>();
 
@@ -261,13 +288,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
                     // create assembly for all types in the same module
                     var complexTypeBuilder = m_complexTypeBuilderFactory.Create(
-                        targetNamespace,
-                        m_session.NamespaceUris.GetIndex(targetNamespace),
+                        targetDictionaryNamespace,
+                        targetNamespaceIndex,
                         dictionary.Name);
 
-                    // Add all unknown enumeration types 
-                    AddEnumTypes(complexTypeBuilder, enumList, serverEnumTypes);
+                    // Add all unknown enumeration types in dictionary
+                    AddEnumTypes(complexTypeBuilder, typeDictionary, enumList, allEnumTypes, serverEnumTypes);
 
+                    // handle structures
                     int lastStructureCount = 0;
                     while (structureList.Count > 0 &&
                         structureList.Count != lastStructureCount)
@@ -277,10 +305,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         // build structured types
                         foreach (var item in structureList)
                         {
-                            var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
-                            if (structuredObject != null)
-                            {
-                                var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
+                            if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
+                            {   // note: the BrowseName contains the actual Value string of the DataType node.
+                                var nodeId = dictionary.DataTypes.Where(d => d.Value.BrowseName.Name == item.Name).FirstOrDefault().Value;
+                                if (nodeId == null)
+                                {
+                                    Utils.Trace(TraceMasks.Error, $"Skip the type definition of {item.Name} because the data type node was not found.");
+                                    continue;
+                                }
 
                                 // find the data type node and the binary encoding id
                                 ExpandedNodeId typeId;
@@ -300,12 +332,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
                                 if (GetSystemType(typeId) != null)
                                 {
+                                    var qName = structuredObject.QName ?? new XmlQualifiedName(structuredObject.Name, targetDictionaryNamespace);
+                                    typeDictionary[qName] = ExpandedNodeId.ToNodeId(typeId, m_session.NamespaceUris);
                                     Utils.Trace(TraceMasks.Information, $"Skip the type definition of {item.Name} because the type already exists.");
                                     continue;
                                 }
 
                                 // Use DataTypeDefinition attribute, if available (>=V1.04)
-                                StructureDefinition structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                                StructureDefinition structureDefinition = GetStructureDefinition(dataTypeNode);
                                 if (structureDefinition == null)
                                 {
                                     try
@@ -313,7 +347,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         // convert the binary schema description to a StructureDefinition
                                         structureDefinition = structuredObject.ToStructureDefinition(
                                             binaryEncodingId,
-                                            allTypes,
+                                            typeDictionary,
                                             m_session.NamespaceUris);
                                     }
                                     catch (ServiceResultException sre)
@@ -326,19 +360,37 @@ namespace Opc.Ua.Client.ComplexTypes
                                 Type complexType = null;
                                 if (structureDefinition != null)
                                 {
-                                    // build the actual structured type in an assembly
-                                    complexType = AddStructuredType(
-                                        complexTypeBuilder,
-                                        structureDefinition,
-                                        dataTypeNode.BrowseName.Name,
-                                        typeId,
-                                        binaryEncodingId);
+                                    var encodingIds = BrowseForEncodings(typeId, m_supportedEncodings,
+                                        out binaryEncodingId, out ExpandedNodeId xmlEncodingId);
+                                    try
+                                    {
+                                        // build the actual .Net structured type in assembly
+                                        complexType = AddStructuredType(
+                                            complexTypeBuilder,
+                                            structureDefinition,
+                                            dataTypeNode.BrowseName.Name,
+                                            typeId,
+                                            binaryEncodingId,
+                                            xmlEncodingId
+                                            );
+                                    }
+                                    catch (DataTypeNotFoundException)
+                                    {
+                                        retryStructureList.Add(item);
+                                        continue;
+                                    }
 
                                     // Add new type to factory
                                     if (complexType != null)
                                     {
-                                        AddEncodeableType(binaryEncodingId, complexType);
+                                        // match namespace and add new type to type factory
+                                        foreach (var encodingId in encodingIds)
+                                        {
+                                            AddEncodeableType(encodingId, complexType);
+                                        }
                                         AddEncodeableType(typeId, complexType);
+                                        var qName = structuredObject.QName ?? new XmlQualifiedName(structuredObject.Name, targetDictionaryNamespace);
+                                        typeDictionary[qName] = ExpandedNodeId.ToNodeId(typeId, m_session.NamespaceUris);
                                     }
                                 }
 
@@ -351,6 +403,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         structureList = retryStructureList;
                     }
+                    allTypesLoaded = allTypesLoaded && structureList.Count == 0;
                 }
                 catch (ServiceResultException sre)
                 {
@@ -358,19 +411,60 @@ namespace Opc.Ua.Client.ComplexTypes
                         $"Unexpected error processing {dictionaryId.Value.Name}.");
                 }
             }
+            return allTypesLoaded;
         }
 
         /// <summary>
         /// Load all custom types with DataTypeDefinition into the type factory.
         /// </summary>
+        /// <returns>true if all types were loaded, false otherwise</returns>
         private bool LoadBaseDataTypes(
             IList<INode> serverEnumTypes,
             IList<INode> serverStructTypes
             )
         {
+            bool repeatDataTypeLoad = false; ;
+            IList<INode> enumTypesToDoList = new List<INode>();
+            IList<INode> structTypesToDoList = new List<INode>();
+
+            do
+            {
+                // strip known types
+                serverEnumTypes = RemoveKnownTypes(serverEnumTypes);
+                serverStructTypes = RemoveKnownTypes(serverStructTypes);
+
+                repeatDataTypeLoad = false;
+                try
+                {
+                    enumTypesToDoList = LoadBaseEnumDataTypes(serverEnumTypes);
+                    structTypesToDoList = LoadBaseStructureDataTypes(serverStructTypes);
+                }
+                catch (DataTypeNotFoundException dtnfex)
+                {
+                    // add missing type to list
+                    var dataTypeNode = m_session.NodeCache.Find(dtnfex.nodeId);
+                    if (dataTypeNode != null)
+                    {
+                        AddEnumerationOrStructureType(dataTypeNode, serverEnumTypes, serverStructTypes);
+                        repeatDataTypeLoad = true;
+                    }
+                }
+            } while (repeatDataTypeLoad);
+
+            // all types loaded
+            return enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0;
+        }
+
+        /// <summary>
+        /// Load all custom types with DataTypeDefinition into the type factory.
+        /// </summary>
+        /// <returns>true if all types were loaded, false otherwise</returns>
+        private IList<INode> LoadBaseEnumDataTypes(
+            IList<INode> serverEnumTypes
+            )
+        {
             // strip known types
             serverEnumTypes = RemoveKnownTypes(serverEnumTypes);
-            serverStructTypes = RemoveKnownTypes(serverStructTypes);
 
             // add new enum Types for all namespaces
             var enumTypesToDoList = new List<INode>();
@@ -406,6 +500,24 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
 
+            // all types loaded, return remaining
+            return enumTypesToDoList;
+        }
+
+        /// <summary>
+        /// Load all structure custom types with DataTypeDefinition into the type factory.
+        /// </summary>
+        /// <returns>true if all types were loaded, false otherwise</returns>
+        private IList<INode> LoadBaseStructureDataTypes(
+            IList<INode> serverStructTypes
+            )
+        {
+            // strip known types
+            serverStructTypes = RemoveKnownTypes(serverStructTypes);
+
+            // add new enum Types for all namespaces
+            int namespaceCount = m_session.NamespaceUris.Count;
+
             bool retryAddStructType;
             var structTypesToDoList = new List<INode>();
             var structTypesWorkList = serverStructTypes;
@@ -430,14 +542,15 @@ namespace Opc.Ua.Client.ComplexTypes
                         foreach (INode structType in structTypes)
                         {
                             Type newType = null;
-                            var dataTypeNode = structType as DataTypeNode;
-                            if (dataTypeNode == null)
+                            if (!(structType is DataTypeNode dataTypeNode))
                             {
                                 continue;
                             }
-                            var structureDefinition = dataTypeNode.DataTypeDefinition?.Body as StructureDefinition;
+                            var structureDefinition = GetStructureDefinition(dataTypeNode);
                             if (structureDefinition != null)
                             {
+                                var encodingIds = BrowseForEncodings(structType.NodeId, m_supportedEncodings,
+                                    out ExpandedNodeId binaryEncodingId, out ExpandedNodeId xmlEncodingId);
                                 try
                                 {
                                     newType = AddStructuredType(
@@ -445,8 +558,21 @@ namespace Opc.Ua.Client.ComplexTypes
                                         structureDefinition,
                                         dataTypeNode.BrowseName.Name,
                                         structType.NodeId,
-                                        structureDefinition.DefaultEncodingId
+                                        binaryEncodingId,
+                                        xmlEncodingId
                                         );
+                                }
+                                catch (DataTypeNotFoundException dtnfex)
+                                {
+                                    var typeMatch = structTypesWorkList.Where(n => n.NodeId == dtnfex.nodeId).FirstOrDefault();
+                                    if (typeMatch == null)
+                                    {
+                                        throw dtnfex;
+                                    }
+                                    else
+                                    {   // known missing type, retry on next round
+                                        retryAddStructType = true;
+                                    }
                                 }
                                 catch
                                 {
@@ -455,8 +581,10 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 if (newType != null)
                                 {
-                                    // match namespace and add new type to type factory
-                                    AddEncodeableType(structureDefinition.DefaultEncodingId, newType);
+                                    foreach (var encodingId in encodingIds)
+                                    {
+                                        AddEncodeableType(encodingId, newType);
+                                    }
                                     AddEncodeableType(structType.NodeId, newType);
                                 }
                             }
@@ -476,9 +604,22 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             } while (retryAddStructType);
 
-            return structTypesToDoList.Count == 0;
+            // all types loaded
+            return structTypesToDoList;
         }
 
+        /// <summary>
+        /// Return the structure definition from a DataTypeDefinition
+        /// </summary>
+        private StructureDefinition GetStructureDefinition(DataTypeNode dataTypeNode)
+        {
+            if (dataTypeNode.DataTypeDefinition?.Body is StructureDefinition structureDefinition)
+            {
+                return structureDefinition;
+            }
+            return null;
+
+        }
 
         /// <summary>
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
@@ -496,6 +637,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Browse for the type and encoding id for a dictionary component.
         /// </summary>
         /// <remarks>
+        /// According to Part 5 Annex D, servers shall provide the bi-directional
+        /// references between data types, data type encodings, data type description
+        /// and data type dictionary.
         /// To find the typeId and encodingId for a dictionary type definition:
         /// i) inverse browse the description to get the encodingid
         /// ii) from the description inverse browse for encoding 
@@ -505,7 +649,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId"></param>
         /// <param name="typeId"></param>
         /// <param name="encodingId"></param>
-        /// <returns></returns>
+        /// <returns>true if successful, false otherwise</returns>
         private bool BrowseTypeIdsForDictionaryComponent(
             NodeId nodeId,
             out ExpandedNodeId typeId,
@@ -526,6 +670,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (references.Count == 1)
             {
                 encodingId = references.First().NodeId;
+
                 references = m_session.NodeCache.FindReferences(
                     encodingId,
                     ReferenceTypeIds.HasEncoding,
@@ -566,8 +711,34 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Browse for the encodings of a type.
+        /// </summary>
+        /// <remarks>
+        /// Browse for binary encoding of a structure datatype.
+        /// </remarks>
+        private IList<NodeId> BrowseForEncodings(
+            ExpandedNodeId nodeId,
+            string[] supportedEncodings,
+            out ExpandedNodeId binaryEncodingId,
+            out ExpandedNodeId xmlEncodingId)
+        {
+            var references = m_session.NodeCache.FindReferences(
+                nodeId,
+                ReferenceTypeIds.HasEncoding,
+                false,
+                false
+                );
+            binaryEncodingId = references.Where(r => r.BrowseName.Name == BrowseNames.DefaultBinary).FirstOrDefault()?.NodeId;
+            binaryEncodingId = NormalizeExpandedNodeId(binaryEncodingId);
+            xmlEncodingId = references.Where(r => r.BrowseName.Name == BrowseNames.DefaultXml).FirstOrDefault()?.NodeId;
+            xmlEncodingId = NormalizeExpandedNodeId(xmlEncodingId);
+            return references.Where(r => supportedEncodings.Contains(r.BrowseName.Name))
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
+        }
+
+        /// <summary>
         /// Load all subTypes and optionally nested subtypes of a type definition.
-        /// Filter for all subtypes or only subtypesoutside the default namespace.
+        /// Filter for all subtypes or only subtypes outside the default namespace.
         /// </summary>
         private IList<INode> LoadDataTypes(
             ExpandedNodeId dataType,
@@ -576,8 +747,9 @@ namespace Opc.Ua.Client.ComplexTypes
             bool filterUATypes = true)
         {
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection();
-            nodesToBrowse.Add(dataType);
+            var nodesToBrowse = new ExpandedNodeIdCollection {
+                dataType
+            };
 
             if (addRootNode)
             {
@@ -621,6 +793,32 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Add data type to enumeration or structure base type list depending on supertype.
+        /// </summary>
+        private void AddEnumerationOrStructureType(INode dataTypeNode, IList<INode> serverEnumTypes, IList<INode> serverStructTypes)
+        {
+            NodeId superType = ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_session.NamespaceUris);
+            do
+            {
+                superType = m_session.NodeCache.FindSuperType(superType);
+                if (superType.IsNullNodeId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"SuperType for {dataTypeNode.NodeId} not found.");
+                }
+                if (superType == DataTypeIds.Enumeration)
+                {
+                    serverEnumTypes.Insert(0, dataTypeNode);
+                    break;
+                }
+                else if (superType == DataTypeIds.Structure)
+                {
+                    serverStructTypes.Insert(0, dataTypeNode);
+                    break;
+                }
+            } while (true);
+        }
+
+        /// <summary>
         /// Remove all known types in the type factory from a list of DataType nodes.
         /// </summary>
         private IList<INode> RemoveKnownTypes(IList<INode> nodeList)
@@ -646,20 +844,24 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void AddEnumTypes(
             IComplexTypeBuilder complexTypeBuilder,
+            Dictionary<XmlQualifiedName, NodeId> typeDictionary,
             IList<Opc.Ua.Schema.Binary.TypeDescription> enumList,
+            IList<INode> allEnumerationTypes,
             IList<INode> enumerationTypes
             )
         {
             foreach (var item in enumList)
             {
                 Type newType = null;
+                DataTypeNode enumDescription = null;
                 DataTypeNode enumType = enumerationTypes.Where(node =>
                     node.BrowseName.Name == item.Name &&
-                    (node.NodeId.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
+                    (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
                     complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
                     as DataTypeNode;
                 if (enumType != null)
                 {
+                    enumDescription = enumType;
                     // try dictionary enum definition
                     var enumeratedObject = item as Schema.Binary.EnumeratedType;
                     if (enumeratedObject != null)
@@ -696,6 +898,19 @@ namespace Opc.Ua.Client.ComplexTypes
                             }
                         }
                     }
+                    else
+                    {
+                        enumDescription = allEnumerationTypes.Where(node =>
+                            node.BrowseName.Name == item.Name &&
+                            (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
+                            complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
+                            as DataTypeNode;
+                    }
+                    if (enumDescription != null)
+                    {
+                        var qName = new XmlQualifiedName(item.Name, complexTypeBuilder.TargetNamespace);
+                        typeDictionary[qName] = enumType.NodeId;
+                    }
                     if (newType != null)
                     {
                         // match namespace and add to type factory
@@ -710,6 +925,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void AddEncodeableType(ExpandedNodeId nodeId, Type type)
         {
+            if (NodeId.IsNull(nodeId) || type == null)
+            {
+                return;
+            }
             var internalNodeId = NormalizeExpandedNodeId(nodeId);
             Utils.TraceDebug($"Adding Type {type.FullName} as: {internalNodeId.ToString()}");
             m_session.Factory.AddEncodeableType(internalNodeId, type);
@@ -766,7 +985,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string typeName,
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
-            ExpandedNodeId xmlEncodingId = null
+            ExpandedNodeId xmlEncodingId
             )
         {
             // check all types
@@ -776,8 +995,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var newType = GetFieldType(field);
                 if (newType == null)
                 {
-                    // missing that type
-                    return null;
+                    throw new DataTypeNotFoundException(field.DataType);
                 }
                 typeList.Add(newType);
             }
@@ -846,14 +1064,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (field.ValueRank >= 0)
             {
-                if (collectionType != null)
-                {
-                    fieldType = collectionType;
-                }
-                else
-                {
-                    fieldType = fieldType.MakeArrayType();
-                }
+                fieldType = collectionType ?? fieldType.MakeArrayType();
             }
 
             return fieldType;
@@ -872,8 +1083,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             foreach (var item in dictionary.TypeDictionary.Items)
             {
-                var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
-                if (structuredObject != null)
+                if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
                 {
                     var dependentFields = structuredObject.Field.Where(f => f.TypeName.Namespace == dictionary.TypeDictionary.TargetNamespace);
                     if (dependentFields.Count() == 0)
@@ -891,7 +1101,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else if (item is Opc.Ua.Schema.Binary.OpaqueType)
                 {
-                    // TODO
+                    // TODO: Opaque types not supported yet
                 }
                 else
                 {
@@ -902,9 +1112,10 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
-        Session m_session;
-        IComplexTypeFactory m_complexTypeBuilderFactory;
-        const string m_opcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
+        private Session m_session;
+        private IComplexTypeFactory m_complexTypeBuilderFactory;
+        private string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
+        private const string kOpcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
         #endregion
     }
 
