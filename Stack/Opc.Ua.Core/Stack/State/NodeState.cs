@@ -4422,7 +4422,7 @@ namespace Opc.Ua
             
             refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
 
-            return refsToRemove.Any();
+            return refsToRemove.Count != 0;
         }
         #endregion
 
