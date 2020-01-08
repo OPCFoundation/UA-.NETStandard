@@ -33,8 +33,8 @@
         <dependency id="System.Net.Websockets.Client" version="4.3.2" />
       </group>
       <group targetFramework="netstandard2.0" >
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.0.1"/>
-        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.0.1"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.2.0"/>
+        <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.2.0"/>
         <dependency id="Newtonsoft.Json" version="10.0.3"/>
         <dependency id="Portable.BouncyCastle" version="1.8.4"/>
         <dependency id="System.Data.Common" version="4.3.0"/>
