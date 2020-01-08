@@ -2703,7 +2703,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA1 hmac = new HMACSHA1(secret);
             return PSHA(hmac, label, data, offset, length);
@@ -2714,7 +2714,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA256(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA256 hmac = new HMACSHA256(secret);
             return PSHA(hmac, label, data, offset, length);
@@ -2725,9 +2725,9 @@ namespace Opc.Ua
         /// </summary>
         private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
-            if (hmac == null) throw new ArgumentNullException("hmac");
-            if (offset < 0) throw new ArgumentOutOfRangeException("offset");
-            if (length < 0) throw new ArgumentOutOfRangeException("length");
+            if (hmac == null) throw new ArgumentNullException(nameof(hmac));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
 
             byte[] seed = null;
 

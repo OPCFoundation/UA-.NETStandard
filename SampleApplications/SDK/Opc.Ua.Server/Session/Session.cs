@@ -78,8 +78,8 @@ namespace Opc.Ua.Server
             int                     maxBrowseContinuationPoints,
             int                     maxHistoryContinuationPoints)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (server == null)  throw new ArgumentNullException("server");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (server == null)  throw new ArgumentNullException(nameof(server));
             
             // verify that a secure channel was specified.
             if (context.ChannelContext == null)
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException("requestHeader");
+            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
             
             lock (m_lock)
             {
@@ -487,7 +487,7 @@ namespace Opc.Ua.Server
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
         public bool UpdateLocaleIds(StringCollection localeIds)
         {
-            if (localeIds == null) throw new ArgumentNullException("localeIds");
+            if (localeIds == null) throw new ArgumentNullException(nameof(localeIds));
                         
             lock (m_lock)
             {                
@@ -704,7 +704,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public void SaveContinuationPoint(ContinuationPoint continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
 
             lock (m_lock)
             {
@@ -773,7 +773,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
 
             lock (m_lock)
             {
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Server
             IUserIdentity     identity, 
             IUserIdentity     effectiveIdentity)
         {
-            if (identityToken == null) throw new ArgumentNullException("identityToken");
+            if (identityToken == null) throw new ArgumentNullException(nameof(identityToken));
 
             lock (m_lock)
             {

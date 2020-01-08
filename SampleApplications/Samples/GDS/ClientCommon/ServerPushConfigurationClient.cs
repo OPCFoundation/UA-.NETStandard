@@ -209,7 +209,7 @@ namespace Opc.Ua.Gds.Client
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
             EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (endpoint == null)
                 {
-                    throw new ArgumentNullException("endpoint");
+                    throw new ArgumentNullException(nameof(endpoint));
                 }
             }
 

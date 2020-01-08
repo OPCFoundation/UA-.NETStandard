@@ -4000,7 +4000,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath,
             int index)
         {
-            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException("index");
+            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException(nameof(index));
 
             BaseInstanceState instance = FindChild(context, browsePath[index], false, null);
 
@@ -4331,8 +4331,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4356,8 +4356,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4380,7 +4380,7 @@ namespace Opc.Ua
         /// <param name="references">The list of references to add.</param>
         public void AddReferences(IList<IReference> references)
         {
-            if (references == null) throw new ArgumentNullException("references");
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             if (m_references == null)
             {
@@ -4408,7 +4408,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
 
             if (m_references == null)
             {

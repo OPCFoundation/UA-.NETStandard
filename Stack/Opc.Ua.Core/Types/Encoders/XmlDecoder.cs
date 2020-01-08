@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
             m_context = context;
             m_nestingLevel = 0;
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlElement element, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
             m_reader = XmlReader.Create(new StringReader(element.OuterXml));
             m_context = context;
@@ -1476,7 +1476,7 @@ namespace Opc.Ua
             string      fieldName, 
             System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
             
             IEncodeable value = Activator.CreateInstance(systemType) as IEncodeable;
             
@@ -2517,7 +2517,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
             
             bool isNil = false;
 
@@ -2567,7 +2567,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException("enumType");
+            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
             
             bool isNil = false;
 

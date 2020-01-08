@@ -84,8 +84,8 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             JsonEncoder encoder = new JsonEncoder(context, true, new StreamWriter(stream, new UTF8Encoding(false), 65535, leaveOpen));
@@ -129,9 +129,9 @@ namespace Opc.Ua
         /// </summary>
         public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, ServiceMessageContext context)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             using (MemoryStream stream = new MemoryStream(buffer, true))
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// </summary>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException("message");
+            if (message == null) throw new ArgumentNullException(nameof(message));
 
             // convert the namespace uri to an index.
             NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);

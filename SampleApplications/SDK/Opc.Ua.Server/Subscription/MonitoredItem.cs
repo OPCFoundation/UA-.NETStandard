@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
             bool                discardOldest,
             double              sourceSamplingInterval)
         {
-            if (itemToMonitor == null) throw new ArgumentNullException("itemToMonitor");
+            if (itemToMonitor == null) throw new ArgumentNullException(nameof(itemToMonitor));
             
             Initialize();
             
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
-            if (instance == null) throw new ArgumentNullException("instance");
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
          
             lock (m_lock)
             {
@@ -1160,8 +1160,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (notifications == null) throw new ArgumentNullException("notifications");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (notifications == null) throw new ArgumentNullException(nameof(notifications));
 
             lock (m_lock)
             {
@@ -1270,9 +1270,9 @@ namespace Opc.Ua.Server
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo>            diagnostics)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (notifications == null) throw new ArgumentNullException("notifications");
-            if (diagnostics == null)   throw new ArgumentNullException("diagnostics");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (notifications == null) throw new ArgumentNullException(nameof(notifications));
+            if (diagnostics == null)   throw new ArgumentNullException(nameof(diagnostics));
             
             lock (m_lock)
             {
@@ -1485,7 +1485,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             bool changed = ValueChanged(
                 value,
@@ -1509,7 +1509,7 @@ namespace Opc.Ua.Server
             DataChangeFilter filter,
             double range)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             // select default data change filters.
             double deadband = 0.0;

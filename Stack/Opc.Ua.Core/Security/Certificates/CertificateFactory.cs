@@ -973,7 +973,7 @@ public class CertificateFactory
 
         if (keySize % 1024 != 0)
         {
-            throw new ArgumentNullException("keySize", "KeySize must be a multiple of 1024.");
+            throw new ArgumentNullException(nameof(keySize), "KeySize must be a multiple of 1024.");
         }
 
         // enforce minimum lifetime.
@@ -995,7 +995,7 @@ public class CertificateFactory
         {
             if (subjectNameEntries == null)
             {
-                throw new ArgumentNullException("applicationName", "Must specify a applicationName or a subjectName.");
+                throw new ArgumentNullException(nameof(applicationName), "Must specify a applicationName or a subjectName.");
             }
 
             // use the common name as the application name.
@@ -1011,7 +1011,7 @@ public class CertificateFactory
 
         if (String.IsNullOrEmpty(applicationName))
         {
-            throw new ArgumentNullException("applicationName", "Must specify a applicationName or a subjectName.");
+            throw new ArgumentNullException(nameof(applicationName), "Must specify a applicationName or a subjectName.");
         }
 
         // remove special characters from name.

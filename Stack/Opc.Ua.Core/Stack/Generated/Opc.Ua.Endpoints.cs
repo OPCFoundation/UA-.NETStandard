@@ -166,7 +166,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.FindServersRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -279,7 +279,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.FindServersOnNetworkRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -389,7 +389,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.GetEndpointsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -528,7 +528,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CreateSessionRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -646,7 +646,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.ActivateSessionRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -751,7 +751,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CloseSessionRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -859,7 +859,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CancelRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -970,7 +970,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.AddNodesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1081,7 +1081,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.AddReferencesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1192,7 +1192,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.DeleteNodesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1303,7 +1303,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.DeleteReferencesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1416,7 +1416,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.BrowseRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1528,7 +1528,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.BrowseNextRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1639,7 +1639,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.TranslateBrowsePathsToNodeIdsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1747,7 +1747,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.RegisterNodesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1852,7 +1852,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.UnregisterNodesRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1976,7 +1976,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.QueryFirstRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2088,7 +2088,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.QueryNextRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2201,7 +2201,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.ReadRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2315,7 +2315,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.HistoryReadRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2426,7 +2426,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.WriteRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2537,7 +2537,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.HistoryUpdateRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2648,7 +2648,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CallRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2761,7 +2761,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CreateMonitoredItemsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2874,7 +2874,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.ModifyMonitoredItemsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2987,7 +2987,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.SetMonitoringModeRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3107,7 +3107,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.SetTriggeringRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3219,7 +3219,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.DeleteMonitoredItemsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3341,7 +3341,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.CreateSubscriptionRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3460,7 +3460,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.ModifySubscriptionRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3572,7 +3572,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.SetPublishingModeRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3695,7 +3695,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.PublishRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3804,7 +3804,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.RepublishRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3916,7 +3916,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.TransferSubscriptionsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4027,7 +4027,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.DeleteSubscriptionsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4312,7 +4312,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.FindServersRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4425,7 +4425,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.FindServersOnNetworkRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4535,7 +4535,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.GetEndpointsRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4640,7 +4640,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.RegisterServerRequest);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4752,7 +4752,7 @@ namespace Opc.Ua
                 OnRequestReceived(message.RegisterServer2Request);
 
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);

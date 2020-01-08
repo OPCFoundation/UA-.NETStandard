@@ -57,7 +57,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DiagnosticInfo(DiagnosticInfo value)
         {            
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_symbolicId      = value.m_symbolicId;
             m_namespaceUri    = value.m_namespaceUri;
@@ -198,7 +198,7 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask, 
             StringTable      stringTable)
         {        
-            if (stringTable == null) throw new ArgumentNullException("stringTable");
+            if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
             
             m_symbolicId          = -1;
             m_namespaceUri        = -1;

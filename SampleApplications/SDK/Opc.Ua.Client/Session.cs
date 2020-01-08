@@ -3139,7 +3139,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool AddSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             lock (SyncRoot)
             {
@@ -3167,7 +3167,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool RemoveSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             if (subscription.Created)
             {
@@ -3199,7 +3199,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            if (subscriptions == null) throw new ArgumentNullException("subscriptions");
+            if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
             bool removed = false;
             List<Subscription> subscriptionsToDelete = new List<Subscription>();

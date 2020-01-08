@@ -138,7 +138,7 @@ namespace Opc.Ua
         /// </summary>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException("asnEncodedData");
+            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
             this.Oid = asnEncodedData.Oid;
             Parse(asnEncodedData.RawData);
         }

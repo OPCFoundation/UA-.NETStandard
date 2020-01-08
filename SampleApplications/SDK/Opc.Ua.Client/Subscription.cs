@@ -1379,7 +1379,7 @@ namespace Opc.Ua.Client
             MonitoringMode       monitoringMode, 
             IList<MonitoredItem> monitoredItems)
         {
-            if (monitoredItems == null) throw new ArgumentNullException("monitoredItems");
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
 
             VerifySubscriptionState(true);
 
@@ -1768,7 +1768,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void AddItem(MonitoredItem monitoredItem)
         {
-            if (monitoredItem == null) throw new ArgumentNullException("monitoredItem");
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
 
             lock (m_cache)
             {
@@ -1790,7 +1790,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void AddItems(IEnumerable<MonitoredItem> monitoredItems)
         {
-            if (monitoredItems == null) throw new ArgumentNullException("monitoredItems");
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
 
             bool added = false;
 
@@ -1819,7 +1819,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void RemoveItem(MonitoredItem monitoredItem)
         {
-            if (monitoredItem == null) throw new ArgumentNullException("monitoredItem");
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
                         
             lock (m_cache)
             {
@@ -1845,7 +1845,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void RemoveItems(IEnumerable<MonitoredItem> monitoredItems)
         {
-            if (monitoredItems == null) throw new ArgumentNullException("monitoredItems");
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
 
             bool changed = false;
             

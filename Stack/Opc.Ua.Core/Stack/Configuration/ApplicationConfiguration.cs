@@ -37,7 +37,7 @@ namespace Opc.Ua
         {
             if (section == null)
             {
-                throw new ArgumentNullException("section");
+                throw new ArgumentNullException(nameof(section));
             }
 
             XmlNode element = section.FirstChild;

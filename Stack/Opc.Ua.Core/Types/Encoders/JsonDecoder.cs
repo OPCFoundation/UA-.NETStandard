@@ -38,7 +38,7 @@ namespace Opc.Ua
         #region Constructors
         public JsonDecoder(string json, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
 
             m_context = context;
@@ -76,8 +76,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
 
@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // check that the max message size was not exceeded.
             if (context.MaxMessageSize > 0 && context.MaxMessageSize < buffer.Count)
@@ -1369,7 +1369,7 @@ namespace Opc.Ua
             string fieldName,
             System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
             object token = null;
 
@@ -1417,7 +1417,7 @@ namespace Opc.Ua
         /// </summary>
         public Enum ReadEnumerated(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException("enumType");
+            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
 
             return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
         }
@@ -2213,7 +2213,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
             List<object> token = null;
 
@@ -2246,7 +2246,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException("enumType");
+            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
 
             List<object> token = null;
 

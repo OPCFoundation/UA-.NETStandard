@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DataValue(DataValue value)
         {            
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_value.Value     = Utils.Clone(value.m_value.Value);
             m_statusCode      = value.m_statusCode;

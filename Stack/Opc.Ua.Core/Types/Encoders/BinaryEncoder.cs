@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryEncoder(byte[] buffer, int start, int count, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
 
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryEncoder(Stream stream, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_ostrm = stream;
             m_writer = new BinaryWriter(m_ostrm);
@@ -183,8 +183,8 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeMessage(IEncodeable message, ServiceMessageContext context)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(context);
@@ -201,8 +201,8 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(stream, context);
@@ -247,9 +247,9 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (stream == null) throw new ArgumentNullException("stream");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(stream, context);
@@ -269,7 +269,7 @@ namespace Opc.Ua
         /// </summary>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException("message");
+            if (message == null) throw new ArgumentNullException(nameof(message));
 
             long start = m_ostrm.Position;
 
@@ -1050,7 +1050,7 @@ namespace Opc.Ua
             // create a default object if a null object specified.
             if (value == null)
             {
-                if (systemType == null) throw new ArgumentNullException("systemType");
+                if (systemType == null) throw new ArgumentNullException(nameof(systemType));
                 value = Activator.CreateInstance(systemType) as IEncodeable;
             }
 
@@ -1070,7 +1070,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, Enum value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             WriteInt32(null, Convert.ToInt32(value, CultureInfo.InvariantCulture));
         }

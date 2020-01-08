@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// </summary>
         public ConfigurationWatcher(ApplicationConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             FileInfo fileInfo = new FileInfo(configuration.SourceFilePath);
 

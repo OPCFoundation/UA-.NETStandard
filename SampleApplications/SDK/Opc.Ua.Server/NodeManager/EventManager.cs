@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public EventManager(IServerInternal server, uint maxQueueSize)
         {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_server = server;
             m_monitoredItems = new Dictionary<uint,IEventMonitoredItem>();
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportEvent(IFilterTarget e, IList<IEventMonitoredItem> monitoredItems)
         {
-            if (e == null) throw new ArgumentNullException("e");
+            if (e == null) throw new ArgumentNullException(nameof(e));
             
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {

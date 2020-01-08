@@ -89,8 +89,8 @@ namespace Opc.Ua.Server
             bool             publishingEnabled,
             uint             maxMessageCount)
         {       
-            if (server == null)  throw new ArgumentNullException("server");
-            if (session == null) throw new ArgumentNullException("session");
+            if (server == null)  throw new ArgumentNullException(nameof(server));
+            if (session == null) throw new ArgumentNullException(nameof(session));
 
             m_server                      = server;
             m_session                     = session;
@@ -618,7 +618,7 @@ namespace Opc.Ua.Server
             out UInt32Collection  availableSequenceNumbers, 
             out bool              moreNotifications)
         {   
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             
             NotificationMessage message = null;
 
@@ -987,7 +987,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint             retransmitSequenceNumber)
         {            
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             lock (DiagnosticsWriteLock)
             {
@@ -1135,9 +1135,9 @@ namespace Opc.Ua.Server
             out StatusCodeCollection removeResults,
             out DiagnosticInfoCollection removeDiagnosticInfos)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (linksToAdd == null) throw new ArgumentNullException("linksToAdd");
-            if (linksToRemove == null) throw new ArgumentNullException("linksToRemove");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (linksToAdd == null) throw new ArgumentNullException(nameof(linksToAdd));
+            if (linksToRemove == null) throw new ArgumentNullException(nameof(linksToRemove));
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1305,8 +1305,8 @@ namespace Opc.Ua.Server
             out MonitoredItemCreateResultCollection results, 
             out DiagnosticInfoCollection            diagnosticInfos)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (itemsToCreate == null) throw new ArgumentNullException("itemsToCreate");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (itemsToCreate == null) throw new ArgumentNullException(nameof(itemsToCreate));
             
             int count = itemsToCreate.Count;
             
@@ -1498,8 +1498,8 @@ namespace Opc.Ua.Server
             out MonitoredItemModifyResultCollection results,
             out DiagnosticInfoCollection            diagnosticInfos)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (itemsToModify == null) throw new ArgumentNullException("itemsToModify");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (itemsToModify == null) throw new ArgumentNullException(nameof(itemsToModify));
 
             int count = itemsToModify.Count;
 
@@ -1661,8 +1661,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection     results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (context == null)          throw new ArgumentNullException("context");
-            if (monitoredItemIds == null) throw new ArgumentNullException("monitoredItemIds");
+            if (context == null)          throw new ArgumentNullException(nameof(context));
+            if (monitoredItemIds == null) throw new ArgumentNullException(nameof(monitoredItemIds));
 
             int count = monitoredItemIds.Count;
 
@@ -1817,8 +1817,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection     results, 
             out DiagnosticInfoCollection diagnosticInfos)
         {  
-            if (context == null)          throw new ArgumentNullException("context");
-            if (monitoredItemIds == null) throw new ArgumentNullException("monitoredItemIds");
+            if (context == null)          throw new ArgumentNullException(nameof(context));
+            if (monitoredItemIds == null) throw new ArgumentNullException(nameof(monitoredItemIds));
 
             int count = monitoredItemIds.Count;
 

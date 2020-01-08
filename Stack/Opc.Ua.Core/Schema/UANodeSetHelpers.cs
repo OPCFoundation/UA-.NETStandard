@@ -125,7 +125,7 @@ namespace Opc.Ua.Export
         /// </summary>
         public void Export(ISystemContext context, NodeState node, bool outputRedundantNames =true)
         {
-            if (node == null) throw new ArgumentNullException("node");
+            if (node == null) throw new ArgumentNullException(nameof(node));
 
             if (Opc.Ua.NodeId.IsNull(node.NodeId))
             {

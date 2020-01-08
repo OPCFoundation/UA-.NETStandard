@@ -135,7 +135,7 @@ namespace Opc.Ua.Bindings
         {
             if (size > m_maxBufferSize)
             {
-                throw new ArgumentOutOfRangeException("size");
+                throw new ArgumentOutOfRangeException(nameof(size));
             }
 
             lock (m_lock)
