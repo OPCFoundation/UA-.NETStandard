@@ -62,11 +62,10 @@ namespace Opc.Ua.Client.ComplexTypes
         public static StructureDefinition ToStructureDefinition(
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
-            IList<INode> typeDictionary,
+            Dictionary<XmlQualifiedName, NodeId> typeDictionary,
             NamespaceTable namespaceTable)
         {
-            var structureDefinition = new StructureDefinition()
-            {
+            var structureDefinition = new StructureDefinition() {
                 BaseDataType = null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = new StructureFieldCollection(),
@@ -162,11 +161,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         "Bitwise option selectors must have 32 bits.");
                 }
 
-                var dataTypeField = new StructureField()
-                {
+                var dataTypeField = new StructureField() {
                     Name = field.Name,
                     Description = null,
-                    DataType = field.TypeName.ToNodeId(typeDictionary, namespaceTable),
+                    DataType = field.TypeName.ToNodeId(typeDictionary),
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
@@ -183,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
-                    lastField.DataType = field.TypeName.ToNodeId(typeDictionary, namespaceTable);
+                    lastField.DataType = field.TypeName.ToNodeId(typeDictionary);
                     lastField.ValueRank = 1;
                 }
                 else
@@ -249,8 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static NodeId ToNodeId(
             this XmlQualifiedName typeName,
-            IList<INode> typeCollection,
-            NamespaceTable namespaceTable)
+            Dictionary<XmlQualifiedName, NodeId> typeCollection)
         {
             if (typeName.Namespace == Namespaces.OpcBinarySchema ||
                 typeName.Namespace == Namespaces.OpcUa)
@@ -271,23 +268,12 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                var referenceId = typeCollection.FirstOrDefault(t =>
-                    t.DisplayName == typeName.Name &&
-                    t.NodeId.NamespaceUri == typeName.Namespace);
-                if (referenceId == null)
+                if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    // TODO: servers may have multiple dictionaries with different
-                    // target namespace but types are stored for all in the same namespace.
-                    // Find a way to find the right namespace here
-                    referenceId = typeCollection.FirstOrDefault(t =>
-                        t.DisplayName == typeName.Name);
-                    if (referenceId == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
-                            $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
-                    }
+                    throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
+                        $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
                 }
-                return ExpandedNodeId.ToNodeId(referenceId.NodeId, namespaceTable);
+                return referenceId;
             }
         }
         #endregion

@@ -12,10 +12,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Xml;
-using System.Globalization;
-using System.IO;
 using Newtonsoft.Json;
 
 namespace Opc.Ua
@@ -38,7 +37,10 @@ namespace Opc.Ua
         #region Constructors
         public JsonDecoder(string json, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             Initialize();
 
             m_context = context;
@@ -76,8 +78,15 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
 
@@ -109,7 +118,10 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             // check that the max message size was not exceeded.
             if (context.MaxMessageSize > 0 && context.MaxMessageSize < buffer.Count)
@@ -208,7 +220,10 @@ namespace Opc.Ua
         {
             if (checkEof && m_reader.TokenType != JsonToken.EndObject)
             {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject) ;
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                {
+                    ;
+                }
             }
 
             m_reader.Close();
@@ -345,18 +360,12 @@ namespace Opc.Ua
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
-        public EncodingType EncodingType
-        {
-            get { return EncodingType.Json; }
-        }
+        public EncodingType EncodingType => EncodingType.Json;
 
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public ServiceMessageContext Context
-        {
-            get { return m_context; }
-        }
+        public ServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -867,7 +876,7 @@ namespace Opc.Ua
                 string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
 
                 using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
                 {
                     document.Load(reader);
                 }
@@ -950,7 +959,7 @@ namespace Opc.Ua
             }
 
             // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels) 
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -958,7 +967,8 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
 
-            try {
+            try
+            {
                 m_nestingLevel++;
                 m_stack.Push(value);
 
@@ -1168,14 +1178,15 @@ namespace Opc.Ua
             }
 
             // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels) 
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
                     m_context.MaxEncodingNestingLevels);
             }
-            try {
+            try
+            {
                 m_nestingLevel++;
                 m_stack.Push(value);
 
@@ -1316,9 +1327,11 @@ namespace Opc.Ua
             {
                 m_stack.Push(value);
 
-                NodeId typeId = ReadNodeId("TypeId");
-
-                ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+                ExpandedNodeId typeId = ReadExpandedNodeId("TypeId");
+                ExpandedNodeId absoluteId = 
+                    typeId.IsAbsolute ? 
+                    typeId : 
+                    NodeId.ToExpandedNodeId(typeId.InnerNodeId, m_context.NamespaceUris);
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
@@ -1369,7 +1382,10 @@ namespace Opc.Ua
             string fieldName,
             System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
+            if (systemType == null)
+            {
+                throw new ArgumentNullException(nameof(systemType));
+            }
 
             object token = null;
 
@@ -1417,7 +1433,10 @@ namespace Opc.Ua
         /// </summary>
         public Enum ReadEnumerated(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
 
             return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
         }
@@ -2213,7 +2232,10 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
+            if (systemType == null)
+            {
+                throw new ArgumentNullException(nameof(systemType));
+            }
 
             List<object> token = null;
 
@@ -2246,7 +2268,10 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
 
             List<object> token = null;
 

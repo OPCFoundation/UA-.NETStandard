@@ -35,8 +35,6 @@ namespace Opc.Ua
         private uint m_nestingLevel;
         #endregion
 
-        public bool UseReversibleEncoding { get; private set; }
-
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -258,6 +256,11 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
+
+        /// <summary>
+        /// The Json encoder reversible encoding option
+        /// </summary>
+        public bool UseReversibleEncoding { get; private set; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.

@@ -25,7 +25,12 @@ namespace Opc.Ua
         /// The type of encoding being used.
         /// </summary>
         EncodingType EncodingType { get; }
-        
+
+        /// <summary>
+        /// The message context associated with the encoder.
+        /// </summary>
+        bool UseReversibleEncoding { get; }
+
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
