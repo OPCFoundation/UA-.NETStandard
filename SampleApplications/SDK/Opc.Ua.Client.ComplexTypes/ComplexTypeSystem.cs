@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, "Failed to load the custom type.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return null;
             }
@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, $"Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return false;
             }
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, $"Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return false;
             }

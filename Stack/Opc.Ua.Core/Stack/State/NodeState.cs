@@ -1012,9 +1012,9 @@ namespace Opc.Ua
                 {
                     BaseInstanceState child = UpdateChild(context, decoder);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    throw e;
+                    throw;
                 }
             }
         }

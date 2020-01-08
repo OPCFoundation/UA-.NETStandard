@@ -678,11 +678,11 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
-            catch (ServiceResultException sre)
+            catch (ServiceResultException)
             {
                 args.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
-                throw sre;
+                throw;
             }
             catch (Exception ex)
             {

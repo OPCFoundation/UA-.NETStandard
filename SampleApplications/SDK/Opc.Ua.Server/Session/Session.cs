@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Server
                 {
                     if (e is ServiceResultException)
                     {
-                        throw e;
+                        throw;
                     }
 
                     throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not decrypt identity token.");

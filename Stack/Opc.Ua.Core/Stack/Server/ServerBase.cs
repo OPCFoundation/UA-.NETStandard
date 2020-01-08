@@ -790,7 +790,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
-                    throw e;
+                    throw;
                 }
             }
 

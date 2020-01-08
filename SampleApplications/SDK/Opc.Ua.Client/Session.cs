@@ -942,10 +942,10 @@ namespace Opc.Ua.Client
             {
                 session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 session.Dispose();
-                throw e;
+                throw;
             }
 
             return session;
@@ -2637,7 +2637,7 @@ namespace Opc.Ua.Client
                 // start keep alive thread.
                 StartKeepAliveTimer();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 try
                 {
@@ -2653,7 +2653,7 @@ namespace Opc.Ua.Client
                     SessionCreated(null, null);
                 }
 
-                throw ex;
+                throw;
             }
         }
 

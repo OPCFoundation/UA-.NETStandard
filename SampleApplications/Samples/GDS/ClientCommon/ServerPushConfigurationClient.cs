@@ -491,7 +491,7 @@ namespace Opc.Ua.Gds.Client
 
                     return (bool)outputArguments[0];
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     if (IsConnected)
                     {
@@ -501,7 +501,7 @@ namespace Opc.Ua.Gds.Client
                             fileHandle);
                     }
 
-                    throw e;
+                    throw;
                 }
             }
             finally

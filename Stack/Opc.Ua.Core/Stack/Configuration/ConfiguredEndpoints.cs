@@ -198,7 +198,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error loading ConfiguredEnpoints.");
-                throw e;
+                throw;
             }
         }
         

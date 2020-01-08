@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.Trace("Exception creating HTTPS Client: " + ex.Message);
-                throw ex;
+                throw;
             }
         }
 

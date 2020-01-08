@@ -244,7 +244,7 @@ namespace Opc.Ua.Gds.Client
                     }
                     else
                     {
-                        throw e;
+                        throw;
                     }
                 }
             } while (serverHalted);

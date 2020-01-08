@@ -713,7 +713,7 @@ namespace Opc.Ua
 
                 if (throwOnError)
                 {
-                    throw e;
+                    throw;
                 }
 
                 return filePath;
@@ -2321,7 +2321,7 @@ namespace Opc.Ua
                 catch (Exception ex)
                 {
                     Utils.Trace("Exception parsing extension: " + ex.Message);
-                    throw ex;
+                    throw;
                 }
                 finally
                 {

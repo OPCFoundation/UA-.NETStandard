@@ -549,9 +549,9 @@ public class CertificateFactory
                 store.Close();
             }
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            throw e;
+            throw;
         }
         return updatedCRL;
     }
@@ -933,11 +933,11 @@ public class CertificateFactory
                 throw new CryptographicException("Don't know how to verify the public/private key pair.");
             }
         }
-        catch (Exception e)
+        catch (Exception)
         {
             if (throwOnError)
             {
-                throw e;
+                throw;
             }
         }
         finally
