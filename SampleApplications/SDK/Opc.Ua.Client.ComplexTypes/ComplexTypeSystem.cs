@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             var structuredObject = item as Opc.Ua.Schema.Binary.StructuredType;
                             if (structuredObject != null)
                             {
-                                var nodeId = dictionary.DataTypes.Where(d => d.Value.DisplayName == item.Name).FirstOrDefault().Value;
+                                var nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.DisplayName == item.Name).Value;
 
                                 // find the data type node and the binary encoding id
                                 ExpandedNodeId typeId;
@@ -653,10 +653,10 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (var item in enumList)
             {
                 Type newType = null;
-                DataTypeNode enumType = enumerationTypes.Where(node =>
+                DataTypeNode enumType = enumerationTypes.FirstOrDefault(node =>
                     node.BrowseName.Name == item.Name &&
                     (node.NodeId.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
-                    complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
+                    complexTypeBuilder.TargetNamespaceIndex == -1))
                     as DataTypeNode;
                 if (enumType != null)
                 {

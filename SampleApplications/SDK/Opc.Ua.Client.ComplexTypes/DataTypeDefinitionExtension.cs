@@ -271,16 +271,16 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                var referenceId = typeCollection.Where(t =>
+                var referenceId = typeCollection.FirstOrDefault(t =>
                     t.DisplayName == typeName.Name &&
-                    t.NodeId.NamespaceUri == typeName.Namespace).FirstOrDefault();
+                    t.NodeId.NamespaceUri == typeName.Namespace);
                 if (referenceId == null)
                 {
                     // TODO: servers may have multiple dictionaries with different
                     // target namespace but types are stored for all in the same namespace.
                     // Find a way to find the right namespace here
-                    referenceId = typeCollection.Where(t =>
-                        t.DisplayName == typeName.Name).FirstOrDefault();
+                    referenceId = typeCollection.FirstOrDefault(t =>
+                        t.DisplayName == typeName.Name);
                     if (referenceId == null)
                     {
                         throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
