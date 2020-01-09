@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// </remarks>
         public void Add(Node node)
         {
-            if (node == null) throw new ArgumentNullException("node");
+            if (node == null) throw new ArgumentNullException(nameof(node));
 
             if (NodeId.IsNull(node.NodeId))
             {
@@ -386,8 +386,8 @@ namespace Opc.Ua
         /// </remarks>
         public Node Find(NodeId nodeId, NamespaceTable namespaceUris)
         {
-            if (nodeId == null) throw new ArgumentNullException("nodeId");
-            if (namespaceUris == null) throw new ArgumentNullException("namespaceUris");
+            if (nodeId == null) throw new ArgumentNullException(nameof(nodeId));
+            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
 
             // check for unknown namespace index.
             string ns = namespaceUris.GetString(nodeId.NamespaceIndex);
@@ -670,8 +670,8 @@ namespace Opc.Ua
             NamespaceTable targetNamespaceUris, 
             NamespaceTable sourceNamespaceUris)
         {
-            if (targetNamespaceUris == null) throw new ArgumentNullException("targetNamespaceUris");
-            if (sourceNamespaceUris == null) throw new ArgumentNullException("sourceNamespaceUris");
+            if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
+            if (sourceNamespaceUris == null) throw new ArgumentNullException(nameof(sourceNamespaceUris));
 
             if (NodeId.IsNull(nodeId))
             {
@@ -709,8 +709,8 @@ namespace Opc.Ua
             NamespaceTable targetNamespaceUris, 
             NamespaceTable sourceNamespaceUris)
         {
-            if (targetNamespaceUris == null) throw new ArgumentNullException("targetNamespaceUris");
-            if (sourceNamespaceUris == null) throw new ArgumentNullException("sourceNamespaceUris");
+            if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
+            if (sourceNamespaceUris == null) throw new ArgumentNullException(nameof(sourceNamespaceUris));
 
             if (QualifiedName.IsNull(qname))
             {
@@ -757,13 +757,13 @@ namespace Opc.Ua
             NamespaceTable sourceNamespaceUris, 
             StringTable    sourceServerUris)
         {
-            if (targetNamespaceUris == null) throw new ArgumentNullException("targetNamespaceUris");
-            if (sourceNamespaceUris == null) throw new ArgumentNullException("sourceNamespaceUris");
+            if (targetNamespaceUris == null) throw new ArgumentNullException(nameof(targetNamespaceUris));
+            if (sourceNamespaceUris == null) throw new ArgumentNullException(nameof(sourceNamespaceUris));
         
             if (nodeId.ServerIndex > 0)
             {
-                if (targetServerUris == null) throw new ArgumentNullException("targetServerUris");
-                if (sourceServerUris == null) throw new ArgumentNullException("sourceServerUris");
+                if (targetServerUris == null) throw new ArgumentNullException(nameof(targetServerUris));
+                if (sourceServerUris == null) throw new ArgumentNullException(nameof(sourceServerUris));
             }
 
             if (NodeId.IsNull(nodeId))

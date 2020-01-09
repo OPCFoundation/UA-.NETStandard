@@ -90,7 +90,7 @@ namespace Opc.Ua
         {
             if (configuration == null)
             {
-                throw new ArgumentNullException("configuration");
+                throw new ArgumentNullException(nameof(configuration));
             }
 
             await Update(configuration.SecurityConfiguration);
@@ -161,7 +161,7 @@ namespace Opc.Ua
         {
             if (configuration == null)
             {
-                throw new ArgumentNullException("configuration");
+                throw new ArgumentNullException(nameof(configuration));
             }
 
             lock (m_lock)

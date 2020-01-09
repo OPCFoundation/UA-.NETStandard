@@ -184,7 +184,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 Shutdown(ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Fatal error during connect."));
-                throw e;
+                throw;
             }
             finally
             {

@@ -942,10 +942,10 @@ namespace Opc.Ua.Client
             {
                 session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 session.Dispose();
-                throw e;
+                throw;
             }
 
             return session;
@@ -2637,7 +2637,7 @@ namespace Opc.Ua.Client
                 // start keep alive thread.
                 StartKeepAliveTimer();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 try
                 {
@@ -2653,7 +2653,7 @@ namespace Opc.Ua.Client
                     SessionCreated(null, null);
                 }
 
-                throw ex;
+                throw;
             }
         }
 
@@ -3139,7 +3139,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool AddSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             lock (SyncRoot)
             {
@@ -3167,7 +3167,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool RemoveSubscription(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             if (subscription.Created)
             {
@@ -3199,7 +3199,7 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            if (subscriptions == null) throw new ArgumentNullException("subscriptions");
+            if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
             bool removed = false;
             List<Subscription> subscriptionsToDelete = new List<Subscription>();

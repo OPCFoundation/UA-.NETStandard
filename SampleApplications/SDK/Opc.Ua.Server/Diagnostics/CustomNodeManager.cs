@@ -461,7 +461,7 @@ namespace Opc.Ua.Server
 
             protected set
             {
-                if (value == null) throw new ArgumentNullException("value");
+                if (value == null) throw new ArgumentNullException(nameof(value));
                 List<string> namespaceUris = new List<string>(value);
                 SetNamespaces(namespaceUris.ToArray());
             }
@@ -1123,8 +1123,8 @@ namespace Opc.Ua.Server
             ref ContinuationPoint       continuationPoint, 
             IList<ReferenceDescription> references)
         {            
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
-            if (references == null) throw new ArgumentNullException("references");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (references == null) throw new ArgumentNullException(nameof(references));
             
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 

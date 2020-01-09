@@ -53,9 +53,9 @@ namespace Opc.Ua.Server
             OperationContext        context,
             double                  samplingInterval)
         {
-            if (server == null)        throw new ArgumentNullException("server");
-            if (nodeManager == null)   throw new ArgumentNullException("nodeManager");
-            if (samplingRates == null) throw new ArgumentNullException("samplingRates");
+            if (server == null)        throw new ArgumentNullException(nameof(server));
+            if (nodeManager == null)   throw new ArgumentNullException(nameof(nodeManager));
+            if (samplingRates == null) throw new ArgumentNullException(nameof(samplingRates));
 
             m_server           = server;
             m_nodeManager      = nodeManager;

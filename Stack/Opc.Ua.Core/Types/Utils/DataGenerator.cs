@@ -70,17 +70,17 @@ namespace Opc.Ua.Test
         {
             if (bytes == null)
             {
-                throw new ArgumentNullException("bytes");
+                throw new ArgumentNullException(nameof(bytes));
             }
 
             if (offset < 0 || (offset != 0 && offset >= bytes.Length))
             {
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
             if (count < 0 || offset + count > bytes.Length)
             {
-                throw new ArgumentOutOfRangeException("count");
+                throw new ArgumentOutOfRangeException(nameof(count));
             }
 
             if (bytes.Length == 0)
@@ -106,7 +106,7 @@ namespace Opc.Ua.Test
         {
             if (max < 0)
             {
-                throw new ArgumentOutOfRangeException("max");
+                throw new ArgumentOutOfRangeException(nameof(max));
             }
             
             if (max < Int32.MaxValue)

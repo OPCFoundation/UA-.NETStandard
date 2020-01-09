@@ -50,7 +50,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the parameter is null</exception>
         public ExpandedNodeId(ExpandedNodeId value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_namespaceUri = value.m_namespaceUri;
 

@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public NodeCache(Session session)
         {
-            if (session == null) throw new ArgumentNullException("session");
+            if (session == null) throw new ArgumentNullException(nameof(session));
 
             m_session  = session;
             m_typeTree = new TypeTable(m_session.NamespaceUris);

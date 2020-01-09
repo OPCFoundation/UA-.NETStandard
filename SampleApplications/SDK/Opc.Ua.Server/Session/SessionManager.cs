@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException("server");
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             m_server = server;
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server
             {
                 if (e is ServiceResultException)
                 {
-                    throw e;
+                    throw;
                 }
 
                 throw ServiceResultException.Create(
@@ -431,7 +431,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException("requestHeader");
+            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
 
             Session session = null;
 

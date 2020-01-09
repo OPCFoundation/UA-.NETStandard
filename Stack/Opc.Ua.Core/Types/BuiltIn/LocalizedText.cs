@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedText(TranslationInfo translationInfo)
         {
-            if (translationInfo == null) throw new ArgumentNullException("translationInfo");
+            if (translationInfo == null) throw new ArgumentNullException(nameof(translationInfo));
 
             m_locale = translationInfo.Locale;
             m_text = translationInfo.Text;
@@ -134,7 +134,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public LocalizedText(LocalizedText value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_locale = value.m_locale;
             m_text = value.m_text;

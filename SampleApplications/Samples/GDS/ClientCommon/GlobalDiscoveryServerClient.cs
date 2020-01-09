@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -220,7 +220,7 @@ namespace Opc.Ua.Gds.Client
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
             bool serverHalted = false;
@@ -244,7 +244,7 @@ namespace Opc.Ua.Gds.Client
                     }
                     else
                     {
-                        throw e;
+                        throw;
                     }
                 }
             } while (serverHalted);
@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (endpoint == null)
                 {
-                    throw new ArgumentNullException("endpoint");
+                    throw new ArgumentNullException(nameof(endpoint));
                 }
             }
 

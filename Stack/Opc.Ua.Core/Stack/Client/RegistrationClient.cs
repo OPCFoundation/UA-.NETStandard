@@ -37,8 +37,8 @@ namespace Opc.Ua
             EndpointConfiguration    endpointConfiguration,
             X509Certificate2         instanceCertificate)
         {
-            if (configuration == null) throw new ArgumentNullException("configuration");
-            if (description == null) throw new ArgumentNullException("description");
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (description == null) throw new ArgumentNullException(nameof(description));
 
             ITransportChannel channel = RegistrationChannel.Create(
                 configuration, 

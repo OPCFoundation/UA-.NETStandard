@@ -152,7 +152,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public InstalledApplication LoadInstallConfigFromFile(string filePath)
         {
-            if (filePath == null) throw new ArgumentNullException("filePath");
+            if (filePath == null) throw new ArgumentNullException(nameof(filePath));
             
             Stream istrm = null;
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public InstalledApplication LoadInstallConfigFromResource(string resourcePath, Assembly assembly)
         {
-            if (resourcePath == null) throw new ArgumentNullException("resourcePath");
+            if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
 
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
 
@@ -1361,7 +1361,7 @@ namespace Opc.Ua.Configuration
         /// <param name="certificate">The certificate to register.</param>
         private static async Task AddToTrustedStore(ApplicationConfiguration configuration, X509Certificate2 certificate)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             string storePath = null;
 

@@ -29,7 +29,7 @@ namespace Opc.Ua
         /// <param name="channel">The channel.</param>
         public ClientBase(ITransportChannel channel)
         {
-            if (channel == null) throw new ArgumentNullException("channel");
+            if (channel == null) throw new ArgumentNullException(nameof(channel));
             
             m_channel = channel;
             m_useTransportChannel = true;
@@ -498,7 +498,7 @@ namespace Opc.Ua
         {
             if (response is DiagnosticInfoCollection)
             {
-                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", "response");
+                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
             }
 
             if (response == null || response.Count != request.Count)

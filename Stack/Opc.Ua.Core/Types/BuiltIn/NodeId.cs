@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when <i>value</i> is null</exception>
         public NodeId(NodeId value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_namespaceIndex = value.m_namespaceIndex;
             m_identifierType = value.m_identifierType;
@@ -281,7 +281,7 @@ namespace Opc.Ua
                 return;
             }
 
-            throw new ArgumentException("Identifier type not supported.", "value");
+            throw new ArgumentException("Identifier type not supported.", nameof(value));
         }
         #endregion
 
@@ -1712,7 +1712,7 @@ namespace Opc.Ua
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
             m_version++;
@@ -1749,7 +1749,7 @@ namespace Opc.Ua
                 }
             }
           
-            throw new ArgumentOutOfRangeException("key", "key.IdType");
+            throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
         }
         
         /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
@@ -2034,7 +2034,7 @@ namespace Opc.Ua
             {
                 if (key == null)
                 {
-                    throw new ArgumentNullException("key");
+                    throw new ArgumentNullException(nameof(key));
                 }
 
                 switch (key.IdType)
@@ -2090,7 +2090,7 @@ namespace Opc.Ua
             {
                 if (key == null)
                 {
-                    throw new ArgumentNullException("key");
+                    throw new ArgumentNullException(nameof(key));
                 }
 
                 m_version++;
@@ -2127,7 +2127,7 @@ namespace Opc.Ua
                     }
                 }
          
-                throw new ArgumentOutOfRangeException("key", "key.IdType");
+                throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
             }
         }
         #endregion
@@ -2165,12 +2165,12 @@ namespace Opc.Ua
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             if (arrayIndex < 0 || array.Length <= arrayIndex)
             {
-                throw new ArgumentOutOfRangeException("arrayIndex", "arrayIndex < 0 || array.Length <= arrayIndex");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || array.Length <= arrayIndex");
             }
 
             foreach (KeyValuePair<ulong,T> entry in m_numericIds)
@@ -2232,7 +2232,7 @@ namespace Opc.Ua
         {
             if (arrayIndex >= array.Length)
             {
-                throw new ArgumentException("Not enough space in array.", "array");
+                throw new ArgumentException("Not enough space in array.", nameof(array));
             }
         }
         

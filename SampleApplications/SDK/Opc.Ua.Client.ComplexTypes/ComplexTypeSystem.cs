@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, $"Failed to load the custom type {nodeId}.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return null;
             }
@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, $"Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return false;
             }
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.Trace(sre, $"Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
-                    throw sre;
+                    throw;
                 }
                 return false;
             }
@@ -307,7 +307,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
                             {   // note: the BrowseName contains the actual Value string of the DataType node.
-                                var nodeId = dictionary.DataTypes.Where(d => d.Value.BrowseName.Name == item.Name).FirstOrDefault().Value;
+                                var nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.BrowseName.Name == item.Name).Value;
                                 if (nodeId == null)
                                 {
                                     Utils.Trace(TraceMasks.Error, $"Skip the type definition of {item.Name} because the data type node was not found.");
@@ -669,8 +669,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (references.Count == 1)
             {
-                encodingId = references.First().NodeId;
-
+                encodingId = references[0].NodeId;
                 references = m_session.NodeCache.FindReferences(
                     encodingId,
                     ReferenceTypeIds.HasEncoding,
@@ -681,7 +680,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (references.Count == 1)
                 {
-                    typeId = references.First().NodeId;
+                    typeId = references[0].NodeId;
                     dataTypeNode = m_session.NodeCache.Find(typeId) as DataTypeNode;
                     typeId = NormalizeExpandedNodeId(typeId);
                     return true;
@@ -854,10 +853,10 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 Type newType = null;
                 DataTypeNode enumDescription = null;
-                DataTypeNode enumType = enumerationTypes.Where(node =>
+                DataTypeNode enumType = enumerationTypes.FirstOrDefault(node =>
                     node.BrowseName.Name == item.Name &&
                     (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
-                    complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
+                    complexTypeBuilder.TargetNamespaceIndex == -1))
                     as DataTypeNode;
                 if (enumType != null)
                 {
@@ -1013,7 +1012,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 typeListEnumerator.MoveNext();
                 fieldBuilder.AddField(field, typeListEnumerator.Current, order);
-                order += 1;
+                order++;
             }
 
             return fieldBuilder.CreateType();
@@ -1086,7 +1085,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (item is Opc.Ua.Schema.Binary.StructuredType structuredObject)
                 {
                     var dependentFields = structuredObject.Field.Where(f => f.TypeName.Namespace == dictionary.TypeDictionary.TargetNamespace);
-                    if (dependentFields.Count() == 0)
+                    if (!dependentFields.Any())
                     {
                         structureList.Insert(0, structuredObject);
                     }

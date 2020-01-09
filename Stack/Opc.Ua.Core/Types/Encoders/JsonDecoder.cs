@@ -39,9 +39,8 @@ namespace Opc.Ua
         {
             if (context == null)
             {
-                throw new ArgumentNullException("context");
+                throw new ArgumentNullException(nameof(context));
             }
-
             Initialize();
 
             m_context = context;
@@ -81,12 +80,12 @@ namespace Opc.Ua
         {
             if (buffer == null)
             {
-                throw new ArgumentNullException("buffer");
+                throw new ArgumentNullException(nameof(buffer));
             }
 
             if (context == null)
             {
-                throw new ArgumentNullException("context");
+                throw new ArgumentNullException(nameof(context));
             }
 
             JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
@@ -121,7 +120,7 @@ namespace Opc.Ua
         {
             if (context == null)
             {
-                throw new ArgumentNullException("context");
+                throw new ArgumentNullException(nameof(context));
             }
 
             // check that the max message size was not exceeded.
@@ -1385,7 +1384,7 @@ namespace Opc.Ua
         {
             if (systemType == null)
             {
-                throw new ArgumentNullException("systemType");
+                throw new ArgumentNullException(nameof(systemType));
             }
 
             object token = null;
@@ -1436,7 +1435,7 @@ namespace Opc.Ua
         {
             if (enumType == null)
             {
-                throw new ArgumentNullException("enumType");
+                throw new ArgumentNullException(nameof(enumType));
             }
 
             return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
@@ -2235,7 +2234,7 @@ namespace Opc.Ua
         {
             if (systemType == null)
             {
-                throw new ArgumentNullException("systemType");
+                throw new ArgumentNullException(nameof(systemType));
             }
 
             List<object> token = null;
@@ -2271,7 +2270,7 @@ namespace Opc.Ua
         {
             if (enumType == null)
             {
-                throw new ArgumentNullException("enumType");
+                throw new ArgumentNullException(nameof(enumType));
             }
 
             List<object> token = null;

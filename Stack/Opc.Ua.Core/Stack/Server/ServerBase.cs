@@ -156,7 +156,7 @@ namespace Opc.Ua
         /// <returns>Returns a host for a UA service.</returns>
         public Task Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
         {
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             // do any pre-startup processing
             OnServerStarting(configuration);
@@ -214,7 +214,7 @@ namespace Opc.Ua
         /// </param>
         public void Start(ApplicationConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             // do any pre-startup processing
             OnServerStarting(configuration);
@@ -790,7 +790,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
-                    throw e;
+                    throw;
                 }
             }
 

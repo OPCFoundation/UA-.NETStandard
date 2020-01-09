@@ -1015,7 +1015,7 @@ namespace Opc.Ua
 
                 if (asyncResult == null)
                 {
-                    throw new ArgumentException("End called with an invalid IAsyncResult object.", "ar");
+                    throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
 
                 if (!asyncResult.WaitForComplete())
