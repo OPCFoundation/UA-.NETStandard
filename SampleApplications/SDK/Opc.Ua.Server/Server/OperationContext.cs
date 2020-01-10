@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
         /// <param name="requestType">Type of the request.</param>
         public OperationContext(RequestHeader requestHeader, RequestType requestType, IUserIdentity identity = null)
         {
-            if (requestHeader == null) throw new ArgumentNullException("requestHeader");
+            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
             
             m_channelContext    = SecureChannelContext.Current;
             m_session           = null;
@@ -74,8 +74,8 @@ namespace Opc.Ua.Server
         /// <param name="session">The session.</param>
         public OperationContext(RequestHeader requestHeader, RequestType requestType, Session session)
         {
-            if (requestHeader == null) throw new ArgumentNullException("requestHeader");
-            if (session == null)       throw new ArgumentNullException("session");
+            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
+            if (session == null)       throw new ArgumentNullException(nameof(session));
             
             m_channelContext     = SecureChannelContext.Current;
             m_session            = session;
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
         /// <param name="diagnosticsMasks">The diagnostics masks.</param>
         public OperationContext(Session session, DiagnosticsMasks diagnosticsMasks)
         {
-            if (session == null) throw new ArgumentNullException("session");
+            if (session == null) throw new ArgumentNullException(nameof(session));
             
             m_channelContext    = null;
             m_session           = session;
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItem">The monitored item.</param>
         public OperationContext(IMonitoredItem monitoredItem)
         {
-            if (monitoredItem == null) throw new ArgumentNullException("monitoredItem");
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
             
             m_channelContext = null;
             m_session = monitoredItem.Session;

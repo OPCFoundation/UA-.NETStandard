@@ -194,27 +194,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNonceLength()
         {
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return 16;
-                    }
-
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        return 32;
-                    }
-
-                default:
-                case SecurityPolicies.None:
-                    {
-                        return 0;
-                    }
-            }
+            return Utils.Nonce.GetNonceLength(SecurityPolicyUri);
         }
 
         /// <summary>
@@ -222,28 +202,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool ValidateNonce(byte[] nonce)
         {
-            // no nonce needed for no security.
-            if (SecurityMode == MessageSecurityMode.None)
-            {
-                return true;
-            }
-
-            // check the length.
-            if (nonce == null || nonce.Length < GetNonceLength())
-            {
-                return false;
-            }
-
-            // try to catch programming errors by rejecting nonces with all zeros.
-            for (int ii = 0; ii < nonce.Length; ii++)
-            {
-                if (nonce[ii] != 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return Utils.Nonce.ValidateNonce(nonce, SecurityMode, SecurityPolicyUri);
         }
 
         /// <summary>

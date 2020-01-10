@@ -209,7 +209,7 @@ namespace Opc.Ua.Gds.Client
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", "endpointUrl");
+                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
             EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (endpoint == null)
                 {
-                    throw new ArgumentNullException("endpoint");
+                    throw new ArgumentNullException(nameof(endpoint));
                 }
             }
 
@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Client
             {
                 try
                 {
-                    Callback(this, new EventArgs());
+                    Callback(this, EventArgs.Empty);
                 }
                 catch (Exception exception)
                 {
@@ -491,7 +491,7 @@ namespace Opc.Ua.Gds.Client
 
                     return (bool)outputArguments[0];
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     if (IsConnected)
                     {
@@ -501,7 +501,7 @@ namespace Opc.Ua.Gds.Client
                             fileHandle);
                     }
 
-                    throw e;
+                    throw;
                 }
             }
             finally

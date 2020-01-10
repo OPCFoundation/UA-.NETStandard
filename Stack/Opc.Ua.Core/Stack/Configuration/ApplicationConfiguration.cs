@@ -37,7 +37,7 @@ namespace Opc.Ua
         {
             if (section == null)
             {
-                throw new ArgumentNullException("section");
+                throw new ArgumentNullException(nameof(section));
             }
 
             XmlNode element = section.FirstChild;
@@ -176,7 +176,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext()
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory=false)
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -190,8 +190,10 @@ namespace Opc.Ua
 
             messageContext.NamespaceUris = new NamespaceTable();
             messageContext.ServerUris = new StringTable();
-            messageContext.Factory = EncodeableFactory.GlobalFactory;
-
+            if (clonedFactory)
+            {
+                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
+            }
             return messageContext;
         }
 
@@ -199,7 +201,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <value>A new instance of a ServiceMessageContext object.</value>
-        [Obsolete("Warning: Behavoir changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
+        [Obsolete("Warning: Behavior changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
         public ServiceMessageContext MessageContext
         {
             get
@@ -340,7 +342,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                // should not be here but need to preserve old behavoir.
+                // should not be here but need to preserve old behavior.
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
                     configuration.TraceConfiguration.ApplySettings();

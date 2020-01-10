@@ -28,12 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Text;
 using System.Collections.Generic;
-using Opc.Ua;
-using Opc.Ua.Client;
 using System.Drawing;
-using System.Windows.Forms;
+using System.Text;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -208,69 +205,79 @@ namespace Opc.Ua.Client.Controls
             {
                 case Attributes.AccessLevel:
                 case Attributes.UserAccessLevel:
-                {
-                    byte? field = value.Value as byte?;
-                    
-                    if (field != null)
                     {
-                        return GetAccessLevelDisplayText(field.Value);
-                    }
+                        byte? field = value.Value as byte?;
 
-                    break;
-                }
+                        if (field != null)
+                        {
+                            return GetAccessLevelDisplayText(field.Value);
+                        }
+
+                        break;
+                    }
 
                 case Attributes.EventNotifier:
-                {
-                    byte? field = value.Value as byte?;
-
-                    if (field != null)
                     {
-                        return GetEventNotifierDisplayText(field.Value);
-                    }
+                        byte? field = value.Value as byte?;
 
-                    break;
-                }
+                        if (field != null)
+                        {
+                            return GetEventNotifierDisplayText(field.Value);
+                        }
+
+                        break;
+                    }
 
                 case Attributes.DataType:
-                {
-                    return session.NodeCache.GetDisplayText(value.Value as NodeId);
-                }
+                    {
+                        return session.NodeCache.GetDisplayText(value.Value as NodeId);
+                    }
 
                 case Attributes.ValueRank:
-                {
-                    int? field = value.Value as int?;
-
-                    if (field != null)
                     {
-                        return GetValueRankDisplayText(field.Value);
-                    }
+                        int? field = value.Value as int?;
 
-                    break;
-                }
+                        if (field != null)
+                        {
+                            return GetValueRankDisplayText(field.Value);
+                        }
+
+                        break;
+                    }
 
                 case Attributes.NodeClass:
-                {
-                    int? field = value.Value as int?;
-
-                    if (field != null)
                     {
-                        return ((NodeClass)field.Value).ToString();
-                    }
+                        int? field = value.Value as int?;
 
-                    break;
-                }
+                        if (field != null)
+                        {
+                            return ((NodeClass)field.Value).ToString();
+                        }
+
+                        break;
+                    }
 
                 case Attributes.NodeId:
-                {
-                    NodeId field = value.Value as NodeId;
-
-                    if (!NodeId.IsNull(field))
                     {
-                        return field.ToString();
+                        NodeId field = value.Value as NodeId;
+
+                        if (!NodeId.IsNull(field))
+                        {
+                            return field.ToString();
+                        }
+
+                        return "Null";
                     }
 
-                    return "Null";
-                }
+                case Attributes.DataTypeDefinition:
+                    {
+                        ExtensionObject field = value.Value as ExtensionObject;
+                        if (field != null)
+                        {
+                            return field.ToString();
+                        }
+                        break;
+                    }
             }
 
             // check for byte strings.
@@ -280,7 +287,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             // use default format.
-            return value.ToString();            
+            return value.ToString();
         }
         #endregion
 
@@ -343,7 +350,7 @@ namespace Opc.Ua.Client.Controls
 
                             continue;
                         }
-                        
+
                         // check if all references have been fetched.
                         if (results[ii].References.Count == 0)
                         {
@@ -421,7 +428,7 @@ namespace Opc.Ua.Client.Controls
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Browses the address space and returns the references found.
         /// </summary>
@@ -789,6 +796,7 @@ namespace Opc.Ua.Client.Controls
             return e;
         }
         #endregion
+
 
         #region Type Model Browsing
         /// <summary>
@@ -1288,7 +1296,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             return -1;
-        }   
+        }
         #endregion
     }
 }

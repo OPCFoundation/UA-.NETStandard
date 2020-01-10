@@ -50,7 +50,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the parameter is null</exception>
         public ExpandedNodeId(ExpandedNodeId value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_namespaceUri = value.m_namespaceUri;
 
@@ -754,7 +754,7 @@ namespace Opc.Ua
 			}
 
             // just compare node ids.
-            if (String.IsNullOrEmpty(m_namespaceUri))
+            if (!this.IsAbsolute)
             {
                 if (this.m_nodeId != null)
                 {

@@ -35,8 +35,6 @@ namespace Opc.Ua
         private uint m_nestingLevel;
         #endregion
 
-        public bool UseReversibleEncoding { get; private set; }
-
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -84,8 +82,8 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             JsonEncoder encoder = new JsonEncoder(context, true, new StreamWriter(stream, new UTF8Encoding(false), 65535, leaveOpen));
@@ -129,9 +127,9 @@ namespace Opc.Ua
         /// </summary>
         public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, ServiceMessageContext context)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             using (MemoryStream stream = new MemoryStream(buffer, true))
             {
@@ -150,7 +148,7 @@ namespace Opc.Ua
         /// </summary>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException("message");
+            if (message == null) throw new ArgumentNullException(nameof(message));
 
             // convert the namespace uri to an index.
             NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
@@ -258,6 +256,11 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
+
+        /// <summary>
+        /// The Json encoder reversible encoding option
+        /// </summary>
+        public bool UseReversibleEncoding { get; private set; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -882,13 +885,13 @@ namespace Opc.Ua
                 fieldName = "Body";
             }
 
+            if (m_commaRequired)
+            {
+                m_writer.Write(",");
+            }
+
             if (!String.IsNullOrEmpty(fieldName))
             {
-                if (m_commaRequired)
-                {
-                    m_writer.Write(",");
-                }
-
                 m_writer.Write("\"");
                 m_writer.Write(fieldName);
                 m_writer.Write("\":");
@@ -1952,7 +1955,7 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)value); return; }
                     case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)value); return; }
                     case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)value); return; }
-                    case BuiltInType.Enumeration: { WriteInt32(null, (int)value); return; }
+                    case BuiltInType.Enumeration: { WriteEnumerated(null, (Enum)value); return; }
                 }
             }
 

@@ -36,6 +36,7 @@ using System.IO;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Quickstarts.DataTypes
 {
@@ -133,7 +134,17 @@ namespace Quickstarts.DataTypes
                 m_session = ConnectServerCTRL.Session;
 
                 // browse the instances in the server.
-                BrowseCTRL.Initialize(m_session, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, ReferenceTypeIds.Aggregates);
+                BrowseCTRL.Initialize(m_session, 
+                    ObjectIds.RootFolder, 
+                    ReferenceTypeIds.Organizes, 
+                    ReferenceTypeIds.Aggregates,
+                    ReferenceTypeIds.HierarchicalReferences);
+
+                if (m_session != null)
+                {
+                    var typeSystem = new ComplexTypeSystem(m_session);
+                    typeSystem.Load().Wait();
+                }
             }
             catch (Exception exception)
             {

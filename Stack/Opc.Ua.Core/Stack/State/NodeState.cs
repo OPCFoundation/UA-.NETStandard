@@ -445,6 +445,16 @@ namespace Opc.Ua
                 m_extensions = value;
             }
         }
+
+        /// <summary>
+        /// The categories assigned to the node.
+        /// </summary>
+        public IList<string> Categories { get; set; }
+
+        /// <summary>
+        /// The release status for the node.
+        /// </summary>
+        public Opc.Ua.Export.ReleaseStatus ReleaseStatus { get; set; }
         #endregion
 
         #region Serialization Methods
@@ -793,7 +803,12 @@ namespace Opc.Ua
             /// <summary>
             /// The StatusCode associated with the Value attribute.
             /// </summary>
-            StatusCode = 0x20000000
+            StatusCode = 0x20000000,
+
+            /// <summary>
+            /// The DataTypeDefinition attribute of a DataType Node.
+            /// </summary>
+            DataTypeDefinition = 0x40000000
         }
         #endregion
 
@@ -997,9 +1012,9 @@ namespace Opc.Ua
                 {
                     BaseInstanceState child = UpdateChild(context, decoder);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    throw e;
+                    throw;
                 }
             }
         }
@@ -3985,7 +4000,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath,
             int index)
         {
-            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException("index");
+            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException(nameof(index));
 
             BaseInstanceState instance = FindChild(context, browsePath[index], false, null);
 
@@ -4316,8 +4331,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4341,8 +4356,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4365,7 +4380,7 @@ namespace Opc.Ua
         /// <param name="references">The list of references to add.</param>
         public void AddReferences(IList<IReference> references)
         {
-            if (references == null) throw new ArgumentNullException("references");
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             if (m_references == null)
             {
@@ -4393,7 +4408,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
 
             if (m_references == null)
             {
@@ -4407,7 +4422,7 @@ namespace Opc.Ua
             
             refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
 
-            return refsToRemove.Any();
+            return refsToRemove.Count != 0;
         }
         #endregion
 

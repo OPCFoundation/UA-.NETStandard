@@ -48,7 +48,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryDecoder(Stream stream, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_istrm = stream;
             m_reader = new BinaryReader(m_istrm);
@@ -141,8 +141,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(Stream stream, System.Type expectedType, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
-            if (context == null) throw new ArgumentNullException("context");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(stream, context);
 
@@ -161,8 +161,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(buffer, context);
 
@@ -200,8 +200,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(buffer, context);
 
@@ -410,7 +410,7 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
             }
@@ -487,7 +487,7 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
             }
@@ -792,7 +792,7 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
             IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 

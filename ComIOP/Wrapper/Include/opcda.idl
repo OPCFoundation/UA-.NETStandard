@@ -999,7 +999,7 @@ library OPCDA
 		const LPCWSTR OPC_CONSISTENCY_WINDOW_UNKNOWN        = L"Unknown";
 		const LPCWSTR OPC_CONSISTENCY_WINDOW_NOT_CONSISTENT = L"Not Consistent";
 
-		// complex data write behavoir values.
+		// complex data write behavior values.
 		const LPCWSTR OPC_WRITE_BEHAVIOR_BEST_EFFORT        = L"Best Effort";
 		const LPCWSTR OPC_WRITE_BEHAVIOR_ALL_OR_NOTHING     = L"All or Nothing";
 	}

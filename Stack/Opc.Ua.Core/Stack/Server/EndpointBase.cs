@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)
         {
-            if (host == null) throw new ArgumentNullException("host");
+            if (host == null) throw new ArgumentNullException(nameof(host));
 
             m_host = host;
             m_server = host.Server;
@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// </summary>
         protected EndpointBase(ServerBase server)
         {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_host = null;
             m_server = server;
@@ -101,8 +101,8 @@ namespace Opc.Ua
             AsyncCallback callback,
             object callbackData)
         {
-            if (channeId == null) throw new ArgumentNullException("channeId");
-            if (request == null) throw new ArgumentNullException("request");
+            if (channeId == null) throw new ArgumentNullException(nameof(channeId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
             // create operation.
             ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
@@ -797,7 +797,7 @@ namespace Opc.Ua
 
                 if (result == null)
                 {
-                    throw new ArgumentException("End called with an invalid IAsyncResult object.", "ar");
+                    throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
 
                 if (result.m_response == null)

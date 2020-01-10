@@ -796,10 +796,18 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signare and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
+                // If the certificate structre, signature and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
-                    if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
+                    if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
+                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
+                    {
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        return false;
+                    }
+                    else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
                         innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
                         innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
                         innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
@@ -810,13 +818,6 @@ namespace Opc.Ua.Bindings
                         innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
                     {
                         ForceChannelFault(innerException, innerException.StatusCode, e.Message);
-                        return false;
-                    }
-                    else if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
-                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevoked)
-                    {
-                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
                         return false;
                     }
                 }

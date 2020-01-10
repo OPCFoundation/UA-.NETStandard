@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         /// <param name="server"></param>
         public RequestManager(IServerInternal server)
         {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_server       = server;
             m_requests     = new Dictionary<uint,OperationContext>();
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
         /// <param name="context"></param>
         public void RequestReceived(OperationContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             lock (m_requests)
             {
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void RequestCompleted(OperationContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             lock (m_requests)
             {      

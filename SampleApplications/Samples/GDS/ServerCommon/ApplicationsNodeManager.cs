@@ -341,7 +341,7 @@ namespace Opc.Ua.Gds.Server
                     {
                         Utils.Trace(e, "Unexpected error initializing certificateGroup: " + certificateGroupConfiguration.Id + "\r\n" + e.StackTrace);
                         // make sure gds server doesn't start without cert groups!
-                        throw e;
+                        throw;
                     }
                 }
 

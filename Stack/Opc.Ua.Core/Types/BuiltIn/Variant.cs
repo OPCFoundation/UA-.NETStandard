@@ -2578,7 +2578,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array value, BuiltInType builtInType)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_elements = value;
             m_dimensions = new int[value.Rank];
@@ -2602,7 +2602,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
-            if (elements == null) throw new ArgumentNullException("elements");
+            if (elements == null) throw new ArgumentNullException(nameof(elements));
 
             m_elements = elements;
             m_dimensions = dimensions;

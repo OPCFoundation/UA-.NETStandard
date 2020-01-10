@@ -12,6 +12,7 @@
 
 using System;
 using System.Linq;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -653,7 +654,6 @@ namespace Opc.Ua.Bindings
                 {
                     return;
                 }
-
             }
 
             BufferManager.LockBuffer(m_receiveBuffer);
@@ -673,15 +673,16 @@ namespace Opc.Ua.Bindings
                     }
                     else
                     {
-                        m_ReadComplete(null, args);
+                        // avoid recursive calls
+                        Task.Run(() => m_ReadComplete(null, args));
                     }
                 }
             }
-            catch (ServiceResultException sre)
+            catch (ServiceResultException)
             {
                 args.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
-                throw sre;
+                throw;
             }
             catch (Exception ex)
             {

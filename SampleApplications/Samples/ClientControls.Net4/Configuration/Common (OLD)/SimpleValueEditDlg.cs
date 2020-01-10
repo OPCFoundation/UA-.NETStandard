@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Controls
             if (m_type == typeof(float))         return Convert.ToSingle(text);
             if (m_type == typeof(double))        return Convert.ToDouble(text);
             if (m_type == typeof(string))        return text;
-            if (m_type == typeof(DateTime))      return DateTime.Parse(text);
+            if (m_type == typeof(DateTime))      return DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss.fff", null);
             if (m_type == typeof(Guid))          return new Guid(text);
             if (m_type == typeof(QualifiedName)) return new QualifiedName(text);
             if (m_type == typeof(LocalizedText)) return new LocalizedText(text);

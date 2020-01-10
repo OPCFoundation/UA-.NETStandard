@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Schema;
+using Opc.Ua.Schema.Binary;
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.IO;
-
-using Opc.Ua.Schema;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
@@ -41,87 +41,86 @@ namespace Opc.Ua.Client
     /// A class that holds the configuration for a UA service.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix"), DataContract(Namespace = Namespaces.OpcUaXsd)]
-	public class DataDictionary : ApplicationConfiguration
-	{
-		#region Constructors
-		/// <summary>
-		/// The default constructor.
-		/// </summary>
-		public DataDictionary(Session session)
-		{
-			Initialize();
-
+    public class DataDictionary
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public DataDictionary(Session session)
+        {
+            Initialize();
             m_session = session;
-		}
+        }
 
-		/// <summary>
-		/// Sets private members to default values.
-		/// </summary>
-		private void Initialize()
-		{
-            m_session        = null;
-            m_datatypes      = new Dictionary<NodeId,ReferenceDescription>();
-            m_validator      = null;
-            m_typeSystemId   = null;
-            m_typeSystemName = null;
-            m_dictionaryId   = null;
-            m_name           = null;
-		}
-		#endregion
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_session = null;
+            DataTypes = new Dictionary<NodeId, ReferenceDescription>();
+            m_validator = null;
+            TypeSystemId = null;
+            TypeSystemName = null;
+            DictionaryId = null;
+            Name = null;
+        }
+        #endregion
 
-		#region Public Interface
+        #region Public Interface
         /// <summary>
         /// The node id for the dictionary.
         /// </summary>
-        public NodeId DictionaryId
-        {
-            get 
-            { 
-                return m_dictionaryId;
-            }
-        }
+        public NodeId DictionaryId { get; private set; }
 
         /// <summary>
         /// The display name for the dictionary.
         /// </summary>
-        public string Name
-        {
-            get 
-            { 
-                return m_name;
-            }
-        }
+        public string Name { get; private set; }
 
         /// <summary>
         /// The node id for the type system.
         /// </summary>
-        public NodeId TypeSystemId
-        {
-            get 
-            { 
-                return m_typeSystemId;
-            }
-        }
+        public NodeId TypeSystemId { get; private set; }
 
         /// <summary>
         /// The display name for the type system.
         /// </summary>
-        public string TypeSystemName
+        public string TypeSystemName { get; private set; }
+
+        /// <summary>
+        /// The type dictionary.
+        /// </summary>
+        public TypeDictionary TypeDictionary { get; private set; }
+
+        /// <summary>
+        /// The data type dictionary.
+        /// </summary>
+        public Dictionary<NodeId, ReferenceDescription> DataTypes { get; private set; }
+
+        /// <summary>
+        /// Loads the dictionary identified by the node id.
+        /// </summary>
+        public Task Load(ReferenceDescription dictionary)
         {
-            get 
-            { 
-                return m_typeSystemName;
+            if (dictionary == null)
+            {
+                throw new ArgumentNullException(nameof(dictionary));
             }
+            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
+            return Load(dictionaryId, dictionary.ToString());
         }
 
         /// <summary>
-        /// Loads the dictionary idetified by the node id.
+        /// Loads the dictionary identified by the node id.
         /// </summary>
-        public async Task Load(ReferenceDescription dictionary)
+        public async Task Load(NodeId dictionaryId, string name)
         {
-            if (dictionary == null) throw new ArgumentNullException("dictionary");
-
-            NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
+            if (dictionaryId == null)
+            {
+                throw new ArgumentNullException(nameof(dictionaryId));
+            }
 
             GetTypeSystem(dictionaryId);
 
@@ -136,8 +135,8 @@ namespace Opc.Ua.Client
 
             ReadDataTypes(dictionaryId);
 
-            m_dictionaryId = dictionaryId;
-            m_name = dictionary.ToString();
+            DictionaryId = dictionaryId;
+            Name = name;
         }
 
         /// <summary>
@@ -145,7 +144,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool Contains(NodeId descriptionId)
         {
-            return m_datatypes.ContainsKey(descriptionId);
+            return DataTypes.ContainsKey(descriptionId);
         }
 
         /// <summary>
@@ -157,7 +156,7 @@ namespace Opc.Ua.Client
 
             if (descriptionId != null)
             {
-                if (!m_datatypes.TryGetValue(descriptionId, out description))
+                if (!DataTypes.TryGetValue(descriptionId, out description))
                 {
                     return null;
                 }
@@ -167,51 +166,61 @@ namespace Opc.Ua.Client
 
             return m_validator.GetSchema(null);
         }
-		#endregion
-        
-		#region Private Members
+        #endregion
+
+        #region Private Members
         /// <summary>
         /// Retrieves the type system for the dictionary.
         /// </summary>
         private void GetTypeSystem(NodeId dictionaryId)
-        {                    
+        {
             Browser browser = new Browser(m_session);
-            
+
             browser.BrowseDirection = BrowseDirection.Inverse;
             browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             browser.IncludeSubtypes = false;
-            browser.NodeClassMask   = 0;
+            browser.NodeClassMask = 0;
 
             ReferenceDescriptionCollection references = browser.Browse(dictionaryId);
-                                   
+
             if (references.Count > 0)
-            {   
-                m_typeSystemId = ExpandedNodeId.ToNodeId(references[0].NodeId, m_session.NamespaceUris);
-                m_typeSystemName = references[0].ToString();
+            {
+                TypeSystemId = ExpandedNodeId.ToNodeId(references[0].NodeId, m_session.NamespaceUris);
+                TypeSystemName = references[0].ToString();
             }
         }
-        
+
         /// <summary>
         /// Retrieves the data types in the dictionary.
         /// </summary>
+        /// <remarks>
+        /// In order to allow for fast Linq matching of dictionary
+        /// QNames with the data type nodes, the BrowseName of
+        /// the DataType node is replaced with Value string.
+        /// </remarks>
         private void ReadDataTypes(NodeId dictionaryId)
-        {                    
+        {
             Browser browser = new Browser(m_session);
-            
+
             browser.BrowseDirection = BrowseDirection.Forward;
             browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             browser.IncludeSubtypes = false;
-            browser.NodeClassMask   = 0;
+            browser.NodeClassMask = 0;
 
             ReferenceDescriptionCollection references = browser.Browse(dictionaryId);
-                                   
+
             foreach (ReferenceDescription reference in references)
             {
                 NodeId datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris);
-                
+
                 if (datatypeId != null)
                 {
-                    m_datatypes[datatypeId] = reference;
+                    // read the value to get the name that is used in the dictionary
+                    var value = m_session.ReadValue(datatypeId);
+                    var dictName = (String)value.Value;
+                    // replace the BrowseName with type name used in the dictionary
+                    reference.BrowseName = new QualifiedName(dictName, datatypeId.NamespaceIndex);
+                    DataTypes[datatypeId] = reference;
                 }
             }
         }
@@ -224,14 +233,14 @@ namespace Opc.Ua.Client
             // create item to read.
             ReadValueId itemToRead = new ReadValueId();
 
-            itemToRead.NodeId       = dictionaryId;
-            itemToRead.AttributeId  = Attributes.Value;
-            itemToRead.IndexRange   = null;
+            itemToRead.NodeId = dictionaryId;
+            itemToRead.AttributeId = Attributes.Value;
+            itemToRead.IndexRange = null;
             itemToRead.DataEncoding = null;
-            
+
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             itemsToRead.Add(itemToRead);
-                        
+
             // read value.
             DataValueCollection values;
             DiagnosticInfoCollection diagnosticInfos;
@@ -245,8 +254,8 @@ namespace Opc.Ua.Client
                 out diagnosticInfos);
 
             ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);      
-      
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
             // check for error.
             if (StatusCode.IsBad(values[0].StatusCode))
             {
@@ -266,7 +275,7 @@ namespace Opc.Ua.Client
         {
             MemoryStream istrm = new MemoryStream(dictionary);
 
-            if (m_typeSystemId == Objects.XmlSchema_TypeSystem)
+            if (TypeSystemId == Objects.XmlSchema_TypeSystem)
             {
                 Schema.Xml.XmlSchemaValidator validator = new Schema.Xml.XmlSchemaValidator();
 
@@ -282,7 +291,7 @@ namespace Opc.Ua.Client
                 m_validator = validator;
             }
 
-            if (m_typeSystemId == Objects.OPCBinarySchema_TypeSystem)
+            if (TypeSystemId == Objects.OPCBinarySchema_TypeSystem)
             {
                 Schema.Binary.BinarySchemaValidator validator = new Schema.Binary.BinarySchemaValidator();
 
@@ -292,22 +301,18 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Could not validate schema.");
+                    Utils.Trace(e, $"Could not validate schema. {e.Message}");
                 }
 
                 m_validator = validator;
+                TypeDictionary = validator.Dictionary;
             }
         }
         #endregion
 
         #region Private Members
         private Session m_session;
-        private NodeId m_dictionaryId;
-        private string m_name;
-        private NodeId m_typeSystemId;
-        private string m_typeSystemName;
-        private Dictionary<NodeId,ReferenceDescription> m_datatypes;
         private SchemaValidator m_validator;
         #endregion
-	}
+    }
 }

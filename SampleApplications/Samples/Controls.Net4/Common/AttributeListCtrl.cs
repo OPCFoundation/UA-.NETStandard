@@ -562,7 +562,7 @@ namespace Opc.Ua.Sample.Controls
 
                 if (items != null && items.Length == 1)
                 {                  
-                    object value = GuiUtils2.EditValue(m_session, items[0].Value);
+                    object value = GuiUtils.EditValue(m_session, items[0].Value);
 
                     if (!m_readOnly)
                     {

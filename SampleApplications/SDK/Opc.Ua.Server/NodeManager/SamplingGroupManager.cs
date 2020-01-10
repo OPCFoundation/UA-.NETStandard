@@ -50,8 +50,8 @@ namespace Opc.Ua.Server
             uint                           maxQueueSize,
             IEnumerable<SamplingRateGroup> samplingRates)
         {
-            if (server == null)      throw new ArgumentNullException("server");
-            if (nodeManager == null) throw new ArgumentNullException("nodeManager");
+            if (server == null)      throw new ArgumentNullException(nameof(server));
+            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
 
             m_server          = server;
             m_nodeManager     = nodeManager;

@@ -90,7 +90,7 @@ namespace Opc.Ua
         {
             if (configuration == null)
             {
-                throw new ArgumentNullException("configuration");
+                throw new ArgumentNullException(nameof(configuration));
             }
 
             await Update(configuration.SecurityConfiguration);
@@ -161,7 +161,7 @@ namespace Opc.Ua
         {
             if (configuration == null)
             {
-                throw new ArgumentNullException("configuration");
+                throw new ArgumentNullException(nameof(configuration));
             }
 
             lock (m_lock)
@@ -259,12 +259,11 @@ namespace Opc.Ua
                     case StatusCodes.BadCertificateIssuerUseNotAllowed:
                     case StatusCodes.BadCertificateRevocationUnknown:
                     case StatusCodes.BadCertificateTimeInvalid:
-                    case StatusCodes.BadCertificateUriInvalid:
                     case StatusCodes.BadCertificatePolicyCheckFailed:
                     case StatusCodes.BadCertificateUseNotAllowed:
                     case StatusCodes.BadCertificateUntrusted:
                         {
-                            Utils.Trace("Cert Validate failed: {0}", (StatusCode)se.StatusCode);
+                            Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
                             break;
                         }
 
@@ -304,6 +303,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
+                    Utils.Trace("Validation error suppressed for '{0}'.", certificate.Subject);
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
@@ -761,7 +761,15 @@ namespace Opc.Ua
                         // check untrusted certificates.
                         if (trustedCertificate == null)
                         {
-                            throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                            ServiceResult errorResult = new ServiceResult(
+                                result.StatusCode,
+                                result.SymbolicId,
+                                result.NamespaceUri,
+                                result.LocalizedText,
+                                result.AdditionalInfo,
+                                StatusCodes.BadCertificateUntrusted);
+
+                            throw new ServiceResultException(errorResult);
                         }
 
                         throw new ServiceResultException(result);

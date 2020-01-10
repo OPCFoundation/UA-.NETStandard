@@ -14,7 +14,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Schema\Opc.Ua.Types.bsd" />
+    <None Remove="Types\Schemas\BuiltInTypes.bsd" />
+    <None Remove="Types\Schemas\StandardTypes.bsd" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes;Types\Utils\LocalizedData.txt;Schema\ServerCapabilities.csv" />
+    <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
+    <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
 
   <ItemGroup>

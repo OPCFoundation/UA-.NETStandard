@@ -713,7 +713,7 @@ namespace Opc.Ua
 
                 if (throwOnError)
                 {
-                    throw e;
+                    throw;
                 }
 
                 return filePath;
@@ -2321,7 +2321,7 @@ namespace Opc.Ua
                 catch (Exception ex)
                 {
                     Utils.Trace("Exception parsing extension: " + ex.Message);
-                    throw ex;
+                    throw;
                 }
                 finally
                 {
@@ -2631,6 +2631,71 @@ namespace Opc.Ua
                 m_rng.GetBytes(randomBytes);
                 return randomBytes;
             }
+
+            /// <summary>
+            /// Returns the length of the symmetric encryption key for a security policy.
+            /// </summary>
+            public static uint GetNonceLength(string securityPolicyUri)
+            {
+                switch (securityPolicyUri)
+                {
+                    case SecurityPolicies.Basic128Rsa15:
+                        {
+                            return 16;
+                        }
+
+                    case SecurityPolicies.Basic256:
+                    case SecurityPolicies.Basic256Sha256:
+                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    case SecurityPolicies.Aes256_Sha256_RsaPss:
+                        {
+                            return 32;
+                        }
+
+                    default:
+                    case SecurityPolicies.None:
+                        {
+                            return 0;
+                        }
+                }
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and security policy.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
+            {
+                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and a minimum length.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
+            {
+                // no nonce needed for no security.
+                if (securityMode == MessageSecurityMode.None)
+                {
+                    return true;
+                }
+
+                // check the length.
+                if (nonce == null || nonce.Length < minNonceLength)
+                {
+                    return false;
+                }
+
+                // try to catch programming errors by rejecting nonces with all zeros.
+                for (int ii = 0; ii < nonce.Length; ii++)
+                {
+                    if (nonce[ii] != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -2638,7 +2703,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA1 hmac = new HMACSHA1(secret);
             return PSHA(hmac, label, data, offset, length);
@@ -2649,7 +2714,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA256(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA256 hmac = new HMACSHA256(secret);
             return PSHA(hmac, label, data, offset, length);
@@ -2660,9 +2725,9 @@ namespace Opc.Ua
         /// </summary>
         private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
-            if (hmac == null) throw new ArgumentNullException("hmac");
-            if (offset < 0) throw new ArgumentOutOfRangeException("offset");
-            if (length < 0) throw new ArgumentOutOfRangeException("length");
+            if (hmac == null) throw new ArgumentNullException(nameof(hmac));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
 
             byte[] seed = null;
 

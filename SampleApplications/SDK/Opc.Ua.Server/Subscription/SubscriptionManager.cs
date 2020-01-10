@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
             IServerInternal          server,
             ApplicationConfiguration configuration)
         {
-            if (server == null)        throw new ArgumentNullException("server");
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null)        throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             
             m_server = server;
             

@@ -370,10 +370,10 @@ namespace Opc.Ua
         public void CopyTo(IReference[] array, int arrayIndex)
         {
             if (array == null) 
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             
             if (arrayIndex < 0 || arrayIndex >= array.Length) 
-                throw new ArgumentOutOfRangeException("arrayIndex", "arrayIndex < 0 || arrayIndex >= array.Length");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || arrayIndex >= array.Length");
 
             KeyValuePair<IReference,object>[] elements = new KeyValuePair<IReference,object>[array.Length-arrayIndex];
             m_references.CopyTo(elements, 0);
@@ -436,7 +436,7 @@ namespace Opc.Ua
             IReference reference,
             ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             if (!ValidateReference(reference, false))
             {
@@ -501,7 +501,7 @@ namespace Opc.Ua
             bool       isInverse,
             ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             List<IReference> hits = new List<IReference>();
             
@@ -953,7 +953,7 @@ namespace Opc.Ua
             {
                 if (throwOnError)
                 {
-                    throw new ArgumentNullException("key", "IReference must not be null.");
+                    throw new ArgumentNullException(nameof(key), "IReference must not be null.");
                 }
                 
                 return false;
@@ -963,7 +963,7 @@ namespace Opc.Ua
             {
                 if (throwOnError)
                 {
-                    throw new ArgumentNullException("key", "IReference does not have a valid ReferenceTypeId.");
+                    throw new ArgumentNullException(nameof(key), "IReference does not have a valid ReferenceTypeId.");
                 }
                 
                 return false;
@@ -973,7 +973,7 @@ namespace Opc.Ua
             {
                 if (throwOnError)
                 {
-                    throw new ArgumentNullException("key", "IReference does not have a valid TargetId.");
+                    throw new ArgumentNullException(nameof(key), "IReference does not have a valid TargetId.");
                 }
                 
                 return false;
@@ -1128,7 +1128,7 @@ namespace Opc.Ua
                 {
                     if (!replace)
                     {
-                        throw new ArgumentException("Key already exists in dictionary.", "key");
+                        throw new ArgumentException("Key already exists in dictionary.", nameof(key));
                     }
 
                     m_list.AddAfter(existingNode, node);
@@ -1181,7 +1181,7 @@ namespace Opc.Ua
                 {
                     if (!replace)
                     {
-                        throw new ArgumentException("Key already exists in dictionary.", "key");
+                        throw new ArgumentException("Key already exists in dictionary.", nameof(key));
                     }
 
                     m_list.AddAfter(existingNode, node);

@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// </remarks>
         public void Open(string path)
         {
-            if (path == null) throw new ArgumentNullException("path");
+            if (path == null) throw new ArgumentNullException(nameof(path));
 
             path = path.Trim();
 
@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {

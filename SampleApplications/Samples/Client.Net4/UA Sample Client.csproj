@@ -120,6 +120,10 @@
       <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
+      <Project>{fe9eeb39-0698-4a19-b770-e66836ce0002}</Project>
+      <Name>Opc.Ua.Client.ComplexTypes</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>
       <Name>Opc.Ua.Client</Name>

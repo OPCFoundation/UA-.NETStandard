@@ -198,7 +198,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error loading ConfiguredEnpoints.");
-                throw e;
+                throw;
             }
         }
         
@@ -295,7 +295,7 @@ namespace Opc.Ua
         /// <exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
         public void RemoveAt(int index)
         {
-            if (index < 0 || index >= m_endpoints.Count) throw new ArgumentOutOfRangeException("index");
+            if (index < 0 || index >= m_endpoints.Count) throw new ArgumentOutOfRangeException(nameof(index));
             Remove(m_endpoints[index]);
         }
 
@@ -439,7 +439,7 @@ namespace Opc.Ua
         /// </summary>
         private void Insert(ConfiguredEndpoint endpoint, int index)
         {
-            if (endpoint == null) throw new ArgumentNullException("endpoint");
+            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
 
             ValidateEndpoint(endpoint.Description);
 
@@ -476,7 +476,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Remove(ConfiguredEndpoint item)
         {
-            if (item == null) throw new ArgumentNullException("item");
+            if (item == null) throw new ArgumentNullException(nameof(item));
             return m_endpoints.Remove(item);
         }
 
@@ -485,7 +485,7 @@ namespace Opc.Ua
         /// </summary>
         public void RemoveServer(string serverUri)
         {
-            if (serverUri == null) throw new ArgumentNullException("serverUri");
+            if (serverUri == null) throw new ArgumentNullException(nameof(serverUri));
 
             foreach (ConfiguredEndpoint endpointToRemove in GetEndpoints(serverUri))
             {
@@ -498,16 +498,16 @@ namespace Opc.Ua
         /// </summary>
         public void SetApplicationDescription(string serverUri, ApplicationDescription server)
         {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             if (String.IsNullOrEmpty(server.ApplicationUri))
             {
-                throw new ArgumentException("A ServerUri must provided.", "server");
+                throw new ArgumentException("A ServerUri must provided.", nameof(server));
             }
             
             if (server.DiscoveryUrls.Count == 0)
             {
-                throw new ArgumentException("At least one DiscoveryUrl must be provided.", "server");
+                throw new ArgumentException("At least one DiscoveryUrl must be provided.", nameof(server));
             }
 
             List<ConfiguredEndpoint> endpoints = GetEndpoints(server.ApplicationUri);
@@ -790,7 +790,7 @@ namespace Opc.Ua
             ApplicationDescription server, 
             EndpointConfiguration  configuration)
 	    {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_description = new EndpointDescription();
             m_updateBeforeConnect = true;
@@ -860,7 +860,7 @@ namespace Opc.Ua
             EndpointDescription          description, 
             EndpointConfiguration        configuration)
 	    {
-            if (description == null) throw new ArgumentNullException("description");
+            if (description == null) throw new ArgumentNullException(nameof(description));
 
             m_collection = collection;
 		    m_description = description;
@@ -933,7 +933,7 @@ namespace Opc.Ua
         /// </summary>
         public void Update(ConfiguredEndpoint endpoint)
         {
-            if (endpoint == null) throw new ArgumentNullException("endpoint");
+            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
 
             m_description   = (EndpointDescription)endpoint.Description.MemberwiseClone();
             m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
@@ -964,7 +964,7 @@ namespace Opc.Ua
         /// </summary>
         public void Update(EndpointDescription description)
         {
-            if (description == null) throw new ArgumentNullException("description");
+            if (description == null) throw new ArgumentNullException(nameof(description));
 
             m_description = (EndpointDescription)description.MemberwiseClone();
 
@@ -989,7 +989,7 @@ namespace Opc.Ua
         /// </summary>
         public void Update(EndpointConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             
             m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
             
@@ -1237,7 +1237,7 @@ namespace Opc.Ua
 
             internal set 
             { 
-                if (value == null) throw new ArgumentNullException("value");
+                if (value == null) throw new ArgumentNullException(nameof(value));
                 m_collection = value;
             }
 	    }

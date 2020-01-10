@@ -154,15 +154,15 @@ namespace Opc.Ua.Server
                                 activeNode.Create(context, passiveNode);
 
                                 // delete unsupported groups
-                                if (m_certificateGroups.FirstOrDefault(group => group.BrowseName == activeNode.DefaultHttpsGroup?.BrowseName) == null)
+                                if (m_certificateGroups.All(group => group.BrowseName != activeNode.DefaultHttpsGroup?.BrowseName))
                                 {
                                     activeNode.DefaultHttpsGroup = null;
                                 }
-                                if (m_certificateGroups.FirstOrDefault(group => group.BrowseName == activeNode.DefaultUserTokenGroup?.BrowseName) == null)
+                                if (m_certificateGroups.All(group => group.BrowseName != activeNode.DefaultUserTokenGroup?.BrowseName))
                                 {
                                     activeNode.DefaultUserTokenGroup = null;
                                 }
-                                if (m_certificateGroups.FirstOrDefault(group => group.BrowseName == activeNode.DefaultApplicationGroup?.BrowseName) == null)
+                                if (m_certificateGroups.All(group => group.BrowseName != activeNode.DefaultApplicationGroup?.BrowseName))
                                 {
                                     activeNode.DefaultApplicationGroup = null;
                                 }
@@ -544,7 +544,8 @@ namespace Opc.Ua.Server
             public NodeId SessionId;
             public X509Certificate2 CertificateWithPrivateKey;
             public X509Certificate2Collection IssuerCollection;
-        };
+        }
+
         private class ServerCertificateGroup
         {
             public string BrowseName;
@@ -555,7 +556,7 @@ namespace Opc.Ua.Server
             public string IssuerStorePath;
             public string TrustedStorePath;
             public UpdateCertificateData UpdateCertificate;
-        };
+        }
 
         private ServerConfigurationState m_serverConfigurationNode;
         private ApplicationConfiguration m_configuration;

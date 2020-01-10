@@ -48,8 +48,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException("server");    
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null) throw new ArgumentNullException(nameof(server));    
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
            
             m_server = server;
             m_translationTables = new List<TranslationTable>();
@@ -192,15 +192,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Add(string key, string locale, string text)
         {
-            if (key == null) throw new ArgumentNullException("key");
-            if (locale == null) throw new ArgumentNullException("locale");
-            if (text == null) throw new ArgumentNullException("text");
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (locale == null) throw new ArgumentNullException(nameof(locale));
+            if (text == null) throw new ArgumentNullException(nameof(text));
 
             CultureInfo culture = new CultureInfo(locale);
             
             if (culture.IsNeutralCulture)
             {
-                throw new ArgumentException("Cannot specify neutral locales for translation tables.", "locale");
+                throw new ArgumentException("Cannot specify neutral locales for translation tables.", nameof(locale));
             }
 
             lock (m_lock)
@@ -215,14 +215,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Add(string locale, IDictionary<string,string> translations)
         {
-            if (locale == null) throw new ArgumentNullException("locale");
-            if (translations == null) throw new ArgumentNullException("translations");
+            if (locale == null) throw new ArgumentNullException(nameof(locale));
+            if (translations == null) throw new ArgumentNullException(nameof(translations));
 
             CultureInfo culture = new CultureInfo(locale);
             
             if (culture.IsNeutralCulture)
             {
-                throw new ArgumentException("Cannot specify neutral locales for translation tables.", "locale");
+                throw new ArgumentException("Cannot specify neutral locales for translation tables.", nameof(locale));
             }
 
             lock (m_lock)

@@ -1,5 +1,5 @@
 #!/bin/bash
-echo Test the .Net Core console server and console client
+echo Test the .Net Core server and complex client
 workdir=$(pwd)
 testresult=0
 testresulthttps=0
@@ -13,7 +13,12 @@ cd ../NetCoreConsoleClient
 echo build client
 rm -r obj
 dotnet build NetCoreConsoleClient.csproj
-cd $workdir
+cd "$workdir"
+cd ../NetCoreComplexClient
+echo build client
+rm -r obj
+dotnet build NetCoreComplexClient.csproj
+cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo start server
@@ -23,16 +28,19 @@ serverpid="$!"
 echo wait for server started
 grep -m 1 "start" <(tail -f ./server.log --pid=$serverpid)
 tail -f ./server.log --pid=$serverpid &
-cd $workdir
+cd "$workdir"
+
+cd SampleApplications/Samples/NetCoreComplexClient
+echo start client for tcp connection
+dotnet run --no-restore --no-build --project NetCoreComplexClient.csproj -t 10 -a -v &
+clientpid="$!"
+cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreConsoleClient
-echo start client for tcp connection
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a &
-clientpid="$!"
 echo start client for https connection
 dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a https://localhost:51212 &
 httpsclientpid="$!"
-cd $workdir
+cd "$workdir"
 
 echo wait for opc.tcp client
 wait $clientpid
@@ -44,7 +52,7 @@ else
 fi
 
 cd SampleApplications/Samples/NetCoreConsoleClient
-cd $workdir
+cd "$workdir"
 
 echo wait for https client
 wait $httpsclientpid

@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -53,7 +52,7 @@ namespace Quickstarts.DataTypes.Types
         public DriverState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -73,6 +72,15 @@ namespace Quickstarts.DataTypes.Types
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -81,21 +89,27 @@ namespace Quickstarts.DataTypes.Types
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADcAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5" +
            "cGVz/////wRggAABAAAAAQASAAAARHJpdmVyVHlwZUluc3RhbmNlAQFVAQEBVQH/////AgAAABVgqQoC" +
-           "AAAAAQAOAAAAUHJpbWFyeVZlaGljbGUBAVYBAC4ARFYBAAAWAQE+AQKcAAAAPENhclR5cGUgeG1sbnM9" +
+           "AAAAAQAOAAAAUHJpbWFyeVZlaGljbGUBAVYBAC4ARFYBAAAWAQE+AQK1AAAAPENhclR5cGUgeG1sbnM9" +
            "Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9EYXRhVHlwZXMvVHlwZXMiPjxN" +
-           "YWtlPlRveW90YTwvTWFrZT48TW9kZWw+UHJpdXM8L01vZGVsPjxOb09mUGFzc2VuZ2Vycz40PC9Ob09m" +
-           "UGFzc2VuZ2Vycz48L0NhclR5cGU+AQE6Af////8DA/////8AAAAAFWCpCgIAAAABAA0AAABPd25lZFZl" +
-           "aGljbGVzAQFYAQAuAERYAQAAlgIAAAABAT8BAp0AAAA8VHJ1Y2tUeXBlIHhtbG5zPSJodHRwOi8vb3Bj" +
-           "Zm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVzIj48TWFrZT5Eb2RnZTwv" +
-           "TWFrZT48TW9kZWw+UmFtPC9Nb2RlbD48Q2FyZ29DYXBhY2l0eT41MDA8L0NhcmdvQ2FwYWNpdHk+PC9U" +
-           "cnVja1R5cGU+AQE+AQLwAAAAPFZlaGljbGVUeXBlIHhzaTp0eXBlPSJDYXJUeXBlIiB4bWxuczp4c2k9" +
-           "Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIiB4bWxucz0iaHR0cDovL29w" +
-           "Y2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFUeXBlcy9UeXBlcyI+PE1ha2U+UG9yY2hl" +
-           "PC9NYWtlPjxNb2RlbD5Sb2Fkc3RlcjwvTW9kZWw+PE5vT2ZQYXNzZW5nZXJzPjI8L05vT2ZQYXNzZW5n" +
-           "ZXJzPjwvVmVoaWNsZVR5cGU+AQE6AQEAAAADA/////8AAAAA";
+           "YWtlPlRveW90YTwvTWFrZT48TW9kZWw+UHJpdXM8L01vZGVsPjxFbmdpbmU+SHlicmlkXzQ8L0VuZ2lu" +
+           "ZT48Tm9PZlBhc3NlbmdlcnM+NDwvTm9PZlBhc3NlbmdlcnM+PC9DYXJUeXBlPgEBOgH/////AwP/////" +
+           "AAAAABVgqQoCAAAAAQANAAAAT3duZWRWZWhpY2xlcwEBWAEALgBEWAEAAJYDAAAAAQE/AQK2AAAAPFRy" +
+           "dWNrVHlwZSB4bWxucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL0RhdGFU" +
+           "eXBlcy9UeXBlcyI+PE1ha2U+RG9kZ2U8L01ha2U+PE1vZGVsPlJhbTwvTW9kZWw+PEVuZ2luZT5EaWVz" +
+           "ZWxfMjwvRW5naW5lPjxDYXJnb0NhcGFjaXR5PjUwMDwvQ2FyZ29DYXBhY2l0eT48L1RydWNrVHlwZT4B" +
+           "AT4BAgoBAAA8VmVoaWNsZVR5cGUgeHNpOnR5cGU9IkNhclR5cGUiIHhtbG5zOnhzaT0iaHR0cDovL3d3" +
+           "dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zPSJodHRwOi8vb3BjZm91bmRhdGlv" +
+           "bi5vcmcvVUEvUXVpY2tzdGFydHMvRGF0YVR5cGVzL1R5cGVzIj48TWFrZT5Qb3JzY2hlPC9NYWtlPjxN" +
+           "b2RlbD5Sb2Fkc3RlcjwvTW9kZWw+PEVuZ2luZT5QZXRyb2xfMTwvRW5naW5lPjxOb09mUGFzc2VuZ2Vy" +
+           "cz4yPC9Ob09mUGFzc2VuZ2Vycz48L1ZlaGljbGVUeXBlPgEBPgECCQEAADxWZWhpY2xlVHlwZSB4c2k6" +
+           "dHlwZT0iQ2FyVHlwZSIgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1p" +
+           "bnN0YW5jZSIgeG1sbnM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9RdWlja3N0YXJ0cy9EYXRh" +
+           "VHlwZXMvVHlwZXMiPjxNYWtlPlRlc2xhPC9NYWtlPjxNb2RlbD5Nb2RlbCBYPC9Nb2RlbD48RW5naW5l" +
+           "PkVsZWN0cmljXzM8L0VuZ2luZT48Tm9PZlBhc3NlbmdlcnM+NDwvTm9PZlBhc3NlbmdlcnM+PC9WZWhp" +
+           "Y2xlVHlwZT4BAToBAQAAAAMD/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -107,10 +121,10 @@ namespace Quickstarts.DataTypes.Types
         public PropertyState<VehicleType> PrimaryVehicle
         {
             get
-            { 
-                return m_primaryVehicle;  
+            {
+                return m_primaryVehicle;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_primaryVehicle, value))
@@ -128,10 +142,10 @@ namespace Quickstarts.DataTypes.Types
         public PropertyState<VehicleType[]> OwnedVehicles
         {
             get
-            { 
-                return m_ownedVehicles;  
+            {
+                return m_ownedVehicles;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_ownedVehicles, value))

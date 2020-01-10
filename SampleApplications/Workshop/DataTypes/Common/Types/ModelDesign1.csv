@@ -34,3 +34,10 @@ DataTypes_BinarySchema_TruckType_DictionaryFragment,340,Variable
 DriverType,341,ObjectType
 DriverType_PrimaryVehicle,342,Variable
 DriverType_OwnedVehicles,344,Variable
+DataTypes_BinarySchema_Deprecated,15001,Variable
+DataTypes_XmlSchema_Deprecated,15002,Variable
+VehicleType_Encoding_DefaultJson,15003,Object
+CarType_Encoding_DefaultJson,15004,Object
+TruckType_Encoding_DefaultJson,15005,Object
+EngineType,15006,DataType
+EngineType_EnumValues,15007,Variable

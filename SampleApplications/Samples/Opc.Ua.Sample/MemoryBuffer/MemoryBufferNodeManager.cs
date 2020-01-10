@@ -255,7 +255,7 @@ namespace MemoryBuffer
 
             MemoryTagState tag = source as MemoryTagState;
 
-            // use default behavoir for non-tag sources.
+            // use default behavior for non-tag sources.
             if (tag == null)
             {
                 return base.CreateMonitoredItem(

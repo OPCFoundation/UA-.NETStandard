@@ -641,7 +641,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         public async Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             for (int ii = 0; ii < this.Count; ii++)
             {

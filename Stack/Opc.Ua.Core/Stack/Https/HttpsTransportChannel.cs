@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.Trace("Exception creating HTTPS Client: " + ex.Message);
-                throw ex;
+                throw;
             }
         }
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.Bindings
             AsyncResult result2 = result as AsyncResult;
             if (result2 == null)
             {
-                throw new ArgumentException("Invalid result object passed.", "result");
+                throw new ArgumentException("Invalid result object passed.", nameof(result));
             }
 
             try

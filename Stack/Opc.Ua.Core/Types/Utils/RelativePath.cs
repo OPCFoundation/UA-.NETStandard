@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// </summary>
         public static RelativePath Parse(string browsePath, ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             // parse the string.
             RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath);
@@ -498,8 +498,8 @@ namespace Opc.Ua
             /// </summary>
             public Element(RelativePathElement element, ITypeTable typeTree)
             {                
-                if (element == null) throw new ArgumentNullException("element");
-                if (typeTree == null) throw new ArgumentNullException("typeTree");
+                if (element == null) throw new ArgumentNullException(nameof(element));
+                if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
                 m_referenceTypeName = null;
                 m_targetName = element.TargetName;

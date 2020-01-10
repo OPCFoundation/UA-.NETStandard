@@ -101,7 +101,7 @@ namespace Opc.Ua.Server
             {
                 if (endTime == DateTime.MinValue || startTime == DateTime.MinValue)
                 {
-                    throw new ArgumentException("Non-zero processingInterval required.", "processingInterval");
+                    throw new ArgumentException("Non-zero processingInterval required.", nameof(processingInterval));
                 }
 
                 ProcessingInterval = Math.Abs((endTime - startTime).TotalMilliseconds);

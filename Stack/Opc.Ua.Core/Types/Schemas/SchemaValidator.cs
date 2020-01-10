@@ -12,11 +12,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Xml.Serialization;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Globalization;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace Opc.Ua.Schema
 {
@@ -24,56 +24,47 @@ namespace Opc.Ua.Schema
     /// A base class for schema validators.
     /// </summary>
     public class SchemaValidator
-    {       
+    {
         #region Constructors
-		/// <summary>
-		/// Intializes the object with default values.
-		/// </summary>
-		public SchemaValidator()
-		{
-            m_knownFiles  = new Dictionary<string,string>();
-            m_loadedFiles = new Dictionary<string,object>();
-		}
+        /// <summary>
+        /// Intializes the object with default values.
+        /// </summary>
+        public SchemaValidator()
+        {
+            m_knownFiles = new Dictionary<string, string>();
+            m_loadedFiles = new Dictionary<string, object>();
+        }
 
-		/// <summary>
-		/// Intializes the object with a file table.
-		/// </summary>
-		public SchemaValidator(Dictionary<string,string> knownFiles)
-		{
-            m_knownFiles  = knownFiles;
-            m_loadedFiles = new Dictionary<string,object>();
+        /// <summary>
+        /// Intializes the object with a file table.
+        /// </summary>
+        public SchemaValidator(Dictionary<string, string> knownFiles)
+        {
+            m_knownFiles = knownFiles;
+            m_loadedFiles = new Dictionary<string, object>();
 
             if (m_knownFiles == null)
             {
-                m_knownFiles = new Dictionary<string,string>();
+                m_knownFiles = new Dictionary<string, string>();
             }
-		}
-        #endregion      
-        
+        }
+        #endregion
+
         #region Public Properties
         /// <summary>
         /// The file that was validated.
         /// </summary>
-        public string FilePath
-        {
-            get { return m_inputPath; }
-        }         
-        
+        public string FilePath { get; private set; }
+
         /// <summary>
         /// A table of known files.
         /// </summary>
-        public IDictionary<string,string> KnownFiles
-        {
-            get { return m_knownFiles; }
-        }         
-        
+        public IDictionary<string, string> KnownFiles => m_knownFiles;
+
         /// <summary>
         /// A table of files which have been loaded.
         /// </summary>
-        public IDictionary<string,object> LoadedFiles
-        {
-            get { return m_loadedFiles; }
-        }         
+        public IDictionary<string, object> LoadedFiles => m_loadedFiles;
         #endregion
 
         #region Protected Methods
@@ -89,7 +80,7 @@ namespace Opc.Ua.Schema
 
             return true;
         }
-                
+
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
@@ -97,7 +88,7 @@ namespace Opc.Ua.Schema
         {
             throw new FormatException(format);
         }
-        
+
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
@@ -105,7 +96,7 @@ namespace Opc.Ua.Schema
         {
             return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1));
         }
-        
+
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
@@ -113,7 +104,7 @@ namespace Opc.Ua.Schema
         {
             return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1, arg2));
         }
-        
+
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
@@ -121,7 +112,7 @@ namespace Opc.Ua.Schema
         {
             return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1, arg2, arg3));
         }
-        
+
         /// <summary>
         /// Loads an input file for validation.
         /// </summary>
@@ -131,11 +122,11 @@ namespace Opc.Ua.Schema
 
             object schema = LoadFile(type, stream);
 
-            m_inputPath = null;
+            FilePath = null;
 
             return schema;
         }
-        
+
         /// <summary>
         /// Loads an input file for validation.
         /// </summary>
@@ -145,7 +136,7 @@ namespace Opc.Ua.Schema
 
             object schema = LoadFile(type, path);
 
-            m_inputPath = path;
+            FilePath = path;
 
             return schema;
         }
@@ -180,7 +171,7 @@ namespace Opc.Ua.Schema
             if (m_knownFiles.TryGetValue(namespaceUri, out location))
             {
                 fileInfo = new FileInfo(location);
-                
+
                 if (fileInfo.Exists)
                 {
                     return LoadFile(type, location);
@@ -199,25 +190,25 @@ namespace Opc.Ua.Schema
                 }
 
                 // check for file in the same directory as the input file.
-                FileInfo inputInfo = new FileInfo(m_inputPath);
-                                        
+                FileInfo inputInfo = new FileInfo(FilePath);
+
                 fileInfo = new FileInfo(inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
 
                 if (fileInfo.Exists)
-                {       
+                {
                     return LoadFile(type, fileInfo.FullName);
                 }
-                 
+
                 // check for file in the process directory.
                 fileInfo = new FileInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
-            
+
                 if (fileInfo.Exists)
                 {
                     return LoadFile(type, fileInfo.FullName);
                 }
             }
-            
-            throw Exception("Cannot import file '{0}' from '{1}'.", namespaceUri, path);    
+
+            throw Exception("Cannot import file '{0}' from '{1}'.", namespaceUri, path);
         }
 
         /// <summary>
@@ -225,7 +216,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(System.Type type, string path)
         {
-	        StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open));
+            StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open));
 
             try
             {
@@ -243,7 +234,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(System.Type type, Stream stream)
         {
-	        StreamReader reader = new StreamReader(stream);
+            StreamReader reader = new StreamReader(stream);
 
             try
             {
@@ -263,6 +254,11 @@ namespace Opc.Ua.Schema
         {
             try
             {
+                if (assembly == null)
+                {
+                    assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
+                }
+
                 StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path));
 
                 try
@@ -297,22 +293,21 @@ namespace Opc.Ua.Schema
                 }
             }
         }
-#endregion
-                
-#region Public Methods
+        #endregion
+
+        #region Public Methods
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
         public virtual string GetSchema(string typeName)
         {
             return null;
-        } 
-#endregion
+        }
 
-#region Private Fields
-        private string m_inputPath;
-        private Dictionary<string,string> m_knownFiles; 
-        private Dictionary<string,object> m_loadedFiles; 
-#endregion
+        #endregion
+        #region Private Fields
+        private Dictionary<string, string> m_knownFiles;
+        private Dictionary<string, object> m_loadedFiles;
+        #endregion
     }
 }

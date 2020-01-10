@@ -128,7 +128,7 @@ namespace Opc.Ua
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             lock (m_lock)
             {
@@ -356,12 +356,12 @@ namespace Opc.Ua
         {
             if (issuer == null)
             {
-                throw new ArgumentNullException("issuer");
+                throw new ArgumentNullException(nameof(issuer));
             }
 
             if (certificate == null)
             {
-                throw new ArgumentNullException("certificate");
+                throw new ArgumentNullException(nameof(certificate));
             }
 
             // check for CRL.
@@ -451,7 +451,7 @@ namespace Opc.Ua
         {
             if (issuer == null)
             {
-                throw new ArgumentNullException("issuer");
+                throw new ArgumentNullException(nameof(issuer));
             }
 
             List<X509CRL> crls = new List<X509CRL>();
@@ -485,7 +485,7 @@ namespace Opc.Ua
         {
             if (crl == null)
             {
-                throw new ArgumentNullException("crl");
+                throw new ArgumentNullException(nameof(crl));
             }
 
             X509Certificate2 issuer = null;
@@ -532,7 +532,7 @@ namespace Opc.Ua
         {
             if (crl == null)
             {
-                throw new ArgumentNullException("crl");
+                throw new ArgumentNullException(nameof(crl));
             }
 
             string filePath = m_directory.FullName;

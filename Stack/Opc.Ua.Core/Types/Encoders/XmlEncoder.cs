@@ -267,7 +267,12 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
-        
+
+        /// <summary>
+        /// Xml Encoder always produces reversible encoding.
+        /// </summary>
+        public bool UseReversibleEncoding => true;
+
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>

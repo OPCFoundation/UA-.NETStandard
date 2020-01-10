@@ -976,8 +976,8 @@ namespace Opc.Ua.Server
             ref ContinuationPoint       continuationPoint, 
             IList<ReferenceDescription> references)
         {
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
-            if (references == null) throw new ArgumentNullException("references");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             // check for view.
             if (!ViewDescription.IsDefault(continuationPoint.View))

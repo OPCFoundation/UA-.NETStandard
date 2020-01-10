@@ -258,7 +258,7 @@ namespace Opc.Ua.Sample.Controls
                 }
 
                 ItemData item = new ItemData(referenceType, !reference.IsForward, target, typeDefinition);
-                AddItem(item, GuiUtils2.GetTargetIcon(m_browser.Session, reference), -1);    
+                AddItem(item, GuiUtils.GetTargetIcon(m_browser.Session, reference), -1);    
         
                 if ((target.NodeClass & (NodeClass.Variable | NodeClass.VariableType)) != 0)
                 {

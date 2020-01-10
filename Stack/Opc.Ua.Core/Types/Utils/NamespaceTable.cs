@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// </summary>
         public void Update(IEnumerable<string> strings)
         {
-            if (strings == null) throw new ArgumentNullException("strings");
+            if (strings == null) throw new ArgumentNullException(nameof(strings));
 
             lock (m_lock)
             {
@@ -115,7 +115,7 @@ namespace Opc.Ua
         {
             if (String.IsNullOrEmpty(value))
             {
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             }
             
             #if DEBUG
@@ -171,7 +171,7 @@ namespace Opc.Ua
         {
             if (String.IsNullOrEmpty(value))
             {
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             }
 
             lock (m_lock)
@@ -312,7 +312,7 @@ namespace Opc.Ua
         /// </summary>
         public new void Update(IEnumerable<string> namespaceUris)
         {
-            if (namespaceUris == null) throw new ArgumentNullException("namespaceUris");
+            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
 
             // check that first entry is the UA namespace.
             int ii = 0;

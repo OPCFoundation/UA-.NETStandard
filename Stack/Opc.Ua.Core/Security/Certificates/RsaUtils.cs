@@ -307,6 +307,11 @@ namespace Opc.Ua
                 length += (((int)plainText.Array[plainText.Offset + 2]) << 16);
                 length += (((int)plainText.Array[plainText.Offset + 3]) << 24);
 
+                if (length > (plainText.Count - plainText.Offset - 4))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadEndOfStream, "Could not decrypt data. Invalid total length.");
+                }
+
                 byte[] decryptedData = new byte[length];
                 Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
 
