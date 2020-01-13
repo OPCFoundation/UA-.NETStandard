@@ -56,9 +56,18 @@ namespace Opc.Ua.Client.ComplexTypes
         public class DataTypeNotFoundException : Exception
         {
             public ExpandedNodeId nodeId;
+            public string typeName;
+
             public DataTypeNotFoundException(ExpandedNodeId nodeId)
             {
                 this.nodeId = nodeId;
+            }
+
+            public DataTypeNotFoundException(string typeName, string message)
+                : base(message)
+            {
+                this.nodeId = NodeId.Null;
+                this.typeName = typeName;
             }
 
             public DataTypeNotFoundException(ExpandedNodeId nodeId, string message)
@@ -349,6 +358,13 @@ namespace Opc.Ua.Client.ComplexTypes
                                             binaryEncodingId,
                                             typeDictionary,
                                             m_session.NamespaceUris);
+                                    }
+                                    catch (DataTypeNotFoundException typeNotFoundException)
+                                    {
+                                        Utils.Trace(typeNotFoundException,
+                                            $"Skipped the type definition of {item.Name}. Retry in next round.");
+                                        retryStructureList.Add(item);
+                                        continue;
                                     }
                                     catch (ServiceResultException sre)
                                     {
