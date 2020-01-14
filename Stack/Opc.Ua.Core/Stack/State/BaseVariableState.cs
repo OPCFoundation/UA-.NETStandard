@@ -639,17 +639,18 @@ namespace Opc.Ua
         {
             get
             {
-                return m_accessLevel;
+                return (byte)(m_accessLevel & 0xFF);
             }
 
             set
             {
-                if (m_accessLevel != value)
+                if (AccessLevel != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_accessLevel = value;
+                // set first 8 bits of AccessLevelEx
+                m_accessLevel = (m_accessLevel & 0xFFFFFF00) | value;
             }
         }
 
@@ -731,17 +732,17 @@ namespace Opc.Ua
         {
             get
             {
-                return m_accessLevelEx;
+                return m_accessLevel;
             }
 
             set
             {
-                if (m_accessLevelEx != value)
+                if (m_accessLevel != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_accessLevelEx = value;
+                m_accessLevel = value;
             }
         }
         #endregion
@@ -1131,7 +1132,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.AccessLevel) != 0)
             {
-                encoder.WriteByte(null, m_accessLevel);
+                encoder.WriteByte(null, AccessLevel);
             }
 
             if ((attributesToSave & AttributesToSave.UserAccessLevel) != 0)
@@ -1147,7 +1148,7 @@ namespace Opc.Ua
             if ((attributesToSave & AttributesToSave.Historizing) != 0)
             {
                 encoder.WriteBoolean(null, m_historizing);
-            }            
+            }
         }
 
         /// <summary>
@@ -1196,7 +1197,7 @@ namespace Opc.Ua
 
             if ((attibutesToLoad & AttributesToSave.AccessLevel) != 0)
             {
-                m_accessLevel = decoder.ReadByte(null);
+                AccessLevel = decoder.ReadByte(null);
             }
 
             if ((attibutesToLoad & AttributesToSave.UserAccessLevel) != 0)
@@ -1373,7 +1374,7 @@ namespace Opc.Ua
 
                 case Attributes.AccessLevel:
                 {
-                    byte accessLevel = m_accessLevel;
+                    byte accessLevel = AccessLevel;
 
                     if (OnReadAccessLevel != null)
                     {
@@ -1383,6 +1384,23 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         value = accessLevel;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.AccessLevelEx:
+                {
+                    uint accessLevelEx = m_accessLevel;
+
+                    if (OnReadAccessLevelEx != null)
+                    {
+                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = accessLevelEx;
                     }
 
                     return result;
@@ -1438,25 +1456,8 @@ namespace Opc.Ua
 
                     return result;
                 }
-
-                case Attributes.AccessLevelEx:
-                {
-                    uint accessLevelEx = m_accessLevelEx;
-
-                    if (OnReadAccessLevelEx != null)
-                    {
-                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
-                    }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = accessLevelEx;
-                    }
-
-                    return result;
-                }
             }
-            
+
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
 
@@ -1995,11 +1996,10 @@ namespace Opc.Ua
         private NodeId m_dataType;
         private int m_valueRank;
         private ReadOnlyList<uint> m_arrayDimensions;
-        private byte m_accessLevel;
+        private uint m_accessLevel;
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
-        private uint m_accessLevelEx;
         private VariableCopyPolicy m_copyPolicy;
         #endregion
     }
