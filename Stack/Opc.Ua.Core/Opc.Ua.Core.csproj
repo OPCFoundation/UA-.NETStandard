@@ -7,7 +7,6 @@
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
     <Description>OPC UA Core Class Library</Description>
-    <RootNamespace>Opc.Ua</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup>
