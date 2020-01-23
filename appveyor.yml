@@ -25,7 +25,7 @@ init:
   - git config --global core.autocrlf input
 
 # clone directory
-clone_folder: c:\projects\UA-.NetStandardLibrary
+clone_folder: c:\projects\UA-.NetStandard
 
 # set clone depth
 clone_depth: 5                      # clone entire repository history if not defined
@@ -33,7 +33,7 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
-    test_name: "void"
+    test_name: "Stack/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"
     param: ""
   - solution_name: "UA-NetStandard.sln"
     test_name: "void"
@@ -80,11 +80,9 @@ build_script:
 test:
 
 test_script:
-  - if NOT "%test_name%" == "void" ( dotnet test "%test_name%" )
-# TODO nunit3-console v3.6 cannot load csproj, enable when newer version is available
-#  - if NOT "%test_name%" == "void" ( nunit3-console "%test_name%" --result=./myresults.xml;format=AppVeyor )
-#  - $wc = New-Object 'System.Net.WebClient'
-#  - $wc.UploadFile("https://ci.appveyor.com/api/testresults/nunit3/$($env:APPVEYOR_JOB_ID)", (Resolve-Path ./myresults.xml))
+  - if NOT "%test_name%" == "void" ( nunit3-console "%test_name%" --result=./myresults.xml;format=AppVeyor )
+  - if NOT "%test_name%" == "void" ( $wc = New-Object 'System.Net.WebClient' )
+  - if NOT "%test_name%" == "void" ( $wc.UploadFile("https://ci.appveyor.com/api/testresults/nunit3/$($env:APPVEYOR_JOB_ID)", (Resolve-Path ./myresults.xml)) )
 
 # build cache to preserve files/folders between builds
 cache:

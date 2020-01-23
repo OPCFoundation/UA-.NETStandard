@@ -270,7 +270,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExtensionObject : IFormattable
+    public class ExtensionObject : IFormattable 
     {
         #region Constructors
         /// <summary>
@@ -326,7 +326,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                m_typeId = null;
+                m_typeId = ExpandedNodeId.Null;
                 m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 m_body = encodeable;
             }
@@ -374,8 +374,7 @@ namespace Opc.Ua
         /// The data type node id for the extension object.
         /// </summary>
         /// <value>The type id.</value>
-        public ExpandedNodeId TypeId
-        {
+        public ExpandedNodeId TypeId {
             get { return m_typeId; }
             set { m_typeId = value; }
         }
@@ -384,13 +383,7 @@ namespace Opc.Ua
         /// The encoding to use when the deserializing/serializing the body.
         /// </summary>
         /// <value>The encoding for the embedd object.</value>
-        public ExtensionObjectEncoding Encoding
-        {
-            get
-            {
-                return m_encoding;
-            }
-        }
+        public ExtensionObjectEncoding Encoding => m_encoding;
 
         /// <summary>
         /// The body (embeded object) of the extension object.
@@ -406,12 +399,10 @@ namespace Opc.Ua
         /// 	</list>
         /// </remarks>
         /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
-        public object Body
-        {
+        public object Body {
             get { return m_body; }
 
-            set
-            {
+            set {
                 m_body = value;
 
                 if (m_body == null)
@@ -675,14 +666,20 @@ namespace Opc.Ua
 
             return output;
         }
+
+        /// <summary>
+        /// Returns an instance of a null ExtensionObject.
+        /// </summary>
+        public static ExtensionObject Null {
+            get { return s_Null; }
+        }
+        private static readonly ExtensionObject s_Null = new ExtensionObject();
         #endregion
 
         #region Private Members
         [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
-        private NodeId XmlEncodedTypeId
-        {
-            get
-            {
+        private NodeId XmlEncodedTypeId {
+            get {
                 // must use the XML encoding id if encoding in an XML stream.
                 IEncodeable encodeable = m_body as IEncodeable;
 
@@ -691,20 +688,23 @@ namespace Opc.Ua
                     return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
                 }
 
+                // check for null Id.
+                if (m_typeId.IsNull)
+                {
+                    return NodeId.Null;
+                }
+
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);
             }
 
-            set
-            {
+            set {
                 m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
             }
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        private XmlElement XmlEncodedBody
-        {
-            get
-            {
+        private XmlElement XmlEncodedBody {
+            get {
                 // check for null.
                 if (m_body == null)
                 {
@@ -725,8 +725,7 @@ namespace Opc.Ua
                 return document.DocumentElement;
             }
 
-            set
-            {
+            set {
                 // check null bodies.
                 if (value == null)
                 {

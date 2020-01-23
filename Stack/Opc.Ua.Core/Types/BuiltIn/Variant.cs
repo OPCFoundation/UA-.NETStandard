@@ -61,7 +61,7 @@ namespace Opc.Ua
             m_typeInfo = typeInfo;
             Set(value, typeInfo);
 
-            #if DEBUG
+            #if xDEBUG
             
             TypeInfo sanityCheck = TypeInfo.Construct(value);
 

@@ -409,6 +409,29 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if a 'null' value exists for the built-in type
+        /// in all data encodings.
+        /// </summary>
+        /// <param name="builtInType">The built in type to check.</param>
+        /// <returns>
+        /// True if the built-in type is a type that is nullable.
+        /// </returns>
+        public static bool IsEncodingNullableType(BuiltInType builtInType)
+        {
+            if (builtInType >= BuiltInType.Boolean && builtInType <= BuiltInType.Double)
+            {
+                return false;
+            }
+
+            if (builtInType == BuiltInType.DataValue || builtInType == BuiltInType.DiagnosticInfo)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
         /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
@@ -1247,6 +1270,7 @@ namespace Opc.Ua
                 case BuiltInType.ExpandedNodeId: { return ExpandedNodeId.Null; }
                 case BuiltInType.QualifiedName: { return QualifiedName.Null; }
                 case BuiltInType.LocalizedText: { return LocalizedText.Null; }
+                case BuiltInType.ExtensionObject: { return ExtensionObject.Null; }
                 case BuiltInType.Variant: { return Variant.Null; }
                 case BuiltInType.DataValue: { return null; }
                 case BuiltInType.Enumeration: { return (int)0; }

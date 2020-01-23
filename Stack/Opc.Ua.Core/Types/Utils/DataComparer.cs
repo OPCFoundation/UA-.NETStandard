@@ -303,12 +303,12 @@ namespace Opc.Ua.Test
         {
             if (value1.Kind != value2.Kind)
             {
-                if (value1.Kind == DateTimeKind.Local)
+                if (value1.Kind != DateTimeKind.Utc)
                 {
                     value1 = value1.ToUniversalTime();
                 }
 
-                if (value2.Kind == DateTimeKind.Local)
+                if (value2.Kind != DateTimeKind.Utc)
                 {
                     value2 = value2.ToUniversalTime();
                 }

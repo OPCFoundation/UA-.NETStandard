@@ -288,7 +288,39 @@ namespace Opc.Ua
         {
             m_namespaces.Pop();
         }
-        
+
+        /// <summary>
+        /// Pushes a structure onto the stack.
+        /// </summary>
+        public void PushStructure(string fieldName)
+        {
+            // not used in the xml encoding.
+        }
+
+        /// <summary>
+        /// Pops a structure from the stack.
+        /// </summary>
+        public void PopStructure()
+        {
+            // not used in the xml encoding.
+        }
+
+        /// <summary>
+        /// Pushes an array onto the stack.
+        /// </summary>
+        public void PushArray(string fieldName)
+        {
+            // not used in the xml encoding.
+        }
+
+        /// <summary>
+        /// Pops an array from the stack.
+        /// </summary>
+        public void PopArray()
+        {
+            // not used in the xml encoding.
+        }
+
         /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
@@ -462,7 +494,7 @@ namespace Opc.Ua
         {       
             if (BeginField(fieldName, false, false))
             {
-                m_writer.WriteValue(value);
+                m_writer.WriteValue(value.ToUniversalTime());
                 EndField(fieldName);
             }
         }
@@ -522,9 +554,7 @@ namespace Opc.Ua
         {            
             if (BeginField(fieldName, value == null, true))
             {
-                XmlReader reader = XmlReader.Create(new StringReader(value.Value));
-                m_writer.WriteNode(reader, false);
-                reader.Dispose();
+                m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);
             }
         }
