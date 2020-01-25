@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -580,7 +581,7 @@ namespace Opc.Ua
                 var text = token as string;
                 uint number = 0;
 
-                if (text == null || !UInt32.TryParse(text, out number))
+                if (text == null || !UInt32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -615,7 +616,7 @@ namespace Opc.Ua
                 var text = token as string;
                 long number = 0;
 
-                if (text == null || !Int64.TryParse(text, out number))
+                if (text == null || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -650,7 +651,9 @@ namespace Opc.Ua
                 var text = token as string;
                 ulong number = 0;
 
-                if (text == null || !UInt64.TryParse(text, out number))
+                if (text == null || !UInt64.TryParse(text,
+                    NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite,
+                    CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -684,7 +687,7 @@ namespace Opc.Ua
             {
                 var text = token as string;
                 float number = 0;
-                if (text == null || !Single.TryParse(text, out number))
+                if (text == null || !Single.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
                     {
@@ -742,7 +745,7 @@ namespace Opc.Ua
                 var text = token as string;
                 double number = 0;
 
-                if (text == null || !Double.TryParse(text, out number))
+                if (text == null || !Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
                     {

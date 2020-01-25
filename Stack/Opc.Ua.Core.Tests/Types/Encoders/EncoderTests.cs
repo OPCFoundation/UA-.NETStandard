@@ -139,6 +139,11 @@ namespace Opc.Ua.Core.Tests
                 case BuiltInType.UInteger:
                     randomData = new Variant(randomData);
                     break;
+                // special case for extension object, default from TypeInfo must be null
+                // or encoding of extension objects fails.
+                case BuiltInType.ExtensionObject:
+                    randomData = ExtensionObject.Null;
+                    break;
             }
             EncodeDecode(encoderType, builtInType, randomData);
         }
