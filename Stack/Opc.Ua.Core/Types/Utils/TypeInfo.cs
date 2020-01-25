@@ -1270,7 +1270,6 @@ namespace Opc.Ua
                 case BuiltInType.ExpandedNodeId: { return ExpandedNodeId.Null; }
                 case BuiltInType.QualifiedName: { return QualifiedName.Null; }
                 case BuiltInType.LocalizedText: { return LocalizedText.Null; }
-                //case BuiltInType.ExtensionObject: { return ExtensionObject.Null; }
                 case BuiltInType.Variant: { return Variant.Null; }
                 case BuiltInType.DataValue: { return null; }
                 case BuiltInType.Enumeration: { return (int)0; }

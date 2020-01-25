@@ -327,7 +327,7 @@ namespace Opc.Ua.Core.Tests
             {   BuiltInType.ExtensionObject, ExtensionObject.Null, null, null},
             {   BuiltInType.ExtensionObject, new ExtensionObject(kNodeIdInt), null, null},
 
-            {   BuiltInType.Variant, new Variant(), "", null},
+            {   BuiltInType.Variant, Variant.Null, "", null},
             {   BuiltInType.Variant, new Variant((SByte)123), $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123"},
             {   BuiltInType.Variant, new Variant((Int16)12345), $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345"},
             {   BuiltInType.Variant, new Variant((Int32)1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
