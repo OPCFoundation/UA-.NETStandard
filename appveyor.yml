@@ -33,7 +33,7 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
-    test_name: "Stack/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"
+    test_name: "UA Core Library.sln"
     param: ""
   - solution_name: "UA-NetStandard.sln"
     test_name: "void"
