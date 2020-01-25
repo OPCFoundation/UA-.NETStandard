@@ -243,6 +243,7 @@ namespace Opc.Ua.Core.Tests
             {   BuiltInType.Guid, Uuid.Empty,  Quotes("00000000-0000-0000-0000-000000000000"), null, true },
             {   BuiltInType.Guid, new Uuid(s_nodeIdGuid),  Quotes($"{s_nodeIdGuid}"), null },
 
+            {   BuiltInType.NodeId, NodeId.Null, null, null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,1), $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,kDemoServerIndex),
@@ -267,6 +268,7 @@ namespace Opc.Ua.Core.Tests
                 $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":\"{kDemoServer}\"}}" },
             {   BuiltInType.NodeId, new NodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null},
             // TODO: add cases for serverIndex
+            {   BuiltInType.ExpandedNodeId, ExpandedNodeId.Null, null, null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt), $"{{\"Id\":{kNodeIdInt}}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,1), $"{{\"Id\":{kNodeIdInt},\"Namespace\":1}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServerIndex),
@@ -312,12 +314,13 @@ namespace Opc.Ua.Core.Tests
 
             {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), "{}", null},
 
-            {   BuiltInType.QualifiedName, new QualifiedName(), null, null},
+            {   BuiltInType.QualifiedName, QualifiedName.Null, null, null},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName), $"{{\"Name\":\"{kQualifiedName}\"}}", null},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName, 1), $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}", $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":1}}"},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName, kDemoServerIndex),
                 $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":{kDemoServerIndex}}}", $"{{\"Name\":\"{kQualifiedName}\",\"Uri\":\"{kDemoServer}\"}}"},
 
+            {   BuiltInType.LocalizedText, LocalizedText.Null, null, null},
             {   BuiltInType.LocalizedText, new LocalizedText(kLocalizedText), $"{{\"Text\":\"{kLocalizedText}\"}}", $"\"{kLocalizedText}\"", true},
             {   BuiltInType.LocalizedText, new LocalizedText(kLocale, kLocalizedText), $"{{\"Text\":\"{kLocalizedText}\",\"Locale\":\"{kLocale}\"}}", $"\"{kLocalizedText}\""},
 

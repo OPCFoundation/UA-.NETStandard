@@ -335,7 +335,7 @@ namespace Opc.Ua
             {
                 if (m_nestingLevel == 1 && !m_topLevelIsArray)
                 {
-                    return ;
+                    return;
                 }
             }
 
@@ -820,7 +820,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            if (value == null || (!UseReversibleEncoding && NodeId.IsNull(value)))
+            if (value == null ||
+                (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
