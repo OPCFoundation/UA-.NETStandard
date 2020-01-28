@@ -54,26 +54,6 @@ namespace Opc.Ua
         void PopNamespace();
 
         /// <summary>
-        /// Pushes a structure onto the stack.
-        /// </summary>
-        void PushStructure(string fieldName);
-
-        /// <summary>
-        /// Pops a structure from the stack.
-        /// </summary>
-        void PopStructure();
-
-        /// <summary>
-        /// Pushes an array onto the stack.
-        /// </summary>
-        void PushArray(string fieldName);
-
-        /// <summary>
-        /// Pops an array from the stack.
-        /// </summary>
-        void PopArray();
-
-        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         void WriteBoolean(string fieldName, bool value);

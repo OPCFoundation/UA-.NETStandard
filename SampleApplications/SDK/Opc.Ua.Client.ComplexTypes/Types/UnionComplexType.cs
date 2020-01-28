@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// A value of 0 means all properties are invalid, x=1..n means the
         /// xth property is valid.
         /// </summary>
-        UInt32 SwitchField => m_switchField;
+        public UInt32 SwitchField => m_switchField;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -234,10 +234,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
-        public override object this[int index]
-        {
-            get
-            {
+        public override object this[int index] {
+            get {
                 if (index + 1 == (int)m_switchField)
                 {
                     return m_propertyList.ElementAt(index).GetValue(this);
@@ -249,8 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
-            set
-            {
+            set {
                 if (index >= 0)
                 {
                     m_propertyList.ElementAt(index).SetValue(this, value);
@@ -278,10 +275,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector. 
         /// Calling set with a null object or an invalid name unselects the union.
         /// </remarks>
-        public override object this[string name]
-        {
-            get
-            {
+        public override object this[string name] {
+            get {
                 if (SwitchField > 0)
                 {
                     ComplexTypePropertyAttribute property;
@@ -299,8 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
-            set
-            {
+            set {
                 ComplexTypePropertyAttribute property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {
@@ -316,6 +310,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 m_switchField = 0;
             }
         }
+
+        /// <summary>
+        /// Simple accessor for Union to access current Value.
+        /// </summary>
+        public object Value => (m_switchField == 0) ? null : m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
         #endregion
 
         #region Private Fields

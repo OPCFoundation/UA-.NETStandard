@@ -28,15 +28,14 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
-    /// Tests for the CertificateValidator class.
+    /// Tests for the Json encoder and decoder class.
     /// </summary>
     [TestFixture, Category("JsonEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -44,68 +43,6 @@ namespace Opc.Ua.Core.Tests
     public class JsonEncoderTests : EncoderCommon
     {
         #region DataSource
-        public class JsonValidationData : IFormattable
-        {
-            public JsonValidationData() { }
-
-            public JsonValidationData(BuiltInType builtInType)
-            {
-                BuiltInType = builtInType;
-            }
-
-            public BuiltInType BuiltInType;
-            public object Instance;
-            public string ExpectedReversible;
-            public string ExpectedNonReversible;
-            public bool IncludeDefaultValue;
-
-            public string ToString(string format, IFormatProvider formatProvider)
-            {
-                return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
-            }
-        };
-
-        public class JsonValidationDataCollection : List<JsonValidationData>
-        {
-            public JsonValidationDataCollection() { }
-            public JsonValidationDataCollection(IEnumerable<JsonValidationData> collection) : base(collection) { }
-            public JsonValidationDataCollection(int capacity) : base(capacity) { }
-            public static JsonValidationDataCollection ToJsonValidationDataCollection(JsonValidationData[] values)
-            {
-                return values != null ? new JsonValidationDataCollection(values) : new JsonValidationDataCollection();
-            }
-
-            public void Add(
-                BuiltInType builtInType,
-                object instance,
-                string expectedReversible,
-                string expectedNonReversible)
-            {
-                Add(new JsonValidationData() {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible
-                });
-            }
-
-            public void Add(
-                BuiltInType builtInType,
-                object instance,
-                string expectedReversible,
-                string expectedNonReversible,
-                bool includeDefaultValue)
-            {
-                Add(new JsonValidationData() {
-                    BuiltInType = builtInType,
-                    Instance = instance,
-                    ExpectedReversible = expectedReversible,
-                    ExpectedNonReversible = expectedNonReversible,
-                    IncludeDefaultValue = includeDefaultValue
-                });
-            }
-        }
-
         enum TestEnumType
         {
             /// <remarks />

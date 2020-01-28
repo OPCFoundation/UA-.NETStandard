@@ -36,7 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
     /// Tests for the CertificateValidator class.

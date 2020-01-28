@@ -38,7 +38,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Test;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
     /// Tests for the CertificateValidator class.
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests
 
         #region DataPointSources
         [DatapointSource]
-        public BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
+        public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
             .ToList().Where(b =>
                 (b != BuiltInType.Variant) &&
                 (b != BuiltInType.DiagnosticInfo) &&
@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests
              ).ToArray();
 
         [DatapointSource]
-        public EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
+        public static EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
         #endregion
 
         #region Private Methods

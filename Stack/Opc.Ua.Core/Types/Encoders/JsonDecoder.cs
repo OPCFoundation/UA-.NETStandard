@@ -652,7 +652,7 @@ namespace Opc.Ua
                 ulong number = 0;
 
                 if (text == null || !UInt64.TryParse(text,
-                    NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite,
+                    NumberStyles.Integer,
                     CultureInfo.InvariantCulture, out number))
                 {
                     return 0;

@@ -30,10 +30,10 @@
 using System;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
-    /// Tests for the CertificateValidator class.
+    /// Tests for the IEncoder and IDecoder class.
     /// </summary>
     [TestFixture, Category("Encoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
