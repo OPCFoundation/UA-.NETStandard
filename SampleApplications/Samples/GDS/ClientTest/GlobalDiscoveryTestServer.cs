@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Test
             };
 
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
             TestUtils.PatchBaseAddressesPorts(config, basePort);
 
             if (clean)
@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds.Test
             TestUtils.PatchBaseAddressesPorts(config, basePort);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
