@@ -58,6 +58,14 @@ namespace Opc.Ua.Bindings
         {
             get { lock (m_lock) { return m_channel?.Socket; } }
         }
+
+        /// <summary>
+        /// Returns the channel's current security token.
+        /// </summary>
+        public ChannelToken CurrentToken
+        {
+            get { lock (m_lock) { return m_channel?.CurrentToken; } }
+        }
         #endregion
 
         #region ITransportChannel Members
