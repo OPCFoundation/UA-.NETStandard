@@ -23,7 +23,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        public ChannelToken CurrentToken => m_currentToken;
+        protected internal ChannelToken CurrentToken => m_currentToken;
 
         /// <summary>
         /// Returns the current security token.

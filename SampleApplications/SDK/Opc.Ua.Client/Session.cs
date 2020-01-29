@@ -2584,14 +2584,9 @@ namespace Opc.Ua.Client
 
                 byte[] previousServerNonce = null;
 
-                if (TransportChannel != null)
+                if (TransportChannel.CurrentToken!= null)
                 {
-                    UaSCUaBinaryTransportChannel binaryTransportChannel = TransportChannel as UaSCUaBinaryTransportChannel;
-
-                    if (binaryTransportChannel != null && binaryTransportChannel.CurrentToken != null)
-                    {
-                        previousServerNonce = binaryTransportChannel.CurrentToken.ServerNonce;
-                    }
+                    previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
                 }
 
                 // validate server nonce and security parameters for user identity.
