@@ -883,7 +883,6 @@ namespace Opc.Ua.Export
                     definition.IsUnion = true;
                 }
 
-
                 if (structureDefinition.Fields != null)
                 {
                     List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
@@ -894,6 +893,7 @@ namespace Opc.Ua.Export
 
                         output.Name = field.Name;
                         output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
+                        output.IsOptional = field.IsOptional;
 
                         if (NodeId.IsNull(field.DataType))
                         {
@@ -988,6 +988,7 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
+                            output.IsOptional = field.IsOptional;
 
                             fields.Add(output);
                         }

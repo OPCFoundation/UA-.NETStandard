@@ -5101,20 +5101,20 @@ namespace Opc.Ua.Gds
     #endif
     #endregion
 
-    #region AccessTokenAuditIssuedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_AccessTokenAuditIssuedAuditEventState)
+    #region AccessTokenIssuedAuditEventState Class
+    #if (!OPCUA_EXCLUDE_AccessTokenIssuedAuditEventState)
     /// <summary>
-    /// Stores an instance of the AccessTokenAuditIssuedAuditEventType ObjectType.
+    /// Stores an instance of the AccessTokenIssuedAuditEventType ObjectType.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class AccessTokenAuditIssuedAuditEventState : AuditUpdateMethodEventState
+    public partial class AccessTokenIssuedAuditEventState : AuditUpdateMethodEventState
     {
         #region Constructors
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public AccessTokenAuditIssuedAuditEventState(NodeState parent) : base(parent)
+        public AccessTokenIssuedAuditEventState(NodeState parent) : base(parent)
         {
         }
 
@@ -5123,7 +5123,7 @@ namespace Opc.Ua.Gds
         /// </summary>
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AccessTokenAuditIssuedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
+            return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AccessTokenIssuedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5155,22 +5155,22 @@ namespace Opc.Ua.Gds
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEALAAAAEFj" +
-           "Y2Vzc1Rva2VuQXVkaXRJc3N1ZWRBdWRpdEV2ZW50VHlwZUluc3RhbmNlAQHPAwEBzwPPAwAA/////w8A" +
-           "AAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAdADAC4ARNADAAAAD/////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAkAAABFdmVudFR5cGUBAdEDAC4ARNEDAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3Vy" +
-           "Y2VOb2RlAQHSAwAuAETSAwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEB" +
-           "0wMALgBE0wMAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAdQDAC4ARNQDAAABACYB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQHVAwAuAETVAwAAAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQHXAwAuAETXAwAAABX/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAAU2V2ZXJpdHkBAdgDAC4ARNgDAAAABf////8BAf////8AAAAAFWCJCgIAAAAAAA8A" +
-           "AABBY3Rpb25UaW1lU3RhbXABAdkDAC4ARNkDAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABgAA" +
-           "AFN0YXR1cwEB2gMALgBE2gMAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNlcnZlcklkAQHb" +
-           "AwAuAETbAwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAASAAAAQ2xpZW50QXVkaXRFbnRyeUlkAQHc" +
-           "AwAuAETcAwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQHdAwAuAETd" +
-           "AwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAIAAAATWV0aG9kSWQBAd4DAC4ARN4DAAAAEf////8B" +
-           "Af////8AAAAAF2CJCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB3wMALgBE3wMAAAAYAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAAA==";
+           "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAJwAAAEFj" +
+           "Y2Vzc1Rva2VuSXNzdWVkQXVkaXRFdmVudFR5cGVJbnN0YW5jZQEBzwMBAc8DzwMAAP////8PAAAAFWCJ" +
+           "CgIAAAAAAAcAAABFdmVudElkAQHQAwAuAETQAwAAAA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAA" +
+           "RXZlbnRUeXBlAQHRAwAuAETRAwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9k" +
+           "ZQEB0gMALgBE0gMAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBAdMDAC4A" +
+           "RNMDAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABUaW1lAQHUAwAuAETUAwAAAQAmAf////8B" +
+           "Af////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEB1QMALgBE1QMAAAEAJgH/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEB1wMALgBE1wMAAAAV/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAACAAAAFNldmVyaXR5AQHYAwAuAETYAwAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAPAAAAQWN0" +
+           "aW9uVGltZVN0YW1wAQHZAwAuAETZAwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAYAAABTdGF0" +
+           "dXMBAdoDAC4ARNoDAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXJ2ZXJJZAEB2wMALgBE" +
+           "2wMAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENsaWVudEF1ZGl0RW50cnlJZAEB3AMALgBE" +
+           "3AMAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEB3QMALgBE3QMAAAAM" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAE1ldGhvZElkAQHeAwAuAETeAwAAABH/////AQH/////" +
+           "AAAAABdgiQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAd8DAC4ARN8DAAAAGAEAAAABAAAAAAAAAAEB" +
+           "/////wAAAAA=";
         #endregion
         #endif
         #endregion
