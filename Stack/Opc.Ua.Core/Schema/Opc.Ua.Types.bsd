@@ -124,7 +124,7 @@
     <opc:Field Name="AdditionalInfoSpecified" TypeName="opc:Bit" />
     <opc:Field Name="InnerStatusCodeSpecified" TypeName="opc:Bit" />
     <opc:Field Name="InnerDiagnosticInfoSpecified" TypeName="opc:Bit" />
-    <opc:Field Name="Reserved1" TypeName="opc:Bit" Length="1" />
+    <opc:Field Name="Reserved1" TypeName="opc:Bit" Length="2" />
     <opc:Field Name="SymbolicId" TypeName="opc:Int32" SwitchField="SymbolicIdSpecified" />
     <opc:Field Name="NamespaceURI" TypeName="opc:Int32" SwitchField="NamespaceURISpecified" />
     <opc:Field Name="Locale" TypeName="opc:Int32" SwitchField="LocaleSpecified" />
@@ -2219,6 +2219,11 @@
     <opc:Field Name="NoOfReqTimes" TypeName="opc:Int32" />
     <opc:Field Name="ReqTimes" TypeName="opc:DateTime" LengthField="NoOfReqTimes" />
     <opc:Field Name="UseSimpleBounds" TypeName="opc:Boolean" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ReadAnnotationDataDetails" BaseType="tns:HistoryReadDetails">
+    <opc:Field Name="NoOfReqTimes" TypeName="opc:Int32" />
+    <opc:Field Name="ReqTimes" TypeName="opc:DateTime" LengthField="NoOfReqTimes" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="HistoryData" BaseType="ua:ExtensionObject">
