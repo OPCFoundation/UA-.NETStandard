@@ -1515,6 +1515,10 @@ namespace Opc.Ua
                 {
                     Utils.Trace("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
                 }
+                else
+                {
+                    typeId = absoluteId;
+                }
 
                 byte encoding = ReadByte("Encoding");
 
@@ -1536,7 +1540,12 @@ namespace Opc.Ua
 
                 if (encoding == (byte)ExtensionObjectEncoding.Json)
                 {
-                    // TODO
+                    var json = ReadString("Body");
+                    if (String.IsNullOrEmpty(json))
+                    {
+                        return extension;
+                    }
+                    return new ExtensionObject(typeId, json);
                 }
 
                 Type systemType = m_context.Factory.GetSystemType(typeId);

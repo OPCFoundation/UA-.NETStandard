@@ -270,7 +270,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExtensionObject : IFormattable 
+    public class ExtensionObject : IFormattable
     {
         #region Constructors
         /// <summary>
@@ -670,9 +670,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null ExtensionObject.
         /// </summary>
-        public static ExtensionObject Null {
-            get { return s_Null; }
-        }
+        public static ExtensionObject Null => s_Null;
         private static readonly ExtensionObject s_Null = new ExtensionObject();
         #endregion
 

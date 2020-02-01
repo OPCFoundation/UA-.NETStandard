@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
+    /// <summary>
+    /// Main purpose of this test is to verify the
+    /// system.emit functionality on a specific platform.
+    /// </summary>
     [TestFixture, Category("ComplexTypes")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
@@ -49,8 +52,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexType(StructureType structureType)
         {
             // EncoderCommon.BuiltInTypes subtracted by 1 for the Null type.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 1;
-            var complexType = BuildComplexTypeWithAllBuiltInTypes(structureType, nameof(CreateComplexType));
+            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 6;
+            var complexType = BuildComplexTypeWithAllBuiltInTypes(
+                structureType, nameof(CreateComplexType));
             Assert.NotNull(complexType);
             var emittedType = Activator.CreateInstance(complexType);
             var structType = emittedType as BaseComplexType;
@@ -100,17 +104,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 structureType, nameof(CreateComplexTypeWithData)+"."+randomValue.ToString());
             Assert.NotNull(complexType);
             var emittedType = Activator.CreateInstance(complexType);
-            var structType = emittedType as BaseComplexType;
+            var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
-            FillStructWithValues(structType, randomValue);
+            FillStructWithValues(baseType, randomValue);
 
-            for (int i = 0; i < structType.GetPropertyCount(); i++)
+            for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
-                var obj = structType[i];
+                var obj = baseType[i];
                 if (structureType == StructureType.Union)
                 {
-                    if (((UnionComplexType)structType).SwitchField == i + 1)
+                    if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
                         Assert.NotNull(obj);
                     }
@@ -125,7 +129,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }
         }
-
         #endregion
 
         #region Private Methods

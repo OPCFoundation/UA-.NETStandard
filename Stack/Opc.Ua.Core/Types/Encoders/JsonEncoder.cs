@@ -1152,45 +1152,48 @@ namespace Opc.Ua
                 return;
             }
 
+            IEncodeable encodeable = value.Body as IEncodeable;
+            if (!UseReversibleEncoding && encodeable != null)
+            {
+                // no push/pop
+                encodeable.Encode(this);
+                return;
+            }
+
             PushStructure(fieldName);
 
-            if (value != null)
+            if (UseReversibleEncoding)
+            {
+                var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
+                WriteNodeId("TypeId", nodeId);
+            }
+            else
+            {
+                WriteExpandedNodeId("TypeId", value.TypeId);
+            }
+
+            if (encodeable != null)
+            {
+                WriteEncodeable("Body", encodeable, null);
+            }
+            else
             {
                 if (value.Body != null)
                 {
-                    IEncodeable encodeable = value.Body as IEncodeable;
-
-                    if (encodeable != null)
+                    if (value.Encoding == ExtensionObjectEncoding.Json)
                     {
-                        if (UseReversibleEncoding)
-                        {
-                            WriteExpandedNodeId("TypeId", encodeable.TypeId);
-                            WriteEncodeable("Body", encodeable, null);
-                        }
-                        else
-                        {
-                            encodeable.Encode(this);
-                        }
+                        WriteSimpleField("Body", value.Body as string, true);
                     }
                     else
                     {
-                        WriteExpandedNodeId("TypeId", value.TypeId);
-
-                        if (value.Body != null)
+                        WriteByte("Encoding", (byte)value.Encoding);
+                        if (value.Encoding == ExtensionObjectEncoding.Binary)
                         {
-                            WriteByte("Encoding", (byte)value.Encoding);
-                            if (value.Encoding == ExtensionObjectEncoding.Binary)
-                            {
-                                WriteByteString("Body", value.Body as byte[]);
-                            }
-                            else if (value.Encoding == ExtensionObjectEncoding.Xml)
-                            {
-                                WriteXmlElement("Body", value.Body as XmlElement);
-                            }
-                            else if (value.Encoding == ExtensionObjectEncoding.Json)
-                            {
-                                // TODO
-                            }
+                            WriteByteString("Body", value.Body as byte[]);
+                        }
+                        else if (value.Encoding == ExtensionObjectEncoding.Xml)
+                        {
+                            WriteXmlElement("Body", value.Body as XmlElement);
                         }
                     }
                 }

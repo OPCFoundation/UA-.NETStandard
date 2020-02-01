@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     unionSelector++;
                 }
-                EncodeProperty(encoder, unionProperty, valueRank);
+                EncodeProperty(encoder, "Value", unionProperty, valueRank);
             }
 
             encoder.PopNamespace();
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
+                        DecodeProperty(decoder, "Value", property.PropertyInfo, property.ValueRank);
                         break;
                     }
                 }
