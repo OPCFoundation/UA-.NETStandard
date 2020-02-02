@@ -1,12 +1,12 @@
 language: csharp
 mono: 5.4.0
-dotnet: 2.2.0
+dotnet: 2.2
 os:
   - linux
   - osx
 sudo: false
 dist: xenial
-osx_image: xcode9.1
+osx_image: xcode9.4.1
 
 addons:
   apt:
