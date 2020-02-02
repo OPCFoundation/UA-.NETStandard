@@ -334,38 +334,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Pushes a structure onto the stack.
-        /// </summary>
-        public void PushStructure(string fieldName)
-        {
-            // not used in the binary encoding.
-        }
-
-        /// <summary>
-        /// Pops a structure from the stack.
-        /// </summary>
-        public void PopStructure()
-        {
-            // not used in the binary encoding.
-        }
-
-        /// <summary>
-        /// Pushes an array onto the stack.
-        /// </summary>
-        public void PushArray(string fieldName)
-        {
-            // not used in the binary encoding.
-        }
-
-        /// <summary>
-        /// Pops an array from the stack.
-        /// </summary>
-        public void PopArray()
-        {
-            // not used in the binary encoding.
-        }
-
-        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         public void WriteBoolean(string fieldName, bool value)

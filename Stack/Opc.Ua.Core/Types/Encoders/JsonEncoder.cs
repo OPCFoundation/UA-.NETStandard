@@ -1631,7 +1631,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDateTime(null, values[ii]);
+                if (values[ii] <= DateTime.MinValue)
+                {
+                    WriteSimpleField(null, null, false);
+                }
+                else
+                {
+                    WriteDateTime(null, values[ii]);
+                }
             }
 
             PopArray();

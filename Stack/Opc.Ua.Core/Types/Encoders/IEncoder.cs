@@ -27,6 +27,11 @@ namespace Opc.Ua
         EncodingType EncodingType { get; }
 
         /// <summary>
+        /// Selects the reversible encoding type.
+        /// </summary>
+        bool UseReversibleEncoding { get; }
+
+        /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
         ServiceMessageContext Context { get; }
@@ -37,11 +42,6 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace uris.</param>
         /// <param name="serverUris">The server uris.</param>
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
-
-        /// <summary>
-        /// Selects the reversible encoding type.
-        /// </summary>
-        bool UseReversibleEncoding { get; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
