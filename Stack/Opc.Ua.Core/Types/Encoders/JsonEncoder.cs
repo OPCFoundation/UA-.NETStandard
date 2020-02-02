@@ -34,6 +34,7 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_topLevelIsArray;
+        private bool m_forceNamespaceUri;
         private bool m_includeDefaultValues;
         #endregion
 
@@ -46,7 +47,7 @@ namespace Opc.Ua
             bool useReversibleEncoding,
             StreamWriter writer = null,
             bool topLevelIsArray = false,
-            bool includeDefaultValues = false)
+            bool includeDefaultValues = true)
         {
             Initialize();
 
@@ -55,6 +56,7 @@ namespace Opc.Ua
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
+            m_forceNamespaceUri = false;
             m_includeDefaultValues = includeDefaultValues;
 
             if (m_writer == null)
@@ -828,7 +830,17 @@ namespace Opc.Ua
             }
 
             PushStructure(fieldName);
-            WriteNodeIdContents(value);
+
+            ushort namespaceIndex = value.NamespaceIndex;
+            if (m_forceNamespaceUri && namespaceIndex > 1)
+            {
+                string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+                WriteNodeIdContents(value, namespaceUri);
+            }
+            else
+            {
+                WriteNodeIdContents(value);
+            }
             PopStructure();
         }
 
@@ -846,7 +858,13 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
-            WriteNodeIdContents(value.InnerNodeId, value.NamespaceUri);
+            string namespaceUri = value.NamespaceUri;
+            ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
+            if (m_forceNamespaceUri && namespaceUri == null && namespaceIndex > 1)
+            {
+                namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+            }
+            WriteNodeIdContents(value.InnerNodeId, namespaceUri);
 
             uint serverIndex = value.ServerIndex;
 

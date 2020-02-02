@@ -234,7 +234,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             var formattedExpected = PrettifyAndValidateJson(expected);
             var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue), useReversibleEncoding, topLevelIsArray, includeDefaultValues);
+            IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
+                useReversibleEncoding, topLevelIsArray, includeDefaultValues);
             //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
             Encode(encoder, builtInType, builtInType.ToString(), data);
             Dispose(encoder);
@@ -285,7 +286,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Type systemType,
             bool useReversibleEncoding = true,
             bool topLevelIsArray = false,
-            bool includeDefaultValues = false)
+            bool includeDefaultValues = true)
         {
             switch (encoderType)
             {
@@ -509,6 +510,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 randomSource.NextBytes(testBlock, 0, blockSize);
                 return testBlock;
             }
+        }
+
+        protected static string Quotes(string json)
+        {
+            return "\"" + json + "\"";
         }
         #endregion
 

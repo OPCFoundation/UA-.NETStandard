@@ -344,10 +344,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Private Methods
-        private static string Quotes(string json)
-        {
-            return "\"" + json + "\"";
-        }
         #endregion
 
         #region Private Fields
