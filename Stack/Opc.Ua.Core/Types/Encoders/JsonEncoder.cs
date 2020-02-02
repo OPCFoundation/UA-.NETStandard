@@ -34,8 +34,6 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_topLevelIsArray;
-        private bool m_forceNamespaceUri;
-        private bool m_includeDefaultValues;
         #endregion
 
         #region Constructors
@@ -56,8 +54,8 @@ namespace Opc.Ua
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
-            m_forceNamespaceUri = false;
-            m_includeDefaultValues = includeDefaultValues;
+            ForceNamespaceUri = false;
+            IncludeDefaultValues = includeDefaultValues;
 
             if (m_writer == null)
             {
@@ -276,6 +274,17 @@ namespace Opc.Ua
         public bool UseReversibleEncoding { get; private set; }
 
         /// <summary>
+        /// The Json encoder to encoder namespace URI instead of
+        /// namespace Index in NodeIds.
+        /// </summary>
+        public bool ForceNamespaceUri { get; set; }
+
+        /// <summary>
+        /// The Json encoder default value option.
+        /// </summary>
+        public bool IncludeDefaultValues { get; set; }
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         public void PushNamespace(string namespaceUri)
@@ -453,7 +462,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBoolean(string fieldName, bool value)
         {
-            if (fieldName != null && !m_includeDefaultValues && !value)
+            if (fieldName != null && !IncludeDefaultValues && !value)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -474,7 +483,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByte(string fieldName, sbyte value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -488,7 +497,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByte(string fieldName, byte value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -502,7 +511,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16(string fieldName, short value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -516,7 +525,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16(string fieldName, ushort value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -530,7 +539,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32(string fieldName, int value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -544,7 +553,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32(string fieldName, uint value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -558,7 +567,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64(string fieldName, long value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -572,7 +581,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64(string fieldName, ulong value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -586,7 +595,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloat(string fieldName, float value)
         {
-            if (fieldName != null && !m_includeDefaultValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
+            if (fieldName != null && !IncludeDefaultValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -615,7 +624,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDouble(string fieldName, double value)
         {
-            if (fieldName != null && !m_includeDefaultValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
+            if (fieldName != null && !IncludeDefaultValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -644,7 +653,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteString(string fieldName, string value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == null)
+            if (fieldName != null && !IncludeDefaultValues && value == null)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -658,7 +667,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == DateTime.MinValue)
+            if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -684,7 +693,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuid(string fieldName, Uuid value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == Uuid.Empty)
+            if (fieldName != null && !IncludeDefaultValues && value == Uuid.Empty)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -698,7 +707,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuid(string fieldName, Guid value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == Guid.Empty)
+            if (fieldName != null && !IncludeDefaultValues && value == Guid.Empty)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -832,7 +841,7 @@ namespace Opc.Ua
             PushStructure(fieldName);
 
             ushort namespaceIndex = value.NamespaceIndex;
-            if (m_forceNamespaceUri && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceIndex > 1)
             {
                 string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
                 WriteNodeIdContents(value, namespaceUri);
@@ -860,7 +869,7 @@ namespace Opc.Ua
 
             string namespaceUri = value.NamespaceUri;
             ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-            if (m_forceNamespaceUri && namespaceUri == null && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > 1)
             {
                 namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
             }
@@ -899,7 +908,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCode(string fieldName, StatusCode value)
         {
-            if (fieldName != null && !m_includeDefaultValues && value == StatusCodes.Good)
+            if (fieldName != null && !IncludeDefaultValues && value == StatusCodes.Good)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
