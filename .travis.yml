@@ -1,6 +1,6 @@
 language: csharp
 mono: 5.4.0
-dotnet: 2.2
+dotnet: 2.2.100
 os:
   - linux
   - osx
