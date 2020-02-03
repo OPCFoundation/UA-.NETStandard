@@ -23,7 +23,7 @@ cd "$workdir"
 cd SampleApplications/Samples/NetCoreConsoleServer
 echo start server
 touch ./server.log
-dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -t 60 -a >./server.log &
+dotnet run --no-restore --no-build --project NetCoreConsoleServer.csproj -- -t 60 -a >./server.log &
 serverpid="$!"
 echo wait for server started
 grep -m 1 "start" <(tail -f ./server.log --pid=$serverpid)
@@ -32,13 +32,13 @@ cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreComplexClient
 echo start client for tcp connection
-dotnet run --no-restore --no-build --project NetCoreComplexClient.csproj -t 10 -a -v &
+dotnet run --no-restore --no-build --project NetCoreComplexClient.csproj -- -t 10 -a -v &
 clientpid="$!"
 cd "$workdir"
 
 cd SampleApplications/Samples/NetCoreConsoleClient
 echo start client for https connection
-dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -t 20 -a https://localhost:51212 &
+dotnet run --no-restore --no-build --project NetCoreConsoleClient.csproj -- -t 20 -a https://localhost:51212 &
 httpsclientpid="$!"
 cd "$workdir"
 
