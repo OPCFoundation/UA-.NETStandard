@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -216,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool useReversibleEncoding,
             string expected,
             bool topLevelIsArray,
-            bool includeDefaultValues
+            bool includeDefaults
             )
         {
             string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {useReversibleEncoding}";
@@ -234,8 +235,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             var formattedExpected = PrettifyAndValidateJson(expected);
             var encoderStream = new MemoryStream();
+            bool isNumber = TypeInfo.IsNumericType(builtInType) || builtInType == BuiltInType.Boolean;
+            bool includeDefaultValues = !isNumber ? includeDefaults : false;
+            bool includeDefaultNumbers = isNumber ? includeDefaults : true;
             IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
-                useReversibleEncoding, topLevelIsArray, includeDefaultValues);
+                useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers);
             //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
             Encode(encoder, builtInType, builtInType.ToString(), data);
             Dispose(encoder);
@@ -286,7 +290,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Type systemType,
             bool useReversibleEncoding = true,
             bool topLevelIsArray = false,
-            bool includeDefaultValues = true)
+            bool includeDefaultValues = false,
+            bool includeDefaultNumbers = true
+            )
         {
             switch (encoderType)
             {
@@ -299,7 +305,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
                     var streamWriter = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
-                    return new JsonEncoder(context, useReversibleEncoding, streamWriter, topLevelIsArray, includeDefaultValues);
+                    return new JsonEncoder(context, useReversibleEncoding, streamWriter, topLevelIsArray) {
+                        IncludeDefaultValues = includeDefaultValues,
+                        IncludeDefaultNumberValues = includeDefaultNumbers
+                    };
             }
             return null;
         }
@@ -341,49 +350,74 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         protected void Encode(IEncoder encoder, BuiltInType builtInType, string fieldName, object value)
         {
-            switch (builtInType)
+            bool isArray = (value?.GetType().IsArray ?? false) && (builtInType != BuiltInType.ByteString);
+            if (!isArray)
             {
-                case BuiltInType.Null: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
-                case BuiltInType.Boolean: { encoder.WriteBoolean(fieldName, (bool)value); return; }
-                case BuiltInType.SByte: { encoder.WriteSByte(fieldName, (sbyte)value); return; }
-                case BuiltInType.Byte: { encoder.WriteByte(fieldName, (byte)value); return; }
-                case BuiltInType.Int16: { encoder.WriteInt16(fieldName, (short)value); return; }
-                case BuiltInType.UInt16: { encoder.WriteUInt16(fieldName, (ushort)value); return; }
-                case BuiltInType.Int32: { encoder.WriteInt32(fieldName, (int)value); return; }
-                case BuiltInType.UInt32: { encoder.WriteUInt32(fieldName, (uint)value); return; }
-                case BuiltInType.Int64: { encoder.WriteInt64(fieldName, (long)value); return; }
-                case BuiltInType.UInt64: { encoder.WriteUInt64(fieldName, (ulong)value); return; }
-                case BuiltInType.Float: { encoder.WriteFloat(fieldName, (float)value); return; }
-                case BuiltInType.Double: { encoder.WriteDouble(fieldName, (double)value); return; }
-                case BuiltInType.String: { encoder.WriteString(fieldName, (string)value); return; }
-                case BuiltInType.DateTime: { encoder.WriteDateTime(fieldName, (DateTime)value); return; }
-                case BuiltInType.Guid: { encoder.WriteGuid(fieldName, (Uuid)value); return; }
-                case BuiltInType.ByteString: { encoder.WriteByteString(fieldName, (byte[])value); return; }
-                case BuiltInType.XmlElement: { encoder.WriteXmlElement(fieldName, (XmlElement)value); return; }
-                case BuiltInType.NodeId: { encoder.WriteNodeId(fieldName, (NodeId)value); return; }
-                case BuiltInType.ExpandedNodeId: { encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId)value); return; }
-                case BuiltInType.StatusCode: { encoder.WriteStatusCode(fieldName, (StatusCode)value); return; }
-                case BuiltInType.QualifiedName: { encoder.WriteQualifiedName(fieldName, (QualifiedName)value); return; }
-                case BuiltInType.LocalizedText: { encoder.WriteLocalizedText(fieldName, (LocalizedText)value); return; }
-                case BuiltInType.ExtensionObject: { encoder.WriteExtensionObject(fieldName, (ExtensionObject)value); return; }
-                case BuiltInType.DataValue: { encoder.WriteDataValue(fieldName, (DataValue)value); return; }
-                case BuiltInType.Enumeration:
+                switch (builtInType)
                 {
-                    if (value.GetType().IsEnum)
+                    case BuiltInType.Null: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
+                    case BuiltInType.Boolean: { encoder.WriteBoolean(fieldName, (bool)value); return; }
+                    case BuiltInType.SByte: { encoder.WriteSByte(fieldName, (sbyte)value); return; }
+                    case BuiltInType.Byte: { encoder.WriteByte(fieldName, (byte)value); return; }
+                    case BuiltInType.Int16: { encoder.WriteInt16(fieldName, (short)value); return; }
+                    case BuiltInType.UInt16: { encoder.WriteUInt16(fieldName, (ushort)value); return; }
+                    case BuiltInType.Int32: { encoder.WriteInt32(fieldName, (int)value); return; }
+                    case BuiltInType.UInt32: { encoder.WriteUInt32(fieldName, (uint)value); return; }
+                    case BuiltInType.Int64: { encoder.WriteInt64(fieldName, (long)value); return; }
+                    case BuiltInType.UInt64: { encoder.WriteUInt64(fieldName, (ulong)value); return; }
+                    case BuiltInType.Float: { encoder.WriteFloat(fieldName, (float)value); return; }
+                    case BuiltInType.Double: { encoder.WriteDouble(fieldName, (double)value); return; }
+                    case BuiltInType.String: { encoder.WriteString(fieldName, (string)value); return; }
+                    case BuiltInType.DateTime: { encoder.WriteDateTime(fieldName, (DateTime)value); return; }
+                    case BuiltInType.Guid: { encoder.WriteGuid(fieldName, (Uuid)value); return; }
+                    case BuiltInType.ByteString: { encoder.WriteByteString(fieldName, (byte[])value); return; }
+                    case BuiltInType.XmlElement: { encoder.WriteXmlElement(fieldName, (XmlElement)value); return; }
+                    case BuiltInType.NodeId: { encoder.WriteNodeId(fieldName, (NodeId)value); return; }
+                    case BuiltInType.ExpandedNodeId: { encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId)value); return; }
+                    case BuiltInType.StatusCode: { encoder.WriteStatusCode(fieldName, (StatusCode)value); return; }
+                    case BuiltInType.QualifiedName: { encoder.WriteQualifiedName(fieldName, (QualifiedName)value); return; }
+                    case BuiltInType.LocalizedText: { encoder.WriteLocalizedText(fieldName, (LocalizedText)value); return; }
+                    case BuiltInType.ExtensionObject: { encoder.WriteExtensionObject(fieldName, (ExtensionObject)value); return; }
+                    case BuiltInType.DataValue: { encoder.WriteDataValue(fieldName, (DataValue)value); return; }
+                    case BuiltInType.Enumeration:
                     {
-                        encoder.WriteEnumerated(fieldName, (Enum)value);
+                        if (value.GetType().IsEnum)
+                        {
+                            encoder.WriteEnumerated(fieldName, (Enum)value);
+                        }
+                        else
+                        {
+                            encoder.WriteInt32(fieldName, (int)value);
+                        }
+                        return;
                     }
-                    else
-                    {
-                        encoder.WriteInt32(fieldName, (int)value);
-                    }
-                    return;
+                    case BuiltInType.Variant: { encoder.WriteVariant(fieldName, (Variant)value); return; }
+                    case BuiltInType.DiagnosticInfo: { encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value); return; }
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
                 }
-                case BuiltInType.Variant: { encoder.WriteVariant(fieldName, (Variant)value); return; }
-                case BuiltInType.DiagnosticInfo: { encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value); return; }
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
+            }
+            else
+            {
+                Type arrayType = value.GetType().GetElementType();
+                IEnumerable enumerable = value as IEnumerable;
+                Array array = value as Array;
+                switch (builtInType)
+                {
+                    case BuiltInType.Enumeration:
+                    {
+                        if (arrayType.IsEnum)
+                        {
+                            encoder.WriteEnumeratedArray(fieldName, array, arrayType);
+                        }
+                        else
+                        {
+                            Assume.That(false, "Support for Enum Int32 arrays is not implemented yet");
+                        }
+                        return;
+                    }
+                }
             }
             Assert.Fail($"Unknown BuiltInType {builtInType}");
         }

@@ -78,7 +78,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
         #endregion
 
-
         #region DataSource
         /// <summary>
         /// Constants used by test data set.
@@ -358,7 +357,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         object o = property.GetValue(structure);
                         string oText = o?.ToString().ToLowerInvariant();
-                        if (property.Name == "DateTime") oText = "\"0001-01-01T00:00:00Z\"";
+                        if (property.Name == "DateTime")
+                        {
+                            oText = "\"0001-01-01T00:00:00Z\"";
+                            continue;
+                        }
                         else if (property.Name == "StatusCode")
                         {
                             if (useReversibleEncoding)
@@ -368,9 +371,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             else
                             {
                                 oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
+                                // default statuscode is not encoded
                             }
+                            continue;
                         }
-                        else if (property.Name == "Guid") oText = "\"00000000-0000-0000-0000-000000000000\"";
+                        else if (property.Name == "Guid")
+                        {
+                            oText = "\"00000000-0000-0000-0000-000000000000\"";
+                            continue;
+                        }
                         else if (property.Name == "UInt64" || property.Name == "Int64") oText = "\"" + oText + "\"";
                         if (oText != null)
                         {

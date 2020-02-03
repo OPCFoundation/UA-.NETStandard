@@ -66,6 +66,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Hundred = 100,
         }
 
+        static TestEnumType[] TestEnumArray = new TestEnumType[]
+            { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred };
+
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
@@ -242,8 +245,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(s_byteString,88), $"{{\"IdType\":3,\"Id\":\"{s_byteString64}\",\"Namespace\":88}}", null},
 
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null},
-            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}",
-                $"{{\"Code\":{StatusCodes.Good}, \"Symbol\":\"{nameof(StatusCodes.Good)}\"}}", true},
+            {   BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), $"{StatusCodes.Good}", "", true},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadBoundNotFound), $"{StatusCodes.BadBoundNotFound}",
                 $"{{\"Code\":{StatusCodes.BadBoundNotFound}, \"Symbol\":\"{nameof(StatusCodes.BadBoundNotFound)}\"}}"},
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
@@ -280,8 +282,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, (TestEnumType) 0, "0", "\"0\""},
             {   BuiltInType.Enumeration, TestEnumType.Three, TestEnumType.Three.ToString("d"), $"\"{TestEnumType.Three}_{TestEnumType.Three.ToString("d")}\""},
             {   BuiltInType.Enumeration, TestEnumType.Ten, $"{TestEnumType.Ten.ToString("d")}", $"\"{TestEnumType.Ten.ToString()}_{TestEnumType.Ten.ToString("d")}\""},
-            {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""}
+            {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""},
 
+            // arrays
+            {   BuiltInType.Enumeration, TestEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
         }.ToArray();
         #endregion
 

@@ -44,8 +44,7 @@ namespace Opc.Ua
             ServiceMessageContext context,
             bool useReversibleEncoding,
             StreamWriter writer = null,
-            bool topLevelIsArray = false,
-            bool includeDefaultValues = true)
+            bool topLevelIsArray = false)
         {
             Initialize();
 
@@ -54,8 +53,15 @@ namespace Opc.Ua
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
+
+            // defaults for JSON encoding
+            // -- encode namespace index for reversible encoding
+            // -- do not include default values for built in types
+            //    which are not a Number or a bool
+            // -- include default values for numbers and bool
             ForceNamespaceUri = false;
-            IncludeDefaultValues = includeDefaultValues;
+            IncludeDefaultValues = false;
+            IncludeDefaultNumberValues = true;
 
             if (m_writer == null)
             {
@@ -285,6 +291,11 @@ namespace Opc.Ua
         public bool IncludeDefaultValues { get; set; }
 
         /// <summary>
+        /// The Json encoder default value option.
+        /// </summary>
+        public bool IncludeDefaultNumberValues { get; set; }
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         public void PushNamespace(string namespaceUri)
@@ -462,7 +473,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBoolean(string fieldName, bool value)
         {
-            if (fieldName != null && !IncludeDefaultValues && !value)
+            if (fieldName != null && !IncludeDefaultNumberValues && !value)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -483,7 +494,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByte(string fieldName, sbyte value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -497,7 +508,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByte(string fieldName, byte value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -511,7 +522,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16(string fieldName, short value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -525,7 +536,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16(string fieldName, ushort value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -539,7 +550,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32(string fieldName, int value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -553,7 +564,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32(string fieldName, uint value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -567,7 +578,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64(string fieldName, long value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -581,7 +592,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64(string fieldName, ulong value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == 0)
+            if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -595,7 +606,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloat(string fieldName, float value)
         {
-            if (fieldName != null && !IncludeDefaultValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
+            if (fieldName != null && !IncludeDefaultNumberValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -624,7 +635,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDouble(string fieldName, double value)
         {
-            if (fieldName != null && !IncludeDefaultValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
+            if (fieldName != null && !IncludeDefaultNumberValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -920,12 +931,13 @@ namespace Opc.Ua
                 return;
             }
 
-            PushStructure(fieldName);
-
-            WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), false);
-            WriteSimpleField("Symbol", StatusCode.LookupSymbolicId(value.CodeBits), true);
-
-            PopStructure();
+            if (value != StatusCodes.Good)
+            {
+                PushStructure(fieldName);
+                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), false);
+                WriteSimpleField("Symbol", StatusCode.LookupSymbolicId(value.CodeBits), true);
+                PopStructure();
+            }
         }
 
         /// <summary>
@@ -1800,8 +1812,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                var value = values[ii];
-                WriteExpandedNodeId(null, value);
+                WriteExpandedNodeId(null, values[ii]);
             }
 
             PopArray();
@@ -1828,7 +1839,15 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteStatusCode(null, values[ii]);
+                if (!UseReversibleEncoding &&
+                    values[ii] == StatusCodes.Good)
+                {
+                    WriteSimpleField(null, null, false);
+                }
+                else
+                {
+                    WriteStatusCode(null, values[ii]);
+                }
             }
 
             PopArray();
@@ -2132,7 +2151,6 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText: { WriteLocalizedTextArray(null, (LocalizedText[])value); return; }
                     case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(null, (ExtensionObject[])value); return; }
                     case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])value); return; }
-
                     case BuiltInType.Enumeration:
                     {
                         Enum[] enums = value as Enum[];
