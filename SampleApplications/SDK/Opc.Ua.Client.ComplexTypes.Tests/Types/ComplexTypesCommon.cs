@@ -304,16 +304,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
             Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-            //expected.Value = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
-            // during encoding the encoding type id was used, patch it for comparison...
-            //result.TypeId = expected.TypeId;
-            //Assert.AreEqual(expected.TypeId, result.TypeId, encodeInfo);
             Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-            //TODO: investigate why AreEqual cannot compare Body
+            //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
             //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
             Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
+        /// <summary>
+        /// Create an ExtensionObject for a complex type.
+        /// The complex type is the Body.
+        /// </summary>
         protected ExtensionObject CreateExtensionObject(StructureType structureType, ExpandedNodeId nodeId, object data)
         {
             return new ExtensionObject(nodeId, data);

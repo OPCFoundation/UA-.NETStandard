@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
     /// Main purpose of this test is to verify the
-    /// system.emit functionality on a specific platform.
+    /// system.emit functionality on a target platform.
     /// </summary>
     [TestFixture, Category("ComplexTypes")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public void CreateComplexType(StructureType structureType)
         {
-            // EncoderCommon.BuiltInTypes subtracted by 1 for the Null type.
+            // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
             int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 6;
             var complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexType));
@@ -95,6 +95,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
         }
 
+        /// <summary>
+        /// Create a complex type with one data field set with default or random value.
+        /// </summary>
         [Theory]
         public void CreateComplexTypeWithData(StructureType structureType, bool randomValue)
         {

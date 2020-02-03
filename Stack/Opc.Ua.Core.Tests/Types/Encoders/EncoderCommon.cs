@@ -83,6 +83,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
         }
 
+        /// <summary>
+        /// Ensure repeated tests get different seed.
+        /// </summary>
         protected void SetRepeatedRandomSeed()
         {
             int randomSeed = TestContext.CurrentContext.Random.Next() + RandomStart;
@@ -90,6 +93,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             DataGenerator = new DataGenerator(RandomSource);
         }
 
+        /// <summary>
+        /// Ensure tests are reproducible with same seed.
+        /// </summary>
         protected void SetRandomSeed(int randomSeed)
         {
             RandomSource = new RandomSource(randomSeed + RandomStart);
@@ -111,6 +117,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Encode data value and return encoded string.
+        /// </summary>
         protected string EncodeDataValue(
             EncodingType encoderType,
             BuiltInType builtInType,
@@ -133,6 +142,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return Encoding.UTF8.GetString(buffer);
         }
 
+        /// <summary>
+        /// Encode and decode a DataValue,
+        /// validate the result against the input data.
+        /// </summary>
         protected void EncodeDecodeDataValue(
             EncodingType encoderType,
             BuiltInType builtInType,
@@ -170,6 +183,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
+        /// <summary>
+        /// Encode and decode object, validate result.
+        /// </summary>
         protected void EncodeDecode(
             EncodingType encoderType,
             BuiltInType builtInType,
@@ -211,6 +227,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
+        /// <summary>
+        /// Encode object as JSON and validate against expected JSON string.
+        /// </summary>
         protected void EncodeJsonVerifyResult(
             BuiltInType builtInType,
             object data,
@@ -257,6 +276,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(areEqual, encodeInfo);
         }
 
+        /// <summary>
+        /// Format and validate a JSON string.
+        /// </summary>
         protected string PrettifyAndValidateJson(string json)
         {
             try
@@ -283,6 +305,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return json;
         }
 
+        /// <summary>
+        /// Encoder factory for all encoding types.
+        /// </summary>
+        /// <returns></returns>
         protected IEncoder CreateEncoder(
             EncodingType encoderType,
             ServiceMessageContext context,
@@ -313,6 +339,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return null;
         }
 
+        /// <summary>
+        /// Decoder factory for all decoding types.
+        /// </summary>
         protected IDecoder CreateDecoder(
             EncodingType decoderType,
             ServiceMessageContext context,
@@ -334,6 +363,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return null;
         }
 
+        /// <summary>
+        /// Wrap object in a DataValue.
+        /// </summary>
         protected DataValue CreateDataValue(BuiltInType builtInType, object data)
         {
             StatusCode statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
@@ -342,12 +374,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
+        /// <summary>
+        /// Standard dispose.
+        /// </summary>
         protected void Dispose(object o)
         {
             var dispose = o as IDisposable;
             dispose?.Dispose();
         }
 
+        /// <summary>
+        /// Helper for encoding of built in types.
+        /// </summary>
         protected void Encode(IEncoder encoder, BuiltInType builtInType, string fieldName, object value)
         {
             bool isArray = (value?.GetType().IsArray ?? false) && (builtInType != BuiltInType.ByteString);
@@ -423,6 +461,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
 
+        /// <summary>
+        /// Helper for decoding of builtin types.
+        /// </summary>
         protected object Decode(IDecoder decoder, BuiltInType builtInType, string fieldName, Type type)
         {
             switch (builtInType)
@@ -465,6 +506,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return null;
         }
 
+        /// <summary>
+        /// Adjust expected values to encoder specific results.
+        /// </summary>
         protected object AdjustExpectedBoundaryValues(EncodingType encoderType, BuiltInType builtInType, object value)
         {
             if (encoderType == EncodingType.Binary)
@@ -521,6 +565,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return value;
         }
 
+        /// <summary>
+        /// Adjust DateTime results of binary encoder.
+        /// </summary>
         private DateTime AdjustExpectedDateTimeBinaryEncoding(DateTime dateTime)
         {
             if (dateTime == DateTime.MaxValue || dateTime == DateTime.MinValue)
@@ -534,18 +581,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return dateTime <= Utils.TimeBase ? DateTime.MinValue : dateTime;
         }
 
-        protected static byte[] GetSha1ByteString()
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            using (var rsa = RSA.Create())
-            {
-                const int blockSize = 0x10;
-                byte[] testBlock = new byte[blockSize];
-                randomSource.NextBytes(testBlock, 0, blockSize);
-                return testBlock;
-            }
-        }
-
+        /// <summary>
+        /// Helper to add escaped quotes to a string.
+        /// </summary>
         protected static string Quotes(string json)
         {
             return "\"" + json + "\"";

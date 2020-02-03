@@ -34,7 +34,9 @@ using NUnit.Framework;
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
-    /// Tests for the IEncoder and IDecoder class.
+    /// Tests for the IEncoder and IDecoder class
+    /// on complex data types as defined in the
+    /// Client.ComplexTypes assembly.
     /// </summary>
     [TestFixture, Category("Encoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -98,7 +100,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <summary>
-        /// Verify encode and decode of a Structure with optional fields.
+        /// Verify encode and decode of a Structure type with optional fields.
+        /// Test accessors for all defined properties.
         /// </summary>
         [Theory]
         [Category("ComplexTypes")]
@@ -130,6 +133,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         /// <summary>
         /// Verify encode and decode of a Union type.
+        /// Test accessors for all defined properties.
         /// </summary>
         [Theory]
         [Category("ComplexTypes")]
