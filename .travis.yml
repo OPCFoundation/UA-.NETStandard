@@ -37,12 +37,17 @@ script:
   - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest
   - dotnet build -c Release SampleApplications/Samples/GDS/ClientTest
+  - dotnet build -c Debug Stack/Opc.Ua.Core.Tests
+  - dotnet build -c Release Stack/Opc.Ua.Core.Tests
   - dotnet build -c Debug SampleApplications/SDK/Opc.Ua.Client.ComplexTypes.Tests
   - dotnet build -c Release SampleApplications/SDK/Opc.Ua.Client.ComplexTypes.Tests
-  - dotnet test --no-build -v m -c Debug SampleApplications/Samples/GDS/ClientTest
-  - dotnet test --no-build -v m -c Release SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Debug --filter TestCategory="GDSRegistrationAndPull" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Release --filter TestCategory="GDSRegistrationAndPull" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Debug --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
+  - dotnet test --no-build -v n -c Release --filter TestCategory="GDSPush" SampleApplications/Samples/GDS/ClientTest
   - dotnet test --no-build -v m -c Debug --filter TestCategory!="CertificateValidator" Stack/Opc.Ua.Core.Tests
-  - dotnet test --no-build -v m -c Release Stack/Opc.Ua.Core.Tests
+  - dotnet test --no-build -v m -c Release --filter TestCategory!="CertificateValidator" Stack/Opc.Ua.Core.Tests
+  - dotnet test --no-build -v n -c Release --filter TestCategory="CertificateValidator" Stack/Opc.Ua.Core.Tests
   - dotnet test --no-build -v m -c Debug SampleApplications/SDK/Opc.Ua.Client.ComplexTypes.Tests
   - dotnet test --no-build -v m -c Release SampleApplications/SDK/Opc.Ua.Client.ComplexTypes.Tests
   - echo "========== run .Net Core samples ============"
