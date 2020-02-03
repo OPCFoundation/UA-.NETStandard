@@ -33,6 +33,8 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+        // JSON encoded value of: “9999-12-31T23:59:59Z”
+        private DateTime m_dateTimeMaxJsonValue = new DateTime((long)3155378975990000000);
         #endregion
 
         #region Constructors
@@ -821,13 +823,14 @@ namespace Opc.Ua
             var value = token as DateTime?;
             if (value != null)
             {
-                return value.Value;
+                return value.Value >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : value.Value;
             }
 
             var text = token as string;
             if (text != null)
             {
-                return XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+                var result = XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+                return result >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : result;
             }
 
             return DateTime.MinValue;

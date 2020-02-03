@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Test
             new BoundaryValues(typeof(float), Single.Epsilon, Single.MaxValue, Single.MinValue, Single.NaN, Single.NegativeInfinity, Single.PositiveInfinity, (float)0 ),
             new BoundaryValues(typeof(double), Double.Epsilon, Double.MaxValue, Double.MinValue, Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity, (double)0 ),
             new BoundaryValues(typeof(string), null, String.Empty ),
-            new BoundaryValues(typeof(DateTime), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
+            new BoundaryValues(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
             new BoundaryValues(typeof(Guid), Guid.Empty),
             new BoundaryValues(typeof(Uuid), Uuid.Empty),
             new BoundaryValues(typeof(byte[]), null, new byte[0]),
