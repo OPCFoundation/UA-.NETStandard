@@ -234,8 +234,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
-        public override object this[int index] {
-            get {
+        public override object this[int index]
+        {
+            get
+            {
                 if (index + 1 == (int)m_switchField)
                 {
                     return m_propertyList.ElementAt(index).GetValue(this);
@@ -247,7 +249,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
-            set {
+            set
+            {
                 if (index >= 0)
                 {
                     m_propertyList.ElementAt(index).SetValue(this, value);
@@ -275,8 +278,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// union selector. 
         /// Calling set with a null object or an invalid name unselects the union.
         /// </remarks>
-        public override object this[string name] {
-            get {
+        public override object this[string name]
+        {
+            get
+            {
                 if (SwitchField > 0)
                 {
                     ComplexTypePropertyAttribute property;
@@ -294,7 +299,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return null;
             }
-            set {
+            set
+            {
                 ComplexTypePropertyAttribute property;
                 if (m_propertyDict.TryGetValue(name, out property))
                 {

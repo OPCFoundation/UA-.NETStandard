@@ -241,7 +241,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by index.
         /// </summary>
-        public virtual object this[int index] {
+        public virtual object this[int index]
+        {
             get => m_propertyList.ElementAt(index).GetValue(this);
             set => m_propertyList.ElementAt(index).SetValue(this, value);
         }
@@ -249,7 +250,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by name.
         /// </summary>
-        public virtual object this[string name] {
+        public virtual object this[string name]
+        {
             get => m_propertyDict[name].GetValue(this);
             set => m_propertyDict[name].SetValue(this, value);
         }
