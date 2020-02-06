@@ -339,8 +339,10 @@ namespace Opc.Ua
         /// <remarks>
         /// The index of the namespace URI in the server's namespace array.
         /// </remarks>
-        public virtual ushort NamespaceIndex {
-            get {
+        public virtual ushort NamespaceIndex
+        {
+            get
+            {
                 if (m_nodeId != null)
                 {
                     return m_nodeId.NamespaceIndex;
@@ -356,8 +358,10 @@ namespace Opc.Ua
         /// <remarks>
         /// The type of node identifier used.
         /// </remarks>
-        public IdType IdType {
-            get {
+        public IdType IdType
+        {
+            get
+            {
                 if (m_nodeId != null)
                 {
                     return m_nodeId.IdType;
@@ -374,8 +378,10 @@ namespace Opc.Ua
         /// Returns the node id in whatever form, i.e.
         /// string, Guid, byte[] or uint.
         /// </remarks>
-        public object Identifier {
-            get {
+        public object Identifier
+        {
+            get
+            {
                 if (m_nodeId != null)
                 {
                     return m_nodeId.Identifier;
@@ -407,8 +413,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns whether or not the <see cref="NodeId"/> is null
         /// </remarks>
-        public bool IsNull {
-            get {
+        public bool IsNull
+        {
+            get
+            {
                 if (!String.IsNullOrEmpty(m_namespaceUri))
                 {
                     return false;
@@ -429,8 +437,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
         /// </remarks>
-        public bool IsAbsolute {
-            get {
+        public bool IsAbsolute
+        {
+            get
+            {
                 if (!String.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0)
                 {
                     return true;
@@ -446,7 +456,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the inner node id.
         /// </remarks>
-        internal NodeId InnerNodeId {
+        internal NodeId InnerNodeId
+        {
             get { return m_nodeId; }
             set { m_nodeId = value; }
         }
@@ -458,11 +469,14 @@ namespace Opc.Ua
         /// The node identifier formatted as a URI.
         /// </remarks>
         [DataMember(Name = "Identifier", Order = 1)]
-        internal string IdentifierText {
-            get {
+        internal string IdentifierText
+        {
+            get
+            {
                 return Format();
             }
-            set {
+            set
+            {
                 ExpandedNodeId nodeId = ExpandedNodeId.Parse(value);
 
                 m_nodeId = nodeId.m_nodeId;

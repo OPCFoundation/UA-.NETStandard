@@ -143,12 +143,15 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the position in the stream.
         /// </summary>
-        public int Position {
-            get {
+        public int Position
+        {
+            get
+            {
                 return (int)m_writer.BaseStream.Position;
             }
 
-            set {
+            set
+            {
                 m_writer.Seek(value, SeekOrigin.Begin);
             }
         }

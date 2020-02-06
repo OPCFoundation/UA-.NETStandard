@@ -94,7 +94,6 @@ namespace Opc.Ua.Test
                 byte[] buffer = new byte[count];
                 m_random.NextBytes(buffer);
                 Array.Copy(buffer, 0, bytes, offset, count);
-
             }
         }
 
@@ -177,7 +176,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The maximum length for generated arrays.
         /// </summary>
-        public int MaxArrayLength {
+        public int MaxArrayLength
+        {
             get { return m_maxArrayLength; }
             set { m_maxArrayLength = value; }
         }
@@ -185,7 +185,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The maximum length for generated strings.
         /// </summary>
-        public int MaxStringLength {
+        public int MaxStringLength
+        {
             get { return m_maxStringLength; }
             set { m_maxStringLength = value; }
         }
@@ -193,7 +194,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The minimum value for generated date time values.
         /// </summary>
-        public DateTime MinDateTimeValue {
+        public DateTime MinDateTimeValue
+        {
             get { return m_minDateTimeValue; }
             set { m_minDateTimeValue = value; }
         }
@@ -201,7 +203,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The maximum value for generated date time values.
         /// </summary>
-        public DateTime MaxDateTimeValue {
+        public DateTime MaxDateTimeValue
+        {
             get { return m_maxDateTimeValue; }
             set { m_maxDateTimeValue = value; }
         }
@@ -209,7 +212,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The maximum number of attributes in generated XML elements.
         /// </summary>
-        public int MaxXmlAttributeCount {
+        public int MaxXmlAttributeCount
+        {
             get { return m_maxXmlAttributeCount; }
             set { m_maxXmlAttributeCount = value; }
         }
@@ -217,7 +221,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The maximum number of child elements in generated XML elements.
         /// </summary>
-        public int MaxXmlElementCount {
+        public int MaxXmlElementCount
+        {
             get { return m_maxXmlElementCount; }
             set { m_maxXmlElementCount = value; }
         }
@@ -225,7 +230,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The table namespace uris to use when generating NodeIds.
         /// </summary>
-        public NamespaceTable NamespaceUris {
+        public NamespaceTable NamespaceUris
+        {
             get { return m_namespaceUris; }
             set { m_namespaceUris = value; }
         }
@@ -233,7 +239,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The table server uris to use when generating NodeIds.
         /// </summary>
-        public StringTable ServerUris {
+        public StringTable ServerUris
+        {
             get { return m_serverUris; }
             set { m_serverUris = value; }
         }
@@ -241,7 +248,8 @@ namespace Opc.Ua.Test
         /// <summary>
         /// How frequently boundary values should be used expressed as percentage between 0 and 100.
         /// </summary>
-        public int BoundaryValueFrequency {
+        public int BoundaryValueFrequency
+        {
             get { return m_boundaryValueFrequency; }
             set { m_boundaryValueFrequency = value; }
         }

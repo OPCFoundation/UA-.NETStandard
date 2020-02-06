@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // BuiltInTypes - Null type.
             int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 1;
             var complexType = BuildComplexTypeWithAllBuiltInTypes(
-                structureType, nameof(CreateComplexTypeWithData)+"."+randomValue.ToString());
+                structureType, nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.NotNull(complexType);
             var emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;

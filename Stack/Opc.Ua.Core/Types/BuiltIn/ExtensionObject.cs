@@ -374,7 +374,8 @@ namespace Opc.Ua
         /// The data type node id for the extension object.
         /// </summary>
         /// <value>The type id.</value>
-        public ExpandedNodeId TypeId {
+        public ExpandedNodeId TypeId
+        {
             get { return m_typeId; }
             set { m_typeId = value; }
         }
@@ -399,10 +400,12 @@ namespace Opc.Ua
         /// 	</list>
         /// </remarks>
         /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
-        public object Body {
+        public object Body
+        {
             get { return m_body; }
 
-            set {
+            set
+            {
                 m_body = value;
 
                 if (m_body == null)
@@ -676,8 +679,10 @@ namespace Opc.Ua
 
         #region Private Members
         [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
-        private NodeId XmlEncodedTypeId {
-            get {
+        private NodeId XmlEncodedTypeId
+        {
+            get
+            {
                 // must use the XML encoding id if encoding in an XML stream.
                 IEncodeable encodeable = m_body as IEncodeable;
 
@@ -695,14 +700,17 @@ namespace Opc.Ua
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);
             }
 
-            set {
+            set
+            {
                 m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
             }
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        private XmlElement XmlEncodedBody {
-            get {
+        private XmlElement XmlEncodedBody
+        {
+            get
+            {
                 // check for null.
                 if (m_body == null)
                 {
@@ -723,7 +731,8 @@ namespace Opc.Ua
                 return document.DocumentElement;
             }
 
-            set {
+            set
+            {
                 // check null bodies.
                 if (value == null)
                 {
