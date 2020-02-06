@@ -1037,6 +1037,19 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the server nonce validation errors should be suppressed.
+        /// </summary>
+        /// <remarks>
+        /// If set to true the server nonce validation errors are suppressed.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
+        public bool SuppressNonceValidationErrors
+        {
+            get { return m_suppressNonceValidationErrors; }
+            set { m_suppressNonceValidationErrors = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -1056,6 +1069,7 @@ namespace Opc.Ua
         private ushort m_minCertificateKeySize;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
+        private bool m_suppressNonceValidationErrors;
         #endregion
     }
     #endregion

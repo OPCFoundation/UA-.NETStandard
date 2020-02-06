@@ -82,6 +82,14 @@ namespace Opc.Ua.Bindings
         public ServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <summary>
+        ///  Gets the the channel's current security token.
+        /// </summary>
+        public ChannelToken CurrentToken
+        {
+            get { lock (m_lock) { return m_channel?.CurrentToken; } }
+        }
+
+        /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
         public int OperationTimeout

@@ -52,6 +52,11 @@ namespace Opc.Ua.Bindings
             get { return m_quotas.MessageContext; }
         }
 
+        public ChannelToken CurrentToken
+        {
+            get { return null; }
+        }
+
         public int OperationTimeout
         {
             get { return m_operationTimeout; }
