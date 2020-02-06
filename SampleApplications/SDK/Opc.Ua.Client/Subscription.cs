@@ -719,10 +719,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private void AdjustCounts(ref uint keepAliveCount, ref uint lifetimeCount)
         {
-            // keep alive count must be at least 1.
+            const uint kDefaultKeepAlive = 10;
+            const uint kDefaultLifeTime = 1000;
+            // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                keepAliveCount = 1;
+                Utils.Trace("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
+                keepAliveCount = kDefaultKeepAlive;
             }
 
             // ensure the lifetime is sensible given the sampling interval.
@@ -742,20 +745,20 @@ namespace Opc.Ua.Client
                     Utils.Trace("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
                 }
             }
-
-            // don't know what the sampling interval will be - use something large enough
-            // to ensure the user does not experience unexpected drop outs.
-            else
+            else if (lifetimeCount == 0)
             {
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, 1000, Id);
-                lifetimeCount = 1000;
+                // don't know what the sampling interval will be - use something large enough
+                // to ensure the user does not experience unexpected drop outs.
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
+                lifetimeCount = kDefaultLifeTime;
             }
 
-            // lifetime must be greater than the keep alive count.
-            if (lifetimeCount < keepAliveCount)
+            // validate spec: lifetimecount shall be at least 3*keepAliveCount
+            uint minLifeTimeCount = 3 * keepAliveCount;
+            if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, keepAliveCount, Id);
-                lifetimeCount = keepAliveCount;
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
+                lifetimeCount = minLifeTimeCount;
             }
         }
 
