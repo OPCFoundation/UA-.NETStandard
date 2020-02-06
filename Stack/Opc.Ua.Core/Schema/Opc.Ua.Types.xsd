@@ -3801,6 +3801,17 @@
   </xs:complexType>
   <xs:element name="ReadAtTimeDetails" type="tns:ReadAtTimeDetails" />
 
+  <xs:complexType name="ReadAnnotationDataDetails">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:HistoryReadDetails">
+        <xs:sequence>
+          <xs:element name="ReqTimes" type="ua:ListOfDateTime" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReadAnnotationDataDetails" type="tns:ReadAnnotationDataDetails" />
+
   <xs:complexType name="HistoryData">
     <xs:sequence>
       <xs:element name="DataValues" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />

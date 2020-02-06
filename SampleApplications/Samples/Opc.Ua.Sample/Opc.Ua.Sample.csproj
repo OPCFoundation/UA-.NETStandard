@@ -1,17 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net46;netstandard1.3;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Sample</AssemblyName>
     <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Sample</PackageId>
-    <Version>1.04.353</Version>
-    <AssemblyVersion>1.04.353</AssemblyVersion>
-    <FileVersion>1.04.353.0</FileVersion>
-    <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
+    <RootNamespace>Opc.Ua.Sample</RootNamespace>
     <Description>OPC UA Sample Class Library</Description>
-    <Copyright>Copyright © 2004-2019 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +19,7 @@
     <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
     <Reference Include="System.IdentityModel" />
   </ItemGroup>

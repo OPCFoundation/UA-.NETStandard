@@ -5,6 +5,7 @@
     <AssemblyName>Opc.Ua.Client.ComplexTypes</AssemblyName>
     <LangVersion>7</LangVersion>
     <PackageId>Opc.Ua.Client.ComplexTypes</PackageId>
+    <RootNameSpace>Opc.Ua.Client.ComplexTypes</RootNameSpace>
     <Description>OPC UA Complex Types Client Class Library</Description>
   </PropertyGroup>
 

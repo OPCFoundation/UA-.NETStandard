@@ -270,7 +270,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
+                    throw new ComplexTypeSystem.DataTypeNotFoundException(
+                        typeName.Name,
                         $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
                 }
                 return referenceId;

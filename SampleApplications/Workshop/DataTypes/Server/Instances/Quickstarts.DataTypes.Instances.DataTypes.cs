@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -40,22 +40,18 @@ namespace Quickstarts.DataTypes.Instances
     #region ParkingLotType Enumeration
     #if (!OPCUA_EXCLUDE_ParkingLotType)
     /// <summary>
-    /// A description for the ParkingLotType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Quickstarts.DataTypes.Instances.Namespaces.DataTypeInstances)]
     public enum ParkingLotType
     {
-        /// <summary>
-        /// A description for the Open field.
-        /// </summary>
+        /// <remarks />
         [EnumMember(Value = "Open_1")]
         Open = 1,
 
-        /// <summary>
-        /// A description for the Covered field.
-        /// </summary>
+        /// <remarks />
         [EnumMember(Value = "Covered_2")]
         Covered = 2,
     }
@@ -150,7 +146,7 @@ namespace Quickstarts.DataTypes.Instances
     #region TwoWheelerType Class
     #if (!OPCUA_EXCLUDE_TwoWheelerType)
     /// <summary>
-    /// A description for the TwoWheelerType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -185,9 +181,7 @@ namespace Quickstarts.DataTypes.Instances
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the ManufacturerName field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "ManufacturerName", IsRequired = false, Order = 1)]
         public string ManufacturerName
         {
@@ -374,7 +368,7 @@ namespace Quickstarts.DataTypes.Instances
     #region BicycleType Class
     #if (!OPCUA_EXCLUDE_BicycleType)
     /// <summary>
-    /// A description for the BicycleType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -409,9 +403,7 @@ namespace Quickstarts.DataTypes.Instances
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the NoOfGears field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NoOfGears", IsRequired = false, Order = 1)]
         public uint NoOfGears
         {
@@ -598,7 +590,7 @@ namespace Quickstarts.DataTypes.Instances
     #region ScooterType Class
     #if (!OPCUA_EXCLUDE_ScooterType)
     /// <summary>
-    /// A description for the ScooterType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -633,9 +625,7 @@ namespace Quickstarts.DataTypes.Instances
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the NoOfSeats field.
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "NoOfSeats", IsRequired = false, Order = 1)]
         public uint NoOfSeats
         {

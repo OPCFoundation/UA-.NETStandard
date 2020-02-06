@@ -47182,6 +47182,157 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ReadAnnotationDataDetails Class
+    #if (!OPCUA_EXCLUDE_ReadAnnotationDataDetails)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReadAnnotationDataDetails : HistoryReadDetails
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReadAnnotationDataDetails()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_reqTimes = new DateTimeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "ReqTimes", IsRequired = false, Order = 1)]
+        public DateTimeCollection ReqTimes
+        {
+            get
+            {
+                return m_reqTimes;
+            }
+
+            set
+            {
+                m_reqTimes = value;
+
+                if (value == null)
+                {
+                    m_reqTimes = new DateTimeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.ReadAnnotationDataDetails; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteDateTimeArray("ReqTimes", ReqTimes);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ReqTimes = decoder.ReadDateTimeArray("ReqTimes");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReadAnnotationDataDetails value = encodeable as ReadAnnotationDataDetails;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReadAnnotationDataDetails)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReadAnnotationDataDetails clone = (ReadAnnotationDataDetails)base.MemberwiseClone();
+
+            clone.m_reqTimes = (DateTimeCollection)Utils.Clone(this.m_reqTimes);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private DateTimeCollection m_reqTimes;
+        #endregion
+    }
+    #endif
+    #endregion
+
     #region HistoryData Class
     #if (!OPCUA_EXCLUDE_HistoryData)
     /// <summary>

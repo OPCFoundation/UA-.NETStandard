@@ -5,7 +5,7 @@
   </NamespaceUris>
   <Models>
     <Model ModelUri="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04" PublicationDate="2018-02-09T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.4" PublicationDate="2020-01-08T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
@@ -51,15 +51,25 @@
       <Reference ReferenceType="HasProperty">ns=1;i=15007</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
-    <Definition Name="EngineType">
-      <Field Name="Petrol" Value="1" />
-      <Field Name="Diesel" Value="2" />
-      <Field Name="Electric" Value="3" />
-      <Field Name="Hybrid" Value="4" />
-      <Field Name="Manual" Value="5" />
+    <Definition Name="1:EngineType">
+      <Field Name="Petrol" Value="1">
+        <DisplayName>Petrol</DisplayName>
+      </Field>
+      <Field Name="Diesel" Value="2">
+        <DisplayName>Diesel</DisplayName>
+      </Field>
+      <Field Name="Electric" Value="3">
+        <DisplayName>Electric</DisplayName>
+      </Field>
+      <Field Name="Hybrid" Value="4">
+        <DisplayName>Hybrid</DisplayName>
+      </Field>
+      <Field Name="Manual" Value="5">
+        <DisplayName>Manual</DisplayName>
+      </Field>
     </Definition>
   </UADataType>
-  <UAVariable NodeId="ns=1;i=15007" BrowseName="EnumValues" ParentNodeId="ns=1;i=15006" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="ns=1;i=15007" BrowseName="EnumValues" ParentNodeId="ns=1;i=15006" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -80,7 +90,6 @@
                 </Locale>
                 <Text>Petrol</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -96,7 +105,6 @@
                 </Locale>
                 <Text>Diesel</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -112,7 +120,6 @@
                 </Locale>
                 <Text>Electric</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -128,7 +135,6 @@
                 </Locale>
                 <Text>Hybrid</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -144,7 +150,6 @@
                 </Locale>
                 <Text>Manual</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -156,7 +161,7 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
-    <Definition Name="VehicleType">
+    <Definition Name="1:VehicleType">
       <Field Name="Make" DataType="i=12" />
       <Field Name="Model" DataType="i=12" />
       <Field Name="Engine" DataType="ns=1;i=15006" />
@@ -167,7 +172,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=314</Reference>
     </References>
-    <Definition Name="CarType">
+    <Definition Name="1:CarType">
+      <Field Name="Make" DataType="i=12" />
+      <Field Name="Model" DataType="i=12" />
+      <Field Name="Engine" DataType="ns=1;i=15006" />
       <Field Name="NoOfPassengers" DataType="i=7" />
     </Definition>
   </UADataType>
@@ -176,7 +184,10 @@
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=314</Reference>
     </References>
-    <Definition Name="TruckType">
+    <Definition Name="1:TruckType">
+      <Field Name="Make" DataType="i=12" />
+      <Field Name="Model" DataType="i=12" />
+      <Field Name="Engine" DataType="ns=1;i=15006" />
       <Field Name="CargoCapacity" DataType="i=7" />
     </Definition>
   </UADataType>
@@ -211,7 +222,7 @@
       </ExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=344" BrowseName="1:OwnedVehicles" ParentNodeId="ns=1;i=341" DataType="ns=1;i=314" ValueRank="1" AccessLevel="3">
+  <UAVariable NodeId="ns=1;i=344" BrowseName="1:OwnedVehicles" ParentNodeId="ns=1;i=341" DataType="ns=1;i=314" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
     <DisplayName>OwnedVehicles</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -336,7 +347,6 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=304" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=302" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
-    <Description>A URI that uniquely identifies the dictionary.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=302</Reference>
@@ -347,7 +357,6 @@ dHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=15001" BrowseName="Deprecated" ParentNodeId="ns=1;i=302" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
-    <Description>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=302</Reference>
@@ -482,7 +491,6 @@ YWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=289" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=287" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
-    <Description>A URI that uniquely identifies the dictionary.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=287</Reference>
@@ -493,7 +501,6 @@ YWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=15002" BrowseName="Deprecated" ParentNodeId="ns=1;i=287" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
-    <Description>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=287</Reference>

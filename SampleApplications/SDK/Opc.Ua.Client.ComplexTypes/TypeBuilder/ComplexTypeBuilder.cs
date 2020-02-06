@@ -202,8 +202,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (String.IsNullOrWhiteSpace(moduleName))
             {
-                Uri uri = new Uri(targetNamespace);
-                string tempName = uri.AbsolutePath;
+                Uri uri = new Uri(targetNamespace, UriKind.RelativeOrAbsolute);
+                var tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
+
                 tempName = tempName.Replace("/", "");
                 var splitName = tempName.Split(':');
                 moduleName = splitName.Last();
