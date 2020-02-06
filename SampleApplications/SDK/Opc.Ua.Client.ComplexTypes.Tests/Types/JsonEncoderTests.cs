@@ -287,6 +287,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.IsTrue(areEqual, encodeInfo);
         }
 
+        /// <summary>
+        /// Build the response for default type and replace
+        /// the builtInType parameter with the expected response
+        /// depending on the structure type selected.
+        /// </summary>
         private string BuildExpectedResponse(
             ExtensionObject data,
             BuiltInType builtInType,
