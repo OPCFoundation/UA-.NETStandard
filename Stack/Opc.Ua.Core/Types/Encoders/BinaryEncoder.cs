@@ -12,10 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Xml;
 using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -85,10 +85,7 @@ namespace Opc.Ua
                     m_writer.Dispose();
                 }
 
-                if (m_ostrm != null)
-                {
-                    m_ostrm.Dispose();
-                }
+                m_ostrm?.Dispose();
             }
         }
         #endregion
@@ -162,13 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the stream that the encoder is writing to.
         /// </summary>
-        public Stream BaseStream
-        {
-            get
-            {
-                return m_writer.BaseStream;
-            }
-        }
+        public Stream BaseStream => m_writer.BaseStream;
 
         /// <summary>
         /// Writes raw bytes to the stream.
@@ -317,18 +308,12 @@ namespace Opc.Ua
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
-        public EncodingType EncodingType
-        {
-            get { return EncodingType.Binary; }
-        }
+        public EncodingType EncodingType => EncodingType.Binary;
 
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context
-        {
-            get { return m_context; }
-        }
+        public ServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Binary Encoder always produces reversible encoding.
@@ -469,7 +454,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            if (value.Kind == DateTimeKind.Local)
+            if (value.Kind != DateTimeKind.Utc)
             {
                 value = value.ToUniversalTime();
             }
@@ -1666,49 +1651,49 @@ namespace Opc.Ua
             switch (idType)
             {
                 case IdType.Numeric:
+                {
+                    uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
+
+                    if (id <= Byte.MaxValue && namespaceIndex == 0)
                     {
-                        uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
-
-                        if (id <= Byte.MaxValue && namespaceIndex == 0)
-                        {
-                            encoding = NodeIdEncodingBits.TwoByte;
-                            break;
-                        }
-
-                        if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
-                        {
-                            encoding = NodeIdEncodingBits.FourByte;
-                            break;
-                        }
-
-                        encoding = NodeIdEncodingBits.Numeric;
+                        encoding = NodeIdEncodingBits.TwoByte;
                         break;
                     }
+
+                    if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
+                    {
+                        encoding = NodeIdEncodingBits.FourByte;
+                        break;
+                    }
+
+                    encoding = NodeIdEncodingBits.Numeric;
+                    break;
+                }
 
                 case IdType.String:
-                    {
-                        encoding = NodeIdEncodingBits.String;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.String;
+                    break;
+                }
 
                 case IdType.Guid:
-                    {
-                        encoding = NodeIdEncodingBits.Guid;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.Guid;
+                    break;
+                }
 
                 case IdType.Opaque:
-                    {
-                        encoding = NodeIdEncodingBits.ByteString;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.ByteString;
+                    break;
+                }
 
                 default:
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadEncodingError,
-                            Utils.Format("NodeId identifier type '{0}' not supported.", idType));
-                    }
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        Utils.Format("NodeId identifier type '{0}' not supported.", idType));
+                }
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -1723,45 +1708,45 @@ namespace Opc.Ua
             switch ((NodeIdEncodingBits)(0x3F & encoding))
             {
                 case NodeIdEncodingBits.TwoByte:
-                    {
-                        WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.FourByte:
-                    {
-                        WriteByte(null, Convert.ToByte(namespaceIndex));
-                        WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteByte(null, Convert.ToByte(namespaceIndex));
+                    WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.Numeric:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.String:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteString(null, (string)identifier);
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteString(null, (string)identifier);
+                    break;
+                }
 
                 case NodeIdEncodingBits.Guid:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteGuid(null, new Uuid((Guid)identifier));
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteGuid(null, new Uuid((Guid)identifier));
+                    break;
+                }
 
                 case NodeIdEncodingBits.ByteString:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteByteString(null, (byte[])identifier);
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteByteString(null, (byte[])identifier);
+                    break;
+                }
             }
         }
 
@@ -1868,50 +1853,50 @@ namespace Opc.Ua
                     case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])valueToEncode); break; }
 
                     case BuiltInType.Enumeration:
+                    {
+                        Enum[] enums = valueToEncode as Enum[];
+                        int[] ints = new int[enums.Length];
+
+                        for (int ii = 0; ii < enums.Length; ii++)
                         {
-                            Enum[] enums = valueToEncode as Enum[];
-                            int[] ints = new int[enums.Length];
-
-                            for (int ii = 0; ii < enums.Length; ii++)
-                            {
-                                ints[ii] = (int)(object)enums[ii];
-                            }
-
-                            WriteInt32Array(null, ints);
-                            return;
+                            ints[ii] = (int)(object)enums[ii];
                         }
+
+                        WriteInt32Array(null, ints);
+                        return;
+                    }
 
                     case BuiltInType.Variant:
+                    {
+                        Variant[] variants = valueToEncode as Variant[];
+
+                        if (variants != null)
                         {
-                            Variant[] variants = valueToEncode as Variant[];
-
-                            if (variants != null)
-                            {
-                                WriteVariantArray(null, variants);
-                                break;
-                            }
-
-                            object[] objects = valueToEncode as object[];
-
-                            if (objects != null)
-                            {
-                                WriteObjectArray(null, objects);
-                                break;
-                            }
-
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding a Matrix: {0}",
-                                valueToEncode.GetType());
+                            WriteVariantArray(null, variants);
+                            break;
                         }
+
+                        object[] objects = valueToEncode as object[];
+
+                        if (objects != null)
+                        {
+                            WriteObjectArray(null, objects);
+                            break;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Matrix: {0}",
+                            valueToEncode.GetType());
+                    }
 
                     default:
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding a Variant: {0}",
-                                value.TypeInfo.BuiltInType);
-                        }
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Variant: {0}",
+                            value.TypeInfo.BuiltInType);
+                    }
                 }
 
                 // write the dimensions.

@@ -275,6 +275,12 @@ namespace Opc.Ua
                 return;
             }
 
+            if (value is Uuid)
+            {
+                SetIdentifier(IdType.Guid, value);
+                return;
+            }
+
             if (value is byte[])
             {
                 SetIdentifier(IdType.Opaque, value);
@@ -786,8 +792,8 @@ namespace Opc.Ua
         /// also passed in as a parameter.
         /// </remarks>
         /// <returns>null, if the <i>nodeId</i> parameter is null. Otherwise an ExpandedNodeId will be returned for the specified nodeId</returns>
-        /// <param name="namespaceTable">The namespace tables collection that may be used to retrieve the namespace from that the specified NodeId belongs to</param>
         /// <param name="nodeId">The NodeId to return, wrapped in within the ExpandedNodeId.</param>
+        /// <param name="namespaceTable">The namespace tables collection that may be used to retrieve the namespace from that the specified NodeId belongs to</param>
         public static ExpandedNodeId ToExpandedNodeId(NodeId nodeId, NamespaceTable namespaceTable)
         {
             if (nodeId == null)
@@ -1062,6 +1068,10 @@ namespace Opc.Ua
                 case IdType.Guid:
                 {
                     Guid id1 = (Guid)m_identifier;
+                    if (id is Uuid)
+                    {
+                        return id1.CompareTo((Uuid)id);
+                    }
                     return id1.CompareTo((Guid)id);
                 }
 

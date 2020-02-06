@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     // load server types
                     if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                     {
-                        await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false);
+                        await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false).ConfigureAwait(false);
                     }
                 }
                 return GetSystemType(nodeId);
@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // load types
                 if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                 {
-                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false);
+                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false).ConfigureAwait(false);
                 }
                 return true;
             }
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 IList<INode> serverStructTypes = onlyEnumTypes ? new List<INode>() : LoadDataTypes(DataTypeIds.Structure, true);
                 if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                 {
-                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, true);
+                    return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, true).ConfigureAwait(false);
                 }
                 return true;
             }
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.ComplexTypes
             serverEnumTypes = RemoveKnownTypes(allEnumTypes);
 
             // load the binary schema dictionaries from the server
-            var typeSystem = await m_session.LoadDataTypeSystem();
+            var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
 
             // sort dictionaries with import dependencies to the end of the list
             var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary.Import?.Count()).ToList();

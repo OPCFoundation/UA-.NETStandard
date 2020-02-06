@@ -877,7 +877,7 @@ namespace Opc.Ua
             get { return s_TimeBase; }
         }
 
-        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1);
+        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
         /// Returns an absolute deadline for a timeout.
@@ -1900,6 +1900,12 @@ namespace Opc.Ua
             if (value1.GetType() != value2.GetType())
             {
                 return value1.Equals(value2);
+            }
+
+            // check for DateTime objects
+            if (value1 is DateTime)
+            {
+                return ((DateTime)value1).ToUniversalTime().CompareTo(((DateTime)value2).ToUniversalTime()) == 0;
             }
 
             // check for compareable objects.

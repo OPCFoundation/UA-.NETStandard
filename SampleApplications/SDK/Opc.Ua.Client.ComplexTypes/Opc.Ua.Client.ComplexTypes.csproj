@@ -14,10 +14,6 @@
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-
   <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
     <Reference Include="System.Reflection" />
   </ItemGroup>

@@ -326,7 +326,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                m_typeId = null;
+                m_typeId = ExpandedNodeId.Null;
                 m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 m_body = encodeable;
             }
@@ -384,13 +384,7 @@ namespace Opc.Ua
         /// The encoding to use when the deserializing/serializing the body.
         /// </summary>
         /// <value>The encoding for the embedd object.</value>
-        public ExtensionObjectEncoding Encoding
-        {
-            get
-            {
-                return m_encoding;
-            }
-        }
+        public ExtensionObjectEncoding Encoding => m_encoding;
 
         /// <summary>
         /// The body (embeded object) of the extension object.
@@ -675,6 +669,12 @@ namespace Opc.Ua
 
             return output;
         }
+
+        /// <summary>
+        /// Returns an instance of a null ExtensionObject.
+        /// </summary>
+        public static ExtensionObject Null => s_Null;
+        private static readonly ExtensionObject s_Null = new ExtensionObject();
         #endregion
 
         #region Private Members
@@ -689,6 +689,12 @@ namespace Opc.Ua
                 if (encodeable != null)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
+                }
+
+                // check for null Id.
+                if (m_typeId.IsNull)
+                {
+                    return NodeId.Null;
                 }
 
                 return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);
