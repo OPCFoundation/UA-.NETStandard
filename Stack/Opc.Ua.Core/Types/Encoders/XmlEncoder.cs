@@ -12,14 +12,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Xml;
-using System.Globalization;
-using System.Reflection;
-using System.IO;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// Writes objects to a XML stream.
     /// </summary>
@@ -34,7 +33,7 @@ namespace Opc.Ua
             Initialize();
 
             m_destination = new StringBuilder();
-            m_context     = context;
+            m_context = context;
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = new XmlWriterSettings();
@@ -42,8 +41,8 @@ namespace Opc.Ua
             settings.ConformanceLevel = ConformanceLevel.Auto;
 
             m_writer = XmlWriter.Create(m_destination, settings);
-        }     
-                
+        }
+
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
@@ -76,20 +75,20 @@ namespace Opc.Ua
             m_nestingLevel = 0;
         }
 
-		/// <summary>
-		/// Sets private members to default values.
-		/// </summary>
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
         private void Initialize()
         {
             m_destination = null;
-            m_writer      = null;
-            m_namespaces  = new Stack<string>();
-            m_root        = null;
+            m_writer = null;
+            m_namespaces = new Stack<string>();
+            m_root = null;
         }
 
-		/// <summary>
-		/// Writes the root element to the stream.
-		/// </summary>
+        /// <summary>
+        /// Writes the root element to the stream.
+        /// </summary>
         private void Initialize(string fieldName, string namespaceUri)
         {
             m_root = new XmlQualifiedName(fieldName, namespaceUri);
@@ -123,7 +122,7 @@ namespace Opc.Ua
             {
                 m_writer.WriteAttributeString("xmlns", "uax", null, Namespaces.OpcUaXsd);
             }
-            
+
             PushNamespace(namespaceUri);
         }
         #endregion
@@ -224,13 +223,13 @@ namespace Opc.Ua
             return null;
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -239,7 +238,7 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) 
+            if (disposing)
             {
                 if (m_writer != null)
                 {
@@ -255,18 +254,12 @@ namespace Opc.Ua
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
-        public EncodingType EncodingType 
-        {
-            get { return EncodingType.Xml; }
-        }
+        public EncodingType EncodingType => EncodingType.Xml;
 
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context 
-        {
-            get { return m_context; }
-        }
+        public ServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Xml Encoder always produces reversible encoding.
@@ -280,7 +273,7 @@ namespace Opc.Ua
         {
             m_namespaces.Push(namespaceUri);
         }
-        
+
         /// <summary>
         /// Pops a namespace from the namespace stack.
         /// </summary>
@@ -300,108 +293,108 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a sbyte to the stream.
         /// </summary>
         public void WriteSByte(string fieldName, sbyte value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a byte to the stream.
         /// </summary>
         public void WriteByte(string fieldName, byte value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a short to the stream.
         /// </summary>
         public void WriteInt16(string fieldName, short value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a ushort to the stream.
         /// </summary>
         public void WriteUInt16(string fieldName, ushort value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an int to the stream.
         /// </summary>
         public void WriteInt32(string fieldName, int value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a uint to the stream.
         /// </summary>
         public void WriteUInt32(string fieldName, uint value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a long to the stream.
         /// </summary>
         public void WriteInt64(string fieldName, long value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a ulong to the stream.
         /// </summary>
         public void WriteUInt64(string fieldName, ulong value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(XmlConvert.ToString(value));
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a float to the stream.
         /// </summary>
         public void WriteFloat(string fieldName, float value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 if (Single.IsNaN(value))
@@ -411,7 +404,7 @@ namespace Opc.Ua
                 else if (Single.IsPositiveInfinity(value))
                 {
                     m_writer.WriteValue("INF");
-                }                
+                }
                 else if (Single.IsNegativeInfinity(value))
                 {
                     m_writer.WriteValue("-INF");
@@ -424,19 +417,19 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a double to the stream.
         /// </summary>
         public void WriteDouble(string fieldName, double value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a string to the stream.
         /// </summary>
@@ -454,24 +447,24 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
-        {       
+        {
             if (BeginField(fieldName, false, false))
             {
                 m_writer.WriteValue(value.ToUniversalTime());
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a GUID to the stream.
         /// </summary>
         public void WriteGuid(string fieldName, Uuid value)
-        {            
+        {
             if (BeginField(fieldName, false, false))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
@@ -496,12 +489,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
-        {            
+        {
             if (BeginField(fieldName, value == null, true))
             {
                 // check the length.
@@ -519,7 +512,7 @@ namespace Opc.Ua
         /// Writes an XmlElement to the stream.
         /// </summary>
         public void WriteXmlElement(string fieldName, XmlElement value)
-        {            
+        {
             if (BeginField(fieldName, value == null, true))
             {
                 m_writer.WriteRaw(value.OuterXml);
@@ -555,7 +548,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an ExpandedNodeId to the stream.
         /// </summary>
@@ -591,7 +584,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an StatusCode to the stream.
         /// </summary>
@@ -674,7 +667,7 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
         }
@@ -687,7 +680,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                
+
                 if (value != null)
                 {
                     WriteString("Locale", value.Locale);
@@ -695,7 +688,7 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
         }
@@ -731,7 +724,7 @@ namespace Opc.Ua
 
             m_nestingLevel--;
         }
-        
+
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
@@ -752,28 +745,28 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
-        }                
+        }
 
         /// <summary>
         /// Writes an ExtensionObject to the stream.
         /// </summary>
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
-        {           
+        {
             if (BeginField(fieldName, value == null, true))
-            {             
+            {
                 PushNamespace(Namespaces.OpcUaXsd);
-                    
+
                 // check for null.
                 if (value == null)
                 {
                     EndField(fieldName);
-                    PopNamespace();        
+                    PopNamespace();
                     return;
                 }
-                
+
                 IEncodeable encodeable = value.Body as IEncodeable;
 
                 // write the type id.
@@ -806,31 +799,31 @@ namespace Opc.Ua
 
                     localTypeId = NodeId.Null;
                 }
-                
+
                 WriteNodeId("TypeId", localTypeId);
-                
+
                 object body = value.Body;
 
                 if (body == null)
                 {
                     EndField(fieldName);
-                    PopNamespace();        
+                    PopNamespace();
                     return;
                 }
-                
+
                 // write the body.
                 m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
 
                 WriteExtensionObjectBody(body);
-                
+
                 // end of body.
                 m_writer.WriteEndElement();
- 
+
                 EndField(fieldName);
-                PopNamespace();               
+                PopNamespace();
             }
         }
-          
+
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
@@ -904,12 +897,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
-        {          
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -962,12 +955,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
         public void WriteInt16Array(string fieldName, IList<short> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -991,12 +984,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1020,12 +1013,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
         public void WriteInt32Array(string fieldName, IList<int> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1049,12 +1042,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1078,12 +1071,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
         public void WriteInt64Array(string fieldName, IList<long> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1107,12 +1100,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1136,12 +1129,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-                
+
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
         public void WriteFloatArray(string fieldName, IList<float> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1165,12 +1158,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
         public void WriteDoubleArray(string fieldName, IList<double> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1194,12 +1187,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
         public void WriteStringArray(string fieldName, IList<string> values)
-        {             
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1217,18 +1210,18 @@ namespace Opc.Ua
                         WriteString("String", values[ii]);
                     }
                 }
-                
+
                 PopNamespace();
 
                 EndField(fieldName);
-            }     
+            }
         }
-        
+
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1250,14 +1243,14 @@ namespace Opc.Ua
                 PopNamespace();
 
                 EndField(fieldName);
-            }    
+            }
         }
-        
+
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1310,12 +1303,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1368,7 +1361,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-                
+
         /// <summary>
         /// Writes an NodeId array to the stream.
         /// </summary>
@@ -1393,11 +1386,11 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
@@ -1431,7 +1424,7 @@ namespace Opc.Ua
         /// Writes an StatusCode array to the stream.
         /// </summary>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1600,7 +1593,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an extension object array to the stream.
         /// </summary>
@@ -1634,7 +1627,7 @@ namespace Opc.Ua
         /// Writes an encodeable object array to the stream.
         /// </summary>
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
-        {            
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1650,7 +1643,7 @@ namespace Opc.Ua
                 {
                     xmlName = new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
                 }
-                
+
                 PushNamespace(xmlName.Namespace);
 
                 // encode each element in the array.
@@ -1676,12 +1669,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-        
+
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
         public void WriteEnumeratedArray(string fieldName, Array values, System.Type systemType)
-        { 
+        {
             if (BeginField(fieldName, values == null, true))
             {
                 // check the length.
@@ -1697,7 +1690,7 @@ namespace Opc.Ua
                 {
                     xmlName = new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
                 }
-                
+
                 PushNamespace(xmlName.Namespace);
 
                 if (values != null)
@@ -1715,7 +1708,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Writes the contents of an Variant to the stream.
@@ -1766,7 +1759,7 @@ namespace Opc.Ua
                         case BuiltInType.Enumeration: { WriteInt32("Int32", (int)value); return; }
                     }
                 }
-                
+
                 // write array.
                 else if (typeInfo.ValueRank <= 1)
                 {
@@ -1795,8 +1788,8 @@ namespace Opc.Ua
                         case BuiltInType.LocalizedText: { WriteLocalizedTextArray("ListOfLocalizedText", (LocalizedText[])value); return; }
                         case BuiltInType.ExtensionObject: { WriteExtensionObjectArray("ListOfExtensionObject", (ExtensionObject[])value); return; }
                         case BuiltInType.DataValue: { WriteDataValueArray("ListOfDataValue", (DataValue[])value); return; }
-                        
-                        case BuiltInType.Enumeration: 
+
+                        case BuiltInType.Enumeration:
                         {
                             Enum[] enums = value as Enum[];
                             int[] ints = new int[enums.Length];
@@ -1807,7 +1800,7 @@ namespace Opc.Ua
                             }
 
                             WriteInt32Array("ListOfInt32", ints);
-                            return; 
+                            return;
                         }
 
                         case BuiltInType.Variant:
@@ -1853,12 +1846,12 @@ namespace Opc.Ua
                 PopNamespace();
             }
         }
-        
+
         /// <summary>
         /// Writes the body of an ExtensionObject to the stream.
         /// </summary>
         public void WriteExtensionObjectBody(object body)
-        {            
+        {
             // nothing to do for null bodies.
             if (body == null)
             {
@@ -1871,11 +1864,11 @@ namespace Opc.Ua
             if (bytes != null)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
-                m_writer.WriteString(Convert.ToBase64String(bytes));                                        
+                m_writer.WriteString(Convert.ToBase64String(bytes));
                 m_writer.WriteEndElement();
                 return;
             }
-            
+
             // encode xml body.
             XmlElement xml = body as XmlElement;
 
@@ -1895,7 +1888,7 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingError,
                     Utils.Format("Don't know how to encode extension object body with type '{0}'.", body.GetType().FullName));
             }
-            
+
             // encode extension object in xml.
             XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable.GetType());
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
@@ -1916,15 +1909,15 @@ namespace Opc.Ua
 
                 if (value != null)
                 {
-                    m_writer.WriteStartElement("Elements", Namespaces.OpcUaXsd);                
-                    WriteVariantContents(value.Elements, new TypeInfo(value.TypeInfo.BuiltInType, ValueRanks.OneDimension));                
+                    m_writer.WriteStartElement("Elements", Namespaces.OpcUaXsd);
+                    WriteVariantContents(value.Elements, new TypeInfo(value.TypeInfo.BuiltInType, ValueRanks.OneDimension));
                     m_writer.WriteEndElement();
 
                     WriteInt32Array("Dimensions", value.Dimensions);
                 }
 
                 PopNamespace();
-                
+
                 EndField(fieldName);
             }
         }
@@ -1979,10 +1972,10 @@ namespace Opc.Ua
                     return false;
                 }
             }
-                 
+
             return !isDefault;
         }
-        
+
         /// <summary>
         /// Writes the end element for a field.
         /// </summary>

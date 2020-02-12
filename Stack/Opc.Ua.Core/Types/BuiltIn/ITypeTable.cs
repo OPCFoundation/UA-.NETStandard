@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if the specified type id is known; otherwise, <c>false</c>.
         /// </returns>
-        bool IsKnown( ExpandedNodeId typeId );
+        bool IsKnown(ExpandedNodeId typeId);
 
         /// <summary>
         /// Determines whether a node id is a known type id.
@@ -35,28 +35,28 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if the specified type id is known; otherwise, <c>false</c>.
         /// </returns>
-        bool IsKnown( NodeId typeId );
+        bool IsKnown(NodeId typeId);
 
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The extended type identifier.</param>
         /// <returns>A type identifier of the <paramref name="typeId "/></returns>
-        NodeId FindSuperType( ExpandedNodeId typeId );
+        NodeId FindSuperType(ExpandedNodeId typeId);
 
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The type identifier.</param>
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
-        NodeId FindSuperType( NodeId typeId );
+        NodeId FindSuperType(NodeId typeId);
 
         /// <summary>
         /// Returns the immediate subtypes for the type.
         /// </summary>
         /// <param name="typeId">The extended type identifier.</param>
         /// <returns>List of type identifiers for <paramref name="typeId"/></returns>
-        IList<NodeId> FindSubTypes( ExpandedNodeId typeId );
+        IList<NodeId> FindSubTypes(ExpandedNodeId typeId);
 
         /// <summary>
         /// Determines whether a type is a subtype of another type.
@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if <paramref name="superTypeId"/> is supertype of <paramref name="subTypeId"/>; otherwise, <c>false</c>.
         /// </returns>
-        bool IsTypeOf( ExpandedNodeId subTypeId, ExpandedNodeId superTypeId );
+        bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId);
 
         /// <summary>
         /// Determines whether a type is a subtype of another type.
@@ -76,21 +76,21 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if <paramref name="superTypeId"/> is supertype of <paramref name="subTypeId"/>; otherwise, <c>false</c>.
         /// </returns>
-        bool IsTypeOf( NodeId subTypeId, NodeId superTypeId );
+        bool IsTypeOf(NodeId subTypeId, NodeId superTypeId);
 
         /// <summary>
         /// Returns the qualified name for the reference type id.
         /// </summary>
         /// <param name="referenceTypeId">The reference type</param>
         /// <returns>A name qualified with a namespace for the reference <paramref name="referenceTypeId"/>. </returns>
-        QualifiedName FindReferenceTypeName( NodeId referenceTypeId );
+        QualifiedName FindReferenceTypeName(NodeId referenceTypeId);
 
         /// <summary>
         /// Returns the node identifier for the reference type with the specified browse name.
         /// </summary>
         /// <param name="browseName">Browse name of the reference.</param>
         /// <returns>The identifier for the <paramref name="browseName"/></returns>
-        NodeId FindReferenceType( QualifiedName browseName );
+        NodeId FindReferenceType(QualifiedName browseName);
 
         /// <summary>
         /// Checks if the identifier <paramref name="encodingId"/> represents a that provides encodings 
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if <paramref name="encodingId"/> is encoding of the <paramref name="datatypeId"/>; otherwise, <c>false</c>.
         /// </returns>
-        bool IsEncodingOf( ExpandedNodeId encodingId, ExpandedNodeId datatypeId );
+        bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId);
 
         /// <summary>
         /// Determines if the value contained in an extension object <paramref name="value"/> matches the expected data type.
@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// 	<c>true</c> if the value contained in an extension object <paramref name="value"/> matches the 
         /// 	expected data type; otherwise, <c>false</c>.
         /// </returns>
-        bool IsEncodingFor( NodeId expectedTypeId, ExtensionObject value );
+        bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value);
 
         /// <summary>
         /// Determines if the value is an encoding of the <paramref name="value"/>
@@ -122,20 +122,20 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> the value is an encoding of the <paramref name="value"/>; otherwise, <c>false</c>.
         /// </returns>
-        bool IsEncodingFor( NodeId expectedTypeId, object value );
+        bool IsEncodingFor(NodeId expectedTypeId, object value);
 
         /// <summary>
         /// Returns the data type for the specified encoding.
         /// </summary>
         /// <param name="encodingId">The encoding id.</param>
         /// <returns></returns>
-        NodeId FindDataTypeId( ExpandedNodeId encodingId );
+        NodeId FindDataTypeId(ExpandedNodeId encodingId);
 
         /// <summary>
         /// Returns the data type for the specified encoding.
         /// </summary>
         /// <param name="encodingId">The encoding id.</param>
         /// <returns>The data type for the <paramref name="encodingId"/></returns>
-        NodeId FindDataTypeId( NodeId encodingId );
+        NodeId FindDataTypeId(NodeId encodingId);
     }
 }
