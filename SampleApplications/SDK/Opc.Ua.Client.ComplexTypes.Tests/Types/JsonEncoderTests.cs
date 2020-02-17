@@ -276,6 +276,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var buffer = encoderStream.ToArray();
             TestContext.Out.WriteLine("Result:");
             var result = Encoding.UTF8.GetString(buffer);
+            if (data.Body is UnionComplexType && !useReversibleEncoding)
+            {
+                // helper to create testable JSON output for Unions
+                result = result.Replace("{", "{\"Union\" :");
+            }
             var formattedResult = PrettifyAndValidateJson(result);
             var jsonLoadSettings = new JsonLoadSettings() {
                 CommentHandling = CommentHandling.Ignore,
@@ -324,7 +329,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    expected = $"{{\"Value\" :" + expected + "}";
+                    expected = "{\"Union\" :" + expected + "}";
                 }
             }
             else if (data.Body is OptionalFieldsComplexType)
