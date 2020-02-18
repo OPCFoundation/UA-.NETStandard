@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
 
             // sort dictionaries with import dependencies to the end of the list
-            var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary.Import?.Count()).ToList();
+            var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary?.Import?.Count()).ToList();
 
             bool allTypesLoaded = true;
 
@@ -286,6 +286,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 try
                 {
                     var dictionary = dictionaryId.Value;
+                    if (dictionary.TypeDictionary == null ||
+                        dictionary.TypeDictionary.Items == null)
+                    {
+                        continue;
+                    }
                     var targetDictionaryNamespace = dictionary.TypeDictionary.TargetNamespace;
                     var targetNamespaceIndex = m_session.NamespaceUris.GetIndex(targetDictionaryNamespace);
                     var structureList = new List<Schema.Binary.TypeDescription>();
