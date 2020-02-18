@@ -34,6 +34,7 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_topLevelIsArray;
+        private bool m_levelOneSkipped;
         #endregion
 
         #region Constructors
@@ -53,6 +54,7 @@ namespace Opc.Ua
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
+            m_levelOneSkipped = false;
 
             // defaults for JSON encoding
             // -- encode namespace index for reversible encoding
@@ -330,6 +332,7 @@ namespace Opc.Ua
             {
                 if (m_nestingLevel == 1 && !m_topLevelIsArray)
                 {
+                    m_levelOneSkipped = true;
                     return;
                 }
             }
@@ -357,6 +360,7 @@ namespace Opc.Ua
             {
                 if (m_nestingLevel == 1 && !m_topLevelIsArray)
                 {
+                    m_levelOneSkipped = true;
                     return;
                 }
             }
@@ -367,7 +371,8 @@ namespace Opc.Ua
 
         public void PopStructure()
         {
-            if (m_nestingLevel >= 1 || m_topLevelIsArray)
+            if (m_nestingLevel > 1 || m_topLevelIsArray ||
+               (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
                 m_writer.Write("}");
                 m_commaRequired = true;
@@ -378,7 +383,8 @@ namespace Opc.Ua
 
         public void PopArray()
         {
-            if (m_nestingLevel >= 1 || m_topLevelIsArray)
+            if (m_nestingLevel > 1 || m_topLevelIsArray ||
+               (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
                 m_writer.Write("]");
                 m_commaRequired = true;
@@ -1191,11 +1197,20 @@ namespace Opc.Ua
                 return;
             }
 
-            IEncodeable encodeable = value.Body as IEncodeable;
+            var encodeable = value.Body as IEncodeable;
             if (!UseReversibleEncoding && encodeable != null)
             {
-                // no push/pop
+                var structureType = value.Body as IStructureTypeInfo;
+                if (structureType != null &&
+                    structureType.StructureType == StructureType.Union)
+                {
+                    encodeable.Encode(this);
+                    return;
+                }
+
+                PushStructure(null);
                 encodeable.Encode(this);
+                PopStructure();
                 return;
             }
 

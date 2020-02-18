@@ -131,6 +131,13 @@ namespace Opc.Ua.Client
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Cannot parse empty data dictionary.");
             }
 
+            // Interoperability: some server may return a null terminated dictionary string, adjust length
+            int zeroTerminator = Array.IndexOf<byte>(schema, (byte)0);
+            if (zeroTerminator >= 0)
+            {
+                Array.Resize(ref schema, zeroTerminator);
+            }
+
             await Validate(schema);
 
             ReadDataTypes(dictionaryId);

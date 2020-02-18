@@ -159,17 +159,20 @@ namespace Opc.Ua.Schema.Binary
             }
 
             // import types from target dictionary.
-            foreach (TypeDescription description in Dictionary.Items)
+            if (Dictionary.Items != null)
             {
-                ImportDescription(description, Dictionary.TargetNamespace);
-                m_validatedDescriptions.Add(description);
-            }
+                foreach (TypeDescription description in Dictionary.Items)
+                {
+                    ImportDescription(description, Dictionary.TargetNamespace);
+                    m_validatedDescriptions.Add(description);
+                }
 
-            // validate types from target dictionary.
-            foreach (TypeDescription description in m_validatedDescriptions)
-            {
-                ValidateDescription(description);
-                m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
+                // validate types from target dictionary.
+                foreach (TypeDescription description in m_validatedDescriptions)
+                {
+                    ValidateDescription(description);
+                    m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
+                }
             }
         }
 

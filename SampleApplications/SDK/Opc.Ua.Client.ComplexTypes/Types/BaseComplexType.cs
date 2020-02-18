@@ -42,7 +42,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
     public class BaseComplexType :
         IEncodeable, IFormattable,
-        IComplexTypeProperties
+        IComplexTypeProperties,
+        IStructureTypeInfo
     {
         #region Constructors
         /// <summary>
@@ -92,6 +93,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public ExpandedNodeId XmlEncodingId { get; set; }
+
+        /// <summary cref="IStructureTypeInfo.StructureType" />
+        public StructureType StructureType => StructureType.Structure;
 
         /// <summary>
         /// Makes a deep copy of the object.

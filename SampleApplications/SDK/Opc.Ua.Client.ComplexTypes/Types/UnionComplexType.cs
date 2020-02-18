@@ -64,6 +64,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public UInt32 SwitchField => m_switchField;
 
+        /// <summary cref="IStructureTypeInfo.StructureType" />
+        new public StructureType StructureType => StructureType.Union;
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -82,9 +85,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
+            string fieldName = null;
             if (encoder.UseReversibleEncoding)
             {
                 encoder.WriteUInt32("SwitchField", m_switchField);
+                fieldName = "Value";
             }
 
             if (m_switchField != 0)
@@ -102,7 +107,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     unionSelector++;
                 }
-                EncodeProperty(encoder, "Value", unionProperty, valueRank);
+                EncodeProperty(encoder, fieldName, unionProperty, valueRank);
+            }
+            else if (!encoder.UseReversibleEncoding)
+            {
+                encoder.WriteString(null, "null");
             }
 
             encoder.PopNamespace();
