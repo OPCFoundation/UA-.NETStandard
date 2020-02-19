@@ -1591,7 +1591,7 @@ namespace Opc.Ua
             if (encodeable == null)
             {
                 // figure out how long the object is.
-                if (length == -1)
+                if (length < 0)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,

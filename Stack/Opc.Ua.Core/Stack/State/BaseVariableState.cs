@@ -1930,7 +1930,11 @@ namespace Opc.Ua
                         return (StatusCode)(uint)value;
                     }
                 }
-                return StatusCodes.BadTypeMismatch;
+                // test for special case Null type
+                if (!(m_dataType.IsNullNodeId && value == null))
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
             }
 
             value = ExtractValueFromVariant(context, value, true);

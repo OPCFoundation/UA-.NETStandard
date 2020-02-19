@@ -373,7 +373,8 @@ namespace Opc.Ua.Test
 
                 if (value != null)
                 {
-                    if (expectedType == BuiltInType.Guid)
+                    if (expectedType == BuiltInType.Guid &&
+                        value is Guid)
                     {
                         value = new Uuid((Guid)value);
                     }
