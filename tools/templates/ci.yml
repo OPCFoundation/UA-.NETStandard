@@ -88,11 +88,3 @@ jobs:
       projects: '**/*.Tests.csproj'
       # projects: '$(folder)/**/tests/*.csproj'
       arguments: '--configuration Release'
-  - task: DotNetCoreCLI@3
-    displayName: Test
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/*.Tests.csproj'
-      # projects: '$(folder)/**/tests/*.csproj'
-      arguments: '--configuration Debug'
