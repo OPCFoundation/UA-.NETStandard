@@ -36,13 +36,13 @@ jobs:
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Release'
+      arguments: '--configuration Release -f netstandard2.0'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Debug'
+      arguments: '--configuration Debug -f netstandard2.0'
 - job: testprep
   displayName: Prepare Test Jobs
   pool:
@@ -56,7 +56,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName ./.azurepipelines/azure-pipelines.yml
+      arguments: -FileName azure-pipelines.yml
 - job: testall
   displayName: Run Tests for
   dependsOn: testprep
