@@ -14,7 +14,7 @@ jobs:
     displayName: Prepare Solutions
     inputs:
       targetType: filePath
-      filePath: ./get-matrix.ps1
+      filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName "UA Core Library.sln"
 - job: buildall
   displayName: Building
@@ -55,8 +55,8 @@ jobs:
     displayName: Prepare Tests
     inputs:
       targetType: filePath
-      filePath: ./get-matrix.ps1
-      arguments: -FileName azure-pipelines.yml
+      filePath: ./.azurepipelines/get-matrix.ps1
+      arguments: -FileName ./.azurepipelines/azure-pipelines.yml
 - job: testall
   displayName: Run Tests for
   dependsOn: testprep
