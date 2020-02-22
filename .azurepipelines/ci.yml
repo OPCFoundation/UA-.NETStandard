@@ -36,13 +36,13 @@ jobs:
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Release -f netstandard2.0'
+      arguments: '--configuration Release -f netcoreapp2.0'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Debug -f netstandard2.0'
+      arguments: '--configuration Debug -f netcoreapp2.0'
 - job: testprep
   displayName: Prepare Test Jobs
   pool:
