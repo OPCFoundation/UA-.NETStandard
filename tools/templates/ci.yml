@@ -5,7 +5,7 @@ jobs:
 - job: buildprep
   displayName: Prepare Build Jobs
   pool:
-    name: Hosted Windows 2019 with VS2017
+    vmImage: 'vs2017-win2016'
   variables:
     skipComponentGovernanceDetection: true
   steps:
@@ -51,7 +51,7 @@ jobs:
 - job: testprep
   displayName: Prepare Test Jobs
   pool:
-    name: Hosted Windows 2019 with VS2017
+    vmImage: 'vs2017-win2016'
   variables:
     skipComponentGovernanceDetection: true
   steps:
