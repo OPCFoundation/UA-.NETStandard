@@ -6,6 +6,6 @@ stages:
 - stage: build
   displayName: 'Build and Test Code'
   jobs:
-  - template: ./.azurepipelines/ci.yml
+  - template: ./ci.yml
 #  - template: ./sdl.yml
 
