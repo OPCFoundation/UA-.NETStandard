@@ -22,7 +22,7 @@ jobs:
   strategy:
     matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
   pool:
-    name: $(poolName)
+    vmImage: $(poolImage)
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET Core SDK'
@@ -71,7 +71,7 @@ jobs:
   variables:
     skipComponentGovernanceDetection: true
   pool:
-    name: $(poolName)
+    vmImage: $(poolImage)
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET Core SDK'
