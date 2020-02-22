@@ -38,7 +38,7 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
 
 $agents = @{
     linux = "Hosted Ubuntu 1604"
-    windows = "Hosted Windows 2019 with VS2019"
+    windows = "Hosted Windows 2016 with VS2017"
     mac = "Hosted macOS"
 }
 
