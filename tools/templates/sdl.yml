@@ -1,0 +1,92 @@
+#
+# Run compliance tooling
+#
+jobs:
+- job: sdl
+  displayName: SDL Tasks
+  pool:
+    name: Hosted Windows 2019 with VS2017
+    demands:
+    - msbuild
+    - npm
+  steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./tools/scripts/set-version.ps1
+  - task: DotNetCoreCLI@2
+    displayName: Restore
+    inputs:
+      command: restore
+      projects: 'UA Core Library.sln'
+  - task: MSBuild@1
+    displayName: Build
+    inputs:
+      solution: 'UA Core Library.sln'
+      configuration: Release
+  - task: securedevelopmentteam.vss-secure-development-tools.build-task-credscan.CredScan@2
+    displayName: 'Credential Scanner'
+    inputs:
+      debugMode: false
+    continueOnError: true
+  - task: RoslynAnalyzers@2
+    displayName: 'Run Roslyn Analyzers'
+    continueOnError: true
+  - task: ComponentGovernanceComponentDetection@0
+    displayName: 'Component Detection'
+#  - task: 'msospo.ospo-extension.8d7f9abb-6896-461d-9e25-4f74ed65ddb2.notice@0'
+#    displayName: Generate 3rd Party Notices
+#    inputs:
+#      outputfile: thirdpartynotices.txt
+#    continueOnError: true
+  - task: BinSkim@3
+    displayName: 'BinSkim '
+    inputs:
+      InputType: Basic
+      AnalyzeTarget: '*.Ua.*.dll;*.Ua.*.exe'
+    continueOnError: true
+  - task: AutoApplicability@1
+    displayName: 'Auto Applicability'
+    inputs:
+      ExternalRelease: true
+      InternalRelease: true
+      IsService: true
+    continueOnError: true
+  - task: VulnerabilityAssessment@0
+    displayName: 'Run Vulnerability Assessment'
+    continueOnError: true
+    condition: succeededOrFailed()
+  - task: PoliCheck@1
+    displayName: PoliCheck
+    inputs:
+      targetType: F
+      SOMEnabled: false
+      uploadToSOM: true
+      workspaceid: f26cefbe-7e7b-436a-8aad-ded8bb5d03e1
+    continueOnError: true
+  - task: SdtReport@1
+    displayName: 'Create Security Analysis Report'
+    inputs:
+      BinSkim: true
+      CredScan: true
+      PoliCheck: true
+      RoslynAnalyzers: true
+    continueOnError: true
+    condition: succeededOrFailed()
+  - task: PostAnalysis@1
+    displayName: 'Post Analysis'
+    inputs:
+      BinSkim: true
+      CredScan: true
+      RoslynAnalyzers: true
+  - script: |
+      if not "%BUILD_SOURCEBRANCHNAME%" == "master" echo ##vso[task.setvariable variable=MY_BRANCH;]develop
+          if "%BUILD_SOURCEBRANCHNAME%" == "master" echo ##vso[task.setvariable variable=MY_BRANCH;]master

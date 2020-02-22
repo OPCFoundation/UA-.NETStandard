@@ -1,0 +1,90 @@
+#
+# Build and test all on all platforms
+#
+jobs:
+- job: buildprep
+  displayName: Prepare Build Jobs
+  pool:
+    name: Hosted Windows 2019 with VS2019
+  variables:
+    skipComponentGovernanceDetection: true
+  steps:
+  - task: PowerShell@2
+    name: buildmatrix
+    displayName: Prepare Solutions
+    inputs:
+      targetType: filePath
+      filePath: ./tools/scripts/get-matrix.ps1
+      arguments: -FileName "UA Core Library.sln"
+- job: buildall
+  displayName: Building
+  dependsOn: buildprep
+  strategy:
+    matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
+  pool:
+    name: $(poolName)
+  steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./tools/scripts/set-version.ps1
+  - task: DotNetCoreCLI@2
+    displayName: Release Build
+    inputs:
+      command: build
+      projects: '$(file)'
+      arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Build
+    inputs:
+      command: build
+      projects: '$(file)'
+      arguments: '--configuration Debug'
+- job: testprep
+  displayName: Prepare Test Jobs
+  pool:
+    name: Hosted Windows 2019 with VS2017
+  variables:
+    skipComponentGovernanceDetection: true
+  steps:
+  - task: PowerShell@2
+    name: testmatrix
+    displayName: Prepare Tests
+    inputs:
+      targetType: filePath
+      filePath: ./tools/scripts/get-matrix.ps1
+      # arguments: -FileName Directory.Build.props
+      arguments: -FileName azure-pipelines.yml
+- job: testall
+  displayName: Run Tests for
+  dependsOn: testprep
+  strategy:
+    matrix: $[dependencies.testprep.outputs['testmatrix.jobMatrix'] ]
+  variables:
+    skipComponentGovernanceDetection: true
+  pool:
+    name: $(poolName)
+  steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: DotNetCoreCLI@2
+    displayName: Test
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/tests/*.csproj'
+      # projects: '$(folder)/**/tests/*.csproj'
+      arguments: '--configuration Release'

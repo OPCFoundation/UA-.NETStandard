@@ -1,0 +1,22 @@
+# Azure pipeline
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+#pool:
+#  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: build
+  displayName: 'Build and Test Code'
+  jobs:
+  - template: tools/templates/ci.yml
+  - template: tools/templates/sdl.yml
+
+- stage: pack
+  displayName: 'Package and Sign Nuget'
+  dependsOn: build
+  jobs:
+  - template: tools/templates/nuget.yml
+    parameters:
+      sign: ${{ startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}
+
