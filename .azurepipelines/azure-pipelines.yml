@@ -1,0 +1,11 @@
+# Azure pipeline
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+stages:
+- stage: build
+  displayName: 'Build and Test Code'
+  jobs:
+  - template: ./azurepipelines/ci.yml
+#  - template: ./azurepipelines/sdl.yml
+

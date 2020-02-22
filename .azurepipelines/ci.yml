@@ -14,7 +14,7 @@ jobs:
     displayName: Prepare Solutions
     inputs:
       targetType: filePath
-      filePath: ./tools/scripts/get-matrix.ps1
+      filePath: ./azurepipelines/get-matrix.ps1
       arguments: -FileName "UA Core Library.sln"
 - job: buildall
   displayName: Building
@@ -31,11 +31,6 @@ jobs:
       version: 2.1.x
       includePreviewVersions: false
       installationPath: $(Agent.ToolsDirectory)/dotnet
-  - task: PowerShell@2
-    displayName: Versioning
-    inputs:
-      targetType: filePath
-      filePath: ./tools/scripts/set-version.ps1
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
@@ -60,8 +55,7 @@ jobs:
     displayName: Prepare Tests
     inputs:
       targetType: filePath
-      filePath: ./tools/scripts/get-matrix.ps1
-      # arguments: -FileName Directory.Build.props
+      filePath: ./azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml
 - job: testall
   displayName: Run Tests for
@@ -86,5 +80,4 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      # projects: '$(folder)/**/tests/*.csproj'
       arguments: '--configuration Release'
