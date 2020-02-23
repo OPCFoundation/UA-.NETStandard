@@ -15,7 +15,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName "UA Core Library.sln"
+      arguments: -FileName "NetCore*.csproj"
 - job: buildall
   displayName: Building
   dependsOn: buildprep
@@ -36,13 +36,13 @@ jobs:
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Release -f netcoreapp2.0'
+      arguments: '--configuration Release'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '$(file)'
-      arguments: '--configuration Debug -f netcoreapp2.0'
+      arguments: '--configuration Debug'
 - job: testprep
   displayName: Prepare Test Jobs
   pool:
