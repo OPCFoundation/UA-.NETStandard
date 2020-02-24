@@ -510,9 +510,9 @@ namespace Opc.Ua.Schema.Binary
         #region Private Fields
         private readonly string[][] WellKnownDictionaries = new string[][]
         {
-            new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Core.Types.Schemas.StandardTypes.bsd" },
-            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Core.Types.Schemas.BuiltInTypes.bsd"  },
-            new string[] { Namespaces.OpcUa, "Opc.Ua.Core.Schema.Opc.Ua.Types.bsd"  }
+            new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd" },
+            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"  },
+            new string[] { Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"  }
         };
 
         private Dictionary<XmlQualifiedName, TypeDescription> m_descriptions;

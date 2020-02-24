@@ -29,12 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
-using System.Xml;
-using System.IO;
-using System.Threading;
 using System.Reflection;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -276,7 +272,8 @@ namespace Opc.Ua.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", typeof(ArgumentCollection).GetTypeInfo().Assembly, true);
+            var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
             return predefinedNodes;
         }
 
@@ -325,26 +322,26 @@ namespace Opc.Ua.Server
             switch ((uint)typeId.Identifier)
             {
                 case ObjectTypes.ServerType:
+                {
+                    if (passiveNode is ServerObjectState)
                     {
-                        if (passiveNode is ServerObjectState)
-                        {
-                            break;
-                        }
-
-                        ServerObjectState activeNode = new ServerObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        // add the server object as the root notifier.
-                        AddRootNotifier(activeNode);
-
-                        // replace the node in the parent.
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
-
-                        return activeNode;
+                        break;
                     }
+
+                    ServerObjectState activeNode = new ServerObjectState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    // add the server object as the root notifier.
+                    AddRootNotifier(activeNode);
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
 
             }
 
@@ -427,9 +424,9 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsType:
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
-                    {
-                        return true;
-                    }
+                {
+                    return true;
+                }
             }
 
             return false;
@@ -446,10 +443,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True is diagnostics are currently enabled.
         /// </summary>
-        public bool DiagnosticsEnabled
-        {
-            get { return m_diagnosticsEnabled; }
-        }
+        public bool DiagnosticsEnabled => m_diagnosticsEnabled;
 
         /// <summary>
         /// Sets the flag controlling whether diagnostics is enabled for the server.
