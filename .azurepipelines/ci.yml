@@ -75,9 +75,30 @@ jobs:
       includePreviewVersions: false
       installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: DotNetCoreCLI@2
-    displayName: Test
+    displayName: Test Release
     timeoutInMinutes: 20
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
       arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Test Debug
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration Debug'
+  - task: DotNetCoreCLI@2
+    displayName: Test GDS Release
+    timeoutInMinutes: 20
+    inputs:
+      command: test GDS release
+      projects: '**/GlobalDiscoveryClientTest.csproj'
+      arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Test GDS Debug
+    timeoutInMinutes: 20
+    inputs:
+      command: test GDS release
+      projects: '**/GlobalDiscoveryClientTest.csproj'
+      arguments: '--configuration Debug'
