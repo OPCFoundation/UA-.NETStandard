@@ -332,11 +332,6 @@ namespace Opc.Ua.Gds.Client
         /// Occurs when keep alive occurs.
         /// </summary>
         public event KeepAliveEventHandler KeepAlive;
-
-        /// <summary>
-        /// Occurs when the server status changes.
-        /// </summary>
-        public event MonitoredItemNotificationEventHandler ServerStatusChanged;
         #endregion
 
         #region GDS Methods
