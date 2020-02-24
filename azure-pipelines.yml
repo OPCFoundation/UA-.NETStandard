@@ -2,12 +2,6 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-trigger:
-- master
-
-pr:
-- master
-
 stages:
 - stage: build
   displayName: 'Build and Test Code'

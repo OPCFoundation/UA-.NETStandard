@@ -92,13 +92,13 @@ jobs:
     displayName: Test GDS Release
     timeoutInMinutes: 20
     inputs:
-      command: test GDS release
+      command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
       arguments: '--configuration Release'
   - task: DotNetCoreCLI@2
     displayName: Test GDS Debug
     timeoutInMinutes: 20
     inputs:
-      command: test GDS release
+      command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
       arguments: '--configuration Debug'
