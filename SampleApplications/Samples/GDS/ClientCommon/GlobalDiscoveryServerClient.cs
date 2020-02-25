@@ -292,6 +292,8 @@ namespace Opc.Ua.Gds.Client
             Session.SessionClosing += Session_SessionClosing;
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
+            // TODO: implement, suppress warning/error 
+            if (ServerStatusChanged != null) { }
 
             if (Session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
             {
@@ -332,6 +334,11 @@ namespace Opc.Ua.Gds.Client
         /// Occurs when keep alive occurs.
         /// </summary>
         public event KeepAliveEventHandler KeepAlive;
+
+        /// <summary>
+        /// Occurs when the server status changes.
+        /// </summary>
+        public event MonitoredItemNotificationEventHandler ServerStatusChanged;
         #endregion
 
         #region GDS Methods
