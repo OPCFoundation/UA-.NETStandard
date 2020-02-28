@@ -153,11 +153,10 @@ namespace Opc.Ua.Test
             }
 
             // load the localized tokens.
-            m_tokenValues = LoadStringData("Opc.Ua.Core.Types.Utils.LocalizedData.txt");
-
+            m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
             if (m_tokenValues.Count == 0)
             {
-                m_tokenValues = LoadStringData("Opc.Ua.Core.Utils.LocalizedData.txt");
+                m_tokenValues = LoadStringData("Opc.Ua.Utils.LocalizedData.txt");
             }
 
             // index the available locales.

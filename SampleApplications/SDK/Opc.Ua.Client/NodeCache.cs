@@ -594,7 +594,9 @@ namespace Opc.Ua.Client
         public void LoadUaDefinedTypes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", typeof(ArgumentCollection).GetTypeInfo().Assembly, true);
+
+            var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
             
             for (int ii = 0; ii < predefinedNodes.Count; ii++)
             {
