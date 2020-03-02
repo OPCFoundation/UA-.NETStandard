@@ -2054,7 +2054,7 @@ namespace Opc.Ua
             }
             else
             {
-                if (target.ToUpperInvariant() == pattern.ToUpperInvariant())
+                if (String.Equals(target, pattern, StringComparison.InvariantCultureIgnoreCase))
                 {
                     return true;
                 }
@@ -2624,7 +2624,7 @@ namespace Opc.Ua
             return result == 0;
         }
 
-        public class Nonce
+        public static class Nonce
         {
             static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 

@@ -62,8 +62,17 @@ namespace Opc.Ua
             Set(value, typeInfo);
 
             #if DEBUG
-            
-            TypeInfo sanityCheck = TypeInfo.Construct(value);
+
+            TypeInfo sanityCheck = TypeInfo.Construct(m_value);
+
+            // except special case byte array vs. bytestring
+            if (sanityCheck.BuiltInType == BuiltInType.ByteString &&
+                sanityCheck.ValueRank == ValueRanks.Scalar &&
+                typeInfo.BuiltInType == BuiltInType.Byte &&
+                typeInfo.ValueRank == ValueRanks.OneDimension)
+            {
+                return;
+            }
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == m_typeInfo.BuiltInType, 
