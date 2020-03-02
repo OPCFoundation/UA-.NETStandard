@@ -1182,6 +1182,11 @@ namespace Opc.Ua
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.OneDimension);
                 }
 
+                if (systemType.GetTypeInfo().GetElementType().IsEnum)
+                {
+                    return new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension);
+                }
+
                 return TypeInfo.Unknown;
             }
 
