@@ -12,9 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
@@ -34,7 +31,7 @@ namespace Opc.Ua
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class DiagnosticInfo : IFormattable
-    {        
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -46,7 +43,7 @@ namespace Opc.Ua
         {
             Initialize();
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
@@ -56,14 +53,14 @@ namespace Opc.Ua
         /// <param name="value">The value to copy</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DiagnosticInfo(DiagnosticInfo value)
-        {            
+        {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            m_symbolicId      = value.m_symbolicId;
-            m_namespaceUri    = value.m_namespaceUri;
-            m_locale          = value.m_locale;
-            m_localizedText   = value.m_localizedText;
-            m_additionalInfo  = value.m_additionalInfo;
+            m_symbolicId = value.m_symbolicId;
+            m_namespaceUri = value.m_namespaceUri;
+            m_locale = value.m_locale;
+            m_localizedText = value.m_localizedText;
+            m_additionalInfo = value.m_additionalInfo;
             m_innerStatusCode = value.m_innerStatusCode;
 
             if (value.m_innerDiagnosticInfo != null)
@@ -84,16 +81,16 @@ namespace Opc.Ua
         /// <param name="localizedText">The localized text value</param>
         /// <param name="additionalInfo">Additional, textual information</param>
         public DiagnosticInfo(
-            int    symbolicId,
-            int    namespaceUri,
-            int    locale,
-            int    localizedText,
+            int symbolicId,
+            int namespaceUri,
+            int locale,
+            int localizedText,
             string additionalInfo)
         {
-            m_symbolicId     = symbolicId;
-            m_namespaceUri   = namespaceUri;
-            m_locale         = locale;
-            m_localizedText  = localizedText;
+            m_symbolicId = symbolicId;
+            m_namespaceUri = namespaceUri;
+            m_locale = locale;
+            m_localizedText = localizedText;
             m_additionalInfo = additionalInfo;
         }
 
@@ -108,10 +105,10 @@ namespace Opc.Ua
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
         public DiagnosticInfo(
-            ServiceResult    result, 
-            DiagnosticsMasks diagnosticsMask, 
-            bool             serviceLevel, 
-            StringTable      stringTable)
+            ServiceResult result,
+            DiagnosticsMasks diagnosticsMask,
+            bool serviceLevel,
+            StringTable stringTable)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -136,10 +133,10 @@ namespace Opc.Ua
         /// <param name="serviceLevel">The service level</param>
         /// <param name="stringTable">A table of strings that may contain additional diagnostic data</param>
         public DiagnosticInfo(
-            Exception        exception, 
-            DiagnosticsMasks diagnosticsMask, 
-            bool             serviceLevel, 
-            StringTable      stringTable)
+            Exception exception,
+            DiagnosticsMasks diagnosticsMask,
+            bool serviceLevel,
+            StringTable stringTable)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -152,7 +149,7 @@ namespace Opc.Ua
 
             Initialize(new ServiceResult(exception), diagnosticsMask, stringTable);
         }
-        
+
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
@@ -163,10 +160,10 @@ namespace Opc.Ua
         [OnDeserializing()]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
         private void Initialize(StreamingContext context)
-        { 
+        {
             Initialize();
         }
-        
+
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
@@ -174,13 +171,13 @@ namespace Opc.Ua
         /// Initializes the object with default values during deserialization.
         /// </remarks>
         private void Initialize()
-        { 
-            m_symbolicId          = -1;
-            m_namespaceUri        = -1;
-            m_locale              = -1;
-            m_localizedText       = -1;
-            m_additionalInfo      = null;
-            m_innerStatusCode     = StatusCodes.Good;
+        {
+            m_symbolicId = -1;
+            m_namespaceUri = -1;
+            m_locale = -1;
+            m_localizedText = -1;
+            m_additionalInfo = null;
+            m_innerStatusCode = StatusCodes.Good;
             m_innerDiagnosticInfo = null;
         }
 
@@ -194,25 +191,25 @@ namespace Opc.Ua
         /// <param name="result">The transaction result</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
         private void Initialize(
-            ServiceResult    result, 
-            DiagnosticsMasks diagnosticsMask, 
-            StringTable      stringTable)
-        {        
+            ServiceResult result,
+            DiagnosticsMasks diagnosticsMask,
+            StringTable stringTable)
+        {
             if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
-            
-            m_symbolicId          = -1;
-            m_namespaceUri        = -1;
-            m_locale              = -1;
-            m_localizedText       = -1;
-            m_additionalInfo      = null;
-            m_innerStatusCode     = StatusCodes.Good;
+
+            m_symbolicId = -1;
+            m_namespaceUri = -1;
+            m_locale = -1;
+            m_localizedText = -1;
+            m_additionalInfo = null;
+            m_innerStatusCode = StatusCodes.Good;
             m_innerDiagnosticInfo = null;
 
             if ((DiagnosticsMasks.ServiceSymbolicId & diagnosticsMask) != 0)
             {
-                string symbolicId   = result.SymbolicId;
+                string symbolicId = result.SymbolicId;
                 string namespaceUri = result.NamespaceUri;
-                
+
                 if (!String.IsNullOrEmpty(symbolicId))
                 {
                     m_symbolicId = stringTable.GetIndex(result.SymbolicId);
@@ -277,15 +274,15 @@ namespace Opc.Ua
                 if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0)
                 {
                     m_innerDiagnosticInfo = new DiagnosticInfo(
-                        result.InnerResult, 
-                        diagnosticsMask, 
-                        true, 
+                        result.InnerResult,
+                        diagnosticsMask,
+                        true,
                         stringTable);
                 }
             }
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The index of the symbolic id in the string table.
@@ -296,7 +293,7 @@ namespace Opc.Ua
         [DataMember(Order = 1, IsRequired = false)]
         public int SymbolicId
         {
-            get { return m_symbolicId;  }
+            get { return m_symbolicId; }
             set { m_symbolicId = value; }
         }
 
@@ -309,30 +306,30 @@ namespace Opc.Ua
         [DataMember(Order = 2, IsRequired = false)]
         public int NamespaceUri
         {
-            get { return m_namespaceUri;  }
+            get { return m_namespaceUri; }
             set { m_namespaceUri = value; }
         }
-        
+
         /// <summary>
         /// The index of the locale associated with the localized text.
         /// </summary>
         [DataMember(Order = 3, IsRequired = false)]
         public int Locale
         {
-            get { return m_locale;  }
+            get { return m_locale; }
             set { m_locale = value; }
         }
-        
+
         /// <summary>
         /// The index of the localized text in the string table.
         /// </summary>
         [DataMember(Order = 4, IsRequired = false)]
         public int LocalizedText
         {
-            get { return m_localizedText;  }
+            get { return m_localizedText; }
             set { m_localizedText = value; }
         }
-        
+
         /// <summary>
         /// The additional debugging or trace information.
         /// </summary>
@@ -342,10 +339,10 @@ namespace Opc.Ua
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public string AdditionalInfo
         {
-            get { return m_additionalInfo;  }
+            get { return m_additionalInfo; }
             set { m_additionalInfo = value; }
         }
-        
+
         /// <summary>
         /// The status code returned from an underlying system.
         /// </summary>
@@ -357,7 +354,7 @@ namespace Opc.Ua
         {
             get { return m_innerStatusCode; }
             set { m_innerStatusCode = value; }
-        }         
+        }
 
         /// <summary>
         /// The diagnostic info returned from a underlying system.
@@ -368,11 +365,11 @@ namespace Opc.Ua
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public DiagnosticInfo InnerDiagnosticInfo
         {
-            get { return m_innerDiagnosticInfo;  }
+            get { return m_innerDiagnosticInfo; }
             set { m_innerDiagnosticInfo = value; }
-        }        
+        }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -381,7 +378,7 @@ namespace Opc.Ua
         /// Determines if the specified object is equal to the object.
         /// </remarks>
         public override bool Equals(object obj)
-		{
+        {
             if (Object.ReferenceEquals(this, obj))
             {
                 return true;
@@ -395,32 +392,32 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                
+
                 if (this.m_namespaceUri != value.m_namespaceUri)
                 {
                     return false;
                 }
-                
+
                 if (this.m_locale != value.m_locale)
                 {
                     return false;
                 }
-                
+
                 if (this.m_localizedText != value.m_localizedText)
                 {
                     return false;
                 }
-                
+
                 if (this.m_additionalInfo != value.m_additionalInfo)
                 {
                     return false;
                 }
-                
+
                 if (this.m_innerStatusCode != value.m_innerStatusCode)
                 {
                     return false;
                 }
-                
+
                 if (this.m_innerDiagnosticInfo != null)
                 {
                     return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo);
@@ -428,18 +425,18 @@ namespace Opc.Ua
 
                 return value.m_innerDiagnosticInfo == null;
             }
-            
-            return false;
-		}
 
-		/// <summary>
-		/// Returns a unique hashcode for the object.
-		/// </summary>
+            return false;
+        }
+
+        /// <summary>
+        /// Returns a unique hashcode for the object.
+        /// </summary>
         /// <remarks>
         /// Returns a unique hashcode for the object.
         /// </remarks>
-		public override int GetHashCode()
-		{
+        public override int GetHashCode()
+        {
             int hash = 0;
 
             hash ^= this.m_symbolicId.GetHashCode();
@@ -460,11 +457,11 @@ namespace Opc.Ua
             }
 
             return 0;
-		}	
+        }
 
-		/// <summary>
-		/// Converts the value to a human readable string.
-		/// </summary>
+        /// <summary>
+        /// Converts the value to a human readable string.
+        /// </summary>
         /// <remarks>
         /// Converts the value to a human readable string.
         /// </remarks>
@@ -490,7 +487,7 @@ namespace Opc.Ua
             {
                 return Utils.Format("{0}:{1}:{2}:{3}", m_symbolicId, m_namespaceUri, m_locale, m_localizedText);
             }
-        
+
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
         #endregion
@@ -535,8 +532,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public DiagnosticInfoCollection() {}
-        
+        public DiagnosticInfoCollection() { }
+
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
@@ -544,7 +541,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy the contents from</param>
-        public DiagnosticInfoCollection(IEnumerable<DiagnosticInfo> collection) : base(collection) {}
+        public DiagnosticInfoCollection(IEnumerable<DiagnosticInfo> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -553,8 +550,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity of the collection</param>
-        public DiagnosticInfoCollection(int capacity) : base(capacity) {}
-        
+        public DiagnosticInfoCollection(int capacity) : base(capacity) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -571,7 +568,7 @@ namespace Opc.Ua
 
             return new DiagnosticInfoCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>

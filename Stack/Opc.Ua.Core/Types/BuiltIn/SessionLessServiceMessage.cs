@@ -22,20 +22,11 @@ namespace Opc.Ua
 
         public IEncodeable Message;
 
-        public ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionlessInvokeRequestType; }
-        }
+        public ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeRequestType;
 
-        public ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary; }
-        }
+        public ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary;
 
-        public ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml; }
-        }
+        public ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml;
 
         public void Encode(IEncoder encoder)
         {

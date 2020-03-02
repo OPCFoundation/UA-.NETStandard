@@ -12,21 +12,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Xml.Serialization;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using System.Globalization;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// A class that combines the status code and diagnostic info structures.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ServiceResult
-    {        
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -40,66 +38,66 @@ namespace Opc.Ua
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri,
             LocalizedText localizedText,
-            string        additionalInfo,
+            string additionalInfo,
             ServiceResult innerResult)
         {
-            StatusCode     = code;
-            SymbolicId     = symbolicId;
-            NamespaceUri   = namespaceUri;
-            LocalizedText  = localizedText;
+            StatusCode = code;
+            SymbolicId = symbolicId;
+            NamespaceUri = namespaceUri;
+            LocalizedText = localizedText;
             AdditionalInfo = additionalInfo;
-            InnerResult    = innerResult;
+            InnerResult = innerResult;
         }
 
         /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
-            StatusCode    code,
+            StatusCode code,
             ServiceResult innerResult)
         :
             this(code, null, null, null, null, innerResult)
         {
-        }        
-        
-        /// <summary>
-        /// Constructs a object by specifying each property.
-        /// </summary>
-        public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,
-            LocalizedText localizedText,
-            string        additionalInfo)
-        :
-            this(code, symbolicId, namespaceUri, localizedText, additionalInfo, (ServiceResult)null)
-        {
         }
-        
-        /// <summary>
-        /// Constructs a object by specifying each property.
-        /// </summary>
-        public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,
-            LocalizedText localizedText)
-        :
-            this(code, symbolicId, namespaceUri, localizedText, (string)null, (ServiceResult)null)
-        {
-        }
-        
+
         /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
-            string     symbolicId,
-            string     namespaceUri)
+            string symbolicId,
+            string namespaceUri,
+            LocalizedText localizedText,
+            string additionalInfo)
+        :
+            this(code, symbolicId, namespaceUri, localizedText, additionalInfo, (ServiceResult)null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a object by specifying each property.
+        /// </summary>
+        public ServiceResult(
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri,
+            LocalizedText localizedText)
+        :
+            this(code, symbolicId, namespaceUri, localizedText, (string)null, (ServiceResult)null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a object by specifying each property.
+        /// </summary>
+        public ServiceResult(
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri)
         :
             this(code, symbolicId, namespaceUri, (string)null, (string)null, (ServiceResult)null)
         {
@@ -109,25 +107,25 @@ namespace Opc.Ua
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
-            StatusCode       code,
+            StatusCode code,
             XmlQualifiedName symbolicId,
-            LocalizedText    localizedText)
+            LocalizedText localizedText)
         :
             this(code, (symbolicId != null) ? symbolicId.Name : null, (symbolicId != null) ? symbolicId.Namespace : null, localizedText, (string)null, (ServiceResult)null)
         {
         }
-        
+
         /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
-            StatusCode    code,
+            StatusCode code,
             LocalizedText localizedText)
         :
             this(code, (string)null, (string)null, localizedText, (string)null, (ServiceResult)null)
         {
         }
-        
+
         /// <summary>
         /// Constructs a object from a StatusCode.
         /// </summary>
@@ -135,7 +133,7 @@ namespace Opc.Ua
         {
             m_code = status.Code;
         }
-        
+
         /// <summary>
         /// Constructs a object from a StatusCode.
         /// </summary>
@@ -143,7 +141,7 @@ namespace Opc.Ua
         {
             m_code = code;
         }
-        
+
         /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
@@ -151,35 +149,35 @@ namespace Opc.Ua
         /// The innerException is used to construct the inner result.
         /// </remarks>
         public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri,
             LocalizedText localizedText,
-            string        additionalInfo,            
-            Exception     innerException)
+            string additionalInfo,
+            Exception innerException)
         {
             ServiceResult innerResult = new ServiceResult(innerException);
 
             // check if no new information provided.
             if (code.Code == innerResult.Code && symbolicId == null && localizedText == null && additionalInfo == null)
             {
-                m_code           = innerResult.Code;
-                m_symbolicId     = innerResult.SymbolicId;
-                m_namespaceUri   = innerResult.NamespaceUri;
-                m_localizedText  = innerResult.LocalizedText;
+                m_code = innerResult.Code;
+                m_symbolicId = innerResult.SymbolicId;
+                m_namespaceUri = innerResult.NamespaceUri;
+                m_localizedText = innerResult.LocalizedText;
                 m_additionalInfo = innerResult.AdditionalInfo;
-                m_innerResult    = innerResult.InnerResult;
+                m_innerResult = innerResult.InnerResult;
             }
 
             // make the exception the inner result.
             else
             {
-                m_code           = code.Code;
-                m_symbolicId     = symbolicId;
-                m_namespaceUri   = namespaceUri;
-                m_localizedText  = localizedText;
+                m_code = code.Code;
+                m_symbolicId = symbolicId;
+                m_namespaceUri = namespaceUri;
+                m_localizedText = localizedText;
                 m_additionalInfo = additionalInfo;
-                m_innerResult    = innerResult;
+                m_innerResult = innerResult;
             }
         }
 
@@ -190,11 +188,11 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,
-            LocalizedText localizedText,            
-            Exception     innerException)
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri,
+            LocalizedText localizedText,
+            Exception innerException)
         :
             this(code, symbolicId, namespaceUri, localizedText, null, innerException)
         {
@@ -207,15 +205,15 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(
-            StatusCode    code,
-            string        symbolicId,
-            string        namespaceUri,           
-            Exception     innerException)
+            StatusCode code,
+            string symbolicId,
+            string namespaceUri,
+            Exception innerException)
         :
             this(code, symbolicId, namespaceUri, null, null, innerException)
         {
         }
-        
+
         /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
@@ -223,9 +221,9 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(
-            StatusCode    code,
-            LocalizedText localizedText,            
-            Exception     innerException)
+            StatusCode code,
+            LocalizedText localizedText,
+            Exception innerException)
         :
             this(code, null, null, localizedText, null, innerException)
         {
@@ -242,7 +240,7 @@ namespace Opc.Ua
             this(code, null, null, null, null, innerException)
         {
         }
-        
+
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -250,38 +248,38 @@ namespace Opc.Ua
         /// The code, symbolicId, namespaceUri and localizedText parameters are ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(
-            Exception     e,
-            uint          defaultCode,
-            string        defaultSymbolicId,
-            string        defaultNamespaceUri,
+            Exception e,
+            uint defaultCode,
+            string defaultSymbolicId,
+            string defaultNamespaceUri,
             LocalizedText defaultLocalizedText)
         {
             ServiceResultException sre = e as ServiceResultException;
 
-			if (sre != null)
-			{
-				m_code           = sre.StatusCode;
-			    m_namespaceUri   = sre.NamespaceUri;
-			    m_symbolicId     = sre.SymbolicId;
-				m_localizedText  = sre.LocalizedText;
-                m_innerResult    = sre.Result.InnerResult;
+            if (sre != null)
+            {
+                m_code = sre.StatusCode;
+                m_namespaceUri = sre.NamespaceUri;
+                m_symbolicId = sre.SymbolicId;
+                m_localizedText = sre.LocalizedText;
+                m_innerResult = sre.Result.InnerResult;
 
                 if (LocalizedText.IsNullOrEmpty(m_localizedText))
                 {
                     m_localizedText = defaultLocalizedText;
                 }
-			}
+            }
             else
             {
-                m_code           = defaultCode;
-                m_symbolicId     = defaultSymbolicId;
-                m_namespaceUri   = defaultNamespaceUri;
-                m_localizedText  = defaultLocalizedText;            
+                m_code = defaultCode;
+                m_symbolicId = defaultSymbolicId;
+                m_namespaceUri = defaultNamespaceUri;
+                m_localizedText = defaultLocalizedText;
             }
-                
+
             m_additionalInfo = BuildExceptionTrace(e);
         }
-        
+
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -289,14 +287,14 @@ namespace Opc.Ua
         /// The defaultCode and defaultLocalizedText parameters are ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(
-            Exception     exception,
-            uint          defaultCode,
+            Exception exception,
+            uint defaultCode,
             LocalizedText defaultLocalizedText)
         :
             this(exception, defaultCode, null, null, defaultLocalizedText)
         {
         }
-        
+
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -304,15 +302,15 @@ namespace Opc.Ua
         /// The code, symbolicId and namespaceUri parameters are ignored for ServiceResultExceptions.
         /// </remarks>
         public ServiceResult(
-            Exception     exception,
-            uint          defaultCode,
-            string        defaultSymbolicId,
-            string        defaultNamespaceUri)
+            Exception exception,
+            uint defaultCode,
+            string defaultSymbolicId,
+            string defaultNamespaceUri)
         :
             this(exception, defaultCode, defaultSymbolicId, defaultNamespaceUri, null)
         {
         }
-                
+
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -321,12 +319,12 @@ namespace Opc.Ua
         /// </remarks>
         public ServiceResult(
             Exception exception,
-            uint      defaultCode)
+            uint defaultCode)
         :
             this(exception, defaultCode, null, null, exception.Message)
         {
-        }      
-                
+        }
+
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -334,23 +332,23 @@ namespace Opc.Ua
         :
             this(exception, StatusCodes.Bad, null, null, exception.Message)
         {
-        }      
+        }
 
-		/// <summary>
-		/// Initializes the object with a status code and a diagnostic info structure.
-		/// </summary>
-		public ServiceResult(StatusCode code, DiagnosticInfo diagnosticInfo, IList<string> stringTable)
-		{
-			m_code = (uint)code;
+        /// <summary>
+        /// Initializes the object with a status code and a diagnostic info structure.
+        /// </summary>
+        public ServiceResult(StatusCode code, DiagnosticInfo diagnosticInfo, IList<string> stringTable)
+        {
+            m_code = (uint)code;
 
             if (diagnosticInfo != null)
             {
-				m_namespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
-				m_symbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
+                m_namespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
+                m_symbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
 
                 string locale = LookupString(stringTable, diagnosticInfo.Locale);
                 string localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-				m_localizedText  = new LocalizedText(locale, localizedText);
+                m_localizedText = new LocalizedText(locale, localizedText);
 
                 m_additionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -359,27 +357,27 @@ namespace Opc.Ua
                     m_innerResult = new ServiceResult(diagnosticInfo.InnerStatusCode, diagnosticInfo.InnerDiagnosticInfo, stringTable);
                 }
             }
-		}
-        
-		/// <summary>
-		/// Initializes the object with a status code and a diagnostic info structure.
-		/// </summary>
-		public ServiceResult(StatusCode code, int index, DiagnosticInfoCollection diagnosticInfos, IList<string> stringTable)
-		{
-			m_code = (uint)code;
+        }
+
+        /// <summary>
+        /// Initializes the object with a status code and a diagnostic info structure.
+        /// </summary>
+        public ServiceResult(StatusCode code, int index, DiagnosticInfoCollection diagnosticInfos, IList<string> stringTable)
+        {
+            m_code = (uint)code;
 
             if (index >= 0 && diagnosticInfos != null && index < diagnosticInfos.Count)
             {
                 DiagnosticInfo diagnosticInfo = diagnosticInfos[index];
-                
+
                 if (diagnosticInfo != null)
                 {
-				    m_namespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
-				    m_symbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
-				    
+                    m_namespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
+                    m_symbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
+
                     string locale = LookupString(stringTable, diagnosticInfo.Locale);
-				    string localizedText  = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                    m_localizedText  = new LocalizedText(locale, localizedText);
+                    string localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
+                    m_localizedText = new LocalizedText(locale, localizedText);
 
                     m_additionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -389,20 +387,17 @@ namespace Opc.Ua
                     }
                 }
             }
-		}
+        }
         #endregion
-                                                
-		#region Static Interface
+
+        #region Static Interface
         /// <summary>
         /// A result representing a good status.
         /// </summary>
-        public static ServiceResult Good
-        {
-            get { return s_Good; }
-        }
+        public static ServiceResult Good => s_Good;
 
         private static readonly ServiceResult s_Good = new ServiceResult();
-        
+
         /// <summary>
         /// Creates a new instance of a ServiceResult
         /// </summary>
@@ -423,7 +418,7 @@ namespace Opc.Ua
         {
             // replace the default code with the one from the exception.
             ServiceResultException sre = e as ServiceResultException;
-            
+
             if (sre != null)
             {
                 defaultCode = sre.StatusCode;
@@ -462,7 +457,7 @@ namespace Opc.Ua
         {
             // replace the default code with the one from the exception.
             ServiceResultException sre = e as ServiceResultException;
-            
+
             if (sre != null)
             {
                 defaultCode = sre.StatusCode;
@@ -481,248 +476,248 @@ namespace Opc.Ua
             return new ServiceResult(defaultCode, Utils.Format(format, args), e);
         }
 
-		/// <summary>
-		/// Returns true if the status code is good.
-		/// </summary>
-		public static bool IsGood(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsGood(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
+        public static bool IsGood(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsGood(status.m_code);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Returns true if the status is bad or uncertain.
-		/// </summary>
-		public static bool IsNotGood(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsNotGood(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        public static bool IsNotGood(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotGood(status.m_code);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Returns true if the status code is uncertain.
-		/// </summary>
-		public static bool IsUncertain(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsUncertain(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        public static bool IsUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsUncertain(status.m_code);
+            }
 
-			return false;
-		}
+            return false;
+        }
 
-		/// <summary>
-		/// Returns true if the status is good or uncertain.
-		/// </summary>
-		public static bool IsNotUncertain(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsNotUncertain(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public static bool IsNotUncertain(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotUncertain(status.m_code);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Returns true if the status code is bad.
-		/// </summary>
-		public static bool IsBad(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsBad(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
+        public static bool IsBad(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsBad(status.m_code);
+            }
 
-			return false;
-		}
+            return false;
+        }
 
-		/// <summary>
-		/// Returns true if the status is good or uncertain.
-		/// </summary>
-		public static bool IsNotBad(ServiceResult status)
-		{
-			if (status != null)
-			{
-				return StatusCode.IsNotBad(status.m_code);
-			}
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public static bool IsNotBad(ServiceResult status)
+        {
+            if (status != null)
+            {
+                return StatusCode.IsNotBad(status.m_code);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Converts a 32-bit code a ServiceResult object.
-		/// </summary>
-		public static implicit operator ServiceResult(uint code)
-		{		
-			return new ServiceResult(code);
-		}        
+        /// <summary>
+        /// Converts a 32-bit code a ServiceResult object.
+        /// </summary>
+        public static implicit operator ServiceResult(uint code)
+        {
+            return new ServiceResult(code);
+        }
 
-		/// <summary>
-		/// Converts a StatusCode a ServiceResult object.
-		/// </summary>
-		public static implicit operator ServiceResult(StatusCode code)
-		{		
-			return new ServiceResult(code);
-		}
+        /// <summary>
+        /// Converts a StatusCode a ServiceResult object.
+        /// </summary>
+        public static implicit operator ServiceResult(StatusCode code)
+        {
+            return new ServiceResult(code);
+        }
 
-		/// <summary>
-		/// Converts a StatusCode object to a 32-bit code.
-		/// </summary>
-		public static explicit operator uint(ServiceResult status)
-		{
+        /// <summary>
+        /// Converts a StatusCode object to a 32-bit code.
+        /// </summary>
+        public static explicit operator uint(ServiceResult status)
+        {
             if (status == null)
             {
                 return StatusCodes.Good;
             }
 
-			return status.Code;
-		}
-		
-		/// <summary>
-		/// Looks up the symbolic name for a status code.
-		/// </summary>
-		public static string LookupSymbolicId(uint code)
-		{			
-			return StatusCodes.GetBrowseName(code & 0xFFFF0000);
-		}
+            return status.Code;
+        }
 
-		/// <summary>
-		/// Returns a string containing all nested exceptions.
-		/// </summary>
-		public static string BuildExceptionTrace(Exception exception)
-		{
-			StringBuilder buffer = new StringBuilder();
+        /// <summary>
+        /// Looks up the symbolic name for a status code.
+        /// </summary>
+        public static string LookupSymbolicId(uint code)
+        {
+            return StatusCodes.GetBrowseName(code & 0xFFFF0000);
+        }
 
-			while (exception != null)
-			{
-				if (buffer.Length > 0)
-				{
-					buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n");
-				}
+        /// <summary>
+        /// Returns a string containing all nested exceptions.
+        /// </summary>
+        public static string BuildExceptionTrace(Exception exception)
+        {
+            StringBuilder buffer = new StringBuilder();
+
+            while (exception != null)
+            {
+                if (buffer.Length > 0)
+                {
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n");
+                }
 
                 buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
 
                 if (!String.IsNullOrEmpty(exception.StackTrace))
                 {
-				    string[] trace = exception.StackTrace.Split(new char[] {'\r','\n'});
+                    string[] trace = exception.StackTrace.Split(new char[] { '\r', '\n' });
 
-				    for (int ii = 0; ii < trace.Length; ii++)
-				    {
-					    if (trace[ii] != null && trace[ii].Length > 0)
-					    {
+                    for (int ii = 0; ii < trace.Length; ii++)
+                    {
+                        if (trace[ii] != null && trace[ii].Length > 0)
+                        {
                             buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n--- {0}", trace[ii]);
-					    }
-				    }
+                        }
+                    }
                 }
 
-				exception = exception.InnerException;
-			}
+                exception = exception.InnerException;
+            }
 
-			return buffer.ToString();
-		}
-		#endregion
+            return buffer.ToString();
+        }
+        #endregion
 
-		#region Public Properties
-		/// <summary>
-		/// The status code associated with the result.
-		/// </summary>
-		public uint Code
-		{
-			get	{ return m_code;  }
+        #region Public Properties
+        /// <summary>
+        /// The status code associated with the result.
+        /// </summary>
+        public uint Code
+        {
+            get { return m_code; }
             private set { m_code = value; }
-		}
-        
-		/// <summary>
-		/// The status code associated with the result.
-		/// </summary>
+        }
+
+        /// <summary>
+        /// The status code associated with the result.
+        /// </summary>
         [DataMember(Order = 1)]
-		public StatusCode StatusCode
-		{
-			get	{ return m_code; }
+        public StatusCode StatusCode
+        {
+            get { return m_code; }
             private set { m_code = value.Code; }
-		}
+        }
 
-		/// <summary>
-		/// The namespace that qualifies symbolic identifier.
-		/// </summary>
+        /// <summary>
+        /// The namespace that qualifies symbolic identifier.
+        /// </summary>
         [DataMember(Order = 2)]
-		public string NamespaceUri
-		{
-			get { return m_namespaceUri;  }
+        public string NamespaceUri
+        {
+            get { return m_namespaceUri; }
             private set { m_namespaceUri = value; }
-		}
+        }
 
-		/// <summary>
-		/// The qualified name of the symbolic identifier associated with the status code.
-		/// </summary>	
+        /// <summary>
+        /// The qualified name of the symbolic identifier associated with the status code.
+        /// </summary>	
         [DataMember(Order = 3)]
-		public string SymbolicId
-		{
-			get { return m_symbolicId;  }
+        public string SymbolicId
+        {
+            get { return m_symbolicId; }
             private set { m_symbolicId = value; }
-		}
+        }
 
-		/// <summary>
-		/// The localized description for the status code.
-		/// </summary>
+        /// <summary>
+        /// The localized description for the status code.
+        /// </summary>
         [DataMember(Order = 4)]
-		public LocalizedText LocalizedText
-		{
-			get { return m_localizedText;  }
+        public LocalizedText LocalizedText
+        {
+            get { return m_localizedText; }
             private set { m_localizedText = value; }
-		}
+        }
 
-		/// <summary>
-		/// Additional diagnostic/debugging information associated with the operation.
-		/// </summary>
+        /// <summary>
+        /// Additional diagnostic/debugging information associated with the operation.
+        /// </summary>
         [DataMember(Order = 5)]
-		public string AdditionalInfo
-		{
-			get { return m_additionalInfo;  }
+        public string AdditionalInfo
+        {
+            get { return m_additionalInfo; }
             private set { m_additionalInfo = value; }
-		}
+        }
 
-		/// <summary>
-		/// Nested error information.
-		/// </summary>
+        /// <summary>
+        /// Nested error information.
+        /// </summary>
         [DataMember(Order = 6)]
-		public ServiceResult InnerResult
-		{
-			get { return m_innerResult;  }
+        public ServiceResult InnerResult
+        {
+            get { return m_innerResult; }
             private set { m_innerResult = value; }
-		}
-		#endregion
-	
-		#region Public Methods
-		/// <summary>
-		/// Converts the value to a human readable string.
-		/// </summary>
-		public override string ToString()
-		{
-			StringBuilder buffer = new StringBuilder();
+        }
+        #endregion
 
-			buffer.Append(LookupSymbolicId(m_code));
+        #region Public Methods
+        /// <summary>
+        /// Converts the value to a human readable string.
+        /// </summary>
+        public override string ToString()
+        {
+            StringBuilder buffer = new StringBuilder();
 
-			if (!String.IsNullOrEmpty(m_symbolicId))
-			{
-				if (!String.IsNullOrEmpty(m_namespaceUri))
-				{
-					buffer.AppendFormat(" ({0}:{1})", m_namespaceUri, m_symbolicId);
-				}
-				else if (m_symbolicId != buffer.ToString())
-				{
-					buffer.AppendFormat(" ({0})", m_symbolicId);
-				}
+            buffer.Append(LookupSymbolicId(m_code));
+
+            if (!String.IsNullOrEmpty(m_symbolicId))
+            {
+                if (!String.IsNullOrEmpty(m_namespaceUri))
+                {
+                    buffer.AppendFormat(" ({0}:{1})", m_namespaceUri, m_symbolicId);
+                }
+                else if (m_symbolicId != buffer.ToString())
+                {
+                    buffer.AppendFormat(" ({0})", m_symbolicId);
+                }
             }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
@@ -730,56 +725,56 @@ namespace Opc.Ua
                 buffer.AppendFormat(" '{0}'", m_localizedText);
             }
 
-			if ((0x0000FFFF & Code) != 0)
-			{
-				buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
-			}
+            if ((0x0000FFFF & Code) != 0)
+            {
+                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+            }
 
-			return buffer.ToString();
-		}
+            return buffer.ToString();
+        }
 
-		/// <summary>
-		/// Returns a formatted string with the contents of exeception.
-		/// </summary>
-		public string ToLongString()
-		{
-			StringBuilder buffer = new StringBuilder();
+        /// <summary>
+        /// Returns a formatted string with the contents of exeception.
+        /// </summary>
+        public string ToLongString()
+        {
+            StringBuilder buffer = new StringBuilder();
 
-			buffer.Append("Id: ");
+            buffer.Append("Id: ");
             buffer.Append(StatusCodes.GetBrowseName(m_code));
-            
+
             if (!String.IsNullOrEmpty(m_symbolicId))
             {
-			    buffer.Append("\r\n");
-			    buffer.Append("SymbolicId: ");
-			    buffer.Append(m_symbolicId);
-            }                
+                buffer.Append("\r\n");
+                buffer.Append("SymbolicId: ");
+                buffer.Append(m_symbolicId);
+            }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
             {
-			    buffer.Append("\r\n");
-			    buffer.Append("Description: ");
-			    buffer.Append(m_localizedText);
+                buffer.Append("\r\n");
+                buffer.Append("Description: ");
+                buffer.Append(m_localizedText);
             }
 
-			if (AdditionalInfo != null && AdditionalInfo.Length > 0)
-			{
-				buffer.Append("\r\n");
-				buffer.Append(AdditionalInfo);
-			}
+            if (AdditionalInfo != null && AdditionalInfo.Length > 0)
+            {
+                buffer.Append("\r\n");
+                buffer.Append(AdditionalInfo);
+            }
 
             ServiceResult innerResult = m_innerResult;
 
             if (innerResult != null)
             {
-			    buffer.Append("\r\n===\r\n");
-			    buffer.Append(innerResult.ToLongString());
+                buffer.Append("\r\n===\r\n");
+                buffer.Append(innerResult.ToLongString());
             }
 
-			return buffer.ToString();
-		}
-		#endregion
-        
+            return buffer.ToString();
+        }
+        #endregion
+
         #region Private Methods
         /// <summary>
         /// Looks up a string in a string table.
