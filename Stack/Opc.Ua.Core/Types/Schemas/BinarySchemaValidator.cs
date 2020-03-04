@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -147,9 +148,12 @@ namespace Opc.Ua.Schema.Binary
             }
             else
             {
-                // always import builtin types
-                ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
-                await Import(directive);
+                // always import builtin types, unless wellknown library
+                if (!WellKnownDictionaries.Any(n => String.Equals(n[0], Dictionary.TargetNamespace)))
+                {
+                    ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
+                    await Import(directive);
+                }
             }
 
             // import types from imported dictionaries.
@@ -508,7 +512,7 @@ namespace Opc.Ua.Schema.Binary
         #endregion
 
         #region Private Fields
-        private readonly string[][] WellKnownDictionaries = new string[][]
+        protected readonly static string[][] WellKnownDictionaries = new string[][]
         {
             new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd" },
             new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"  },

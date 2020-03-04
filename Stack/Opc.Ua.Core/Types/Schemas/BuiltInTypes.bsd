@@ -32,7 +32,7 @@
   xmlns="http://opcfoundation.org/UA/BuiltInTypes/"
   xmlns:opc="http://opcfoundation.org/BinarySchema/"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:ua="http://opcfoundation.org/UA/BuiltInTypes/"
   DefaultByteOrder="LittleEndian"
   TargetNamespace="http://opcfoundation.org/UA/BuiltInTypes/"
 >
