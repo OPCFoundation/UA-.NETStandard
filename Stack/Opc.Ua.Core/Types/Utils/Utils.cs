@@ -880,6 +880,26 @@ namespace Opc.Ua
         private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
+        /// Normalize a DateTime to UniversalTime.
+        /// </summary>
+        public static DateTime NormalizeToUniversalTime(DateTime value)
+        {
+            if (value <= DateTime.MinValue)
+            {
+                return DateTime.MinValue;
+            }
+            if (value >= DateTime.MaxValue)
+            {
+                return DateTime.MaxValue;
+            }
+            if (value.Kind != DateTimeKind.Utc)
+            {
+                return value.ToUniversalTime();
+            }
+            return value;
+        }
+
+        /// <summary>
         /// Returns an absolute deadline for a timeout.
         /// </summary>
         public static DateTime GetDeadline(TimeSpan timeSpan)
@@ -1905,7 +1925,7 @@ namespace Opc.Ua
             // check for DateTime objects
             if (value1 is DateTime)
             {
-                return ((DateTime)value1).ToUniversalTime().CompareTo(((DateTime)value2).ToUniversalTime()) == 0;
+                return (Utils.NormalizeToUniversalTime((DateTime)value1).CompareTo(Utils.NormalizeToUniversalTime((DateTime)value2))) == 0;
             }
 
             // check for compareable objects.
