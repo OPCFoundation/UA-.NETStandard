@@ -132,18 +132,20 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Category("BuiltInType")]
         public void VariantFromEnumArray()
         {
-            Variant variant00 = new Variant(DayOfWeek.Monday);
-            Variant variant0 = new Variant(DayOfWeek.Monday, new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar));
-            // https://github.com/OPCFoundation/UA-.NETStandard/issues/716
+            // Enum Scalar
+            Variant variant0 = new Variant(DayOfWeek.Monday);
+            Variant variant1 = new Variant(DayOfWeek.Monday, new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar));
+
+            // Enum array
             DayOfWeek[] days = new DayOfWeek[] { DayOfWeek.Monday, DayOfWeek.Tuesday };
-            // Standard 
-            Variant variant1 = new Variant(days, new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension));
-            // no extra TypeInfo
-            Variant variant2 = new Variant(days);
-            // 2-dim Array
+            Variant variant2 = new Variant(days, new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension));
+            Variant variant3 = new Variant(days);
+
+            // Enum 2-dim Array
             DayOfWeek[,] daysdays = new DayOfWeek[,] { { DayOfWeek.Monday, DayOfWeek.Tuesday }, { DayOfWeek.Monday, DayOfWeek.Tuesday } };
-            Variant variant5 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
-            //Variant variant6 = new Variant(daysdays);
+            Variant variant4 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+            // not supported
+            // Variant variant5 = new Variant(daysdays);
         }
         #endregion
     }
