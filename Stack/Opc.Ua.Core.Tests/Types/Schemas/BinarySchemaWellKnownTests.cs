@@ -35,7 +35,7 @@ using Opc.Ua.Schema.Binary;
 namespace Opc.Ua.Core.Tests.Types.Schemas
 {
     /// <summary>
-    /// Tests for the CertificateValidator class.
+    /// Tests for the Binary Schema Validator class.
     /// </summary>
     [TestFixture, Category("BinarySchema")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -48,6 +48,9 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         #endregion
 
         #region Test Methods
+        /// <summary>
+        /// Load well known resource type dictionaries.
+        /// </summary>
         [Theory]
         public void LoadResources(string[] schemaData)
         {
@@ -58,6 +61,9 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             Assert.AreEqual(resource.GetType(), typeof(TypeDictionary));
         }
 
+        /// <summary>
+        /// Load and validate well known resource type dictionaries.
+        /// </summary>
         [Theory]
         public async Task ValidateResources(string[] schemaData)
         {
