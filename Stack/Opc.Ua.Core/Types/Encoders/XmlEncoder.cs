@@ -455,7 +455,8 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                m_writer.WriteValue(value.ToUniversalTime());
+                value = Utils.NormalizeToUniversalTime(value);
+                m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }

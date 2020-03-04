@@ -31,7 +31,6 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -218,10 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
             if (BuiltInType.DateTime == builtInType)
             {
-                if (((DateTime)expected).Kind == DateTimeKind.Unspecified)
-                {
-                    expected = ((DateTime)expected).ToUniversalTime();
-                }
+                expected = Utils.NormalizeToUniversalTime((DateTime)expected);
             }
             Assert.AreEqual(expected, result, encodeInfo);
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
@@ -574,10 +570,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 return dateTime;
             }
-            if (dateTime.Kind != DateTimeKind.Utc)
-            {
-                dateTime = dateTime.ToUniversalTime();
-            }
+            dateTime = Utils.NormalizeToUniversalTime(dateTime);
             return dateTime <= Utils.TimeBase ? DateTime.MinValue : dateTime;
         }
 
