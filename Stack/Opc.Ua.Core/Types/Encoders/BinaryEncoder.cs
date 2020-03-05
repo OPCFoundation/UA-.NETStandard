@@ -454,10 +454,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            if (value.Kind != DateTimeKind.Utc)
-            {
-                value = value.ToUniversalTime();
-            }
+            value = Utils.NormalizeToUniversalTime(value);
 
             long ticks = value.Ticks;
 
