@@ -1071,12 +1071,12 @@ namespace Opc.Ua.Server
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
-                                throw new ServiceResultException(StatusCodes.BadUserSignatureInvalid, "Invalid user signature!");
+                                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, "Invalid user signature!");
                             }
                         }
                         else
                         {
-                            throw new ServiceResultException(StatusCodes.BadUserSignatureInvalid, "Invalid user signature!");
+                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, "Invalid user signature!");
                         }
                     }
                 }

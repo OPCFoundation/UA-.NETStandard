@@ -2111,7 +2111,7 @@ namespace Opc.Ua.Server
 
             if (!Object.ReferenceEquals(context.Session, m_session))
             {
-                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid, "Session no longer owns the subscription.");
+                throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid, "Subscription belongs to a different session.");
             }
         }
         

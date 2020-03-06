@@ -590,10 +590,12 @@ namespace Opc.Ua.Server
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
+                    ServerInternal.ServerDiagnostics.RejectedSessionCount++;
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedSessionCount++;
                         ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
                     }
                 }
@@ -872,7 +874,6 @@ namespace Opc.Ua.Server
             }   
         }
 
-
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
@@ -924,7 +925,7 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }  
         }
-        
+
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
@@ -1085,7 +1086,6 @@ namespace Opc.Ua.Server
             } 
         }
 
-
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
@@ -1148,7 +1148,6 @@ namespace Opc.Ua.Server
             } 
         }
 
-
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
@@ -1202,7 +1201,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
@@ -1255,7 +1253,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
 
         /// <summary>
         /// Invokes the CreateSubscription service.
@@ -1326,7 +1323,6 @@ namespace Opc.Ua.Server
             }         
         }
 
-
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
@@ -1379,7 +1375,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             } 
         }
-
 
         /// <summary>
         /// Invokes the Publish service.
@@ -1465,6 +1460,7 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
+
         /// <summary>
         /// Begins an asynchronous publish operation.
         /// </summary>
@@ -1679,7 +1675,6 @@ namespace Opc.Ua.Server
             }         
         }
 
-
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
@@ -1868,7 +1863,6 @@ namespace Opc.Ua.Server
             }  
         }
 
-
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
@@ -1928,7 +1922,6 @@ namespace Opc.Ua.Server
             }    
         }
 
-
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
@@ -1984,7 +1977,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
 
         /// <summary>
         /// Invokes the SetMonitoringMode service.
@@ -2045,7 +2037,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
@@ -2069,7 +2060,23 @@ namespace Opc.Ua.Server
                 if (methodsToCall == null || methodsToCall.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
+
+                uint maxNodesPerMethodCall = 0;
+
+                try
+                {
+                    maxNodesPerMethodCall = ServerInternal.ServerObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value;
+                }
+                catch
+                {
+                    //ignore erros
+                }
+
+                if (maxNodesPerMethodCall > 0 && methodsToCall.Count > maxNodesPerMethodCall)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManyOperations);
+                }
 
                 m_serverInternal.NodeManager.Call(
                     context,

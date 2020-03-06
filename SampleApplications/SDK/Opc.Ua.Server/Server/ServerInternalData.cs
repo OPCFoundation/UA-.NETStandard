@@ -401,6 +401,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the Server object node
+        /// </summary>
+        /// <value>The Server object node.</value>
+        public ServerObjectState ServerObject
+        {
+            get { return m_serverObject; }
+        }
+
+        /// <summary>
         /// Used to synchronize access to the server diagnostics.
         /// </summary>
         /// <value>The diagnostics lock.</value>
@@ -576,7 +585,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRead.Value = 0;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerWrite.Value = 0;
-                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 1000;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerBrowse.Value = 0;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRegisterNodes.Value = 0;
 

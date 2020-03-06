@@ -210,22 +210,29 @@ namespace Opc.Ua
         /// </summary>
         public override bool Verify(byte[] dataToVerify, SignatureData signatureData, string securityPolicyUri)
         {
-            X509Certificate2 certificate = m_certificate;
-            
-            if (certificate == null)
-            {   
-                certificate = CertificateFactory.Create(m_certificateData, true);
+            try
+            {
+                X509Certificate2 certificate = m_certificate;
+
+                if (certificate == null)
+                {
+                    certificate = CertificateFactory.Create(m_certificateData, true);
+                }
+
+                bool valid = SecurityPolicies.Verify(
+                    certificate,
+                    securityPolicyUri,
+                    dataToVerify,
+                    signatureData);
+
+                m_certificateData = certificate.RawData;
+
+                return valid;
             }
-            
-            bool valid = SecurityPolicies.Verify(
-                certificate, 
-                securityPolicyUri, 
-                dataToVerify,
-                signatureData);
-
-            m_certificateData = certificate.RawData;
-
-            return valid;
+            catch (Exception e)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not verify user signature!");
+            }
         }
         #endregion
 
