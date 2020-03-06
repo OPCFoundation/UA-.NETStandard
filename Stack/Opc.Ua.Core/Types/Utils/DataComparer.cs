@@ -300,15 +300,8 @@ namespace Opc.Ua.Test
         {
             if (value1.Kind != value2.Kind)
             {
-                if (value1.Kind != DateTimeKind.Utc)
-                {
-                    value1 = value1.ToUniversalTime();
-                }
-
-                if (value2.Kind != DateTimeKind.Utc)
-                {
-                    value2 = value2.ToUniversalTime();
-                }
+                value1 = Utils.NormalizeToUniversalTime(value1);
+                value2 = Utils.NormalizeToUniversalTime(value2);
             }
 
             if (value1 < Utils.TimeBase)
@@ -328,7 +321,6 @@ namespace Opc.Ua.Test
 
             // allow milliseconds to be truncated.
             return Math.Abs((value1 - value2).Ticks) < 10000;
-
         }
         #endregion
 
