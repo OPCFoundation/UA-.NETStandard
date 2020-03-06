@@ -178,7 +178,7 @@ namespace Quickstarts.ReferenceServer
                             configuration.SecurityConfiguration.RejectedCertificateStore);
 
                         // set custom validator for user certificates.
-                        m_certificateValidator = certificateValidator.GetChannelValidator();
+                        m_userCertificateValidator = certificateValidator.GetChannelValidator();
                     }
                 }
             }
@@ -266,9 +266,9 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
-                if (m_certificateValidator != null)
+                if (m_userCertificateValidator != null)
                 {
-                    m_certificateValidator.Validate(certificate);
+                    m_userCertificateValidator.Validate(certificate);
                 }
                 else
                 {
@@ -311,7 +311,7 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Private Fields
-        private X509CertificateValidator m_certificateValidator;
+        private X509CertificateValidator m_userCertificateValidator;
         #endregion
     }
 }
