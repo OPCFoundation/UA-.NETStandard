@@ -1220,12 +1220,13 @@ namespace Opc.Ua.Test
         /// </summary>
         private object GetRandom(Type expectedType)
         {
-            object value = GetRandom(TypeInfo.Construct(expectedType).BuiltInType);
+            var builtInType = TypeInfo.Construct(expectedType).BuiltInType;
+            object value = GetRandom(builtInType);
 
-            if (expectedType == typeof(Uuid) &&
-                value.GetType() == typeof(Guid))
+            if (builtInType == BuiltInType.Guid &&
+                expectedType == typeof(Guid))
             {
-                return new Uuid((Guid)value);
+                return (Guid)(Uuid)value;
             }
 
             return value;
@@ -1284,9 +1285,9 @@ namespace Opc.Ua.Test
 
             return buffer.ToString();
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private IRandomSource m_random;
         private int m_maxArrayLength;
         private int m_maxStringLength;
@@ -1301,6 +1302,6 @@ namespace Opc.Ua.Test
         private string[] m_availableLocales;
         private SortedDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
-        #endregion
+#endregion
     }
 }
