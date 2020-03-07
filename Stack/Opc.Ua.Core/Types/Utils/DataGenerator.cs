@@ -1285,9 +1285,9 @@ namespace Opc.Ua.Test
 
             return buffer.ToString();
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private IRandomSource m_random;
         private int m_maxArrayLength;
         private int m_maxStringLength;
@@ -1302,6 +1302,6 @@ namespace Opc.Ua.Test
         private string[] m_availableLocales;
         private SortedDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
-#endregion
+        #endregion
     }
 }
