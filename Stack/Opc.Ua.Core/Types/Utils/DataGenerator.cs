@@ -1220,12 +1220,13 @@ namespace Opc.Ua.Test
         /// </summary>
         private object GetRandom(Type expectedType)
         {
-            object value = GetRandom(TypeInfo.Construct(expectedType).BuiltInType);
+            var builtInType = TypeInfo.Construct(expectedType).BuiltInType;
+            object value = GetRandom(builtInType);
 
-            if (expectedType == typeof(Uuid) &&
-                value.GetType() == typeof(Guid))
+            if (builtInType == BuiltInType.Guid &&
+                expectedType == typeof(Guid))
             {
-                return new Uuid((Guid)value);
+                return (Guid)(Uuid)value;
             }
 
             return value;
