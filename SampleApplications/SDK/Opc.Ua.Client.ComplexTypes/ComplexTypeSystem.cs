@@ -636,6 +636,21 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (dataTypeNode.DataTypeDefinition?.Body is StructureDefinition structureDefinition)
             {
+                if (structureDefinition.Fields == null ||
+                    structureDefinition.BaseDataType.IsNullNodeId ||
+                    structureDefinition.BinaryEncodingId.IsNull)
+                {
+                    return null;
+                }
+                foreach (var field in structureDefinition.Fields)
+                {
+                    if (field.BinaryEncodingId.IsNull ||
+                        field.DataType.IsNullNodeId ||
+                        field.TypeId.IsNull)
+                    {
+                        return null;
+                    }
+                }
                 return structureDefinition;
             }
             return null;
