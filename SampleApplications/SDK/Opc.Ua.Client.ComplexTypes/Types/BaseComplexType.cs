@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ExpandedNodeId XmlEncodingId { get; set; }
 
         /// <summary cref="IStructureTypeInfo.StructureType" />
-        public StructureType StructureType => StructureType.Structure;
+        public virtual StructureType StructureType => StructureType.Structure;
 
         /// <summary>
         /// Makes a deep copy of the object.

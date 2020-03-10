@@ -588,7 +588,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     var typeMatch = structTypesWorkList.Where(n => n.NodeId == dtnfex.nodeId).FirstOrDefault();
                                     if (typeMatch == null)
                                     {
-                                        throw dtnfex;
+                                        throw;
                                     }
                                     else
                                     {   // known missing type, retry on next round
