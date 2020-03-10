@@ -205,8 +205,7 @@ namespace Opc.Ua.Server
                 true,
                 DateTime.UtcNow);
             
-            e.SetChildValue(systemContext, BrowseNames.SourceNode, m_sessionId, false);
-            e.SetChildValue(systemContext, BrowseNames.SourceName, m_sessionName, false);
+            e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
             e.SetChildValue(systemContext, BrowseNames.SessionId, m_sessionId, false);
             e.SetChildValue(systemContext, BrowseNames.ServerId, m_server.ServerUris.GetString(0), false);
             e.SetChildValue(systemContext, BrowseNames.ClientUserId, m_identity.DisplayName, false);
@@ -218,21 +217,29 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ReportAuditCreateSessionEvent(ServerSystemContext context)
         {
-            // raise an audit event.
-            AuditCreateSessionEventState e = new AuditCreateSessionEventState(null);
-            
-            TranslationInfo message = new TranslationInfo(
-                "AuditCreateSessionEvent",
-                "en-US",
-                "Session {0} created.",
-                m_sessionName);
+            try
+            {
+                // raise an audit event.
+                AuditCreateSessionEventState e = new AuditCreateSessionEventState(null);
 
-            InitializeSessionAuditEvent(context, e, message);
-            
-            e.SetChildValue(context, BrowseNames.ClientCertificate, m_securityDiagnostics.ClientCertificate, false);
-            e.SetChildValue(context, BrowseNames.SecureChannelId, m_secureChannelId, false);
+                TranslationInfo message = new TranslationInfo(
+                    "AuditCreateSessionEvent",
+                    "en-US",
+                    "Session {0} created.",
+                    m_sessionName);
 
-            m_server.ReportEvent(context, e);
+                InitializeSessionAuditEvent(context, e, message);
+
+                e.SetChildValue(context, BrowseNames.SourceName, "Session/CreateSession", false);
+                e.SetChildValue(context, BrowseNames.ClientCertificate, m_securityDiagnostics.ClientCertificate, false);
+                e.SetChildValue(context, BrowseNames.SecureChannelId, m_secureChannelId, false);
+
+                m_server.ReportEvent(context, e);
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Error while reporting AuditCreateSessionEvent event for SessionId {0}.", m_sessionId);
+            }
         }
 
         /// <summary>
@@ -240,27 +247,36 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ReportAuditActivateSessionEvent(ServerSystemContext context)
         {
-            AuditActivateSessionEventState e = new AuditActivateSessionEventState(null);
-            
-            TranslationInfo message = new TranslationInfo(
-                "AuditActivateSessionEvent",
-                "en-US",
-                "Session {0} activated.",
-                m_sessionName);
-            
-            InitializeSessionAuditEvent(context, e, message);
-                        
-            if (m_softwareCertificates != null)
+            try
             {
-                e.SetChildValue(context, BrowseNames.ClientSoftwareCertificates, m_softwareCertificates.ToArray(), false);
-            }
+                AuditActivateSessionEventState e = new AuditActivateSessionEventState(null);
 
-            if (m_identityToken != null)
+                TranslationInfo message = new TranslationInfo(
+                    "AuditActivateSessionEvent",
+                    "en-US",
+                    "Session {0} activated.",
+                    m_sessionName);
+
+                InitializeSessionAuditEvent(context, e, message);
+
+                e.SetChildValue(context, BrowseNames.SourceName, "Session/ActivateSession", false);
+
+                if (m_softwareCertificates != null && m_softwareCertificates.Count > 0)
+                {
+                    e.SetChildValue(context, BrowseNames.ClientSoftwareCertificates, m_softwareCertificates.ToArray(), false);
+                }
+
+                if (m_identityToken != null)
+                {
+                    e.SetChildValue(context, BrowseNames.UserIdentityToken, Utils.Clone(m_identityToken), false);
+                }
+
+                m_server.ReportEvent(context, e);
+            }
+            catch (Exception e)
             {
-                e.SetChildValue(context, BrowseNames.UserIdentityToken, Utils.Clone(m_identityToken), false);
+                Utils.Trace(e, "Error while reporting AuditActivateSessionEvent event for SessionId {0}.", m_sessionId);
             }
-
-            m_server.ReportEvent(context, e);
         }
 
         #region IDisposable Members
