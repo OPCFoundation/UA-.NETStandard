@@ -850,6 +850,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     serverStructTypes.Insert(0, dataTypeNode);
                     break;
                 }
+                else if (TypeInfo.GetBuiltInType(superType) != BuiltInType.Null)
+                {
+                    break;
+                }
             } while (true);
         }
 
@@ -933,24 +937,24 @@ namespace Opc.Ua.Client.ComplexTypes
                             }
                         }
                     }
-                    else
-                    {
-                        enumDescription = allEnumerationTypes.Where(node =>
-                            node.BrowseName.Name == item.Name &&
-                            (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
-                            complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
-                            as DataTypeNode;
-                    }
-                    if (enumDescription != null)
-                    {
-                        var qName = new XmlQualifiedName(item.Name, complexTypeBuilder.TargetNamespace);
-                        typeDictionary[qName] = enumType.NodeId;
-                    }
-                    if (newType != null)
-                    {
-                        // match namespace and add to type factory
-                        AddEncodeableType(enumType.NodeId, newType);
-                    }
+                }
+                else
+                {
+                    enumDescription = allEnumerationTypes.Where(node =>
+                        node.BrowseName.Name == item.Name &&
+                        (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
+                        complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
+                        as DataTypeNode;
+                }
+                if (enumDescription != null)
+                {
+                    var qName = new XmlQualifiedName(item.Name, complexTypeBuilder.TargetNamespace);
+                    typeDictionary[qName] = enumDescription.NodeId;
+                }
+                if (newType != null)
+                {
+                    // match namespace and add to type factory
+                    AddEncodeableType(enumType.NodeId, newType);
                 }
             }
         }
@@ -1087,6 +1091,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 fieldType = GetSystemType(field.DataType);
                 if (fieldType == null)
                 {
+                    var superType = GetBuiltInSuperType(field.DataType);
+                    if (superType != null &&
+                        !superType.IsNullNodeId)
+                    {
+                        field.DataType = superType;
+                        return GetFieldType(field);
+                    }
                     return null;
                 }
                 if (field.ValueRank >= 0)
@@ -1103,6 +1114,33 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             return fieldType;
+        }
+
+        /// <summary>
+        /// Find superType for a datatype.
+        /// </summary>
+        private NodeId GetBuiltInSuperType(NodeId dataType)
+        {
+            var superType = dataType;
+            do
+            {
+                superType = m_session.NodeCache.FindSuperType(superType);
+                if (superType == null ||
+                    superType.IsNullNodeId)
+                {
+                    return null;
+                }
+                if (superType.NamespaceIndex == 0)
+                {
+                    if (superType == DataTypeIds.Enumeration ||
+                        superType == DataTypeIds.Structure)
+                    {
+                        return null;
+                    }
+                    break;
+                }
+            } while (true);
+            return superType;
         }
 
         /// <summary>
