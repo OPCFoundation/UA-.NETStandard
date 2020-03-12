@@ -243,6 +243,7 @@ namespace Opc.Ua.Client
             m_systemContext.PreferredLocales = null;
             m_systemContext.SessionId = null;
             m_systemContext.UserIdentity = null;
+            m_outstandingRequestThreshold = m_configuration.ClientConfiguration.OutstandingRequestThreshold;
         }
 
         /// <summary>
@@ -3740,6 +3741,16 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                // limit the number of keep alives sent.
+                int subscriptionCount = SubscriptionCount;
+                int outstandingRequestCount = OutstandingRequestCount;
+                if (outstandingRequestCount > subscriptionCount + m_outstandingRequestThreshold)
+                {
+                    if (!OnKeepAliveError(ServiceResult.Create(StatusCodes.BadNoCommunication, string.Format("Outstanding request threshold has been reached: {0} outstanding requests, {1} subscriptions, {2} configured threshold.", outstandingRequestCount, subscriptionCount, m_outstandingRequestThreshold))))
+                    {
+                        return;
+                    }
+                }
                 RequestHeader requestHeader = new RequestHeader();
 
                 requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_keepAliveCounter);
@@ -4422,6 +4433,8 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
 
         private EndpointDescriptionCollection m_expectedServerEndpoints;
+
+        private int m_outstandingRequestThreshold;
 
         private class AsyncRequestState
         {
