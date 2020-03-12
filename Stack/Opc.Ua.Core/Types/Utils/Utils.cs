@@ -3241,10 +3241,9 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime check for .Net Core
         /// </summary>
-        private static readonly Lazy<bool> IsRunningOnNetCoreValue = new Lazy<bool>(() =>
-        {
+        private static readonly Lazy<bool> IsRunningOnNetCoreValue = new Lazy<bool>(() => {
             return System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription.StartsWith(".NET Core");
-        }
+        });
 
         /// <summary>
         /// Determine if assembly uses mono runtime.
