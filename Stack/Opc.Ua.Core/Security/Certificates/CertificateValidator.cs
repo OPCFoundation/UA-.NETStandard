@@ -177,7 +177,7 @@ namespace Opc.Ua
 
             if (configuration.ApplicationCertificate != null)
             {
-                m_applicationCertificate = await configuration.ApplicationCertificate.Find(false);
+                m_applicationCertificate = await configuration.ApplicationCertificate.Find(true);
             }
         }
 
@@ -192,6 +192,7 @@ namespace Opc.Ua
             }
 
             await Update(securityConfiguration);
+            await securityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
 
             lock (m_callbackLock)
             {
