@@ -422,7 +422,7 @@ namespace Opc.Ua.Schema.Binary
     public partial class StructuredType : TypeDescription {
         
         private FieldType[] fieldField;
-        
+        private string baseTypeField;
         private string[] anyAttrField;
         
         /// <remarks/>
@@ -435,7 +435,14 @@ namespace Opc.Ua.Schema.Binary
                 this.fieldField = value;
             }
         }
-        
+
+        [System.Xml.Serialization.XmlAttribute(AttributeName = "BaseType")]
+        public string BaseType
+        {
+            get { return this.baseTypeField; }
+            set { this.baseTypeField = value; }
+        }
+
         /// <remarks/>
         public string[] AnyAttr {
             get {
