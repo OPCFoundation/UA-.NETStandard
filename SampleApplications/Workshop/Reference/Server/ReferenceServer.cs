@@ -142,6 +142,7 @@ namespace Quickstarts.ReferenceServer
 
             // request notifications when the user identity is changed. all valid users are accepted by default.
             server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+            server.SessionManager.ValidateSessionLessRequest += SessionManager_ValidateSessionLessRequest;
 
             try
             {
@@ -150,10 +151,26 @@ namespace Quickstarts.ReferenceServer
             }
             catch
             { }
-            
         }
 
+        private void SessionManager_ValidateSessionLessRequest(object sender, ValidateSessionLessRequestEventArgs e)
+        {
+            if (SecureChannelContext.Current.EndpointDescription.TransportProfileUri == Profiles.HttpsBinaryTransport)
+            {
+                switch (e.RequestType)
+                {
+                    case RequestType.Read:
+                    case RequestType.Write:
+                    case RequestType.Call:
+                    {
+                        e.Identity = new UserIdentity();
+                        break;
+                    }
+                }
+            }
+        }
         #endregion
+
         #region User Validation Functions
         /// <summary>
         /// Creates the objects used to validate the user identity tokens supported by the server.

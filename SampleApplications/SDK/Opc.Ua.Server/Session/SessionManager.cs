@@ -446,7 +446,7 @@ namespace Opc.Ua.Server
                     }
 
                     // find session.
-                    if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
+                    if (requestHeader.AuthenticationToken == null || !m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                     {
                         var Handler = m_ValidateSessionLessRequest;
 

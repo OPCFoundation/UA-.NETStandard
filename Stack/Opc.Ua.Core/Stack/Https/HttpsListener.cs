@@ -51,16 +51,24 @@ namespace Opc.Ua.Bindings
         {
             appBuilder.Run(async context =>
             {
-                if (context.Request.Method != "POST")
+                if (context.Request.Method == "POST")
+                {
+                    await Listener.SendAsync(context);
+                }
+                else if (context.Request.Method == "OPTIONS")
+                {
+                    context.Response.Headers.Add("Allow", new[] { "POST,OPTIONS" });
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.OK;
+                    await context.Response.WriteAsync(string.Empty);
+                }
+                else
                 {
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
                     await context.Response.WriteAsync(string.Empty);
-                }
-                else
-                {
-                    await Listener.SendAsync(context);
                 }
             });
         }
@@ -192,10 +200,67 @@ namespace Opc.Ua.Bindings
                 });
             });
 #else
+            var tlsCertificate = m_serverCert;
+
+            // use a certificate that web browser clients would accept if one is available.
+            var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+
+            foreach (var certificate in store.Certificates)
+            {
+                if (!certificate.HasPrivateKey)
+                {
+                    continue;
+                }
+
+                bool match = certificate.Subject.Contains(m_uri.DnsSafeHost);
+
+                if (!match)
+                {
+                    var domains = Utils.GetDomainsFromCertficate(certificate);
+
+                    if (domains != null)
+                    {
+                        foreach (var domain in domains)
+                        {
+                            Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] Found SSL Domain ({domain}). {certificate.Subject}");
+
+                            if (String.Compare(domain, m_uri.DnsSafeHost, true) == 0)
+                            {
+                                match = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] Found SSL Certficate ({match}). {certificate.Subject} {certificate.Thumbprint}");
+
+                if (match)
+                {
+                    try
+                    {
+                        // verify private key is accessible.
+                        if (certificate.PrivateKey.KeySize >= 1024)
+                        {
+                            tlsCertificate = certificate;
+                            Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] SSL Certficate Selected ({m_uri.DnsSafeHost})");
+                            break;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // ignore bad certificates.
+                    }
+                }
+            }
+
+            store.Close();
+
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            httpsOptions.ServerCertificate = m_serverCert;
+            httpsOptions.ServerCertificate = tlsCertificate;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_hostBuilder.UseKestrel(options =>
             {
@@ -236,7 +301,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (context.Request.ContentType != "application/octet-stream")
+                if (context.Request.ContentType != "application/octet-stream" && context.Request.ContentType != "application/json")
                 {
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
@@ -257,7 +322,16 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+                IServiceRequest input = null;
+
+                if (context.Request.ContentType == "application/json")
+                {
+                    input = (IServiceRequest)JsonDecoder.DecodeSessionLessMessage(buffer, m_quotas.MessageContext);
+                }
+                else
+                {
+                    input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+                }
 
                 // extract the JWT token from the HTTP headers.
                 if (input.RequestHeader == null)
@@ -299,7 +373,22 @@ namespace Opc.Ua.Bindings
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
 
-                byte[] response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
+                byte[] response = null;
+
+                if (context.Request.ContentType == "application/json")
+                {
+                    using (var stream = new MemoryStream())
+                    {
+                        JsonEncoder.EncodeSessionLessMessage(output, stream, m_quotas.MessageContext);
+                        stream.Close();
+                        response = stream.ToArray();
+                    }
+                }
+                else
+                {
+                    response = BinaryEncoder.EncodeMessage(output, m_quotas.MessageContext);
+                }
+
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
