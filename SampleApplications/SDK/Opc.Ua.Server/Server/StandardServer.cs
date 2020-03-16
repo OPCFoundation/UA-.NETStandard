@@ -361,14 +361,6 @@ namespace Opc.Ua.Server
                             CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
-                    catch (ServiceResultException e)
-                    {
-                        if (e.StatusCode == StatusCodes.BadCertificateUntrusted)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
-                        }
-
-                    }
                     catch (Exception e)
                     {
                         OnApplicationCertificateError(clientCertificate, new ServiceResult(e));

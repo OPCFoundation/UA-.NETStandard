@@ -1475,7 +1475,7 @@ namespace Opc.Ua
             Type type = value.GetType();
 
             // nothing to do for value types.
-            if (type.IsValueType)
+            if (type.GetTypeInfo().IsValueType)
             {
                 return value;
             }
@@ -1535,24 +1535,359 @@ namespace Opc.Ua
                 return node.CloneNode(true);
             }
 
-            dynamic dynamicValue = value;
-            try
+            // copy ExtensionObject.
             {
-                return dynamicValue.MemberwiseClone();
+                ExtensionObject castedObject = value as ExtensionObject;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
             }
-            catch
+            // copy ExtensionObjectCollection.
             {
-                // do nothing -- We'll continue trying anyway.
+                ExtensionObjectCollection castedObject = value as ExtensionObjectCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
             }
 
-            if (value is ICloneable)
+            // copy EnumValueType.
             {
-                return (value as ICloneable).Clone();
+                EnumValueType castedObject = value as EnumValueType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy LocalizedText.
+            {
+                LocalizedText castedObject = value as LocalizedText;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy Argument.
+            {
+                Argument castedObject = value as Argument;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy NodeId.
+            {
+                NodeId castedObject = value as NodeId;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy UInt32Collection.
+            {
+                UInt32Collection castedObject = value as UInt32Collection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy QualifiedName.
+            {
+                QualifiedName castedObject = value as QualifiedName;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ServerDiagnosticsSummaryDataType.
+            {
+                ServerDiagnosticsSummaryDataType castedObject = value as ServerDiagnosticsSummaryDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ApplicationDescription.
+            {
+                ApplicationDescription castedObject = value as ApplicationDescription;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy StringCollection.
+            {
+                StringCollection castedObject = value as StringCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy UserTokenPolicyCollection.
+            {
+                UserTokenPolicyCollection castedObject = value as UserTokenPolicyCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy UserTokenPolicy
+            {
+                UserTokenPolicy castedObject = value as UserTokenPolicy;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SessionDiagnosticsDataType
+            {
+                SessionDiagnosticsDataType castedObject = value as SessionDiagnosticsDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ServiceCounterDataType
+            {
+                ServiceCounterDataType castedObject = value as ServiceCounterDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SessionSecurityDiagnosticsDataType
+            {
+                SessionSecurityDiagnosticsDataType castedObject = value as SessionSecurityDiagnosticsDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy AnonymousIdentityToken
+            {
+                AnonymousIdentityToken castedObject = value as AnonymousIdentityToken;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy EventFilter.
+            {
+                EventFilter castedObject = value as EventFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy DataChangeFilter.
+            {
+                DataChangeFilter castedObject = value as DataChangeFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SimpleAttributeOperandCollection.
+            {
+                SimpleAttributeOperandCollection castedObject = value as SimpleAttributeOperandCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy SimpleAttributeOperand.
+            {
+                SimpleAttributeOperand castedObject = value as SimpleAttributeOperand;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy QualifiedNameCollection.
+            {
+                QualifiedNameCollection castedObject = value as QualifiedNameCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ContentFilter.
+            {
+                ContentFilter castedObject = value as ContentFilter;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy ContentFilterElement.
+            {
+                ContentFilterElement castedObject = value as ContentFilterElement;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            // copy ContentFilterElementCollection.
+            {
+                ContentFilterElementCollection castedObject = value as ContentFilterElementCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy SubscriptionDiagnosticsDataType.
+            {
+                SubscriptionDiagnosticsDataType castedObject = value as SubscriptionDiagnosticsDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy UserNameIdentityToken.
+            {
+                UserNameIdentityToken castedObject = value as UserNameIdentityToken;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy ServerStatusDataType.
+            {
+                ServerStatusDataType castedObject = value as ServerStatusDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy BuildInfo.
+            {
+                BuildInfo castedObject = value as BuildInfo;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy X509IdentityToken.
+            {
+                X509IdentityToken castedObject = value as X509IdentityToken;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.Range.
+            {
+                Opc.Ua.Range castedObject = value as Opc.Ua.Range;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.EUInformation
+            {
+                Opc.Ua.EUInformation castedObject = value as Opc.Ua.EUInformation;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValueCollection
+            {
+                Opc.Ua.WriteValueCollection castedObject = value as Opc.Ua.WriteValueCollection;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.WriteValue
+            {
+                Opc.Ua.WriteValue castedObject = value as Opc.Ua.WriteValue;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.DataValue
+            {
+                Opc.Ua.DataValue castedObject = value as Opc.Ua.DataValue;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.ExpandedNodeId
+            {
+                ExpandedNodeId castedObject = value as ExpandedNodeId;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.TimeZoneDataType
+            {
+                TimeZoneDataType castedObject = value as TimeZoneDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.LiteralOperand
+            {
+                LiteralOperand castedObject = value as LiteralOperand;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            //try to find the MemberwiseClone method by reflection.
+            MethodInfo memberwiseCloneMethod = type.GetMethod("MemberwiseClone", BindingFlags.Public | BindingFlags.Instance);
+            if (memberwiseCloneMethod != null)
+            {
+                object clone = memberwiseCloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
+
+            //try to find the Clone method by reflection.
+            MethodInfo cloneMethod = type.GetMethod("Clone", BindingFlags.Public | BindingFlags.Instance);
+            if (cloneMethod != null)
+            {
+                object clone = cloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
             }
 
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
+
 
         /// <summary>
         /// Checks if two values are equal.
