@@ -944,7 +944,7 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                if (Object.ReferenceEquals(Session.Identity, AdminCredentials))
+                if (!Object.ReferenceEquals(Session.Identity, oldUser))
                 {
                     Session.UpdateSession(oldUser, PreferredLocales);
                 }

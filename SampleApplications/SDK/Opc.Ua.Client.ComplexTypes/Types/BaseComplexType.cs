@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ExpandedNodeId XmlEncodingId { get; set; }
 
         /// <summary cref="IStructureTypeInfo.StructureType" />
-        public StructureType StructureType => StructureType.Structure;
+        public virtual StructureType StructureType => StructureType.Structure;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -663,7 +663,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var propertyType = property.PropertyType;
             if (propertyType == typeof(Boolean))
             {
-                property.SetValue(this, decoder.ReadBoolean(property.Name));
+                property.SetValue(this, decoder.ReadBoolean(name));
             }
             else if (propertyType == typeof(SByte))
             {
