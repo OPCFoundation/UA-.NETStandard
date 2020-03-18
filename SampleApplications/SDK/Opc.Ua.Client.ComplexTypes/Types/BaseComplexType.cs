@@ -663,7 +663,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var propertyType = property.PropertyType;
             if (propertyType == typeof(Boolean))
             {
-                property.SetValue(this, decoder.ReadBoolean(property.Name));
+                property.SetValue(this, decoder.ReadBoolean(name));
             }
             else if (propertyType == typeof(SByte))
             {
