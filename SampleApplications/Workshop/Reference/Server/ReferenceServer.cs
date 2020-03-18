@@ -33,6 +33,8 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
+using System.Net.Http;
+using Newtonsoft.Json.Linq;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -163,7 +165,31 @@ namespace Quickstarts.ReferenceServer
                     case RequestType.Write:
                     case RequestType.Call:
                     {
-                        e.Identity = new UserIdentity();
+                        if (NodeId.IsNull(e.AuthenticationToken))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, $"Anonymous users not permitted.");
+                        }
+
+                        var accessToken = e.AuthenticationToken.Identifier.ToString();
+
+                        const string UserIdentityUrl = "https://wptest.opcfoundation.org/oauth/me/";
+
+                        HttpClient client2 = new HttpClient();
+                        client2.DefaultRequestHeaders.Add("cache-control", $"no-cache");
+
+                        var response2 = client2.GetAsync($"{UserIdentityUrl}/?access_token={accessToken}").Result;
+
+                        var json = response2.Content.ReadAsStringAsync().Result;
+                        var body = JObject.Parse(json);
+
+                        var errorText = (string)body["error"];
+
+                        if (errorText != null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, $"OAuth2 Error: {errorText}.");
+                        }
+
+                        e.Identity = new UserIdentity((string)body["user_email"], accessToken);
                         break;
                     }
                 }

@@ -74,10 +74,12 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>https://localhost:62540/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>https://prototyping.opcfoundation.org:62540/</ua:String>
+      <ua:String>opc.tcp://prototyping.opcfoundation.org:62541/</ua:String>
     </BaseAddresses>
     <!-- 
+      <ua:String>https://localhost:62540/</ua:String>
+      <ua:String>opc.tcp://localhost:62541/</ua:String>
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
     used to communicate with the server. The URL used by the client when calling
     FindServers/GetEndpoints or CreateSession will be used to filter the list of
@@ -259,7 +261,7 @@
   </ServerConfiguration>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>
+    <OutputFilePath>.\Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
