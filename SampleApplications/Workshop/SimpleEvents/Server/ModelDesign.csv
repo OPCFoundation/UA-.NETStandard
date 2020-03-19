@@ -63,3 +63,6 @@ SystemCycleStartedEventType_CurrentStep,247,Variable
 SystemCycleAbortedEventType_CurrentStep,248,Variable
 SystemCycleAbortedEventType_Error,249,Variable
 SystemCycleFinishedEventType_CurrentStep,250,Variable
+SimpleEvents_BinarySchema_Deprecated,15001,Variable
+SimpleEvents_XmlSchema_Deprecated,15002,Variable
+CycleStepDataType_Encoding_DefaultJson,15003,Object

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -186,14 +186,19 @@ namespace Quickstarts.Boiler
         public const uint Boiler1_CustomController = 178;
 
         /// <summary>
+        /// The identifier for the ControllerDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ControllerDataType_Encoding_DefaultBinary = 191;
+
+        /// <summary>
         /// The identifier for the ControllerDataType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint ControllerDataType_Encoding_DefaultXml = 184;
 
         /// <summary>
-        /// The identifier for the ControllerDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ControllerDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint ControllerDataType_Encoding_DefaultBinary = 191;
+        public const uint ControllerDataType_Encoding_DefaultJson = 15003;
     }
     #endregion
 
@@ -321,9 +326,19 @@ namespace Quickstarts.Boiler
         public const uint GenericSensorType_Output = 8;
 
         /// <summary>
+        /// The identifier for the GenericSensorType_Output_EURange Variable.
+        /// </summary>
+        public const uint GenericSensorType_Output_EURange = 11;
+
+        /// <summary>
         /// The identifier for the GenericActuatorType_Input Variable.
         /// </summary>
         public const uint GenericActuatorType_Input = 15;
+
+        /// <summary>
+        /// The identifier for the GenericActuatorType_Input_EURange Variable.
+        /// </summary>
+        public const uint GenericActuatorType_Input_EURange = 18;
 
         /// <summary>
         /// The identifier for the CustomControllerType_Input1 Variable.
@@ -346,9 +361,69 @@ namespace Quickstarts.Boiler
         public const uint CustomControllerType_ControlOut = 25;
 
         /// <summary>
+        /// The identifier for the ValveType_Input_EURange Variable.
+        /// </summary>
+        public const uint ValveType_Input_EURange = 30;
+
+        /// <summary>
+        /// The identifier for the LevelIndicatorType_Output_EURange Variable.
+        /// </summary>
+        public const uint LevelIndicatorType_Output_EURange = 45;
+
+        /// <summary>
+        /// The identifier for the FlowTransmitterType_Output_EURange Variable.
+        /// </summary>
+        public const uint FlowTransmitterType_Output_EURange = 52;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output = 75;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_FlowTransmitter1_Output_EURange = 78;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_Valve_Input = 82;
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input_EURange Variable.
+        /// </summary>
+        public const uint BoilerInputPipeType_Valve_Input_EURange = 85;
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output Variable.
+        /// </summary>
+        public const uint BoilerDrumType_LevelIndicator_Output = 90;
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerDrumType_LevelIndicator_Output_EURange = 93;
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output Variable.
+        /// </summary>
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output = 98;
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerOutputPipeType_FlowTransmitter2_Output_EURange = 101;
+
+        /// <summary>
         /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output Variable.
         /// </summary>
         public const uint BoilerType_InputPipe_FlowTransmitter1_Output = 105;
+
+        /// <summary>
+        /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_InputPipe_FlowTransmitter1_Output_EURange = 108;
 
         /// <summary>
         /// The identifier for the BoilerType_InputPipe_Valve_Input Variable.
@@ -356,14 +431,29 @@ namespace Quickstarts.Boiler
         public const uint BoilerType_InputPipe_Valve_Input = 112;
 
         /// <summary>
+        /// The identifier for the BoilerType_InputPipe_Valve_Input_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_InputPipe_Valve_Input_EURange = 115;
+
+        /// <summary>
         /// The identifier for the BoilerType_Drum_LevelIndicator_Output Variable.
         /// </summary>
         public const uint BoilerType_Drum_LevelIndicator_Output = 59;
 
         /// <summary>
+        /// The identifier for the BoilerType_Drum_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_Drum_LevelIndicator_Output_EURange = 62;
+
+        /// <summary>
         /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output Variable.
         /// </summary>
         public const uint BoilerType_OutputPipe_FlowTransmitter2_Output = 119;
+
+        /// <summary>
+        /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public const uint BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = 122;
 
         /// <summary>
         /// The identifier for the BoilerType_FlowController_Measurement Variable.
@@ -506,21 +596,6 @@ namespace Quickstarts.Boiler
         public const uint Boiler1_CustomController_ControlOut = 182;
 
         /// <summary>
-        /// The identifier for the Boiler_XmlSchema Variable.
-        /// </summary>
-        public const uint Boiler_XmlSchema = 185;
-
-        /// <summary>
-        /// The identifier for the Boiler_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public const uint Boiler_XmlSchema_NamespaceUri = 187;
-
-        /// <summary>
-        /// The identifier for the Boiler_XmlSchema_ControllerDataType Variable.
-        /// </summary>
-        public const uint Boiler_XmlSchema_ControllerDataType = 188;
-
-        /// <summary>
         /// The identifier for the Boiler_BinarySchema Variable.
         /// </summary>
         public const uint Boiler_BinarySchema = 192;
@@ -531,9 +606,34 @@ namespace Quickstarts.Boiler
         public const uint Boiler_BinarySchema_NamespaceUri = 194;
 
         /// <summary>
+        /// The identifier for the Boiler_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public const uint Boiler_BinarySchema_Deprecated = 15001;
+
+        /// <summary>
         /// The identifier for the Boiler_BinarySchema_ControllerDataType Variable.
         /// </summary>
         public const uint Boiler_BinarySchema_ControllerDataType = 195;
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema Variable.
+        /// </summary>
+        public const uint Boiler_XmlSchema = 185;
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public const uint Boiler_XmlSchema_NamespaceUri = 187;
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public const uint Boiler_XmlSchema_Deprecated = 15002;
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_ControllerDataType Variable.
+        /// </summary>
+        public const uint Boiler_XmlSchema_ControllerDataType = 188;
     }
     #endregion
 
@@ -686,14 +786,19 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId Boiler1_CustomController = new ExpandedNodeId(Quickstarts.Boiler.Objects.Boiler1_CustomController, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the ControllerDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId ControllerDataType_Encoding_DefaultBinary = new ExpandedNodeId(Quickstarts.Boiler.Objects.ControllerDataType_Encoding_DefaultBinary, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the ControllerDataType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId ControllerDataType_Encoding_DefaultXml = new ExpandedNodeId(Quickstarts.Boiler.Objects.ControllerDataType_Encoding_DefaultXml, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
-        /// The identifier for the ControllerDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ControllerDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId ControllerDataType_Encoding_DefaultBinary = new ExpandedNodeId(Quickstarts.Boiler.Objects.ControllerDataType_Encoding_DefaultBinary, Quickstarts.Boiler.Namespaces.Boiler);
+        public static readonly ExpandedNodeId ControllerDataType_Encoding_DefaultJson = new ExpandedNodeId(Quickstarts.Boiler.Objects.ControllerDataType_Encoding_DefaultJson, Quickstarts.Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -821,9 +926,19 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId GenericSensorType_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.GenericSensorType_Output, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the GenericSensorType_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId GenericSensorType_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.GenericSensorType_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the GenericActuatorType_Input Variable.
         /// </summary>
         public static readonly ExpandedNodeId GenericActuatorType_Input = new ExpandedNodeId(Quickstarts.Boiler.Variables.GenericActuatorType_Input, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the GenericActuatorType_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId GenericActuatorType_Input_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.GenericActuatorType_Input_EURange, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the CustomControllerType_Input1 Variable.
@@ -846,9 +961,69 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId CustomControllerType_ControlOut = new ExpandedNodeId(Quickstarts.Boiler.Variables.CustomControllerType_ControlOut, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the ValveType_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ValveType_Input_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.ValveType_Input_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the LevelIndicatorType_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId LevelIndicatorType_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.LevelIndicatorType_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the FlowTransmitterType_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId FlowTransmitterType_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.FlowTransmitterType_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerInputPipeType_Valve_Input, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerInputPipeType_Valve_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerInputPipeType_Valve_Input_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerDrumType_LevelIndicator_Output, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerDrumType_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerDrumType_LevelIndicator_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerOutputPipeType_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_InputPipe_FlowTransmitter1_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_InputPipe_Valve_Input Variable.
@@ -856,14 +1031,29 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_InputPipe_Valve_Input, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the BoilerType_InputPipe_Valve_Input_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_InputPipe_Valve_Input_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerType_Drum_LevelIndicator_Output Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_Drum_LevelIndicator_Output, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the BoilerType_Drum_LevelIndicator_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_Drum_LevelIndicator_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output Variable.
         /// </summary>
         public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the BoilerType_OutputPipe_FlowTransmitter2_Output_EURange Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Quickstarts.Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output_EURange, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
         /// The identifier for the BoilerType_FlowController_Measurement Variable.
@@ -1006,21 +1196,6 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId Boiler1_CustomController_ControlOut = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler1_CustomController_ControlOut, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
-        /// The identifier for the Boiler_XmlSchema Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Boiler_XmlSchema = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema, Quickstarts.Boiler.Namespaces.Boiler);
-
-        /// <summary>
-        /// The identifier for the Boiler_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Boiler_XmlSchema_NamespaceUri = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema_NamespaceUri, Quickstarts.Boiler.Namespaces.Boiler);
-
-        /// <summary>
-        /// The identifier for the Boiler_XmlSchema_ControllerDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Boiler_XmlSchema_ControllerDataType = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema_ControllerDataType, Quickstarts.Boiler.Namespaces.Boiler);
-
-        /// <summary>
         /// The identifier for the Boiler_BinarySchema Variable.
         /// </summary>
         public static readonly ExpandedNodeId Boiler_BinarySchema = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_BinarySchema, Quickstarts.Boiler.Namespaces.Boiler);
@@ -1031,9 +1206,34 @@ namespace Quickstarts.Boiler
         public static readonly ExpandedNodeId Boiler_BinarySchema_NamespaceUri = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_BinarySchema_NamespaceUri, Quickstarts.Boiler.Namespaces.Boiler);
 
         /// <summary>
+        /// The identifier for the Boiler_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boiler_BinarySchema_Deprecated = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_BinarySchema_Deprecated, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
         /// The identifier for the Boiler_BinarySchema_ControllerDataType Variable.
         /// </summary>
         public static readonly ExpandedNodeId Boiler_BinarySchema_ControllerDataType = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_BinarySchema_ControllerDataType, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boiler_XmlSchema = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boiler_XmlSchema_NamespaceUri = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema_NamespaceUri, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boiler_XmlSchema_Deprecated = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema_Deprecated, Quickstarts.Boiler.Namespaces.Boiler);
+
+        /// <summary>
+        /// The identifier for the Boiler_XmlSchema_ControllerDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId Boiler_XmlSchema_ControllerDataType = new ExpandedNodeId(Quickstarts.Boiler.Variables.Boiler_XmlSchema_ControllerDataType, Quickstarts.Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -1041,6 +1241,7 @@ namespace Quickstarts.Boiler
     /// <summary>
     /// Declares all of the BrowseNames used in the Model Design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
         /// <summary>
@@ -1234,6 +1435,7 @@ namespace Quickstarts.Boiler
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Namespaces
     {
         /// <summary>
@@ -1250,31 +1452,6 @@ namespace Quickstarts.Boiler
         /// The URI for the Boiler namespace (.NET code namespace is 'Quickstarts.Boiler').
         /// </summary>
         public const string Boiler = "http://opcfoundation.org/Quickstarts/Boiler";
-
-        /// <summary>
-        /// Returns a namespace table with all of the URIs defined.
-        /// </summary>
-        /// <remarks>
-        /// This table is was used to create any relative paths in the model design.
-        /// </remarks>
-        public static NamespaceTable GetNamespaceTable()
-        {
-            FieldInfo[] fields = typeof(Namespaces).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            NamespaceTable namespaceTable = new NamespaceTable();
-
-            foreach (FieldInfo field in fields)
-            {
-                string namespaceUri = (string)field.GetValue(typeof(Namespaces));
-
-                if (namespaceTable.GetIndex(namespaceUri) == -1)
-                {
-                    namespaceTable.Append(namespaceUri);
-                }
-            }
-
-            return namespaceTable;
-        }
     }
     #endregion
 }

@@ -15,6 +15,51 @@
     <uax:SuperTypeId>
       <uax:Identifier>i=22</uax:Identifier>
     </uax:SuperTypeId>
+    <uax:DataTypeDefinition>
+      <uax:TypeId>
+        <uax:Identifier>i=14798</uax:Identifier>
+      </uax:TypeId>
+      <uax:Body>
+        <uax:StructureDefinition>
+          <uax:BaseDataType>
+            <uax:Identifier>i=22</uax:Identifier>
+          </uax:BaseDataType>
+          <uax:StructureType>Structure_0</uax:StructureType>
+          <uax:Fields>
+            <uax:StructureField>
+              <uax:Name>Setpoint</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=11</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:MaxStringLength>0</uax:MaxStringLength>
+              <uax:IsOptional>false</uax:IsOptional>
+            </uax:StructureField>
+            <uax:StructureField>
+              <uax:Name>ControllerOut</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=11</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:MaxStringLength>0</uax:MaxStringLength>
+              <uax:IsOptional>false</uax:IsOptional>
+            </uax:StructureField>
+            <uax:StructureField>
+              <uax:Name>ProcessVariable</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=11</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:MaxStringLength>0</uax:MaxStringLength>
+              <uax:IsOptional>false</uax:IsOptional>
+            </uax:StructureField>
+          </uax:Fields>
+        </uax:StructureDefinition>
+      </uax:Body>
+    </uax:DataTypeDefinition>
   </ControllerDataType>
   <FlowTo xmlns="http://opcfoundation.org/Quickstarts/Boiler">
     <uax:NodeClass>ReferenceType_32</uax:NodeClass>
@@ -539,17 +584,6 @@
       </uax:ModellingRuleId>
       <uax:NumericId>74</uax:NumericId>
       <uax:EventNotifier>1</uax:EventNotifier>
-      <uax:References>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=73</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
-      </uax:References>
       <Output>
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -719,17 +753,6 @@
       </uax:ModellingRuleId>
       <uax:NumericId>89</uax:NumericId>
       <uax:EventNotifier>1</uax:EventNotifier>
-      <uax:References>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=88</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
-      </uax:References>
       <Output>
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -826,17 +849,6 @@
       </uax:ModellingRuleId>
       <uax:NumericId>97</uax:NumericId>
       <uax:EventNotifier>1</uax:EventNotifier>
-      <uax:References>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=96</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
-      </uax:References>
       <Output>
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -954,15 +966,6 @@
       <uax:NumericId>56</uax:NumericId>
       <uax:EventNotifier>1</uax:EventNotifier>
       <uax:References>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=55</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
         <uax:Reference>
           <uax:ReferenceTypeId>
             <uax:Identifier>i=48</uax:Identifier>
@@ -1190,15 +1193,6 @@
       <uax:References>
         <uax:Reference>
           <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=55</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
             <uax:Identifier>ns=1;i=1</uax:Identifier>
           </uax:ReferenceTypeId>
           <uax:IsInverse>true</uax:IsInverse>
@@ -1339,15 +1333,6 @@
       <uax:NumericId>65</uax:NumericId>
       <uax:EventNotifier>1</uax:EventNotifier>
       <uax:References>
-        <uax:Reference>
-          <uax:ReferenceTypeId>
-            <uax:Identifier>i=48</uax:Identifier>
-          </uax:ReferenceTypeId>
-          <uax:IsInverse>true</uax:IsInverse>
-          <uax:TargetId>
-            <uax:Identifier>ns=1;i=55</uax:Identifier>
-          </uax:TargetId>
-        </uax:Reference>
         <uax:Reference>
           <uax:ReferenceTypeId>
             <uax:Identifier>ns=1;i=1</uax:Identifier>
@@ -1887,10 +1872,6 @@
       <uax:NamespaceIndex>1</uax:NamespaceIndex>
       <uax:Name>Boiler #1</uax:Name>
     </uax:BrowseName>
-    <uax:Description>
-      <uax:Locale></uax:Locale>
-      <uax:Text>A boiler used to produce steam for a turbine.</uax:Text>
-    </uax:Description>
     <uax:ReferenceTypeId>
       <uax:Identifier>i=47</uax:Identifier>
     </uax:ReferenceTypeId>
@@ -2819,126 +2800,6 @@
       </ControlOut>
     </CustomController>
   </Boiler1>
-  <DefaultXml xmlns="http://opcfoundation.org/UA/">
-    <uax:NodeClass>Object_1</uax:NodeClass>
-    <uax:NodeId>
-      <uax:Identifier>ns=1;i=184</uax:Identifier>
-    </uax:NodeId>
-    <uax:BrowseName>
-      <uax:NamespaceIndex>0</uax:NamespaceIndex>
-      <uax:Name>Default XML</uax:Name>
-    </uax:BrowseName>
-    <uax:TypeDefinitionId>
-      <uax:Identifier>i=76</uax:Identifier>
-    </uax:TypeDefinitionId>
-    <uax:NumericId>184</uax:NumericId>
-    <uax:References>
-      <uax:Reference>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=38</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:IsInverse>true</uax:IsInverse>
-        <uax:TargetId>
-          <uax:Identifier>ns=1;i=183</uax:Identifier>
-        </uax:TargetId>
-      </uax:Reference>
-      <uax:Reference>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=39</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:TargetId>
-          <uax:Identifier>ns=1;i=188</uax:Identifier>
-        </uax:TargetId>
-      </uax:Reference>
-    </uax:References>
-  </DefaultXml>
-  <Boiler_XmlSchema xmlns="http://opcfoundation.org/Quickstarts/Boiler">
-    <uax:NodeClass>Variable_2</uax:NodeClass>
-    <uax:NodeId>
-      <uax:Identifier>ns=1;i=185</uax:Identifier>
-    </uax:NodeId>
-    <uax:BrowseName>
-      <uax:NamespaceIndex>1</uax:NamespaceIndex>
-      <uax:Name>Quickstarts.Boiler</uax:Name>
-    </uax:BrowseName>
-    <uax:TypeDefinitionId>
-      <uax:Identifier>i=72</uax:Identifier>
-    </uax:TypeDefinitionId>
-    <uax:NumericId>185</uax:NumericId>
-    <uax:DataType>
-      <uax:Identifier>i=15</uax:Identifier>
-    </uax:DataType>
-    <uax:ValueRank>-1</uax:ValueRank>
-    <uax:AccessLevel>1</uax:AccessLevel>
-    <uax:UserAccessLevel>1</uax:UserAccessLevel>
-    <uax:References>
-      <uax:Reference>
-        <uax:ReferenceTypeId>
-          <uax:Identifier>i=47</uax:Identifier>
-        </uax:ReferenceTypeId>
-        <uax:IsInverse>true</uax:IsInverse>
-        <uax:TargetId>
-          <uax:Identifier>i=92</uax:Identifier>
-        </uax:TargetId>
-      </uax:Reference>
-    </uax:References>
-    <NamespaceUri xmlns="http://opcfoundation.org/UA/">
-      <uax:NodeClass>Variable_2</uax:NodeClass>
-      <uax:NodeId>
-        <uax:Identifier>ns=1;i=187</uax:Identifier>
-      </uax:NodeId>
-      <uax:BrowseName>
-        <uax:NamespaceIndex>0</uax:NamespaceIndex>
-        <uax:Name>NamespaceUri</uax:Name>
-      </uax:BrowseName>
-      <uax:ReferenceTypeId>
-        <uax:Identifier>i=46</uax:Identifier>
-      </uax:ReferenceTypeId>
-      <uax:TypeDefinitionId>
-        <uax:Identifier>i=68</uax:Identifier>
-      </uax:TypeDefinitionId>
-      <uax:NumericId>187</uax:NumericId>
-      <uax:Value>
-        <uax:Value>
-          <uax:String>http://opcfoundation.org/Quickstarts/Boiler</uax:String>
-        </uax:Value>
-      </uax:Value>
-      <uax:DataType>
-        <uax:Identifier>i=12</uax:Identifier>
-      </uax:DataType>
-      <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
-    </NamespaceUri>
-    <ControllerDataType>
-      <uax:NodeClass>Variable_2</uax:NodeClass>
-      <uax:NodeId>
-        <uax:Identifier>ns=1;i=188</uax:Identifier>
-      </uax:NodeId>
-      <uax:BrowseName>
-        <uax:NamespaceIndex>1</uax:NamespaceIndex>
-        <uax:Name>ControllerDataType</uax:Name>
-      </uax:BrowseName>
-      <uax:ReferenceTypeId>
-        <uax:Identifier>i=47</uax:Identifier>
-      </uax:ReferenceTypeId>
-      <uax:TypeDefinitionId>
-        <uax:Identifier>i=69</uax:Identifier>
-      </uax:TypeDefinitionId>
-      <uax:NumericId>188</uax:NumericId>
-      <uax:Value>
-        <uax:Value>
-          <uax:String>//xs:element[@name='ControllerDataType']</uax:String>
-        </uax:Value>
-      </uax:Value>
-      <uax:DataType>
-        <uax:Identifier>i=12</uax:Identifier>
-      </uax:DataType>
-      <uax:ValueRank>-1</uax:ValueRank>
-      <uax:AccessLevel>1</uax:AccessLevel>
-      <uax:UserAccessLevel>1</uax:UserAccessLevel>
-    </ControllerDataType>
-  </Boiler_XmlSchema>
   <DefaultBinary xmlns="http://opcfoundation.org/UA/">
     <uax:NodeClass>Object_1</uax:NodeClass>
     <uax:NodeId>
@@ -2985,6 +2846,24 @@
       <uax:Identifier>i=72</uax:Identifier>
     </uax:TypeDefinitionId>
     <uax:NumericId>192</uax:NumericId>
+    <uax:Value>
+      <uax:Value>
+        <uax:ByteString>PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
+Zy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M
+U2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB
+LyINCiAgeG1sbnM6dG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9p
+bGVyIg0KICBEZWZhdWx0Qnl0ZU9yZGVyPSJMaXR0bGVFbmRpYW4iDQogIFRhcmdldE5hbWVzcGFj
+ZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1F1aWNrc3RhcnRzL0JvaWxlciINCj4NCiAgPG9w
+YzpJbXBvcnQgTmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBMb2NhdGlv
+bj0iT3BjLlVhLkJpbmFyeVNjaGVtYS5ic2QiLz4NCg0KICA8b3BjOlN0cnVjdHVyZWRUeXBlIE5h
+bWU9IkNvbnRyb2xsZXJEYXRhVHlwZSIgQmFzZVR5cGU9InVhOkV4dGVuc2lvbk9iamVjdCI+DQog
+ICAgPG9wYzpGaWVsZCBOYW1lPSJTZXRwb2ludCIgVHlwZU5hbWU9Im9wYzpEb3VibGUiIC8+DQog
+ICAgPG9wYzpGaWVsZCBOYW1lPSJDb250cm9sbGVyT3V0IiBUeXBlTmFtZT0ib3BjOkRvdWJsZSIg
+Lz4NCiAgICA8b3BjOkZpZWxkIE5hbWU9IlByb2Nlc3NWYXJpYWJsZSIgVHlwZU5hbWU9Im9wYzpE
+b3VibGUiIC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFy
+eT4=</uax:ByteString>
+      </uax:Value>
+    </uax:Value>
     <uax:DataType>
       <uax:Identifier>i=15</uax:Identifier>
     </uax:DataType>
@@ -3030,6 +2909,34 @@
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </NamespaceUri>
+    <Deprecated xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=15001</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Deprecated</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>15001</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:Boolean>true</uax:Boolean>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Deprecated>
     <ControllerDataType>
       <uax:NodeClass>Variable_2</uax:NodeClass>
       <uax:NodeId>
@@ -3059,4 +2966,201 @@
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </ControllerDataType>
   </Boiler_BinarySchema>
+  <DefaultXml xmlns="http://opcfoundation.org/UA/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=184</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>0</uax:NamespaceIndex>
+      <uax:Name>Default XML</uax:Name>
+    </uax:BrowseName>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=76</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>184</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=38</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>ns=1;i=183</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=39</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TargetId>
+          <uax:Identifier>ns=1;i=188</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+  </DefaultXml>
+  <Boiler_XmlSchema xmlns="http://opcfoundation.org/Quickstarts/Boiler">
+    <uax:NodeClass>Variable_2</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=185</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>Quickstarts.Boiler</uax:Name>
+    </uax:BrowseName>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=72</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>185</uax:NumericId>
+    <uax:Value>
+      <uax:Value>
+        <uax:ByteString>PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
+DQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54
+c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1F1aWNrc3RhcnRzL0Jv
+aWxlciINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tz
+dGFydHMvQm9pbGVyIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCINCj4NCiAgPHhz
+OmltcG9ydCBuYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8yMDA4LzAyL1R5
+cGVzLnhzZCIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iQ29udHJvbGxlckRhdGFUeXBl
+Ij4NCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJTZXRwb2ludCIg
+dHlwZT0ieHM6ZG91YmxlIiBtaW5PY2N1cnM9IjAiIC8+DQogICAgICA8eHM6ZWxlbWVudCBuYW1l
+PSJDb250cm9sbGVyT3V0IiB0eXBlPSJ4czpkb3VibGUiIG1pbk9jY3Vycz0iMCIgLz4NCiAgICAg
+IDx4czplbGVtZW50IG5hbWU9IlByb2Nlc3NWYXJpYWJsZSIgdHlwZT0ieHM6ZG91YmxlIiBtaW5P
+Y2N1cnM9IjAiIC8+DQogICAgPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAg
+PHhzOmVsZW1lbnQgbmFtZT0iQ29udHJvbGxlckRhdGFUeXBlIiB0eXBlPSJ0bnM6Q29udHJvbGxl
+ckRhdGFUeXBlIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZDb250cm9sbGVy
+RGF0YVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkNv
+bnRyb2xsZXJEYXRhVHlwZSIgdHlwZT0idG5zOkNvbnRyb2xsZXJEYXRhVHlwZSIgbWluT2NjdXJz
+PSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgPC94czpz
+ZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTGlzdE9m
+Q29udHJvbGxlckRhdGFUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mQ29udHJvbGxlckRhdGFUeXBlIiBu
+aWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
+      </uax:Value>
+    </uax:Value>
+    <uax:DataType>
+      <uax:Identifier>i=15</uax:Identifier>
+    </uax:DataType>
+    <uax:ValueRank>-1</uax:ValueRank>
+    <uax:AccessLevel>1</uax:AccessLevel>
+    <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=92</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <NamespaceUri xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=187</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>NamespaceUri</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>187</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>http://opcfoundation.org/Quickstarts/Boiler</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </NamespaceUri>
+    <Deprecated xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=15002</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Deprecated</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>15002</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:Boolean>true</uax:Boolean>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Deprecated>
+    <ControllerDataType>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=188</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>ControllerDataType</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=69</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>188</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>//xs:element[@name='ControllerDataType']</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ControllerDataType>
+  </Boiler_XmlSchema>
+  <DefaultJson xmlns="http://opcfoundation.org/UA/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=15003</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>0</uax:NamespaceIndex>
+      <uax:Name>Default JSON</uax:Name>
+    </uax:BrowseName>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=76</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>15003</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=38</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>ns=1;i=183</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+  </DefaultJson>
 </uax:ListOfNodeState>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -61,14 +61,19 @@ namespace Quickstarts.SimpleEvents
     public static partial class Objects
     {
         /// <summary>
+        /// The identifier for the CycleStepDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint CycleStepDataType_Encoding_DefaultBinary = 228;
+
+        /// <summary>
         /// The identifier for the CycleStepDataType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint CycleStepDataType_Encoding_DefaultXml = 221;
 
         /// <summary>
-        /// The identifier for the CycleStepDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the CycleStepDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint CycleStepDataType_Encoding_DefaultBinary = 228;
+        public const uint CycleStepDataType_Encoding_DefaultJson = 15003;
     }
     #endregion
 
@@ -131,21 +136,6 @@ namespace Quickstarts.SimpleEvents
         public const uint SystemCycleAbortedEventType_Error = 249;
 
         /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema Variable.
-        /// </summary>
-        public const uint SimpleEvents_XmlSchema = 229;
-
-        /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public const uint SimpleEvents_XmlSchema_NamespaceUri = 231;
-
-        /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema_CycleStepDataType Variable.
-        /// </summary>
-        public const uint SimpleEvents_XmlSchema_CycleStepDataType = 232;
-
-        /// <summary>
         /// The identifier for the SimpleEvents_BinarySchema Variable.
         /// </summary>
         public const uint SimpleEvents_BinarySchema = 222;
@@ -156,9 +146,34 @@ namespace Quickstarts.SimpleEvents
         public const uint SimpleEvents_BinarySchema_NamespaceUri = 224;
 
         /// <summary>
+        /// The identifier for the SimpleEvents_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public const uint SimpleEvents_BinarySchema_Deprecated = 15001;
+
+        /// <summary>
         /// The identifier for the SimpleEvents_BinarySchema_CycleStepDataType Variable.
         /// </summary>
         public const uint SimpleEvents_BinarySchema_CycleStepDataType = 225;
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema Variable.
+        /// </summary>
+        public const uint SimpleEvents_XmlSchema = 229;
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public const uint SimpleEvents_XmlSchema_NamespaceUri = 231;
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public const uint SimpleEvents_XmlSchema_Deprecated = 15002;
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_CycleStepDataType Variable.
+        /// </summary>
+        public const uint SimpleEvents_XmlSchema_CycleStepDataType = 232;
     }
     #endregion
 
@@ -186,14 +201,19 @@ namespace Quickstarts.SimpleEvents
     public static partial class ObjectIds
     {
         /// <summary>
+        /// The identifier for the CycleStepDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId CycleStepDataType_Encoding_DefaultBinary = new ExpandedNodeId(Quickstarts.SimpleEvents.Objects.CycleStepDataType_Encoding_DefaultBinary, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
         /// The identifier for the CycleStepDataType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId CycleStepDataType_Encoding_DefaultXml = new ExpandedNodeId(Quickstarts.SimpleEvents.Objects.CycleStepDataType_Encoding_DefaultXml, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
 
         /// <summary>
-        /// The identifier for the CycleStepDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the CycleStepDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId CycleStepDataType_Encoding_DefaultBinary = new ExpandedNodeId(Quickstarts.SimpleEvents.Objects.CycleStepDataType_Encoding_DefaultBinary, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+        public static readonly ExpandedNodeId CycleStepDataType_Encoding_DefaultJson = new ExpandedNodeId(Quickstarts.SimpleEvents.Objects.CycleStepDataType_Encoding_DefaultJson, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
     }
     #endregion
 
@@ -256,21 +276,6 @@ namespace Quickstarts.SimpleEvents
         public static readonly ExpandedNodeId SystemCycleAbortedEventType_Error = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SystemCycleAbortedEventType_Error, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
 
         /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId SimpleEvents_XmlSchema = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
-
-        /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId SimpleEvents_XmlSchema_NamespaceUri = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema_NamespaceUri, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
-
-        /// <summary>
-        /// The identifier for the SimpleEvents_XmlSchema_CycleStepDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId SimpleEvents_XmlSchema_CycleStepDataType = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema_CycleStepDataType, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
-
-        /// <summary>
         /// The identifier for the SimpleEvents_BinarySchema Variable.
         /// </summary>
         public static readonly ExpandedNodeId SimpleEvents_BinarySchema = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_BinarySchema, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
@@ -281,9 +286,34 @@ namespace Quickstarts.SimpleEvents
         public static readonly ExpandedNodeId SimpleEvents_BinarySchema_NamespaceUri = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_BinarySchema_NamespaceUri, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
 
         /// <summary>
+        /// The identifier for the SimpleEvents_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId SimpleEvents_BinarySchema_Deprecated = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_BinarySchema_Deprecated, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
         /// The identifier for the SimpleEvents_BinarySchema_CycleStepDataType Variable.
         /// </summary>
         public static readonly ExpandedNodeId SimpleEvents_BinarySchema_CycleStepDataType = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_BinarySchema_CycleStepDataType, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId SimpleEvents_XmlSchema = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId SimpleEvents_XmlSchema_NamespaceUri = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema_NamespaceUri, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId SimpleEvents_XmlSchema_Deprecated = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema_Deprecated, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
+
+        /// <summary>
+        /// The identifier for the SimpleEvents_XmlSchema_CycleStepDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId SimpleEvents_XmlSchema_CycleStepDataType = new ExpandedNodeId(Quickstarts.SimpleEvents.Variables.SimpleEvents_XmlSchema_CycleStepDataType, Quickstarts.SimpleEvents.Namespaces.SimpleEvents);
     }
     #endregion
 
@@ -291,6 +321,7 @@ namespace Quickstarts.SimpleEvents
     /// <summary>
     /// Declares all of the BrowseNames used in the Model Design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
         /// <summary>
@@ -354,6 +385,7 @@ namespace Quickstarts.SimpleEvents
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Namespaces
     {
         /// <summary>
@@ -370,31 +402,6 @@ namespace Quickstarts.SimpleEvents
         /// The URI for the SimpleEvents namespace (.NET code namespace is 'Quickstarts.SimpleEvents').
         /// </summary>
         public const string SimpleEvents = "http://opcfoundation.org/Quickstarts/SimpleEvents";
-
-        /// <summary>
-        /// Returns a namespace table with all of the URIs defined.
-        /// </summary>
-        /// <remarks>
-        /// This table is was used to create any relative paths in the model design.
-        /// </remarks>
-        public static NamespaceTable GetNamespaceTable()
-        {
-            FieldInfo[] fields = typeof(Namespaces).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            NamespaceTable namespaceTable = new NamespaceTable();
-
-            foreach (FieldInfo field in fields)
-            {
-                string namespaceUri = (string)field.GetValue(typeof(Namespaces));
-
-                if (namespaceTable.GetIndex(namespaceUri) == -1)
-                {
-                    namespaceTable.Append(namespaceUri);
-                }
-            }
-
-            return namespaceTable;
-        }
     }
     #endregion
 }
