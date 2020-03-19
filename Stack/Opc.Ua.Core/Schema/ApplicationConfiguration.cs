@@ -1922,7 +1922,6 @@ namespace Opc.Ua
             m_minSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = new StringCollection();
             m_discoveryServers = new EndpointDescriptionCollection();
-            m_outstandingRequestThreshold = 10;
         }
 
         /// <summary>
@@ -2015,18 +2014,6 @@ namespace Opc.Ua
             get { return m_minSubscriptionLifetime; }
             set { m_minSubscriptionLifetime = value; }
         }
-
-        /// <summary>
-        /// The Max number of outstanding client requests pending a response from the server.
-        /// This is added to deal with low power devices with bad task schedulers that cause a significan delay between
-        /// the scheduling of the request and actual sending of the request.
-        /// </summary>
-        [DataMember(IsRequired = false, Order = 5)]
-        public int OutstandingRequestThreshold
-        {
-            get { return m_outstandingRequestThreshold; }
-            set { m_outstandingRequestThreshold = value; }
-        }
         #endregion
 
         #region Private Members
@@ -2035,7 +2022,6 @@ namespace Opc.Ua
         private int m_defaultSessionTimeout;
         private string m_endpointCacheFilePath;
         private int m_minSubscriptionLifetime;
-        private int m_outstandingRequestThreshold;
         #endregion
     }
     #endregion
