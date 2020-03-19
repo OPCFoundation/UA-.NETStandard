@@ -30,11 +30,11 @@
 
 using System;
 using System.IO;
-using Opc.Ua.Client;
-using Opc.Ua.Configuration;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using System.Reflection;
+using Opc.Ua.Client;
+using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -59,7 +59,7 @@ namespace Opc.Ua.Gds.Client
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }
         // TODO: currently only sha256 cert is supported
-        public NodeId ApplicationCertificateType { get { return Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType; } }
+        public NodeId ApplicationCertificateType => Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
         /// <summary>
         /// Gets the application instance.
@@ -67,10 +67,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The application instance.
         /// </value>
-        public ApplicationInstance Application
-        {
-            get { return m_application; }
-        }
+        public ApplicationInstance Application => m_application;
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -124,10 +121,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         ///   <c>true</c> if the session is connected; otherwise, <c>false</c>.
         /// </value>
-        public bool IsConnected
-        {
-            get { return m_session != null && m_session.Connected; }
-        }
+        public bool IsConnected => m_session != null && m_session.Connected;
 
         /// <summary>
         /// Gets the session.
@@ -135,10 +129,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public Session Session
-        {
-            get { return m_session; }
-        }
+        public Session Session => m_session;
 
         /// <summary>
         /// Gets the endpoint.
@@ -253,7 +244,7 @@ namespace Opc.Ua.Gds.Client
                 false,
                 m_application.ApplicationName,
                 60000,
-                null,
+                m_adminCredentials,
                 m_preferredLocales);
 
             m_endpoint = m_session.ConfiguredEndpoint;
@@ -782,7 +773,7 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                if (Object.ReferenceEquals(m_session.Identity, m_adminCredentials))
+                if (!Object.ReferenceEquals(m_session.Identity, oldUser))
                 {
                     m_session.UpdateSession(oldUser, m_preferredLocales);
                 }

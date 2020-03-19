@@ -536,7 +536,11 @@ public class CertificateFactory
 
                 List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
 
-                var certificateCollection = new X509Certificate2Collection() { certificate };
+                var certificateCollection = new X509Certificate2Collection() { };
+                if (!isCACert)
+                {
+                    certificateCollection.Add(certificate);
+                }
                 updatedCRL = RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
 
                 store.AddCRL(updatedCRL);

@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public UInt32 SwitchField => m_switchField;
 
         /// <summary cref="IStructureTypeInfo.StructureType" />
-        new public StructureType StructureType => StructureType.Union;
+        public override StructureType StructureType => StructureType.Union;
 
         /// <summary>
         /// Makes a deep copy of the object.

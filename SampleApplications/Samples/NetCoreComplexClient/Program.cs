@@ -75,18 +75,26 @@ namespace NetCoreConsoleClient
             int stopTimeout = Timeout.Infinite;
             bool autoAccept = false;
             bool writeComplexInt = false;
-            bool noloadTypes = false;
+            bool noTypes = false;
+            bool noBrowse = false;
             bool verbose = false;
             bool json = false;
+            bool jsonReversible = false;
+            string username = null;
+            string pw = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "t|timeout=", "the number of seconds until the client stops.", (int t) => stopTimeout = t },
                 { "w|writeint", "Read and increment all complex types with an Int32.", w => writeComplexInt = w != null},
-                { "n|noloadtypes", "Load the type system dictionary from the server.", n => noloadTypes = n != null},
+                { "n|notypes", "Do not load the type system dictionary from the server.", n => noTypes = n != null},
+                { "b|nobrowse", "Do not browse the address space of the server.", n => noBrowse = n != null},
+                { "u|username=", "Username to access server.", (string n) => username = n},
+                { "p|password=", "Password to access server.", (string n) => pw = n},
                 { "v|verbose", "Verbose output.", v => verbose = v != null},
                 { "j|json", "Print custom nodes as Json.", j => json = j != null},
+                { "r|reversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
             };
 
             IList<string> extraArgs = null;
@@ -133,9 +141,13 @@ namespace NetCoreConsoleClient
 
             MySampleClient client = new MySampleClient(endpointURL, autoAccept, stopTimeout) {
                 Verbose = verbose,
-                LoadTypeSystem = !noloadTypes,
+                LoadTypeSystem = !noTypes,
+                BrowseAdddressSpace = !noBrowse,
                 WriteComplexInt = writeComplexInt,
-                PrintAsJson = json
+                PrintAsJson = json,
+                JsonReversible = jsonReversible,
+                Username = username,
+                Password = pw
             };
             return (int)client.Run();
         }
@@ -143,12 +155,17 @@ namespace NetCoreConsoleClient
 
     public class MySampleClient
     {
-        const int kReconnectPeriod = 10;
+        public int ReconnectPeriod { get; set; } = 10;
         public ExitCode ExitCode { get; set; }
         public bool Verbose { get; set; } = false;
         public bool WriteComplexInt { get; set; } = false;
         public bool PrintAsJson { get; set; } = false;
+        public bool JsonReversible { get; set; } = false;
         public bool LoadTypeSystem { get; set; } = false;
+        public bool BrowseAdddressSpace { get; set; } = false;
+        public String Username { get; set; }
+        public String Password { get; set; }
+
 
         public MySampleClient(
             string endpointURL,
@@ -222,10 +239,10 @@ namespace NetCoreConsoleClient
             };
 
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -254,8 +271,19 @@ namespace NetCoreConsoleClient
             Console.WriteLine("3 - Create a session with OPC UA server.");
             ExitCode = ExitCode.ErrorCreateSession;
 
+            // create the user identity
+            UserIdentity userIdentity;
+            if (String.IsNullOrEmpty(Username) && String.IsNullOrEmpty(Password))
+            {
+                userIdentity = new UserIdentity(new AnonymousIdentityToken());
+            }
+            else
+            {
+                userIdentity = new UserIdentity(Username, Password);
+            }
+
             // create worker session
-            m_session = await CreateSession(config, selectedEndpoint);
+            m_session = await CreateSession(config, selectedEndpoint, userIdentity).ConfigureAwait(false);
 
             // register keep alive handler
             m_session.KeepAlive += Client_KeepAlive;
@@ -265,7 +293,7 @@ namespace NetCoreConsoleClient
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
-            var allVariableNodes = BrowseAllVariables();
+            var allVariableNodes = BrowseAdddressSpace ? BrowseAllVariables() : new List<INode>();
             var allCustomTypeVariables = allVariableNodes.Where(n => ((VariableNode)n).DataType.NamespaceIndex != 0).ToList();
             stopWatch.Stop();
 
@@ -286,7 +314,7 @@ namespace NetCoreConsoleClient
                 stopWatch.Start();
 
                 var complexTypeSystem = new ComplexTypeSystem(m_session);
-                await complexTypeSystem.Load();
+                await complexTypeSystem.Load().ConfigureAwait(false);
 
                 stopWatch.Stop();
 
@@ -369,13 +397,13 @@ namespace NetCoreConsoleClient
                     try
                     {
                         Console.WriteLine($"Open session for {variableNode}:");
-                        testSession = await CreateSession(config, selectedEndpoint);
+                        testSession = await CreateSession(config, selectedEndpoint, userIdentity).ConfigureAwait(false);
                         var complexTypeSystem = new ComplexTypeSystem(testSession);
                         NodeId dataType = variableNode.DataType;
                         Type nullType = testSession.Factory.GetSystemType(dataType);
                         var valueBefore = testSession.ReadValue(variableNode.NodeId);
                         Console.WriteLine($" -- {valueBefore}");
-                        Type systemType = await complexTypeSystem.LoadType(dataType);
+                        Type systemType = await complexTypeSystem.LoadType(dataType).ConfigureAwait(false);
                         var valueAfter = testSession.ReadValue(variableNode.NodeId);
                         Console.WriteLine($" -- {variableNode}: {systemType} {dataType}");
                         Console.WriteLine($" -- {valueAfter}");
@@ -505,7 +533,7 @@ namespace NetCoreConsoleClient
                 {
                     Console.WriteLine("--- RECONNECTING ---");
                     m_reconnectHandler = new SessionReconnectHandler();
-                    m_reconnectHandler.BeginReconnect(sender, kReconnectPeriod * 1000, Client_ReconnectComplete);
+                    m_reconnectHandler.BeginReconnect(sender, ReconnectPeriod * 1000, Client_ReconnectComplete);
                 }
             }
         }
@@ -543,11 +571,11 @@ namespace NetCoreConsoleClient
             }
         }
 
-        private Task<Session> CreateSession(ApplicationConfiguration config, EndpointDescription selectedEndpoint)
+        private Task<Session> CreateSession(ApplicationConfiguration config, EndpointDescription selectedEndpoint, IUserIdentity userIdentity)
         {
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            return Session.Create(config, endpoint, false, "OPC UA Console Client", 60000, new UserIdentity(new AnonymousIdentityToken()), null);
+            return Session.Create(config, endpoint, false, "OPC UA Complex Types Client", 60000, userIdentity, null);
         }
 
         private void WriteValue(Session session, NodeId variableId, DataValue value)
@@ -586,7 +614,7 @@ namespace NetCoreConsoleClient
 
         private void PrintValueAsJson(string name, DataValue value)
         {
-            var jsonEncoder = new JsonEncoder(m_session.MessageContext, false);
+            var jsonEncoder = new JsonEncoder(m_session.MessageContext, JsonReversible);
             jsonEncoder.WriteDataValue(name, value);
             var textbuffer = jsonEncoder.CloseAndReturnText();
             // prettify
@@ -611,7 +639,7 @@ namespace NetCoreConsoleClient
                     Console.WriteLine(textbuffer);
                     Console.WriteLine(stringWriter.ToString());
                     ExitCode = ExitCode.ErrorJSONDecode;
-                    throw ex;
+                    throw ;
                 }
             }
         }

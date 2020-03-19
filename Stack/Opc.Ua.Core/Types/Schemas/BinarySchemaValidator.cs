@@ -339,7 +339,7 @@ namespace Opc.Ua.Schema.Binary
                 return false;
             }
 
-            if (!Char.IsLetter(name[0]) && name[0] != '_')
+            if (!Char.IsLetter(name[0]) && name[0] != '_' && name[0] != '"')
             {
                 return false;
             }
@@ -351,7 +351,7 @@ namespace Opc.Ua.Schema.Binary
                     continue;
                 }
 
-                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_')
+                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_' || name[ii] == '"')
                 {
                     continue;
                 }

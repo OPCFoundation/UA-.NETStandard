@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Public Properties
 
         /// <summary cref="IStructureTypeInfo.StructureType" />
-        new public StructureType StructureType => StructureType.StructureWithOptionalFields;
+        public override StructureType StructureType => StructureType.StructureWithOptionalFields;
 
         /// <summary>
         /// The encoding mask for the optional fields.
