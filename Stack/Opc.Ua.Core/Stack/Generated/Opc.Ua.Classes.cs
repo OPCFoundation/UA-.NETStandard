@@ -82767,4 +82767,445 @@ namespace Opc.Ua
     }
     #endif
     #endregion
+
+    #region MultiStateDictionaryEntryDiscreteBaseState Class
+    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteBaseState)
+    /// <summary>
+    /// Stores an instance of the MultiStateDictionaryEntryDiscreteBaseType VariableType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class MultiStateDictionaryEntryDiscreteBaseState : MultiStateValueDiscreteState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public MultiStateDictionaryEntryDiscreteBaseState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.MultiStateDictionaryEntryDiscreteBaseType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default data type node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default value rank for the instance.
+        /// </summary>
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+
+            if (ValueAsDictionaryEntries != null)
+            {
+                ValueAsDictionaryEntries.Initialize(context, ValueAsDictionaryEntries_InitializationString);
+            }
+        }
+
+        #region Initialization String
+        private const string ValueAsDictionaryEntries_InitializationString =
+           "//////////8XYIkKAgAAAAAAGAAAAFZhbHVlQXNEaWN0aW9uYXJ5RW50cmllcwEAi0oALgBEi0oAAAAR" +
+           "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+
+        private const string InitializationString =
+           "//////////8VYIkCAgAAAAAAMQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZUJhc2VU" +
+           "eXBlSW5zdGFuY2UBAIVKAQCFSoVKAAAAGv////8BAf////8EAAAAF2CJCgIAAAAAAAoAAABFbnVtVmFs" +
+           "dWVzAQCISgAuAESISgAAAQCqHQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFZhbHVl" +
+           "QXNUZXh0AQCJSgAuAESJSgAAABX/////AQH/////AAAAABdgiQoCAAAAAAAVAAAARW51bURpY3Rpb25h" +
+           "cnlFbnRyaWVzAQCKSgAuAESKSgAAABECAAAAAgAAAAAAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAY" +
+           "AAAAVmFsdWVBc0RpY3Rpb25hcnlFbnRyaWVzAQCLSgAuAESLSgAAABEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAA";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        public PropertyState<NodeId> EnumDictionaryEntries
+        {
+            get
+            {
+                return m_enumDictionaryEntries;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_enumDictionaryEntries, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_enumDictionaryEntries = value;
+            }
+        }
+
+        /// <remarks />
+        public PropertyState<NodeId[]> ValueAsDictionaryEntries
+        {
+            get
+            {
+                return m_valueAsDictionaryEntries;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_valueAsDictionaryEntries, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_valueAsDictionaryEntries = value;
+            }
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Populates a list with the children that belong to the node.
+        /// </summary>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="children">The list of children to populate.</param>
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
+        {
+            if (m_enumDictionaryEntries != null)
+            {
+                children.Add(m_enumDictionaryEntries);
+            }
+
+            if (m_valueAsDictionaryEntries != null)
+            {
+                children.Add(m_valueAsDictionaryEntries);
+            }
+
+            base.GetChildren(context, children);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name.
+        /// </summary>
+        protected override BaseInstanceState FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState replacement)
+        {
+            if (QualifiedName.IsNull(browseName))
+            {
+                return null;
+            }
+
+            BaseInstanceState instance = null;
+
+            switch (browseName.Name)
+            {
+                case Opc.Ua.BrowseNames.EnumDictionaryEntries:
+                {
+                    if (createOrReplace)
+                    {
+                        if (EnumDictionaryEntries == null)
+                        {
+                            if (replacement == null)
+                            {
+                                EnumDictionaryEntries = new PropertyState<NodeId>(this);
+                            }
+                            else
+                            {
+                                EnumDictionaryEntries = (PropertyState<NodeId>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = EnumDictionaryEntries;
+                    break;
+                }
+
+                case Opc.Ua.BrowseNames.ValueAsDictionaryEntries:
+                {
+                    if (createOrReplace)
+                    {
+                        if (ValueAsDictionaryEntries == null)
+                        {
+                            if (replacement == null)
+                            {
+                                ValueAsDictionaryEntries = new PropertyState<NodeId[]>(this);
+                            }
+                            else
+                            {
+                                ValueAsDictionaryEntries = (PropertyState<NodeId[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = ValueAsDictionaryEntries;
+                    break;
+                }
+            }
+
+            if (instance != null)
+            {
+                return instance;
+            }
+
+            return base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+        #endregion
+
+        #region Private Fields
+        private PropertyState<NodeId> m_enumDictionaryEntries;
+        private PropertyState<NodeId[]> m_valueAsDictionaryEntries;
+        #endregion
+    }
+
+    #region MultiStateDictionaryEntryDiscreteBaseState<T> Class
+    /// <summary>
+    /// A typed version of the MultiStateDictionaryEntryDiscreteBaseType variable.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class MultiStateDictionaryEntryDiscreteBaseState<T> : MultiStateDictionaryEntryDiscreteBaseState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the instance with its defalt attribute values.
+        /// </summary>
+        public MultiStateDictionaryEntryDiscreteBaseState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(base.Value, true);
+            }
+
+            set
+            {
+                base.Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region MultiStateDictionaryEntryDiscreteState Class
+    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteState)
+    /// <summary>
+    /// Stores an instance of the MultiStateDictionaryEntryDiscreteType VariableType.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public partial class MultiStateDictionaryEntryDiscreteState : MultiStateDictionaryEntryDiscreteBaseState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the type with its default attribute values.
+        /// </summary>
+        public MultiStateDictionaryEntryDiscreteState(NodeState parent) : base(parent)
+        {
+        }
+
+        /// <summary>
+        /// Returns the id of the default type definition node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.VariableTypes.MultiStateDictionaryEntryDiscreteType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default data type node for the instance.
+        /// </summary>
+        protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
+        {
+            return Opc.Ua.NodeId.Create(Opc.Ua.DataTypes.Number, Opc.Ua.Namespaces.OpcUa, namespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the id of the default value rank for the instance.
+        /// </summary>
+        protected override int GetDefaultValueRank()
+        {
+            return ValueRanks.Scalar;
+        }
+
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
+        /// <summary>
+        /// Initializes the instance.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            Initialize(context, InitializationString);
+            InitializeOptionalChildren(context);
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initializes the any option children defined for the instance.
+        /// </summary>
+        protected override void InitializeOptionalChildren(ISystemContext context)
+        {
+            base.InitializeOptionalChildren(context);
+        }
+
+        #region Initialization String
+        private const string InitializationString =
+           "//////////8VYIkCAgAAAAAALQAAAE11bHRpU3RhdGVEaWN0aW9uYXJ5RW50cnlEaXNjcmV0ZVR5cGVJ" +
+           "bnN0YW5jZQEAjEoBAIxKjEoAAAAa/////wEB/////wQAAAAXYIkKAgAAAAAACgAAAEVudW1WYWx1ZXMB" +
+           "AI9KAC4ARI9KAAABAKodAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAVmFsdWVBc1Rl" +
+           "eHQBAJBKAC4ARJBKAAAAFf////8BAf////8AAAAAF2CJCgIAAAAAABUAAABFbnVtRGljdGlvbmFyeUVu" +
+           "dHJpZXMBAJFKAC4ARJFKAAAAEQIAAAACAAAAAAAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABW" +
+           "YWx1ZUFzRGljdGlvbmFyeUVudHJpZXMBAJJKAC4ARJJKAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+        #endregion
+        #endif
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region Overridden Methods
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region MultiStateDictionaryEntryDiscreteState<T> Class
+    /// <summary>
+    /// A typed version of the MultiStateDictionaryEntryDiscreteType variable.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class MultiStateDictionaryEntryDiscreteState<T> : MultiStateDictionaryEntryDiscreteState
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the instance with its defalt attribute values.
+        /// </summary>
+        public MultiStateDictionaryEntryDiscreteState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <summary>
+        /// Initializes the instance with the default values.
+        /// </summary>
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <summary>
+        /// The value of the variable.
+        /// </summary>
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(base.Value, true);
+            }
+
+            set
+            {
+                base.Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
+    #endif
+    #endregion
 }

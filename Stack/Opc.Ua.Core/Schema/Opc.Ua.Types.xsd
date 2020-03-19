@@ -750,6 +750,23 @@
   </xs:complexType>
   <xs:element name="ListOfIdentityMappingRuleType" type="tns:ListOfIdentityMappingRuleType" nillable="true"></xs:element>
 
+  <xs:complexType name="CurrencyUnitType">
+    <xs:sequence>
+      <xs:element name="NumericCode" type="xs:short" minOccurs="0" />
+      <xs:element name="Exponent" type="xs:byte" minOccurs="0" />
+      <xs:element name="AlphabeticCode" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Currency" type="ua:LocalizedText" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="CurrencyUnitType" type="tns:CurrencyUnitType" />
+
+  <xs:complexType name="ListOfCurrencyUnitType">
+    <xs:sequence>
+      <xs:element name="CurrencyUnitType" type="tns:CurrencyUnitType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfCurrencyUnitType" type="tns:ListOfCurrencyUnitType" nillable="true"></xs:element>
+
   <xs:simpleType  name="TrustListMasks">
     <xs:restriction base="xs:string">
       <xs:enumeration value="None_0" />
