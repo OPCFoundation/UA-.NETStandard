@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes</id>
-    <version>1.04.358.0</version>
+    <version>1.04.360.0</version>
     <title>OPC UA .Net Standard Complex Type Library</title>
     <description>This package contains the OPC UA complex type client and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
