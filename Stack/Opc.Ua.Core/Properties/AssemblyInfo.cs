@@ -11,4 +11,4 @@
 */
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Opc.Ua.Core.Tests")]
+[assembly: InternalsVisibleTo("Opc.Ua.Core.Tests, PublicKey = 0000")]
