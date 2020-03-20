@@ -310,6 +310,13 @@
     <opc:Field Name="Criteria" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="CurrencyUnitType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="NumericCode" TypeName="opc:Int16" />
+    <opc:Field Name="Exponent" TypeName="opc:SByte" />
+    <opc:Field Name="AlphabeticCode" TypeName="opc:String" />
+    <opc:Field Name="Currency" TypeName="ua:LocalizedText" />
+  </opc:StructuredType>
+
   <opc:EnumeratedType Name="TrustListMasks" LengthInBits="32">
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="TrustedCertificates" Value="1" />

@@ -1182,10 +1182,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -5002,10 +4999,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -5236,10 +5230,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -5460,10 +5451,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -8038,10 +8026,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -8263,10 +8248,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
@@ -8460,10 +8442,7 @@
       </References>
       <Value>
         <Value>
-          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
-            <Locale p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-            <Text p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
-          </LocalizedText>
+          <LocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
         </Value>
       </Value>
       <DataType>
