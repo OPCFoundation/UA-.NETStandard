@@ -13,6 +13,10 @@
   <PropertyGroup>
     <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
   </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Schema\Opc.Ua.Types.bsd" />
