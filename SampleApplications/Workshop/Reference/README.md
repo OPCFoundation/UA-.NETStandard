@@ -6,7 +6,7 @@ This OPC Server is designed to be the default OPC UA Server when opening the [OP
 It is built with the Quickstart application template (OPC Server) and uses the OPC Foundation UA .NET Standard Library SDK. Therefore it supports both the opc.tcp and https transports. There is a .Net 4.6 based server with UI and a .Net Standard 2.0 console version of the server which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
 
 This version of the ReferenceServer has support for JSON and WebSockets with following caveats:
- * The WebSockets channel only suppory Basic256 security policy;
+ * The WebSockets transport only supports the obsolete Basic256 security policy;
  * The implementation requires a CA issued SSL Certificate in the LocalMachine store with the CA in the Trusted Roots;
  * The WebHmi will not work unless that SSL Certificate CA has an online CRL set up and available.
 
