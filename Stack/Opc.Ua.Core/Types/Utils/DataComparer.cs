@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,11 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.Reflection;
-
-using Opc.Ua;
+using System.Xml;
 
 namespace Opc.Ua.Test
 {
@@ -35,7 +32,7 @@ namespace Opc.Ua.Test
             m_throwOnError = true;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// Gets or set a flag indicating whether an exception should be thrown on error.
@@ -257,14 +254,14 @@ namespace Opc.Ua.Test
                 {
                     return true;
                 }
-                
+
                 double delta = Math.Abs(value1 - value2);
 
-                if (delta < Math.Abs(value1/1e15))
+                if (delta < Math.Abs(value1 / 1e15))
                 {
                     return true;
                 }
-                
+
                 return ReportError(value1, delta);
             }
 
@@ -303,15 +300,8 @@ namespace Opc.Ua.Test
         {
             if (value1.Kind != value2.Kind)
             {
-                if (value1.Kind == DateTimeKind.Local)
-                {
-                    value1 = value1.ToUniversalTime();
-                }
-
-                if (value2.Kind == DateTimeKind.Local)
-                {
-                    value2 = value2.ToUniversalTime();
-                }
+                value1 = Utils.NormalizeToUniversalTime(value1);
+                value2 = Utils.NormalizeToUniversalTime(value2);
             }
 
             if (value1 < Utils.TimeBase)
@@ -331,7 +321,6 @@ namespace Opc.Ua.Test
 
             // allow milliseconds to be truncated.
             return Math.Abs((value1 - value2).Ticks) < 10000;
-
         }
         #endregion
 
@@ -881,7 +870,7 @@ namespace Opc.Ua.Test
             return true;
         }
         #endregion
-        
+
         #region Matrix Functions
         /// <summary>
         /// This method compares two DataValues.
@@ -933,7 +922,7 @@ namespace Opc.Ua.Test
                 return s_Factory;
             }
         }
-       
+
         // It stores encodable types of the executing assembly.       
         private static EncodeableFactory s_Factory = new EncodeableFactory();
 
@@ -1031,7 +1020,7 @@ namespace Opc.Ua.Test
 
                 return CompareByteString(bytes1, bytes2);
             }
-            
+
             XmlElement xml1 = value1.Body as XmlElement;
             XmlElement xml2 = value2.Body as XmlElement;
 
@@ -1044,7 +1033,7 @@ namespace Opc.Ua.Test
 
                 return CompareXmlElement(xml1, xml2);
             }
-            
+
             body1 = GetExtensionObjectBody(value1);
             body2 = GetExtensionObjectBody(value2);
 
@@ -1169,11 +1158,11 @@ namespace Opc.Ua.Test
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
-                    "'{0}' is not equal to '{1}'.", 
-                    value1, 
+                    "'{0}' is not equal to '{1}'.",
+                    value1,
                     value2);
             }
-            
+
             return false;
         }
         #endregion

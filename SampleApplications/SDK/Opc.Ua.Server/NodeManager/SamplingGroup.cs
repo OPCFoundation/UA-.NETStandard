@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -53,9 +53,9 @@ namespace Opc.Ua.Server
             OperationContext        context,
             double                  samplingInterval)
         {
-            if (server == null)        throw new ArgumentNullException("server");
-            if (nodeManager == null)   throw new ArgumentNullException("nodeManager");
-            if (samplingRates == null) throw new ArgumentNullException("samplingRates");
+            if (server == null)        throw new ArgumentNullException(nameof(server));
+            if (nodeManager == null)   throw new ArgumentNullException(nameof(nodeManager));
+            if (samplingRates == null) throw new ArgumentNullException(nameof(samplingRates));
 
             m_server           = server;
             m_nodeManager      = nodeManager;

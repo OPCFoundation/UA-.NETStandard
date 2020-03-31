@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Sample.Controls
                 }
 
                 ItemData item = new ItemData(referenceType, !reference.IsForward, target, typeDefinition);
-                AddItem(item, GuiUtils2.GetTargetIcon(m_browser.Session, reference), -1);    
+                AddItem(item, GuiUtils.GetTargetIcon(m_browser.Session, reference), -1);    
         
                 if ((target.NodeClass & (NodeClass.Variable | NodeClass.VariableType)) != 0)
                 {

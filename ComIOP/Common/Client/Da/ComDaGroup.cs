@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -220,7 +220,8 @@ namespace Opc.Ua.Com.Client
                     for (int jj = 0; jj < monitoredItems.Length; jj++)
                     {
 
-                        if (info.LastValue.Value.GetType().IsArray
+                        if (info.LastValue.Value != null
+                            && info.LastValue.Value.GetType().IsArray
                             && monitoredItems[jj].IndexRange.Count != info.LastValue.Value.GetType().GetArrayRank()
                             && StatusCode.IsBad(info.LastValue.StatusCode))
                         {

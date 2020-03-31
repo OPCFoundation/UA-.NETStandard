@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -116,7 +116,7 @@ namespace Opc.Ua
         /// <param name="view">The view.</param>
         public void Add(ViewNode view)
         {
-            if (view == null) throw new ArgumentNullException("view");
+            if (view == null) throw new ArgumentNullException(nameof(view));
 
             if (NodeId.IsNull(view.NodeId))
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// <param name="viewId">The view identifier.</param>
         public void Remove(NodeId viewId)
         {
-            if (NodeId.IsNull(viewId)) throw new ArgumentNullException("viewId");
+            if (NodeId.IsNull(viewId)) throw new ArgumentNullException(nameof(viewId));
                         
             lock (m_lock)
             {

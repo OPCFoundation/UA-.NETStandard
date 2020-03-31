@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Opc.Ua.Client.Controls;
-using Opc.Ua.Server.Controls;
 
 namespace Quickstarts.ReferenceClient
 {
@@ -73,7 +72,7 @@ namespace Quickstarts.ReferenceClient
             this.StatusBar = new System.Windows.Forms.StatusStrip();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
             this.BrowseCTRL = new BrowseNodeCtrl();
-            this.clientHeaderBranding1 = new ServerHeaderBranding();
+            this.clientHeaderBranding1 = new HeaderBranding();
             this.MenuBar.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -102,7 +101,7 @@ namespace Quickstarts.ReferenceClient
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             this.exitToolStripMenuItem.Size = new System.Drawing.Size(92, 22);
             this.exitToolStripMenuItem.Text = "E&xit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.ExitToolStripMenuItem_Click);
             // 
             // ServerMI
             // 
@@ -234,7 +233,7 @@ namespace Quickstarts.ReferenceClient
         private System.Windows.Forms.ToolStripMenuItem Help_ContentsMI;
         private ConnectServerCtrl ConnectServerCTRL;
         private BrowseNodeCtrl BrowseCTRL;
-        private ServerHeaderBranding clientHeaderBranding1;
+        private HeaderBranding clientHeaderBranding1;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
     }

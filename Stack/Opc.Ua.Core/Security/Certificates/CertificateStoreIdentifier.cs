@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -22,9 +22,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
         public new object MemberwiseClone()
         {
             return base.MemberwiseClone();
@@ -126,21 +123,21 @@ namespace Opc.Ua
 
             if (String.IsNullOrEmpty(storeType))
             {
-                return (ICertificateStore) new CertificateIdentifierCollection();
+                return new CertificateIdentifierCollection();
             }
 
             switch (storeType)
             {
                 case CertificateStoreType.X509Store:
-                {
-                    store = new X509CertificateStore();
-                    break;
-                }
+                    {
+                        store = new X509CertificateStore();
+                        break;
+                    }
                 case CertificateStoreType.Directory:
-                {
-                    store = new DirectoryCertificateStore();
-                    break;
-                }
+                    {
+                        store = new DirectoryCertificateStore();
+                        break;
+                    }
             }
             return store;
         }
@@ -169,7 +166,7 @@ namespace Opc.Ua
         #endregion
     }
 
-#region CertificateStoreType Class
+    #region CertificateStoreType Class
     /// <summary>
     /// The type of certificate store.
     /// </summary>
@@ -185,5 +182,5 @@ namespace Opc.Ua
         /// </summary>
         public const string Directory = "Directory";
     }
-#endregion
+    #endregion
 }

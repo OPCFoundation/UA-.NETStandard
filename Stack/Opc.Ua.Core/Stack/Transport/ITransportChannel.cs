@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -53,6 +54,11 @@ namespace Opc.Ua
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
         ServiceMessageContext MessageContext { get; }
+
+        /// <summary>
+        /// Gets the the channel's current security token.
+        /// </summary>
+        ChannelToken CurrentToken { get; }
 
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.

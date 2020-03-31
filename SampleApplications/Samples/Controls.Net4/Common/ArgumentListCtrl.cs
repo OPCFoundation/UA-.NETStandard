@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Sample.Controls
                     return;
                 }
 
-                object value = GuiUtils2.EditValue(m_session, arguments[0].Value, arguments[0].DataType, arguments[0].ValueRank);
+                object value = GuiUtils.EditValue(m_session, arguments[0].Value, arguments[0].DataType, arguments[0].ValueRank);
 
                 if (value != null)
                 {

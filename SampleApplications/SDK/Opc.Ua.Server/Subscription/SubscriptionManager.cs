@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
             IServerInternal          server,
             ApplicationConfiguration configuration)
         {
-            if (server == null)        throw new ArgumentNullException("server");
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null)        throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             
             m_server = server;
             
@@ -519,6 +519,14 @@ namespace Opc.Ua.Server
             out uint         revisedLifetimeCount,
             out uint         revisedMaxKeepAliveCount)
         {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Count >= m_maxSubscriptionCount)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
+                }
+            }
+
             subscriptionId = 0;
             revisedPublishingInterval = 0;
             revisedLifetimeCount = 0;
@@ -558,11 +566,6 @@ namespace Opc.Ua.Server
                 
             lock (m_lock)
             {
-                if (m_subscriptions.Count >= m_maxSubscriptionCount)
-                {
-                    throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
-                }
-
                 // save subscription.
                 m_subscriptions.Add(subscriptionId, subscription);
                 

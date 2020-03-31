@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -401,6 +401,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the Server object node
+        /// </summary>
+        /// <value>The Server object node.</value>
+        public ServerObjectState ServerObject
+        {
+            get { return m_serverObject; }
+        }
+
+        /// <summary>
         /// Used to synchronize access to the server diagnostics.
         /// </summary>
         /// <value>The diagnostics lock.</value>
@@ -576,7 +585,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRead.Value = 0;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerWrite.Value = 0;
-                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 0;
+                serverObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value = 1000;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerBrowse.Value = 0;
                 serverObject.ServerCapabilities.OperationLimits.MaxNodesPerRegisterNodes.Value = 0;
 
@@ -593,7 +602,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
-                               
+
                 // initialize status.
                 ServerStatusDataType serverStatus = new ServerStatusDataType();
 
@@ -644,6 +653,10 @@ namespace Opc.Ua.Server
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
+                ConfigurationNodeManager configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
+                configurationNodeManager?.CreateServerConfiguration(
+                    m_defaultSystemContext,
+                    m_configuration);
             }
         }
         
@@ -730,9 +743,9 @@ namespace Opc.Ua.Server
 
             return ServiceResult.Good;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ServerProperties m_serverDescription;
         private ApplicationConfiguration m_configuration;
         private List<Uri> m_endpointAddresses;    
@@ -761,6 +774,6 @@ namespace Opc.Ua.Server
         private ServerObjectState m_serverObject;
         private ServerStatusValue m_serverStatus;
         private ServerDiagnosticsSummaryDataType m_serverDiagnostics;
-        #endregion
+#endregion
     }
 }

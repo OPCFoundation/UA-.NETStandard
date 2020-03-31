@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -33,6 +33,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -56,6 +57,7 @@ namespace Opc.Ua.Client.Controls
         private ApplicationConfiguration m_configuration;
         private Session m_session;
         private int m_reconnectPeriod = 10;
+        private int m_discoverTimeout = 5000;
         private SessionReconnectHandler m_reconnectHandler;
         private CertificateValidationEventHandler m_CertificateValidation;
         private EventHandler m_ReconnectComplete;
@@ -285,7 +287,7 @@ namespace Opc.Ua.Client.Controls
             }
 
             // select the best endpoint.
-            EndpointDescription endpointDescription = ClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, m_discoverTimeout);
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
@@ -305,6 +307,9 @@ namespace Opc.Ua.Client.Controls
 
             // raise an event.
             DoConnectComplete(null);
+
+            var typeSystemLoader = new ComplexTypeSystem(m_session);
+            await typeSystemLoader.Load();
 
             // return the new session.
             return m_session;
@@ -398,7 +403,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // return the selected endpoint.
-                return ClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked);
+                return CoreClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked, m_discoverTimeout);
             }
             finally
             {

@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
+    <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
+    <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
+    <PackageId>Opc.Ua.Gds.Client.Common</PackageId>
+    <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
+    <LangVersion>6</LangVersion>
+    <Description>OPC UA GDS Client Class Library</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+  </ItemGroup>
+
+</Project>

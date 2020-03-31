@@ -33,7 +33,7 @@
     <IsWebBootstrapper>true</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -66,24 +66,9 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.IdentityModel" />
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.X509Certificates.4.3.0\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
-    </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.XmlDocument, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Xml.XmlDocument.4.3.0\lib\net46\System.Xml.XmlDocument.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Common\ArgumentListCtrl.cs">
@@ -98,23 +83,11 @@
     <Compile Include="Common\CallMethodDlg.Designer.cs">
       <DependentUpon>CallMethodDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="Common\NodeIdValueEditDlg.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Common\NodeIdValueEditDlg.Designer.cs">
-      <DependentUpon>NodeIdValueEditDlg.cs</DependentUpon>
-    </Compile>
     <Compile Include="ClientForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="ClientForm.Designer.cs">
       <DependentUpon>ClientForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Common\SimpleValueEditDlg.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Common\SimpleValueEditDlg.Designer.cs">
-      <DependentUpon>SimpleValueEditDlg.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="SelectLocaleDlg.cs">
@@ -128,12 +101,6 @@
     </Compile>
     <Compile Include="ServerForm.Designer.cs">
       <DependentUpon>ServerForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="ServerHeaderBranding.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ServerHeaderBranding.Designer.cs">
-      <DependentUpon>ServerHeaderBranding.cs</DependentUpon>
     </Compile>
     <Compile Include="Sessions\BrowseListCtrl.cs">
       <SubType>UserControl</SubType>
@@ -338,12 +305,6 @@
     <Compile Include="Sessions\CreateSecureChannelDlg.Designer.cs">
       <DependentUpon>CreateSecureChannelDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="Common\ReferenceTypeCtrl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Common\ReferenceTypeCtrl.Designer.cs">
-      <DependentUpon>ReferenceTypeCtrl.cs</DependentUpon>
-    </Compile>
     <Compile Include="Sessions\SelectNodeDlg.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -446,12 +407,6 @@
     <Compile Include="Common\AttributeListCtrl.Designer.cs">
       <DependentUpon>AttributeListCtrl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Common\DataListCtrl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Common\DataListCtrl.Designer.cs">
-      <DependentUpon>DataListCtrl.cs</DependentUpon>
-    </Compile>
     <Compile Include="Common\BackgroundTaskDlg.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -469,12 +424,6 @@
     </Compile>
     <Compile Include="Common\FindNodeDlg.Designer.cs">
       <DependentUpon>FindNodeDlg.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Common\GuiUtils2.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Common\GuiUtils2.Designer.cs">
-      <DependentUpon>GuiUtils2.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Service Include="{94E38DFF-614B-4cbd-B67C-F211BB35CE8B}" />
@@ -496,16 +445,8 @@
       <DependentUpon>CallMethodDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Common\NodeIdValueEditDlg.resx">
-      <DependentUpon>NodeIdValueEditDlg.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
     <EmbeddedResource Include="ClientForm.resx">
       <DependentUpon>ClientForm.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Common\SimpleValueEditDlg.resx">
-      <DependentUpon>SimpleValueEditDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="SelectLocaleDlg.resx">
@@ -514,10 +455,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ServerForm.resx">
       <DependentUpon>ServerForm.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ServerHeaderBranding.resx">
-      <DependentUpon>ServerHeaderBranding.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Sessions\BrowseListCtrl.resx">
@@ -657,10 +594,6 @@
       <DependentUpon>CreateSecureChannelDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Common\ReferenceTypeCtrl.resx">
-      <SubType>Designer</SubType>
-      <DependentUpon>ReferenceTypeCtrl.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Sessions\SelectNodeDlg.resx">
       <DependentUpon>SelectNodeDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -729,19 +662,15 @@
       <DependentUpon>FindNodeDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Common\DataListCtrl.resx">
-      <SubType>Designer</SubType>
-      <DependentUpon>DataListCtrl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Common\GuiUtils2.resx">
-      <DependentUpon>GuiUtils2.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
       <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
+      <Project>{fe9eeb39-0698-4a19-b770-e66836ce0002}</Project>
+      <Name>Opc.Ua.Client.ComplexTypes</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>
@@ -794,7 +723,6 @@
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,10 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Xml;
 using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryEncoder(byte[] buffer, int start, int count, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
 
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryEncoder(Stream stream, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_ostrm = stream;
             m_writer = new BinaryWriter(m_ostrm);
@@ -85,10 +85,7 @@ namespace Opc.Ua
                     m_writer.Dispose();
                 }
 
-                if (m_ostrm != null)
-                {
-                    m_ostrm.Dispose();
-                }
+                m_ostrm?.Dispose();
             }
         }
         #endregion
@@ -162,13 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the stream that the encoder is writing to.
         /// </summary>
-        public Stream BaseStream
-        {
-            get
-            {
-                return m_writer.BaseStream;
-            }
-        }
+        public Stream BaseStream => m_writer.BaseStream;
 
         /// <summary>
         /// Writes raw bytes to the stream.
@@ -183,8 +174,8 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeMessage(IEncodeable message, ServiceMessageContext context)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(context);
@@ -201,8 +192,8 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(stream, context);
@@ -212,7 +203,7 @@ namespace Opc.Ua
                 long start = encoder.m_ostrm.Position;
 
                 // write the type id.
-                encoder.WriteNodeId(null, DataTypeIds.SessionLessServiceMessageType);
+                encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
 
                 // write the message.
                 SessionLessServiceMessage envelope = new SessionLessServiceMessage();
@@ -247,9 +238,9 @@ namespace Opc.Ua
         /// </summary>
         public static void EncodeMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
         {
-            if (message == null) throw new ArgumentNullException("message");
-            if (stream == null) throw new ArgumentNullException("stream");
-            if (context == null) throw new ArgumentNullException("context");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
             BinaryEncoder encoder = new BinaryEncoder(stream, context);
@@ -269,7 +260,7 @@ namespace Opc.Ua
         /// </summary>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException("message");
+            if (message == null) throw new ArgumentNullException(nameof(message));
 
             long start = m_ostrm.Position;
 
@@ -317,18 +308,17 @@ namespace Opc.Ua
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
-        public EncodingType EncodingType
-        {
-            get { return EncodingType.Binary; }
-        }
+        public EncodingType EncodingType => EncodingType.Binary;
 
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context
-        {
-            get { return m_context; }
-        }
+        public ServiceMessageContext Context => m_context;
+
+        /// <summary>
+        /// Binary Encoder always produces reversible encoding.
+        /// </summary>
+        public bool UseReversibleEncoding => true;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -464,10 +454,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            if (value.Kind == DateTimeKind.Local)
-            {
-                value = value.ToUniversalTime();
-            }
+            value = Utils.NormalizeToUniversalTime(value);
 
             long ticks = value.Ticks;
 
@@ -567,7 +554,7 @@ namespace Opc.Ua
             // get the node encoding.
             byte encoding = GetNodeIdEncoding(value.IdType, value.Identifier, namespaceIndex);
 
-            // write the encoding.            
+            // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
@@ -615,7 +602,7 @@ namespace Opc.Ua
                 encoding |= 0x40;
             }
 
-            // write the encoding.            
+            // write the encoding.
             WriteByte(null, encoding);
 
             // write the node id.
@@ -1006,11 +993,11 @@ namespace Opc.Ua
                     Utils.Format("Cannot encode bodies of type '{0}' in extension objects.", body.GetType().FullName));
             }
 
-            long start = m_writer.BaseStream.Position;
-
             // check if it possible to write the extension directly to the stream.
             if (m_writer.BaseStream.CanSeek)
             {
+                long start = m_writer.BaseStream.Position;
+
                 // write a placeholder for the body length.
                 WriteInt32(null, -1);
                 encodeable.Encode(this);
@@ -1050,7 +1037,7 @@ namespace Opc.Ua
             // create a default object if a null object specified.
             if (value == null)
             {
-                if (systemType == null) throw new ArgumentNullException("systemType");
+                if (systemType == null) throw new ArgumentNullException(nameof(systemType));
                 value = Activator.CreateInstance(systemType) as IEncodeable;
             }
 
@@ -1070,7 +1057,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, Enum value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             WriteInt32(null, Convert.ToInt32(value, CultureInfo.InvariantCulture));
         }
@@ -1661,49 +1648,49 @@ namespace Opc.Ua
             switch (idType)
             {
                 case IdType.Numeric:
+                {
+                    uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
+
+                    if (id <= Byte.MaxValue && namespaceIndex == 0)
                     {
-                        uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
-
-                        if (id <= Byte.MaxValue && namespaceIndex == 0)
-                        {
-                            encoding = NodeIdEncodingBits.TwoByte;
-                            break;
-                        }
-
-                        if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
-                        {
-                            encoding = NodeIdEncodingBits.FourByte;
-                            break;
-                        }
-
-                        encoding = NodeIdEncodingBits.Numeric;
+                        encoding = NodeIdEncodingBits.TwoByte;
                         break;
                     }
+
+                    if (id <= UInt16.MaxValue && namespaceIndex <= Byte.MaxValue)
+                    {
+                        encoding = NodeIdEncodingBits.FourByte;
+                        break;
+                    }
+
+                    encoding = NodeIdEncodingBits.Numeric;
+                    break;
+                }
 
                 case IdType.String:
-                    {
-                        encoding = NodeIdEncodingBits.String;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.String;
+                    break;
+                }
 
                 case IdType.Guid:
-                    {
-                        encoding = NodeIdEncodingBits.Guid;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.Guid;
+                    break;
+                }
 
                 case IdType.Opaque:
-                    {
-                        encoding = NodeIdEncodingBits.ByteString;
-                        break;
-                    }
+                {
+                    encoding = NodeIdEncodingBits.ByteString;
+                    break;
+                }
 
                 default:
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadEncodingError,
-                            Utils.Format("NodeId identifier type '{0}' not supported.", idType));
-                    }
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        Utils.Format("NodeId identifier type '{0}' not supported.", idType));
+                }
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -1718,45 +1705,45 @@ namespace Opc.Ua
             switch ((NodeIdEncodingBits)(0x3F & encoding))
             {
                 case NodeIdEncodingBits.TwoByte:
-                    {
-                        WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.FourByte:
-                    {
-                        WriteByte(null, Convert.ToByte(namespaceIndex));
-                        WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteByte(null, Convert.ToByte(namespaceIndex));
+                    WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.Numeric:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
+                    break;
+                }
 
                 case NodeIdEncodingBits.String:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteString(null, (string)identifier);
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteString(null, (string)identifier);
+                    break;
+                }
 
                 case NodeIdEncodingBits.Guid:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteGuid(null, new Uuid((Guid)identifier));
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteGuid(null, new Uuid((Guid)identifier));
+                    break;
+                }
 
                 case NodeIdEncodingBits.ByteString:
-                    {
-                        WriteUInt16(null, namespaceIndex);
-                        WriteByteString(null, (byte[])identifier);
-                        break;
-                    }
+                {
+                    WriteUInt16(null, namespaceIndex);
+                    WriteByteString(null, (byte[])identifier);
+                    break;
+                }
             }
         }
 
@@ -1812,7 +1799,7 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)valueToEncode); return; }
                     case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)valueToEncode); return; }
                     case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)valueToEncode); return; }
-                    case BuiltInType.Enumeration: { WriteInt32(null, (int)valueToEncode); return; }
+                    case BuiltInType.Enumeration: { WriteInt32(null, Convert.ToInt32(valueToEncode)); return; }
                 }
 
                 throw ServiceResultException.Create(
@@ -1863,50 +1850,50 @@ namespace Opc.Ua
                     case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])valueToEncode); break; }
 
                     case BuiltInType.Enumeration:
+                    {
+                        Enum[] enums = valueToEncode as Enum[];
+                        int[] ints = new int[enums.Length];
+
+                        for (int ii = 0; ii < enums.Length; ii++)
                         {
-                            Enum[] enums = valueToEncode as Enum[];
-                            int[] ints = new int[enums.Length];
-
-                            for (int ii = 0; ii < enums.Length; ii++)
-                            {
-                                ints[ii] = (int)(object)enums[ii];
-                            }
-
-                            WriteInt32Array(null, ints);
-                            return;
+                            ints[ii] = (int)(object)enums[ii];
                         }
+
+                        WriteInt32Array(null, ints);
+                        return;
+                    }
 
                     case BuiltInType.Variant:
+                    {
+                        Variant[] variants = valueToEncode as Variant[];
+
+                        if (variants != null)
                         {
-                            Variant[] variants = valueToEncode as Variant[];
-
-                            if (variants != null)
-                            {
-                                WriteVariantArray(null, variants);
-                                break;
-                            }
-
-                            object[] objects = valueToEncode as object[];
-
-                            if (objects != null)
-                            {
-                                WriteObjectArray(null, objects);
-                                break;
-                            }
-
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding a Matrix: {0}",
-                                valueToEncode.GetType());
+                            WriteVariantArray(null, variants);
+                            break;
                         }
+
+                        object[] objects = valueToEncode as object[];
+
+                        if (objects != null)
+                        {
+                            WriteObjectArray(null, objects);
+                            break;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Matrix: {0}",
+                            valueToEncode.GetType());
+                    }
 
                     default:
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding a Variant: {0}",
-                                value.TypeInfo.BuiltInType);
-                        }
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Variant: {0}",
+                            value.TypeInfo.BuiltInType);
+                    }
                 }
 
                 // write the dimensions.
@@ -1916,7 +1903,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion 
+        #endregion
 
         #region Private Fields
         private Stream m_ostrm;

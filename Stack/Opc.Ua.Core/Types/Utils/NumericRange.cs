@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -40,7 +40,7 @@ namespace Opc.Ua
         {
             if (begin < -1)
             {
-                throw new ArgumentOutOfRangeException("begin");
+                throw new ArgumentOutOfRangeException(nameof(begin));
             }
 
             m_begin = -1;
@@ -85,12 +85,12 @@ namespace Opc.Ua
             {
                 if (value < -1)
                 {
-                    throw new ArgumentOutOfRangeException("value", "Begin");
+                    throw new ArgumentOutOfRangeException(nameof(value), "Begin");
                 }                
                 
                 if (m_end != -1 && (m_begin > m_end || m_begin < 0))
                 {
-                    throw new ArgumentOutOfRangeException("value", "Begin > End");
+                    throw new ArgumentOutOfRangeException(nameof(value), "Begin > End");
                 }
 
                 m_begin = value; 
@@ -113,12 +113,12 @@ namespace Opc.Ua
             {
                 if (value < -1)
                 {
-                    throw new ArgumentOutOfRangeException("value", "End");
+                    throw new ArgumentOutOfRangeException(nameof(value), "End");
                 }
                 
                 if (m_end != -1 && (m_begin > m_end || m_begin < 0))
                 {
-                    throw new ArgumentOutOfRangeException("value", "Begin > End");
+                    throw new ArgumentOutOfRangeException(nameof(value), "Begin > End");
                 }
 
                 m_end = value; 

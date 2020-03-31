@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -57,7 +57,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DiagnosticInfo(DiagnosticInfo value)
         {            
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_symbolicId      = value.m_symbolicId;
             m_namespaceUri    = value.m_namespaceUri;
@@ -78,11 +78,11 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the object with specific values.
         /// </remarks>
-        /// <param name="additionalInfo">Additional, textual information</param>
+        /// <param name="symbolicId">The symbolic ID</param>
+        /// <param name="namespaceUri">The namespace URI applicable</param>
         /// <param name="locale">The locale for the localized text value</param>
         /// <param name="localizedText">The localized text value</param>
-        /// <param name="namespaceUri">The namespace URI applicable</param>
-        /// <param name="symbolicId">The symbolic ID</param>
+        /// <param name="additionalInfo">Additional, textual information</param>
         public DiagnosticInfo(
             int    symbolicId,
             int    namespaceUri,
@@ -198,7 +198,7 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask, 
             StringTable      stringTable)
         {        
-            if (stringTable == null) throw new ArgumentNullException("stringTable");
+            if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
             
             m_symbolicId          = -1;
             m_namespaceUri        = -1;

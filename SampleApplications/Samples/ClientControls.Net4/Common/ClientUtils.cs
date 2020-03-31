@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -91,6 +91,12 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public static int GetImageIndex(uint attributeId, object value)
         {
+            // Workaround to avoid exception when accessing ImageList
+            // Original ImageStream has been removed a long time ago
+            // now there is only a single image for all types.
+            // TODO: add license free images back in
+            return 0;
+
             if (attributeId == Attributes.Value)
             {
                 TypeInfo typeInfo = TypeInfo.Construct(value);

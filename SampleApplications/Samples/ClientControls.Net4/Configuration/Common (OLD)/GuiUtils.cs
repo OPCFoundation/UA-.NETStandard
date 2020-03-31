@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -54,18 +54,18 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public System.Windows.Forms.ImageList ImageList;
 
-		/// <summary>
-		/// Displays the details of an exception.
-		/// </summary>
-		public static void HandleException(string caption, MethodBase method, Exception e)
-		{
+        /// <summary>
+        /// Displays the details of an exception.
+        /// </summary>
+        public static void HandleException(string caption, MethodBase method, Exception e)
+        {
             if (String.IsNullOrEmpty(caption))
             {
                 caption = method.Name;
             }
 
-			MessageBox.Show("Exception: " + e.Message, caption);
-		}
+            ExceptionDlg.Show(caption, e);
+        }
         
         /// <summary>
         /// Defines names for the available 16x16 icons.
@@ -253,8 +253,14 @@ namespace Opc.Ua.Client.Controls
         {       
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not be validated: {0}\r\n\r\n", e.Error.StatusCode);
-            buffer.AppendFormat("Subject: {0}\r\n", e.Certificate.Subject);
+            buffer.AppendFormat("Certificate could not be validated!\r\n");
+            buffer.AppendFormat("Validation error(s): \r\n");
+            buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
+            if (e.Error.InnerResult != null)
+            {
+                buffer.AppendFormat("\t{0}\r\n", e.Error.InnerResult.StatusCode);
+            }
+            buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer)?"Self-signed":e.Certificate.Issuer);
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
@@ -446,7 +452,7 @@ namespace Opc.Ua.Client.Controls
 
                     if (text != null)
                     {
-                        return new LocalizedText(text, ltext.Locale);
+                        return new LocalizedText(ltext.Locale, text);
                     }
 
                     return null;

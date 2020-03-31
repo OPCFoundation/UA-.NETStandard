@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -70,7 +70,7 @@ namespace Opc.Ua.Sample.Controls
             this.BrowseBTN = new System.Windows.Forms.Button();
             this.ViewIdTB = new System.Windows.Forms.TextBox();
             this.ViewIdLB = new System.Windows.Forms.Label();
-            this.ReferenceTypeCTRL = new Opc.Ua.Sample.Controls.ReferenceTypeCtrl();
+            this.ReferenceTypeCTRL = new Opc.Ua.Client.Controls.ReferenceTypeCtrl();
             this.NodeClassList = new System.Windows.Forms.CheckedListBox();
             this.NodeClassMaskCK = new System.Windows.Forms.CheckBox();
             this.NodeClassMaskLB = new System.Windows.Forms.Label();
@@ -417,7 +417,7 @@ namespace Opc.Ua.Sample.Controls
         private System.Windows.Forms.CheckBox NodeClassMaskCK;
         private System.Windows.Forms.Label NodeClassMaskLB;
         private System.Windows.Forms.Label ViewIdLB;
-        private Opc.Ua.Sample.Controls.ReferenceTypeCtrl ReferenceTypeCTRL;
+        private Opc.Ua.Client.Controls.ReferenceTypeCtrl ReferenceTypeCTRL;
         private System.Windows.Forms.Label ViewVersionLB;
         private System.Windows.Forms.CheckBox ViewTimestampCK;
         private System.Windows.Forms.DateTimePicker ViewTimestampDP;

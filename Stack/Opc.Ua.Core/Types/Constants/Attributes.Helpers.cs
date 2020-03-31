@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -27,7 +27,7 @@ namespace Opc.Ua
 		/// </summary>
         public static bool IsValid(uint attributeId)
 		{
-            return (attributeId >= Attributes.NodeId && attributeId <= Attributes.UserExecutable);
+            return (attributeId >= Attributes.NodeId && attributeId <= Attributes.AccessLevelEx);
         }
 
         /// <summary>
@@ -154,6 +154,11 @@ namespace Opc.Ua
                 case Executable:              return BuiltInType.Boolean;
                 case UserExecutable:          return BuiltInType.Boolean;
                 case ArrayDimensions:         return BuiltInType.UInt32;
+                case DataTypeDefinition:      return BuiltInType.ExtensionObject;
+                case RolePermissions:         return BuiltInType.Variant;
+                case UserRolePermissions:     return BuiltInType.Variant;
+                case AccessRestrictions:      return BuiltInType.UInt16;
+                case AccessLevelEx:           return BuiltInType.UInt32;
             }
                     
             return BuiltInType.Null;
@@ -188,6 +193,11 @@ namespace Opc.Ua
                 case Executable:              return DataTypes.Boolean;
                 case UserExecutable:          return DataTypes.Boolean;
                 case ArrayDimensions:         return DataTypes.UInt32;
+                case DataTypeDefinition:      return DataTypes.Structure;
+                case RolePermissions:         return DataTypes.RolePermissionType;
+                case UserRolePermissions:     return DataTypes.RolePermissionType;
+                case AccessRestrictions:      return DataTypes.UInt16;
+                case AccessLevelEx:           return DataTypes.UInt32;
             }
                     
             return null;
@@ -222,6 +232,10 @@ namespace Opc.Ua
                 case Executable:              return (writeMask & (uint)AttributeWriteMask.Executable) != 0;
                 case UserExecutable:          return (writeMask & (uint)AttributeWriteMask.UserExecutable) != 0;
                 case ArrayDimensions:         return (writeMask & (uint)AttributeWriteMask.ArrayDimensions) != 0;
+                case DataTypeDefinition:      return (writeMask & (uint)AttributeWriteMask.DataTypeDefinition) != 0;
+                case RolePermissions:         return (writeMask & (uint)AttributeWriteMask.RolePermissions) != 0;
+                case AccessRestrictions:      return (writeMask & (uint)AttributeWriteMask.AccessRestrictions) != 0;
+                case AccessLevelEx:           return (writeMask & (uint)AttributeWriteMask.AccessLevelEx) != 0;
             }
                     
             return false;
@@ -256,8 +270,12 @@ namespace Opc.Ua
                 case Executable:              return writeMask | (uint)AttributeWriteMask.Executable;
                 case UserExecutable:          return writeMask | (uint)AttributeWriteMask.UserExecutable;
                 case ArrayDimensions:         return writeMask | (uint)AttributeWriteMask.ArrayDimensions;
+                case DataTypeDefinition:      return writeMask | (uint)AttributeWriteMask.DataTypeDefinition;
+                case RolePermissions:         return writeMask | (uint)AttributeWriteMask.RolePermissions;
+                case AccessRestrictions:      return writeMask | (uint)AttributeWriteMask.AccessRestrictions;
+                case AccessLevelEx:           return writeMask | (uint)AttributeWriteMask.AccessLevelEx;
             }
-                    
+
             return writeMask;
         }
         
@@ -293,33 +311,36 @@ namespace Opc.Ua
                 case Description:
                 case WriteMask:
                 case UserWriteMask:
+                case RolePermissions:
+                case UserRolePermissions:
+                case AccessRestrictions:
                 {
                     return true;
                 }
 
                 case Value:
-                case DataType: 
-                case ValueRank: 
-                case ArrayDimensions: 
+                case DataType:
+                case ValueRank:
+                case ArrayDimensions:
                 {
                     return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.Variable)) != 0;
-                }                    
+                }
 
                 case IsAbstract:
                 {
                     return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.ObjectType | Opc.Ua.NodeClass.ReferenceType | Opc.Ua.NodeClass.DataType)) != 0;
-                }               
+                }
 
                 case Symmetric:
                 case InverseName:
                 {
                     return (nodeClass & Opc.Ua.NodeClass.ReferenceType) != 0;
-                }      
+                }
 
                 case ContainsNoLoops:
                 {
                     return (nodeClass & Opc.Ua.NodeClass.View) != 0;
-                }                    
+                }
 
                 case EventNotifier:
                 {
@@ -330,6 +351,7 @@ namespace Opc.Ua
                 case UserAccessLevel:
                 case MinimumSamplingInterval:
                 case Historizing:
+                case AccessLevelEx:
                 {
                     return (nodeClass & Opc.Ua.NodeClass.Variable) != 0;
                 } 
@@ -338,6 +360,11 @@ namespace Opc.Ua
                 case UserExecutable:
                 {
                     return (nodeClass & Opc.Ua.NodeClass.Method) != 0;
+                }
+
+                case DataTypeDefinition:
+                {
+                    return (nodeClass & Opc.Ua.NodeClass.DataType) != 0;
                 }
             }
 
@@ -365,13 +392,18 @@ namespace Opc.Ua
                 case Symmetric:               return AttributeWriteMask.Symmetric;
                 case InverseName:             return AttributeWriteMask.InverseName;
                 case ContainsNoLoops:         return AttributeWriteMask.ContainsNoLoops;
-                case EventNotifier:           return AttributeWriteMask.EventNotifier;                    
+                case EventNotifier:           return AttributeWriteMask.EventNotifier;
                 case AccessLevel:             return AttributeWriteMask.AccessLevel;
                 case UserAccessLevel:         return AttributeWriteMask.UserAccessLevel;
                 case MinimumSamplingInterval: return AttributeWriteMask.MinimumSamplingInterval;
                 case Historizing:             return AttributeWriteMask.Historizing;
                 case Executable:              return AttributeWriteMask.Executable;
                 case UserExecutable:          return AttributeWriteMask.UserExecutable;
+                case DataTypeDefinition:      return AttributeWriteMask.DataTypeDefinition;
+                case RolePermissions:         return AttributeWriteMask.RolePermissions;
+                //case UserRolePermissions:     return AttributeWriteMask.UserRolePermissions;
+                case AccessRestrictions:      return AttributeWriteMask.AccessRestrictions;
+                case AccessLevelEx:           return AttributeWriteMask.AccessLevelEx;
             }
 
             return 0;

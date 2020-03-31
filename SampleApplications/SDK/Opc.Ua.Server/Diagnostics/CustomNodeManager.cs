@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// This node manager is a base class used in multiple samples. It implements the INodeManager
     /// interface and allows sub-classes to override only the methods that they need. This example
     /// is not part of the SDK because most real implementations of a INodeManager will need to
-    /// modify the behavoir of the base class.
+    /// modify the behavior of the base class.
     /// </remarks>
     public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
     {
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server
 
             protected set
             {
-                if (value == null) throw new ArgumentNullException("value");
+                if (value == null) throw new ArgumentNullException(nameof(value));
                 List<string> namespaceUris = new List<string>(value);
                 SetNamespaces(namespaceUris.ToArray());
             }
@@ -954,7 +954,7 @@ namespace Opc.Ua.Server
                     // only support external references to nodes that are stored in memory.
                     if (source == null || !source.Validated || source.Node == null)
                     {
-                        return;
+                        continue;
                     }
                     
                     // add reference to external target.
@@ -1123,8 +1123,8 @@ namespace Opc.Ua.Server
             ref ContinuationPoint       continuationPoint, 
             IList<ReferenceDescription> references)
         {            
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
-            if (references == null) throw new ArgumentNullException("references");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (references == null) throw new ArgumentNullException(nameof(references));
             
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 

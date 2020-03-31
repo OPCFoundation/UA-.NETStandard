@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -67,9 +67,9 @@ namespace Opc.Ua
                 return StatusCodes.BadDataEncodingUnsupported;
             }
 
-            bool useXml = dataEncoding.Name == DefaultXml;
+            bool useXml = dataEncoding.Name == BrowseNames.DefaultXml;
 
-            if (!useXml && dataEncoding.Name != DefaultBinary)
+            if (!useXml && dataEncoding.Name != BrowseNames.DefaultBinary)
             {
                 return StatusCodes.BadDataEncodingInvalid;
             }
@@ -198,16 +198,6 @@ namespace Opc.Ua
             encoder.WriteEncodeable(null, encodeable, null);
             return encoder.CloseAndReturnBuffer();
         }
-        
-        /// <summary>
-        /// The BrowseName for the DefaultBinary component.
-        /// </summary>
-        private const string DefaultBinary = "Default Binary";
-
-        /// <summary>
-        /// The BrowseName for the DefaultXml component.
-        /// </summary>
-        private const string DefaultXml = "Default XML";
         #endregion
         
         /// <summary>

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
             m_context = context;
             m_nestingLevel = 0;
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlElement element, ServiceMessageContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
             m_reader = XmlReader.Create(new StringReader(element.OuterXml));
             m_context = context;
@@ -525,19 +525,19 @@ namespace Opc.Ua
                 m_namespaces.Pop();
             }
         }
-        
+
         /// <summary>
         /// Reads the body extension object from the stream.
         /// </summary>
         public object ReadExtensionObjectBody(ExpandedNodeId typeId)
         {            
             m_reader.MoveToContent();
-                                    
+
             // check for binary encoded body.
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                byte[] bytes = ReadByteString("ByteString");       
+                byte[] bytes = ReadByteString("ByteString");
                 PopNamespace();
                 
                 return bytes;
@@ -545,10 +545,18 @@ namespace Opc.Ua
 
             // check for empty body.
             XmlDocument document = new XmlDocument();
+            string xmlString = null;
 
             if (m_reader.IsEmptyElement)
-            {        
-                document.InnerXml = m_reader.ReadOuterXml();                        
+            {
+                xmlString = m_reader.ReadOuterXml();
+
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
+                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                {
+                    document.Load(reader);
+                }
+
                 return document.DocumentElement;
             }
 
@@ -559,16 +567,23 @@ namespace Opc.Ua
 
             // decode known type.
             if (systemType != null)
-            {                      
+            {
                 PushNamespace(m_reader.NamespaceURI);
                 encodeable = ReadEncodeable(m_reader.LocalName, systemType);
                 PopNamespace();
-                                
+
                 return encodeable;
             }
-            
-            // return undecoded xml body.                 
-            document.InnerXml = m_reader.ReadOuterXml();                        
+
+            // return undecoded xml body.
+            xmlString = m_reader.ReadOuterXml();
+
+            using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
+                { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+            {
+                document.Load(reader);
+            }
+
             return document.DocumentElement;
         }
         #endregion
@@ -1143,7 +1158,7 @@ namespace Opc.Ua
 
             if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex)
             {
-                value.SetServerIndex(m_serverMappings[value.NamespaceIndex]);
+                value.SetServerIndex(m_serverMappings[value.ServerIndex]);
             }
 
             return value;
@@ -1461,7 +1476,7 @@ namespace Opc.Ua
             string      fieldName, 
             System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
             
             IEncodeable value = Activator.CreateInstance(systemType) as IEncodeable;
             
@@ -2502,7 +2517,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
             
             bool isNil = false;
 
@@ -2552,7 +2567,7 @@ namespace Opc.Ua
         /// </summary>
         public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
         {
-            if (enumType == null) throw new ArgumentNullException("enumType");
+            if (enumType == null) throw new ArgumentNullException(nameof(enumType));
             
             bool isNil = false;
 

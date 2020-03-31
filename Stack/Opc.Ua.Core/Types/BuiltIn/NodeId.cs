@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when <i>value</i> is null</exception>
         public NodeId(NodeId value)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_namespaceIndex = value.m_namespaceIndex;
             m_identifierType = value.m_identifierType;
@@ -275,13 +275,19 @@ namespace Opc.Ua
                 return;
             }
 
+            if (value is Uuid)
+            {
+                SetIdentifier(IdType.Guid, value);
+                return;
+            }
+
             if (value is byte[])
             {
                 SetIdentifier(IdType.Opaque, value);
                 return;
             }
 
-            throw new ArgumentException("Identifier type not supported.", "value");
+            throw new ArgumentException("Identifier type not supported.", nameof(value));
         }
         #endregion
 
@@ -786,8 +792,8 @@ namespace Opc.Ua
         /// also passed in as a parameter.
         /// </remarks>
         /// <returns>null, if the <i>nodeId</i> parameter is null. Otherwise an ExpandedNodeId will be returned for the specified nodeId</returns>
-        /// <param name="namespaceTable">The namespace tables collection that may be used to retrieve the namespace from that the specified NodeId belongs to</param>
         /// <param name="nodeId">The NodeId to return, wrapped in within the ExpandedNodeId.</param>
+        /// <param name="namespaceTable">The namespace tables collection that may be used to retrieve the namespace from that the specified NodeId belongs to</param>
         public static ExpandedNodeId ToExpandedNodeId(NodeId nodeId, NamespaceTable namespaceTable)
         {
             if (nodeId == null)
@@ -1062,6 +1068,10 @@ namespace Opc.Ua
                 case IdType.Guid:
                 {
                     Guid id1 = (Guid)m_identifier;
+                    if (id is Uuid)
+                    {
+                        return id1.CompareTo((Uuid)id);
+                    }
                     return id1.CompareTo((Guid)id);
                 }
 
@@ -1712,7 +1722,7 @@ namespace Opc.Ua
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
             m_version++;
@@ -1749,7 +1759,7 @@ namespace Opc.Ua
                 }
             }
           
-            throw new ArgumentOutOfRangeException("key", "key.IdType");
+            throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
         }
         
         /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
@@ -2034,7 +2044,7 @@ namespace Opc.Ua
             {
                 if (key == null)
                 {
-                    throw new ArgumentNullException("key");
+                    throw new ArgumentNullException(nameof(key));
                 }
 
                 switch (key.IdType)
@@ -2090,7 +2100,7 @@ namespace Opc.Ua
             {
                 if (key == null)
                 {
-                    throw new ArgumentNullException("key");
+                    throw new ArgumentNullException(nameof(key));
                 }
 
                 m_version++;
@@ -2127,7 +2137,7 @@ namespace Opc.Ua
                     }
                 }
          
-                throw new ArgumentOutOfRangeException("key", "key.IdType");
+                throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
             }
         }
         #endregion
@@ -2165,12 +2175,12 @@ namespace Opc.Ua
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             if (arrayIndex < 0 || array.Length <= arrayIndex)
             {
-                throw new ArgumentOutOfRangeException("arrayIndex", "arrayIndex < 0 || array.Length <= arrayIndex");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || array.Length <= arrayIndex");
             }
 
             foreach (KeyValuePair<ulong,T> entry in m_numericIds)
@@ -2232,7 +2242,7 @@ namespace Opc.Ua
         {
             if (arrayIndex >= array.Length)
             {
-                throw new ArgumentException("Not enough space in array.", "array");
+                throw new ArgumentException("Not enough space in array.", nameof(array));
             }
         }
         

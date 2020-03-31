@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId)
         {
-            if (certificateId == null) throw new ArgumentNullException("certificateId");
+            if (certificateId == null) throw new ArgumentNullException(nameof(certificateId));
 
             X509Certificate2 certificate = certificateId.Find().Result;
             if (certificate != null)
@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity(X509Certificate2 certificate)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
             Initialize(certificate);
         }
 
@@ -151,7 +151,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(UserIdentityToken token)
         {
-            if (token == null) throw new ArgumentNullException("token");
+            if (token == null) throw new ArgumentNullException(nameof(token));
 
             m_token = token;
   
@@ -188,11 +188,11 @@ namespace Opc.Ua
                 {
                     if (issuedToken.DecryptedTokenData == null || issuedToken.DecryptedTokenData.Length == 0)
                     {
-                        throw new ArgumentException("JSON Web Token has no data associated with it.", "token");
+                        throw new ArgumentException("JSON Web Token has no data associated with it.", nameof(token));
                     }
 
                     m_tokenType = UserTokenType.IssuedToken;
-                    m_issuedTokenType = new XmlQualifiedName("", "http://opcfoundation.org/UA/UserTokenPolicy#JWT");
+                    m_issuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
                     m_displayName = "JWT";
                     return;
                 }
@@ -209,9 +209,9 @@ namespace Opc.Ua
                 m_issuedTokenType = null;
                 m_displayName = "Anonymous";
                 return;
-            }        
+            }
   
-            throw new ArgumentException("Unrecognized UA user identity token type.", "token");
+            throw new ArgumentException("Unrecognized UA user identity token type.", nameof(token));
         }
 
         /// <summary>

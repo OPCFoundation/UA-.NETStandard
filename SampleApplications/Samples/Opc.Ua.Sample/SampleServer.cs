@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -52,10 +52,10 @@ namespace Opc.Ua.Sample
         {
             Utils.Trace("The server is starting.");
 
-            base.OnServerStarting(configuration);     
+            base.OnServerStarting(configuration);
             
             // it is up to the application to decide how to validate user identity tokens.
-            // this function creates validators for SAML and X509 identity tokens.
+            // this function creates validator for X509 identity tokens.
             CreateUserIdentityValidators(configuration);
         }
 

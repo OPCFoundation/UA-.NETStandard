@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,14 +12,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Linq;
+using System.Text;
+using System.Xml;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// An object used to wrap data types that the receiver may not understand.
     /// </summary>
@@ -271,7 +271,7 @@ namespace Opc.Ua
     /// </example>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ExtensionObject : IFormattable
-    {                     
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -280,11 +280,11 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </remarks>
         public ExtensionObject()
-        {           
-            m_typeId   = ExpandedNodeId.Null;
-            m_encoding = ExtensionObjectEncoding.None;   
-            m_body     = null;
-            m_context  = MessageContextExtension.CurrentContext;
+        {
+            m_typeId = ExpandedNodeId.Null;
+            m_encoding = ExtensionObjectEncoding.None;
+            m_body = null;
+            m_context = MessageContextExtension.CurrentContext;
         }
 
         /// <summary>
@@ -296,11 +296,14 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public ExtensionObject(ExtensionObject value)
-        {            
-            if (value == null) throw new ArgumentNullException("value");
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             TypeId = value.TypeId;
-            Body   = Utils.Clone(value.Body);
+            Body = Utils.Clone(value.Body);
         }
 
         /// <summary>
@@ -310,7 +313,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId)
         {
             TypeId = typeId;
-            Body   = null;
+            Body = null;
         }
 
         /// <summary>
@@ -323,9 +326,9 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                m_typeId   = null;
+                m_typeId = ExpandedNodeId.Null;
                 m_encoding = ExtensionObjectEncoding.EncodeableObject;
-                m_body     = encodeable;
+                m_body = encodeable;
             }
             else
             {
@@ -342,14 +345,14 @@ namespace Opc.Ua
         /// Initializes the object with an encodeable object.
         /// </remarks>
         public ExtensionObject(ExpandedNodeId typeId, object body)
-        {            
+        {
             TypeId = typeId;
-            Body   = body;
+            Body = body;
         }
 
         [OnSerializing()]
         private void UpdateContext(StreamingContext context)
-        {      
+        {
             m_context = MessageContextExtension.CurrentContext;
         }
 
@@ -359,13 +362,13 @@ namespace Opc.Ua
         [OnDeserializing()]
         private void Initialize(StreamingContext context)
         {
-            m_typeId   = ExpandedNodeId.Null;
-            m_encoding = ExtensionObjectEncoding.None;   
-            m_body     = null;
-            m_context  = MessageContextExtension.CurrentContext;
+            m_typeId = ExpandedNodeId.Null;
+            m_encoding = ExtensionObjectEncoding.None;
+            m_body = null;
+            m_context = MessageContextExtension.CurrentContext;
         }
         #endregion
-             
+
         #region Public Properties
         /// <summary>
         /// The data type node id for the extension object.
@@ -373,7 +376,7 @@ namespace Opc.Ua
         /// <value>The type id.</value>
         public ExpandedNodeId TypeId
         {
-            get { return m_typeId;  }
+            get { return m_typeId; }
             set { m_typeId = value; }
         }
 
@@ -381,13 +384,7 @@ namespace Opc.Ua
         /// The encoding to use when the deserializing/serializing the body.
         /// </summary>
         /// <value>The encoding for the embedd object.</value>
-        public ExtensionObjectEncoding Encoding 
-        {
-            get 
-            { 
-                return m_encoding;  
-            }
-        }
+        public ExtensionObjectEncoding Encoding => m_encoding;
 
         /// <summary>
         /// The body (embeded object) of the extension object.
@@ -405,17 +402,17 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
         public object Body
         {
-            get { return m_body;  }
-            
-            set 
-            { 
+            get { return m_body; }
+
+            set
+            {
                 m_body = value;
 
                 if (m_body == null)
                 {
                     m_encoding = ExtensionObjectEncoding.None;
                 }
-                
+
                 else if (m_body is IEncodeable)
                 {
                     m_encoding = ExtensionObjectEncoding.EncodeableObject;
@@ -440,7 +437,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-       
+
         #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the <paramref name="obj"/>.
@@ -450,7 +447,7 @@ namespace Opc.Ua
         /// true if the specified <see cref="T:System.Object"/> is equal to the current embeded object; otherwise, false.
         /// </returns>
         public override bool Equals(object obj)
-		    {
+        {
             if (Object.ReferenceEquals(obj, null))
             {
                 return IsNull(this);
@@ -469,12 +466,12 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                
+
                 return Utils.IsEqual(this.m_body, value.m_body);
             }
-            
+
             return false;
-		    }
+        }
 
         /// <summary>
         /// Returns a unique hashcode for the embeded object.
@@ -482,20 +479,20 @@ namespace Opc.Ua
         /// <returns>
         /// A hash code for the current embeded object.
         /// </returns>
-		    public override int GetHashCode()
-		    {
-          if (this.m_body != null)
-          {
-              return this.m_body.GetHashCode();
-          }
-          
-          if (this.m_typeId != null)
-          {
-              return this.m_typeId.GetHashCode();
-          }
+        public override int GetHashCode()
+        {
+            if (this.m_body != null)
+            {
+                return this.m_body.GetHashCode();
+            }
 
-          return 0;
-		    }
+            if (this.m_typeId != null)
+            {
+                return this.m_typeId.GetHashCode();
+            }
+
+            return 0;
+        }
 
         /// <summary>
         /// Converts the value to a human readable string.
@@ -527,14 +524,19 @@ namespace Opc.Ua
                 {
                     return String.Format(formatProvider, "Byte[{0}]", ((byte[])m_body).Length);
                 }
-                
+
                 if (m_body is XmlElement)
                 {
                     return String.Format(formatProvider, "<{0}>", ((XmlElement)m_body).Name);
                 }
-                
+
+                if (m_body is IFormattable)
+                {
+                    return String.Format(formatProvider, "{0}", ((IFormattable)m_body).ToString(null, formatProvider));
+                }
+
                 if (m_body is IEncodeable)
-                {            
+                {
                     StringBuilder body = new StringBuilder();
 
                     PropertyInfo[] properties = m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance);
@@ -570,7 +572,7 @@ namespace Opc.Ua
 
                     return String.Format(formatProvider, "{0}", body);
                 }
-                
+
                 if (!NodeId.IsNull(this.m_typeId))
                 {
                     return String.Format(formatProvider, "{{{0}}}", this.m_typeId);
@@ -578,11 +580,11 @@ namespace Opc.Ua
 
                 return "(null)";
             }
-        
+
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
         #endregion
-        
+
         #region ICloneable Members
         /// <summary>
         /// Makes a deep copy of the object.
@@ -610,7 +612,7 @@ namespace Opc.Ua
         public static bool IsNull(ExtensionObject extension)
         {
             if (extension != null && extension.m_body != null)
-            {                
+            {
                 return false;
             }
 
@@ -664,31 +666,43 @@ namespace Opc.Ua
                     output.SetValue(element, ii);
                 }
             }
-            
+
             return output;
         }
+
+        /// <summary>
+        /// Returns an instance of a null ExtensionObject.
+        /// </summary>
+        public static ExtensionObject Null => s_Null;
+        private static readonly ExtensionObject s_Null = new ExtensionObject();
         #endregion
-        
+
         #region Private Members
         [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
         private NodeId XmlEncodedTypeId
         {
-            get 
-            { 
+            get
+            {
                 // must use the XML encoding id if encoding in an XML stream.
                 IEncodeable encodeable = m_body as IEncodeable;
 
                 if (encodeable != null)
                 {
-                    return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);  
+                    return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
                 }
 
-                return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);  
+                // check for null Id.
+                if (m_typeId.IsNull)
+                {
+                    return NodeId.Null;
+                }
+
+                return ExpandedNodeId.ToNodeId(m_typeId, m_context.NamespaceUris);
             }
 
-            set 
-            { 
-                m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);  
+            set
+            {
+                m_typeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
             }
         }
 
@@ -702,10 +716,10 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-         
+
                 // create encoder.
                 XmlEncoder encoder = new XmlEncoder(m_context);
-                
+
                 // write body.
                 encoder.WriteExtensionObjectBody(m_body);
 
@@ -728,10 +742,10 @@ namespace Opc.Ua
 
                 // create decoder.
                 XmlDecoder decoder = new XmlDecoder(value, m_context);
-              
+
                 // read body.
                 Body = decoder.ReadExtensionObjectBody(m_typeId);
-                                
+
                 // clear the type id for encodeables.
                 IEncodeable encodeable = m_body as IEncodeable;
 
@@ -739,7 +753,7 @@ namespace Opc.Ua
                 {
                     m_typeId = null;
                 }
-                                
+
                 // close decoder.
                 try
                 {
@@ -755,7 +769,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Private Fields
         private ExpandedNodeId m_typeId;
         private ExtensionObjectEncoding m_encoding;
@@ -799,7 +813,7 @@ namespace Opc.Ua
         Json = 4
     }
     #endregion
-    
+
     #region ExtensionObjectCollection Class
     /// <summary>
     /// A collection of ExtensionObjects.
@@ -817,7 +831,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public ExtensionObjectCollection() {}
+        public ExtensionObjectCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -826,8 +840,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection containing the objects to copy into this new instance</param>
-        public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection) : base(collection) {}
-        
+        public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection) : base(collection) { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -835,9 +849,9 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
-        public ExtensionObjectCollection(int capacity) : base(capacity) {}
+        public ExtensionObjectCollection(int capacity) : base(capacity) { }
         #endregion
-                       
+
         #region Static Members
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.

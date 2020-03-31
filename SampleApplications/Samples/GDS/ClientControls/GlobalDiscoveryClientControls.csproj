@@ -1,0 +1,241 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <ProjectGuid>{228EC503-2E77-45C9-87AC-3BB312E43196}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Opc.Ua.Gds.Client.Controls</RootNamespace>
+    <AssemblyName>Opc.Ua.Gds.Client.Controls</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Serialization" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Controls\DiscoveryControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DiscoveryControl.Designer.cs">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\DiscoveryUrlsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\DiscoveryUrlsDialog.Designer.cs">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EditValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\EditValueCtrl.Designer.cs">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EditValueDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\EditValueDlg.Designer.cs">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\EndpointUrlDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\EndpointUrlDialog.Designer.cs">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ImageListControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ImageListControl.Designer.cs">
+      <DependentUpon>ImageListControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SelectGdsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectGdsDialog.Designer.cs">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SelectPushServerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectPushServerDialog.designer.cs">
+      <DependentUpon>SelectPushServerDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SelectServerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SelectServerDialog.Designer.cs">
+      <DependentUpon>SelectServerDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ServerCapabilitiesDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ServerCapabilitiesDialog.Designer.cs">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ServerStatusControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\ServerStatusControl.Designer.cs">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SetTypeDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SetTypeDlg.Designer.cs">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TrustListControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\TrustListControl.Designer.cs">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\TrustListDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\TrustListDialog.Designer.cs">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\UntrustedCertificateDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\UntrustedCertificateDialog.Designer.cs">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\UserIdentityDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\UserIdentityDialog.Designer.cs">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ViewApplicationRecordsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ViewApplicationRecordsDialog.Designer.cs">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\ViewServersOnNetworkDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\ViewServersOnNetworkDialog.Designer.cs">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Controls\DiscoveryControl.resx">
+      <DependentUpon>DiscoveryControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DiscoveryUrlsDialog.resx">
+      <DependentUpon>DiscoveryUrlsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueCtrl.resx">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EditValueDlg.resx">
+      <DependentUpon>EditValueDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EndpointUrlDialog.resx">
+      <DependentUpon>EndpointUrlDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ImageListControl.resx">
+      <DependentUpon>ImageListControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectGdsDialog.resx">
+      <DependentUpon>SelectGdsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectPushServerDialog.resx">
+      <DependentUpon>SelectPushServerDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SelectServerDialog.resx">
+      <DependentUpon>SelectServerDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ServerCapabilitiesDialog.resx">
+      <DependentUpon>ServerCapabilitiesDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ServerStatusControl.resx">
+      <DependentUpon>ServerStatusControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SetTypeDlg.resx">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TrustListControl.resx">
+      <DependentUpon>TrustListControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\TrustListDialog.resx">
+      <DependentUpon>TrustListDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UntrustedCertificateDialog.resx">
+      <DependentUpon>UntrustedCertificateDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\UserIdentityDialog.resx">
+      <DependentUpon>UserIdentityDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewApplicationRecordsDialog.resx">
+      <DependentUpon>ViewApplicationRecordsDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\ViewServersOnNetworkDialog.resx">
+      <DependentUpon>ViewServersOnNetworkDialog.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{761e1eb7-59fb-4d77-8ab3-986b623535c8}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{72d92985-2b09-409c-8573-35db1bea370c}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
+      <Name>Opc.Ua.Configuration</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
+      <Name>UA Client Controls</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+      <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
+      <Name>GlobalDiscoveryClientLibrary</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

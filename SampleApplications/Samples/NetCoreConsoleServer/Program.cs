@@ -1,23 +1,41 @@
-﻿/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Configuration;
-using Opc.Ua.Sample;
-using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Mono.Options;
+using Opc.Ua;
+using Opc.Ua.Configuration;
+using Opc.Ua.Sample;
+using Opc.Ua.Server;
 
 namespace NetCoreConsoleServer
 {
@@ -60,12 +78,65 @@ namespace NetCoreConsoleServer
         }
     }
 
+    public enum ExitCode : int
+    {
+        Ok = 0,
+        ErrorServerNotStarted = 0x80,
+        ErrorServerRunning = 0x81,
+        ErrorServerException = 0x82,
+        ErrorInvalidCommandLine = 0x100
+    };
+
     public class Program
     {
-        public static void Main(string[] args)
+
+        public static int Main(string[] args)
         {
-            MySampleServer server = new MySampleServer();
+            Console.WriteLine(
+                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") + 
+                " OPC UA Console Server sample");
+
+
+            // command line options
+            bool showHelp = false;
+            int stopTimeout = 0;
+            bool autoAccept = false;
+
+            Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                { "h|help", "show this message and exit", h => showHelp = h != null },
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t }
+            };
+
+            try
+            {
+                IList<string> extraArgs = options.Parse(args);
+                foreach (string extraArg in extraArgs)
+                {
+                    Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                    showHelp = true;
+                }
+            }
+            catch (OptionException e)
+            {
+                Console.WriteLine(e.Message);
+                showHelp = true;
+            }
+
+            if (showHelp)
+            {
+                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoConsoleServer.exe [OPTIONS]" : "Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]" );
+                Console.WriteLine();
+
+                Console.WriteLine("Options:");
+                options.WriteOptionDescriptions(Console.Out);
+                return (int)ExitCode.ErrorInvalidCommandLine;
+            }
+
+            MySampleServer server = new MySampleServer(autoAccept, stopTimeout);
             server.Run();
+
+            return (int)MySampleServer.ExitCode;
         }
     }
 
@@ -74,30 +145,48 @@ namespace NetCoreConsoleServer
         SampleServer server;
         Task status;
         DateTime lastEventTime;
+        int serverRunTime = Timeout.Infinite;
+        static bool autoAccept = false;
+        static ExitCode exitCode;
+
+        public MySampleServer(bool _autoAccept, int _stopTimeout)
+        {
+            autoAccept = _autoAccept;
+            serverRunTime = _stopTimeout == 0 ? Timeout.Infinite : _stopTimeout * 1000;
+        }
 
         public void Run()
         {
 
             try
             {
+                exitCode = ExitCode.ErrorServerNotStarted;
                 ConsoleSampleServer().Wait();
-                Console.WriteLine("Server started. Press any key to exit...");
+                Console.WriteLine("Server started. Press Ctrl-C to exit...");
+                exitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
+                exitCode = ExitCode.ErrorServerException;
+                return;
             }
 
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.ReadKey(true);
+                Console.CancelKeyPress += (sender, eArgs) => {
+                    quitEvent.Set();
+                    eArgs.Cancel = true;
+                };
             }
             catch
             {
-                // wait forever if there is no console
-                Thread.Sleep(Timeout.Infinite);
             }
+
+            // wait for timeout or Ctrl-C
+            quitEvent.WaitOne(serverRunTime);
 
             if (server != null)
             {
@@ -112,13 +201,25 @@ namespace NetCoreConsoleServer
                     _server.Stop();
                 }
             }
+
+            exitCode = ExitCode.Ok;
         }
+
+        public static ExitCode ExitCode { get => exitCode; }
+
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = false;
-                Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                e.Accept = autoAccept;
+                if (autoAccept)
+                {
+                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                }
+                else
+                {
+                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                }
             }
         }
 
@@ -129,7 +230,7 @@ namespace NetCoreConsoleServer
 
             application.ApplicationName = "UA Core Sample Server";
             application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = "Opc.Ua.SampleServer";
+            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Opc.Ua.MonoSampleServer" : "Opc.Ua.SampleServer";
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
@@ -187,7 +288,7 @@ namespace NetCoreConsoleServer
             }
         }
 
-        private void StatusThread()
+        private async void StatusThread()
         {
             while (server != null)
             {
@@ -201,7 +302,7 @@ namespace NetCoreConsoleServer
                     }
                     lastEventTime = DateTime.UtcNow;
                 }
-                Thread.Sleep(1000);
+                await Task.Delay(1000);
             }
         }
     }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -54,6 +54,7 @@ namespace Opc.Ua.Sample.Controls
         private const string m_BrowseCertificates = "<Browse...>";
         private static long m_Counter = 0;
         private IList<string> m_preferredLocales;
+        private bool m_checkDomain = false;
         #endregion
 
         #region Public Interface
@@ -171,7 +172,7 @@ namespace Opc.Ua.Sample.Controls
 
                 CancelBTN.IsEnabled = false;
                 OkBTN.IsEnabled = false;
-                object state = new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales };
+                object state = new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales, m_checkDomain };
                 await Task.Run(() => m_session = Open(state));
                 dialogPopup.IsOpen = false;
             }
@@ -204,9 +205,10 @@ namespace Opc.Ua.Sample.Controls
                 string sessionName = ((object[])state)[1] as string;
                 IUserIdentity identity = ((object[])state)[2] as IUserIdentity;
                 IList<string> preferredLocales = ((object[])state)[3] as IList<string>;
+                bool? checkDomain = ((object[])state)[4] as bool?;
 
                 // open the session.
-                session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales);
+                session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales, checkDomain ?? true);
 
                 return session;
             }

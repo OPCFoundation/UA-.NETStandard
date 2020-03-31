@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
 
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// </remarks>
         public void Open(string path)
         {
-            if (path == null) throw new ArgumentNullException("path");
+            if (path == null) throw new ArgumentNullException(nameof(path));
 
             path = path.Trim();
 
@@ -105,14 +105,14 @@ namespace Opc.Ua
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadOnly);
-                return Task.FromResult(store.Certificates);
+                return Task.FromResult(new X509Certificate2Collection(store.Certificates));
             }
         }
 
         /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException("certificate");
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
@@ -165,9 +165,11 @@ namespace Opc.Ua
             }
         }
 
+        public bool SupportsCRLs { get { return false; } }
+
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            return StatusCodes.BadNotSupported;
         }
 
         public List<X509CRL> EnumerateCRLs()
@@ -175,7 +177,7 @@ namespace Opc.Ua
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer)
+        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -39,19 +39,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ServiceMessageContext MessageContext
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
                     return m_messageContext;
                 }
             }
 
-            set  
+            set
             {
                 lock (m_lock)
                 {
-                    m_messageContext = value; 
+                    m_messageContext = value;
                 }
             }
         }
@@ -61,41 +61,41 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public X509CertificateValidator CertificateValidator
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
                     return m_certificateValidator;
                 }
             }
 
-            set  
+            set
             {
                 lock (m_lock)
                 {
-                    m_certificateValidator = value; 
+                    m_certificateValidator = value;
                 }
             }
         }
-        
+
         /// <summary>
         /// The maximum size for a message sent or received.
         /// </summary>
         public int MaxMessageSize
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
-                    return m_maxMessageSize; 
+                    return m_maxMessageSize;
                 }
             }
-            
-            set 
-            { 
+
+            set
+            {
                 lock (m_lock)
                 {
-                    m_maxMessageSize = value; 
+                    m_maxMessageSize = value;
                 }
             }
         }
@@ -105,19 +105,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int MaxBufferSize
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
-                    return m_maxBufferSize; 
+                    return m_maxBufferSize;
                 }
             }
-                        
-            set 
-            { 
+
+            set
+            {
                 lock (m_lock)
                 {
-                    m_maxBufferSize = value; 
+                    m_maxBufferSize = value;
                 }
             }
         }
@@ -127,16 +127,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int ChannelLifetime
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
-                    return m_channelLifetime;   
+                    return m_channelLifetime;
                 }
             }
-            
-            set 
-            { 
+
+            set
+            {
                 lock (m_lock)
                 {
                     m_channelLifetime = value;
@@ -149,16 +149,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int SecurityTokenLifetime
         {
-            get 
-            { 
+            get
+            {
                 lock (m_lock)
                 {
                     return m_securityTokenLifetime;
                 }
             }
-            
-            set 
-            { 
+
+            set
+            {
                 lock (m_lock)
                 {
                     m_securityTokenLifetime = value;

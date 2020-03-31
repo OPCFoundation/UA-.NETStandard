@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+using Opc.Ua.Client.Controls;
+using Opc.Ua.Configuration;
 using System;
 using System.Windows.Forms;
-using Opc.Ua;
-using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 
 namespace AggregationClient
 {
@@ -47,6 +47,7 @@ namespace AggregationClient
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Client;
             application.ConfigSectionName = "Quickstarts.AggregationClient";
@@ -64,8 +65,7 @@ namespace AggregationClient
             }
             catch (Exception e)
             {
-                Utils.Trace(application.ApplicationName, e);
-                return;
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

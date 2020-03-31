@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -48,6 +48,7 @@ namespace Quickstarts.ReferenceServer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Server;
             application.ConfigSectionName = "Quickstarts.ReferenceServer";
@@ -56,35 +57,24 @@ namespace Quickstarts.ReferenceServer
             {
 
                 // load the application configuration.
-                Task<ApplicationConfiguration> task = application.LoadApplicationConfiguration(false);
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                Task<bool> task2 = application.CheckApplicationInstanceCertificate(false, 0);
-
-                task2.Wait();
-                bool certOK = task2.Result;
-                if (!certOK)
+                bool certOk = application.CheckApplicationInstanceCertificate(false, 0).Result;
+                if (!certOk)
                 {
                     throw new Exception("Application instance certificate invalid!");
                 }
 
                 // start the server.
-                Task task3 = application.Start(new ReferenceServer());
-                task3.Wait();
-
+                application.Start(new ReferenceServer()).Wait();
 
                 // run the application interactively.
                 Application.Run(new ServerForm(application));
             }
             catch (Exception e)
             {
-                string text = "Exception: " + e.Message;
-                if (e.InnerException != null)
-                {
-                    text += "\r\nInner exception: ";
-                    text += e.InnerException.Message;
-                }
-                MessageBox.Show(text, application.ApplicationName);
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

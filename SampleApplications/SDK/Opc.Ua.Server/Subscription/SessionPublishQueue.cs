@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -45,8 +45,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public SessionPublishQueue(IServerInternal server, Session session, int maxPublishRequests)
         {
-            if (server == null)  throw new ArgumentNullException("server");
-            if (session == null) throw new ArgumentNullException("session");
+            if (server == null)  throw new ArgumentNullException(nameof(server));
+            if (session == null) throw new ArgumentNullException(nameof(session));
 
             m_server              = server;
             m_session             = session;
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Add(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             lock (m_lock)
             {
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Remove(Subscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException("subscription");
+            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             lock (m_lock)
             {
@@ -203,8 +203,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection              acknowledgeResults, 
             out DiagnosticInfoCollection          acknowledgeDiagnosticInfos)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (subscriptionAcknowledgements == null) throw new ArgumentNullException("subscriptionAcknowledgements");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (subscriptionAcknowledgements == null) throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
 
             lock (m_lock)
             {                

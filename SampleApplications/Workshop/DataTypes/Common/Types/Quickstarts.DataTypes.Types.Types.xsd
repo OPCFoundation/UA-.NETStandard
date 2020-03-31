@@ -1,0 +1,80 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:tns="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  targetNamespace="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types"
+  elementFormDefault="qualified"
+>
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+
+  <xs:simpleType  name="EngineType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Petrol_1" />
+      <xs:enumeration value="Diesel_2" />
+      <xs:enumeration value="Electric_3" />
+      <xs:enumeration value="Hybrid_4" />
+      <xs:enumeration value="Manual_5" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="EngineType" type="tns:EngineType" />
+
+  <xs:complexType name="ListOfEngineType">
+    <xs:sequence>
+      <xs:element name="EngineType" type="tns:EngineType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfEngineType" type="tns:ListOfEngineType" nillable="true"></xs:element>
+
+  <xs:complexType name="VehicleType">
+    <xs:sequence>
+      <xs:element name="Make" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Model" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Engine" type="tns:EngineType" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VehicleType" type="tns:VehicleType" />
+
+  <xs:complexType name="ListOfVehicleType">
+    <xs:sequence>
+      <xs:element name="VehicleType" type="tns:VehicleType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVehicleType" type="tns:ListOfVehicleType" nillable="true"></xs:element>
+
+  <xs:complexType name="CarType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:VehicleType">
+        <xs:sequence>
+          <xs:element name="NoOfPassengers" type="xs:unsignedInt" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="CarType" type="tns:CarType" />
+
+  <xs:complexType name="ListOfCarType">
+    <xs:sequence>
+      <xs:element name="CarType" type="tns:CarType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfCarType" type="tns:ListOfCarType" nillable="true"></xs:element>
+
+  <xs:complexType name="TruckType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:VehicleType">
+        <xs:sequence>
+          <xs:element name="CargoCapacity" type="xs:unsignedInt" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TruckType" type="tns:TruckType" />
+
+  <xs:complexType name="ListOfTruckType">
+    <xs:sequence>
+      <xs:element name="TruckType" type="tns:TruckType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTruckType" type="tns:ListOfTruckType" nillable="true"></xs:element>
+
+</xs:schema>

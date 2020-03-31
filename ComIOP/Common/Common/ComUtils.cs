@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -694,7 +694,7 @@ namespace Opc.Ua.Com
 			return results[0].pItf;
 		}
 
-        // COM impersonation is a nice feature but variations between behavoirs on different
+        // COM impersonation is a nice feature but variations between behaviors on different
         // windows platforms make it virtually impossible to support. This code is left here 
         // in case it becomes a critical requirement in the future.
         #if COM_IMPERSONATION_SUPPORT

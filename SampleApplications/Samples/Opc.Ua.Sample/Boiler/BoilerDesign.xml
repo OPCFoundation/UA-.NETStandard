@@ -90,6 +90,21 @@
       <opc:Property SymbolicName="UpdateRate" DataType="ua:UInt32" ValueRank="Scalar" AccessLevel="ReadWrite">
         <opc:Description>The rate at which the simulation runs.</opc:Description>
       </opc:Property>
+      <opc:Method SymbolicName="Start" ModellingRule="Mandatory">
+        <opc:Description>Causes the Program to transition from the Ready state to the Running state.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="Suspend" ModellingRule="Mandatory">
+        <opc:Description>Causes the Program to transition from the Running state to the Suspended state.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="Resume" ModellingRule="Mandatory">
+        <opc:Description>Causes the Program to transition from the Suspended state to the Running state.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="Halt" ModellingRule="Mandatory">
+        <opc:Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</opc:Description>
+      </opc:Method>
+      <opc:Method SymbolicName="Reset" ModellingRule="Mandatory">
+        <opc:Description>Causes the Program to transition from the Halted state to the Ready state.</opc:Description>
+      </opc:Method>
     </opc:Children>
   </opc:ObjectType>
 

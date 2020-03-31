@@ -5,7 +5,6 @@
     <AssemblyName>ConsoleAggregationServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleAggregationServer</PackageId>
-    <RuntimeFrameworkVersion>1.0.4</RuntimeFrameworkVersion>
     <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
     <GenerateAssemblyDescriptionAttribute>false</GenerateAssemblyDescriptionAttribute>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
@@ -20,9 +19,10 @@
 
   <ItemGroup>
     <Compile Include="..\Server\AggregationNodeManager.cs;..\Server\AggregationServer.cs;..\Server\AggregationServerConfiguration.cs;..\Server\AggregatedTypeCache.cs;..\Server\NamespaceMapper.cs;..\Server\Browser.cs;..\Server\Model\AggregationModel.Classes.cs;..\Server\Model\AggregationModel.Constants.cs;..\Server\Model\AggregationModel.DataTypes.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
-    <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes">
-      <Link>AggregationServer/Model/AggregationModel.PredefinedNodes.uanodes</Link>
-    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\Server\Model\AggregationModel.PredefinedNodes.uanodes" Link="Model\AggregationModel.PredefinedNodes.uanodes" />
   </ItemGroup>
 
   <ItemGroup>

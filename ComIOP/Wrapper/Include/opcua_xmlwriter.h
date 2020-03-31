@@ -2,7 +2,7 @@
   @file opcua_xmlwriter.h
   @brief 
 
-  (c) Copyright 2008 The OPC Foundation
+  Copyright (c) 2019 The OPC Foundation
   ALL RIGHTS RESERVED.
 
   DISCLAIMER:

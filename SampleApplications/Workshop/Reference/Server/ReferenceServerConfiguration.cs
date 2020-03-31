@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -68,19 +68,9 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// The delay in seconds to allow a graceful shutdown.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public uint ShutdownDelay
-        {
-            get { return m_shutdownDelay; }
-            set { m_shutdownDelay = value; }
-        }
         #endregion
 
         #region Private Members
-        private uint m_shutdownDelay;
         #endregion
     }
 }

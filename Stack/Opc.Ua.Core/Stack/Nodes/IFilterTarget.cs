@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -129,8 +129,8 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IOperationContext context)
         {
-            if (namespaceUris == null) throw new ArgumentNullException("namespaceUris");
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             m_namespaceUris = namespaceUris;
             m_typeTree = typeTree;
@@ -156,8 +156,8 @@ namespace Opc.Ua
         /// <param name="preferredLocales">The preferred locales.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IList<string> preferredLocales)
         {
-            if (namespaceUris == null) throw new ArgumentNullException("namespaceUris");
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             m_namespaceUris = namespaceUris;
             m_typeTree = typeTree;

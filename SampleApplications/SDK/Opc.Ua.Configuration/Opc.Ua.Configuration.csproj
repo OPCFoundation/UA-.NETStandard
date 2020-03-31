@@ -1,13 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Configuration</AssemblyName>
+    <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Configuration</PackageId>
+    <RootNamespace>Opc.Ua.Configuration</RootNamespace>
+    <Description>OPC UA Configuration Class Library</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+    <Reference Include="System.IdentityModel" />
+  </ItemGroup>
+
+  <Target Name="GetPackagingOutputs" />
 
 </Project>

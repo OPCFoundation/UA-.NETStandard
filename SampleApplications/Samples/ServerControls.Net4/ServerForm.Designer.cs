@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Controls
             this.components = new System.ComponentModel.Container();
             this.TrayIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.ServerDiagnosticsCTRL = new Opc.Ua.Server.Controls.ServerDiagnosticsCtrl();
-            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.HeaderBranding();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Controls
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             this.exitToolStripMenuItem.Size = new System.Drawing.Size(92, 22);
             this.exitToolStripMenuItem.Text = "E&xit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.ExitToolStripMenuItem_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Controls
             this.contentsToolStripMenuItem.Name = "contentsToolStripMenuItem";
             this.contentsToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
             this.contentsToolStripMenuItem.Text = "&Contents";
-            this.contentsToolStripMenuItem.Click += new System.EventHandler(this.contentsToolStripMenuItem_Click);
+            this.contentsToolStripMenuItem.Click += new System.EventHandler(this.ContentsToolStripMenuItem_Click);
             // 
             // ServerForm
             // 
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Controls
 
         private ServerDiagnosticsCtrl ServerDiagnosticsCTRL;
         private System.Windows.Forms.NotifyIcon TrayIcon;
-        private ServerHeaderBranding serverHeaderBranding1;
+        private HeaderBranding serverHeaderBranding1;
         private System.Windows.Forms.MenuStrip menuStrip1;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;

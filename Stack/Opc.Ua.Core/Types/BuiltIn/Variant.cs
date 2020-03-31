@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -62,8 +62,17 @@ namespace Opc.Ua
             Set(value, typeInfo);
 
             #if DEBUG
-            
-            TypeInfo sanityCheck = TypeInfo.Construct(value);
+
+            TypeInfo sanityCheck = TypeInfo.Construct(m_value);
+
+            // except special case byte array vs. bytestring
+            if (sanityCheck.BuiltInType == BuiltInType.ByteString &&
+                sanityCheck.ValueRank == ValueRanks.Scalar &&
+                typeInfo.BuiltInType == BuiltInType.Byte &&
+                typeInfo.ValueRank == ValueRanks.OneDimension)
+            {
+                return;
+            }
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == m_typeInfo.BuiltInType, 
@@ -2578,7 +2587,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array value, BuiltInType builtInType)
         {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_elements = value;
             m_dimensions = new int[value.Rank];
@@ -2602,7 +2611,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
-            if (elements == null) throw new ArgumentNullException("elements");
+            if (elements == null) throw new ArgumentNullException(nameof(elements));
 
             m_elements = elements;
             m_dimensions = dimensions;

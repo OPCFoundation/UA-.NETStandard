@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -31,26 +31,6 @@ namespace Opc.Ua
 
             UpdateStateVariable(context, Objects.ProgramStateMachineType_Ready, CurrentState);
             UpdateTransitionVariable(context, 0, LastTransition);
-
-            Start.OnCallMethod = OnStart;
-            Start.OnReadExecutable = IsStartExecutable;
-            Start.OnReadUserExecutable = IsStartUserExecutable;
-
-            Suspend.OnCallMethod = OnSuspend;
-            Suspend.OnReadExecutable = IsSuspendExecutable;
-            Suspend.OnReadUserExecutable = IsSuspendUserExecutable;
-
-            Resume.OnCallMethod = OnResume;
-            Resume.OnReadExecutable = IsResumeExecutable;
-            Resume.OnReadUserExecutable = IsResumeUserExecutable;
-
-            Halt.OnCallMethod = OnHalt;
-            Halt.OnReadExecutable = IsHaltExecutable;
-            Halt.OnReadUserExecutable = IsHaltUserExecutable;
-
-            Reset.OnCallMethod = OnReset;
-            Reset.OnReadExecutable = IsResetExecutable;
-            Reset.OnReadUserExecutable = IsResetUserExecutable;
         }
         #endregion
         

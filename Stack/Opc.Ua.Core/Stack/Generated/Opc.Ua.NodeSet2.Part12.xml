@@ -1,7 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2013-12-02T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" LastModified="2020-03-06T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.02" PublicationDate="2013-12-02T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -44,6 +73,7 @@
     <DisplayName>TrustListType</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=12542</Reference>
+      <Reference ReferenceType="HasProperty">i=19296</Reference>
       <Reference ReferenceType="HasComponent">i=12543</Reference>
       <Reference ReferenceType="HasComponent">i=12546</Reference>
       <Reference ReferenceType="HasComponent">i=12548</Reference>
@@ -59,6 +89,14 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=12522</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="i=19296" BrowseName="UpdateFrequency" ParentNodeId="i=12522" DataType="i=290">
+    <DisplayName>UpdateFrequency</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=12522</Reference>
+    </References>
+  </UAVariable>
   <UAMethod NodeId="i=12543" BrowseName="OpenWithMasks" ParentNodeId="i=12522">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
@@ -68,7 +106,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12522</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12544" BrowseName="InputArguments" ParentNodeId="i=12543" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12544" BrowseName="InputArguments" ParentNodeId="i=12543" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -89,14 +127,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12545" BrowseName="OutputArguments" ParentNodeId="i=12543" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12545" BrowseName="OutputArguments" ParentNodeId="i=12543" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -117,7 +154,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -133,7 +169,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12522</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12705" BrowseName="InputArguments" ParentNodeId="i=12546" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12705" BrowseName="InputArguments" ParentNodeId="i=12546" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -154,14 +190,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12547" BrowseName="OutputArguments" ParentNodeId="i=12546" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12547" BrowseName="OutputArguments" ParentNodeId="i=12546" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -182,7 +217,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -197,7 +231,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12522</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12549" BrowseName="InputArguments" ParentNodeId="i=12548" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12549" BrowseName="InputArguments" ParentNodeId="i=12548" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -218,7 +252,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -234,7 +267,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -249,7 +281,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12522</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12551" BrowseName="InputArguments" ParentNodeId="i=12550" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12551" BrowseName="InputArguments" ParentNodeId="i=12550" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -270,7 +302,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -286,7 +317,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -308,7 +338,7 @@
       <Field Name="All" Value="15" />
     </Definition>
   </UADataType>
-  <UAVariable NodeId="i=12553" BrowseName="EnumValues" ParentNodeId="i=12552" DataType="i=7594" ValueRank="1">
+  <UAVariable NodeId="i=12553" BrowseName="EnumValues" ParentNodeId="i=12552" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
     <DisplayName>EnumValues</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -329,7 +359,6 @@
                 </Locale>
                 <Text>None</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -345,7 +374,6 @@
                 </Locale>
                 <Text>TrustedCertificates</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -361,7 +389,6 @@
                 </Locale>
                 <Text>TrustedCrls</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -377,7 +404,6 @@
                 </Locale>
                 <Text>IssuerCertificates</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -393,7 +419,6 @@
                 </Locale>
                 <Text>IssuerCrls</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -409,7 +434,6 @@
                 </Locale>
                 <Text>All</Text>
               </DisplayName>
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -429,11 +453,46 @@
       <Field Name="IssuerCrls" DataType="i=15" ValueRank="1" />
     </Definition>
   </UADataType>
+  <UAObjectType NodeId="i=19297" BrowseName="TrustListOutOfDateAlarmType">
+    <DisplayName>TrustListOutOfDateAlarmType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19446</Reference>
+      <Reference ReferenceType="HasProperty">i=19447</Reference>
+      <Reference ReferenceType="HasProperty">i=19448</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=11753</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=19446" BrowseName="TrustListId" ParentNodeId="i=19297" DataType="NodeId">
+    <DisplayName>TrustListId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19297</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19447" BrowseName="LastUpdateTime" ParentNodeId="i=19297" DataType="i=294">
+    <DisplayName>LastUpdateTime</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19297</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19448" BrowseName="UpdateFrequency" ParentNodeId="i=19297" DataType="i=290">
+    <DisplayName>UpdateFrequency</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19297</Reference>
+    </References>
+  </UAVariable>
   <UAObjectType NodeId="i=12555" BrowseName="CertificateGroupType">
     <DisplayName>CertificateGroupType</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">i=13599</Reference>
       <Reference ReferenceType="HasProperty">i=13631</Reference>
+      <Reference ReferenceType="HasComponent">i=19450</Reference>
+      <Reference ReferenceType="HasComponent">i=20143</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -459,7 +518,6 @@
   </UAObject>
   <UAVariable NodeId="i=13600" BrowseName="Size" ParentNodeId="i=13599" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -468,7 +526,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13601" BrowseName="Writable" ParentNodeId="i=13599" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -477,7 +534,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13602" BrowseName="UserWritable" ParentNodeId="i=13599" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -486,7 +542,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13603" BrowseName="OpenCount" ParentNodeId="i=13599" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -502,7 +557,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13606" BrowseName="InputArguments" ParentNodeId="i=13605" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13606" BrowseName="InputArguments" ParentNodeId="i=13605" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -523,14 +578,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13607" BrowseName="OutputArguments" ParentNodeId="i=13605" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13607" BrowseName="OutputArguments" ParentNodeId="i=13605" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -551,7 +605,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -566,7 +619,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13609" BrowseName="InputArguments" ParentNodeId="i=13608" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13609" BrowseName="InputArguments" ParentNodeId="i=13608" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -587,7 +640,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -603,7 +655,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13611" BrowseName="InputArguments" ParentNodeId="i=13610" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13611" BrowseName="InputArguments" ParentNodeId="i=13610" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -624,7 +676,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -640,14 +691,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13612" BrowseName="OutputArguments" ParentNodeId="i=13610" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13612" BrowseName="OutputArguments" ParentNodeId="i=13610" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -668,7 +718,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -683,7 +732,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13614" BrowseName="InputArguments" ParentNodeId="i=13613" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13614" BrowseName="InputArguments" ParentNodeId="i=13613" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -704,7 +753,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -720,7 +768,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -736,7 +783,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13616" BrowseName="InputArguments" ParentNodeId="i=13615" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13616" BrowseName="InputArguments" ParentNodeId="i=13615" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -757,14 +804,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13617" BrowseName="OutputArguments" ParentNodeId="i=13615" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13617" BrowseName="OutputArguments" ParentNodeId="i=13615" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -785,7 +831,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -800,7 +845,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13619" BrowseName="InputArguments" ParentNodeId="i=13618" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13619" BrowseName="InputArguments" ParentNodeId="i=13618" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -821,7 +866,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -837,7 +881,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -861,7 +904,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13599</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13622" BrowseName="InputArguments" ParentNodeId="i=13621" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13622" BrowseName="InputArguments" ParentNodeId="i=13621" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -882,14 +925,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13623" BrowseName="OutputArguments" ParentNodeId="i=13621" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13623" BrowseName="OutputArguments" ParentNodeId="i=13621" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -910,19 +952,894 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13631" BrowseName="CertificateTypes" ParentNodeId="i=12555" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13631" BrowseName="CertificateTypes" ParentNodeId="i=12555" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">i=12555</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="i=19450" BrowseName="CertificateExpired" ParentNodeId="i=12555">
+    <DisplayName>CertificateExpired</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19451</Reference>
+      <Reference ReferenceType="HasProperty">i=19452</Reference>
+      <Reference ReferenceType="HasProperty">i=19453</Reference>
+      <Reference ReferenceType="HasProperty">i=19454</Reference>
+      <Reference ReferenceType="HasProperty">i=19455</Reference>
+      <Reference ReferenceType="HasProperty">i=19456</Reference>
+      <Reference ReferenceType="HasProperty">i=19458</Reference>
+      <Reference ReferenceType="HasProperty">i=19459</Reference>
+      <Reference ReferenceType="HasProperty">i=19460</Reference>
+      <Reference ReferenceType="HasProperty">i=19461</Reference>
+      <Reference ReferenceType="HasProperty">i=19464</Reference>
+      <Reference ReferenceType="HasProperty">i=19465</Reference>
+      <Reference ReferenceType="HasProperty">i=19466</Reference>
+      <Reference ReferenceType="HasComponent">i=19467</Reference>
+      <Reference ReferenceType="HasComponent">i=19476</Reference>
+      <Reference ReferenceType="HasComponent">i=19478</Reference>
+      <Reference ReferenceType="HasComponent">i=19480</Reference>
+      <Reference ReferenceType="HasProperty">i=19482</Reference>
+      <Reference ReferenceType="HasComponent">i=19483</Reference>
+      <Reference ReferenceType="HasComponent">i=19484</Reference>
+      <Reference ReferenceType="HasComponent">i=19485</Reference>
+      <Reference ReferenceType="HasComponent">i=19487</Reference>
+      <Reference ReferenceType="HasComponent">i=19505</Reference>
+      <Reference ReferenceType="HasComponent">i=19509</Reference>
+      <Reference ReferenceType="HasProperty">i=19518</Reference>
+      <Reference ReferenceType="HasProperty">i=20101</Reference>
+      <Reference ReferenceType="HasProperty">i=20138</Reference>
+      <Reference ReferenceType="HasProperty">i=20139</Reference>
+      <Reference ReferenceType="HasProperty">i=20141</Reference>
+      <Reference ReferenceType="HasProperty">i=20142</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=13225</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=12555</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="i=19451" BrowseName="EventId" ParentNodeId="i=19450" DataType="ByteString">
+    <DisplayName>EventId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19452" BrowseName="EventType" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>EventType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19453" BrowseName="SourceNode" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>SourceNode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19454" BrowseName="SourceName" ParentNodeId="i=19450" DataType="String">
+    <DisplayName>SourceName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19455" BrowseName="Time" ParentNodeId="i=19450" DataType="i=294">
+    <DisplayName>Time</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19456" BrowseName="ReceiveTime" ParentNodeId="i=19450" DataType="i=294">
+    <DisplayName>ReceiveTime</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19458" BrowseName="Message" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>Message</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19459" BrowseName="Severity" ParentNodeId="i=19450" DataType="UInt16">
+    <DisplayName>Severity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19460" BrowseName="ConditionClassId" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>ConditionClassId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19461" BrowseName="ConditionClassName" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>ConditionClassName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19464" BrowseName="ConditionName" ParentNodeId="i=19450" DataType="String">
+    <DisplayName>ConditionName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19465" BrowseName="BranchId" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>BranchId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19466" BrowseName="Retain" ParentNodeId="i=19450" DataType="Boolean">
+    <DisplayName>Retain</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19467" BrowseName="EnabledState" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>EnabledState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19468</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19468" BrowseName="Id" ParentNodeId="i=19467" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19467</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19476" BrowseName="Quality" ParentNodeId="i=19450" DataType="StatusCode">
+    <DisplayName>Quality</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19477</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19477" BrowseName="SourceTimestamp" ParentNodeId="i=19476" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19476</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19478" BrowseName="LastSeverity" ParentNodeId="i=19450" DataType="UInt16">
+    <DisplayName>LastSeverity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19479</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19479" BrowseName="SourceTimestamp" ParentNodeId="i=19478" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19478</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19480" BrowseName="Comment" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>Comment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19481</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19481" BrowseName="SourceTimestamp" ParentNodeId="i=19480" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19480</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19482" BrowseName="ClientUserId" ParentNodeId="i=19450" DataType="String">
+    <DisplayName>ClientUserId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=19483" BrowseName="Disable" ParentNodeId="i=19450" MethodDeclarationId="i=9028">
+    <DisplayName>Disable</DisplayName>
+    <References>
+      <Reference ReferenceType="i=3065">i=2803</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=19484" BrowseName="Enable" ParentNodeId="i=19450" MethodDeclarationId="i=9027">
+    <DisplayName>Enable</DisplayName>
+    <References>
+      <Reference ReferenceType="i=3065">i=2803</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=19485" BrowseName="AddComment" ParentNodeId="i=19450" MethodDeclarationId="i=9029">
+    <DisplayName>AddComment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19486</Reference>
+      <Reference ReferenceType="i=3065">i=2829</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=19486" BrowseName="InputArguments" ParentNodeId="i=19485" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19485</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the event to comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The comment to add to the condition.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=19487" BrowseName="AckedState" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>AckedState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19488</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19488" BrowseName="Id" ParentNodeId="i=19487" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19487</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=19505" BrowseName="Acknowledge" ParentNodeId="i=19450" MethodDeclarationId="i=9111">
+    <DisplayName>Acknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19506</Reference>
+      <Reference ReferenceType="i=3065">i=8944</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=19506" BrowseName="InputArguments" ParentNodeId="i=19505" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19505</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the event to comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The comment to add to the condition.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=19509" BrowseName="ActiveState" ParentNodeId="i=19450" DataType="LocalizedText">
+    <DisplayName>ActiveState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=19510</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19510" BrowseName="Id" ParentNodeId="i=19509" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19509</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=19518" BrowseName="InputNode" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>InputNode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20101" BrowseName="SuppressedOrShelved" ParentNodeId="i=19450" DataType="Boolean">
+    <DisplayName>SuppressedOrShelved</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20138" BrowseName="NormalState" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>NormalState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20139" BrowseName="ExpirationDate" ParentNodeId="i=19450" DataType="DateTime">
+    <DisplayName>ExpirationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20141" BrowseName="CertificateType" ParentNodeId="i=19450" DataType="NodeId">
+    <DisplayName>CertificateType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20142" BrowseName="Certificate" ParentNodeId="i=19450" DataType="ByteString">
+    <DisplayName>Certificate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=19450</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="i=20143" BrowseName="TrustListOutOfDate" ParentNodeId="i=12555">
+    <DisplayName>TrustListOutOfDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20144</Reference>
+      <Reference ReferenceType="HasProperty">i=20145</Reference>
+      <Reference ReferenceType="HasProperty">i=20146</Reference>
+      <Reference ReferenceType="HasProperty">i=20147</Reference>
+      <Reference ReferenceType="HasProperty">i=20148</Reference>
+      <Reference ReferenceType="HasProperty">i=20149</Reference>
+      <Reference ReferenceType="HasProperty">i=20151</Reference>
+      <Reference ReferenceType="HasProperty">i=20152</Reference>
+      <Reference ReferenceType="HasProperty">i=20153</Reference>
+      <Reference ReferenceType="HasProperty">i=20154</Reference>
+      <Reference ReferenceType="HasProperty">i=20157</Reference>
+      <Reference ReferenceType="HasProperty">i=20158</Reference>
+      <Reference ReferenceType="HasProperty">i=20159</Reference>
+      <Reference ReferenceType="HasComponent">i=20160</Reference>
+      <Reference ReferenceType="HasComponent">i=20169</Reference>
+      <Reference ReferenceType="HasComponent">i=20171</Reference>
+      <Reference ReferenceType="HasComponent">i=20173</Reference>
+      <Reference ReferenceType="HasProperty">i=20175</Reference>
+      <Reference ReferenceType="HasComponent">i=20176</Reference>
+      <Reference ReferenceType="HasComponent">i=20177</Reference>
+      <Reference ReferenceType="HasComponent">i=20178</Reference>
+      <Reference ReferenceType="HasComponent">i=20180</Reference>
+      <Reference ReferenceType="HasComponent">i=20198</Reference>
+      <Reference ReferenceType="HasComponent">i=20202</Reference>
+      <Reference ReferenceType="HasProperty">i=20211</Reference>
+      <Reference ReferenceType="HasProperty">i=20249</Reference>
+      <Reference ReferenceType="HasProperty">i=20286</Reference>
+      <Reference ReferenceType="HasProperty">i=20287</Reference>
+      <Reference ReferenceType="HasProperty">i=20288</Reference>
+      <Reference ReferenceType="HasProperty">i=20289</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=19297</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=12555</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="i=20144" BrowseName="EventId" ParentNodeId="i=20143" DataType="ByteString">
+    <DisplayName>EventId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20145" BrowseName="EventType" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>EventType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20146" BrowseName="SourceNode" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>SourceNode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20147" BrowseName="SourceName" ParentNodeId="i=20143" DataType="String">
+    <DisplayName>SourceName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20148" BrowseName="Time" ParentNodeId="i=20143" DataType="i=294">
+    <DisplayName>Time</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20149" BrowseName="ReceiveTime" ParentNodeId="i=20143" DataType="i=294">
+    <DisplayName>ReceiveTime</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20151" BrowseName="Message" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>Message</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20152" BrowseName="Severity" ParentNodeId="i=20143" DataType="UInt16">
+    <DisplayName>Severity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20153" BrowseName="ConditionClassId" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>ConditionClassId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20154" BrowseName="ConditionClassName" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>ConditionClassName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20157" BrowseName="ConditionName" ParentNodeId="i=20143" DataType="String">
+    <DisplayName>ConditionName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20158" BrowseName="BranchId" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>BranchId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20159" BrowseName="Retain" ParentNodeId="i=20143" DataType="Boolean">
+    <DisplayName>Retain</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20160" BrowseName="EnabledState" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>EnabledState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20161</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20161" BrowseName="Id" ParentNodeId="i=20160" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20160</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20169" BrowseName="Quality" ParentNodeId="i=20143" DataType="StatusCode">
+    <DisplayName>Quality</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20170</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20170" BrowseName="SourceTimestamp" ParentNodeId="i=20169" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20169</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20171" BrowseName="LastSeverity" ParentNodeId="i=20143" DataType="UInt16">
+    <DisplayName>LastSeverity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20172</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20172" BrowseName="SourceTimestamp" ParentNodeId="i=20171" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20171</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20173" BrowseName="Comment" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>Comment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20174</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=9002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20174" BrowseName="SourceTimestamp" ParentNodeId="i=20173" DataType="i=294">
+    <DisplayName>SourceTimestamp</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20173</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20175" BrowseName="ClientUserId" ParentNodeId="i=20143" DataType="String">
+    <DisplayName>ClientUserId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=20176" BrowseName="Disable" ParentNodeId="i=20143" MethodDeclarationId="i=9028">
+    <DisplayName>Disable</DisplayName>
+    <References>
+      <Reference ReferenceType="i=3065">i=2803</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=20177" BrowseName="Enable" ParentNodeId="i=20143" MethodDeclarationId="i=9027">
+    <DisplayName>Enable</DisplayName>
+    <References>
+      <Reference ReferenceType="i=3065">i=2803</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="i=20178" BrowseName="AddComment" ParentNodeId="i=20143" MethodDeclarationId="i=9029">
+    <DisplayName>AddComment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20179</Reference>
+      <Reference ReferenceType="i=3065">i=2829</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=20179" BrowseName="InputArguments" ParentNodeId="i=20178" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20178</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the event to comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The comment to add to the condition.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=20180" BrowseName="AckedState" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>AckedState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20181</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20181" BrowseName="Id" ParentNodeId="i=20180" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20180</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=20198" BrowseName="Acknowledge" ParentNodeId="i=20143" MethodDeclarationId="i=9111">
+    <DisplayName>Acknowledge</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20199</Reference>
+      <Reference ReferenceType="i=3065">i=8944</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=20199" BrowseName="InputArguments" ParentNodeId="i=20198" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20198</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EventId</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The identifier for the event to comment.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The comment to add to the condition.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=20202" BrowseName="ActiveState" ParentNodeId="i=20143" DataType="LocalizedText">
+    <DisplayName>ActiveState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=20203</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20203" BrowseName="Id" ParentNodeId="i=20202" DataType="Boolean">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20202</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20211" BrowseName="InputNode" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>InputNode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20249" BrowseName="SuppressedOrShelved" ParentNodeId="i=20143" DataType="Boolean">
+    <DisplayName>SuppressedOrShelved</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20286" BrowseName="NormalState" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>NormalState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20287" BrowseName="TrustListId" ParentNodeId="i=20143" DataType="NodeId">
+    <DisplayName>TrustListId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20288" BrowseName="LastUpdateTime" ParentNodeId="i=20143" DataType="i=294">
+    <DisplayName>LastUpdateTime</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=20289" BrowseName="UpdateFrequency" ParentNodeId="i=20143" DataType="i=290">
+    <DisplayName>UpdateFrequency</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=20143</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="i=13813" BrowseName="CertificateGroupFolderType">
@@ -967,7 +1884,6 @@
   </UAObject>
   <UAVariable NodeId="i=13816" BrowseName="Size" ParentNodeId="i=13815" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -976,7 +1892,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13817" BrowseName="Writable" ParentNodeId="i=13815" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -985,7 +1900,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13818" BrowseName="UserWritable" ParentNodeId="i=13815" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -994,7 +1908,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13819" BrowseName="OpenCount" ParentNodeId="i=13815" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1010,7 +1923,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13822" BrowseName="InputArguments" ParentNodeId="i=13821" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13822" BrowseName="InputArguments" ParentNodeId="i=13821" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1031,14 +1944,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13823" BrowseName="OutputArguments" ParentNodeId="i=13821" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13823" BrowseName="OutputArguments" ParentNodeId="i=13821" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1059,7 +1971,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1074,7 +1985,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13825" BrowseName="InputArguments" ParentNodeId="i=13824" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13825" BrowseName="InputArguments" ParentNodeId="i=13824" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1095,7 +2006,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1111,7 +2021,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13827" BrowseName="InputArguments" ParentNodeId="i=13826" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13827" BrowseName="InputArguments" ParentNodeId="i=13826" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1132,7 +2042,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1148,14 +2057,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13828" BrowseName="OutputArguments" ParentNodeId="i=13826" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13828" BrowseName="OutputArguments" ParentNodeId="i=13826" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1176,7 +2084,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1191,7 +2098,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13830" BrowseName="InputArguments" ParentNodeId="i=13829" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13830" BrowseName="InputArguments" ParentNodeId="i=13829" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1212,7 +2119,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1228,7 +2134,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1244,7 +2149,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13832" BrowseName="InputArguments" ParentNodeId="i=13831" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13832" BrowseName="InputArguments" ParentNodeId="i=13831" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1265,14 +2170,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13833" BrowseName="OutputArguments" ParentNodeId="i=13831" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13833" BrowseName="OutputArguments" ParentNodeId="i=13831" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1293,7 +2197,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1308,7 +2211,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13835" BrowseName="InputArguments" ParentNodeId="i=13834" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13835" BrowseName="InputArguments" ParentNodeId="i=13834" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1329,7 +2232,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1345,7 +2247,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1369,7 +2270,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13815</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13838" BrowseName="InputArguments" ParentNodeId="i=13837" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13838" BrowseName="InputArguments" ParentNodeId="i=13837" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1390,14 +2291,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13839" BrowseName="OutputArguments" ParentNodeId="i=13837" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13839" BrowseName="OutputArguments" ParentNodeId="i=13837" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1418,14 +2318,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13847" BrowseName="CertificateTypes" ParentNodeId="i=13814" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13847" BrowseName="CertificateTypes" ParentNodeId="i=13814" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1465,7 +2364,6 @@
   </UAObject>
   <UAVariable NodeId="i=13850" BrowseName="Size" ParentNodeId="i=13849" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1474,7 +2372,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13851" BrowseName="Writable" ParentNodeId="i=13849" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1483,7 +2380,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13852" BrowseName="UserWritable" ParentNodeId="i=13849" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1492,7 +2388,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13853" BrowseName="OpenCount" ParentNodeId="i=13849" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1508,7 +2403,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13856" BrowseName="InputArguments" ParentNodeId="i=13855" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13856" BrowseName="InputArguments" ParentNodeId="i=13855" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1529,14 +2424,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13857" BrowseName="OutputArguments" ParentNodeId="i=13855" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13857" BrowseName="OutputArguments" ParentNodeId="i=13855" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1557,7 +2451,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1572,7 +2465,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13859" BrowseName="InputArguments" ParentNodeId="i=13858" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13859" BrowseName="InputArguments" ParentNodeId="i=13858" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1593,7 +2486,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1609,7 +2501,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13861" BrowseName="InputArguments" ParentNodeId="i=13860" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13861" BrowseName="InputArguments" ParentNodeId="i=13860" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1630,7 +2522,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1646,14 +2537,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13862" BrowseName="OutputArguments" ParentNodeId="i=13860" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13862" BrowseName="OutputArguments" ParentNodeId="i=13860" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1674,7 +2564,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1689,7 +2578,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13864" BrowseName="InputArguments" ParentNodeId="i=13863" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13864" BrowseName="InputArguments" ParentNodeId="i=13863" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1710,7 +2599,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1726,7 +2614,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1742,7 +2629,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13866" BrowseName="InputArguments" ParentNodeId="i=13865" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13866" BrowseName="InputArguments" ParentNodeId="i=13865" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1763,14 +2650,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13867" BrowseName="OutputArguments" ParentNodeId="i=13865" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13867" BrowseName="OutputArguments" ParentNodeId="i=13865" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1791,7 +2677,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1806,7 +2691,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13869" BrowseName="InputArguments" ParentNodeId="i=13868" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13869" BrowseName="InputArguments" ParentNodeId="i=13868" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1827,7 +2712,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1843,7 +2727,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1867,7 +2750,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13849</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13872" BrowseName="InputArguments" ParentNodeId="i=13871" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13872" BrowseName="InputArguments" ParentNodeId="i=13871" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1888,14 +2771,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13873" BrowseName="OutputArguments" ParentNodeId="i=13871" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13873" BrowseName="OutputArguments" ParentNodeId="i=13871" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1916,14 +2798,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13881" BrowseName="CertificateTypes" ParentNodeId="i=13848" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13881" BrowseName="CertificateTypes" ParentNodeId="i=13848" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1963,7 +2844,6 @@
   </UAObject>
   <UAVariable NodeId="i=13884" BrowseName="Size" ParentNodeId="i=13883" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1972,7 +2852,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13885" BrowseName="Writable" ParentNodeId="i=13883" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1981,7 +2860,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13886" BrowseName="UserWritable" ParentNodeId="i=13883" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1990,7 +2868,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13887" BrowseName="OpenCount" ParentNodeId="i=13883" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2006,7 +2883,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13890" BrowseName="InputArguments" ParentNodeId="i=13889" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13890" BrowseName="InputArguments" ParentNodeId="i=13889" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2027,14 +2904,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13891" BrowseName="OutputArguments" ParentNodeId="i=13889" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13891" BrowseName="OutputArguments" ParentNodeId="i=13889" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2055,7 +2931,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2070,7 +2945,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13893" BrowseName="InputArguments" ParentNodeId="i=13892" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13893" BrowseName="InputArguments" ParentNodeId="i=13892" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2091,7 +2966,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2107,7 +2981,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13895" BrowseName="InputArguments" ParentNodeId="i=13894" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13895" BrowseName="InputArguments" ParentNodeId="i=13894" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2128,7 +3002,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2144,14 +3017,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13896" BrowseName="OutputArguments" ParentNodeId="i=13894" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13896" BrowseName="OutputArguments" ParentNodeId="i=13894" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2172,7 +3044,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2187,7 +3058,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13898" BrowseName="InputArguments" ParentNodeId="i=13897" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13898" BrowseName="InputArguments" ParentNodeId="i=13897" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2208,7 +3079,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2224,7 +3094,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2240,7 +3109,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13900" BrowseName="InputArguments" ParentNodeId="i=13899" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13900" BrowseName="InputArguments" ParentNodeId="i=13899" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2261,14 +3130,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13901" BrowseName="OutputArguments" ParentNodeId="i=13899" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13901" BrowseName="OutputArguments" ParentNodeId="i=13899" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2289,7 +3157,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2304,7 +3171,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13903" BrowseName="InputArguments" ParentNodeId="i=13902" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13903" BrowseName="InputArguments" ParentNodeId="i=13902" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2325,7 +3192,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2341,7 +3207,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2365,7 +3230,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13883</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13906" BrowseName="InputArguments" ParentNodeId="i=13905" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13906" BrowseName="InputArguments" ParentNodeId="i=13905" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2386,14 +3251,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13907" BrowseName="OutputArguments" ParentNodeId="i=13905" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13907" BrowseName="OutputArguments" ParentNodeId="i=13905" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2414,14 +3278,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13915" BrowseName="CertificateTypes" ParentNodeId="i=13882" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13915" BrowseName="CertificateTypes" ParentNodeId="i=13882" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2461,7 +3324,6 @@
   </UAObject>
   <UAVariable NodeId="i=13918" BrowseName="Size" ParentNodeId="i=13917" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2470,7 +3332,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13919" BrowseName="Writable" ParentNodeId="i=13917" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2479,7 +3340,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13920" BrowseName="UserWritable" ParentNodeId="i=13917" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2488,7 +3348,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13921" BrowseName="OpenCount" ParentNodeId="i=13917" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2504,7 +3363,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13924" BrowseName="InputArguments" ParentNodeId="i=13923" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13924" BrowseName="InputArguments" ParentNodeId="i=13923" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2525,14 +3384,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13925" BrowseName="OutputArguments" ParentNodeId="i=13923" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13925" BrowseName="OutputArguments" ParentNodeId="i=13923" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2553,7 +3411,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2568,7 +3425,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13927" BrowseName="InputArguments" ParentNodeId="i=13926" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13927" BrowseName="InputArguments" ParentNodeId="i=13926" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2589,7 +3446,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2605,7 +3461,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13929" BrowseName="InputArguments" ParentNodeId="i=13928" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13929" BrowseName="InputArguments" ParentNodeId="i=13928" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2626,7 +3482,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2642,14 +3497,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13930" BrowseName="OutputArguments" ParentNodeId="i=13928" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13930" BrowseName="OutputArguments" ParentNodeId="i=13928" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2670,7 +3524,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2685,7 +3538,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13932" BrowseName="InputArguments" ParentNodeId="i=13931" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13932" BrowseName="InputArguments" ParentNodeId="i=13931" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2706,7 +3559,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2722,7 +3574,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2738,7 +3589,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13934" BrowseName="InputArguments" ParentNodeId="i=13933" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13934" BrowseName="InputArguments" ParentNodeId="i=13933" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2759,14 +3610,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13935" BrowseName="OutputArguments" ParentNodeId="i=13933" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13935" BrowseName="OutputArguments" ParentNodeId="i=13933" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2787,7 +3637,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2802,7 +3651,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13937" BrowseName="InputArguments" ParentNodeId="i=13936" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13937" BrowseName="InputArguments" ParentNodeId="i=13936" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2823,7 +3672,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2839,7 +3687,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2863,7 +3710,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13917</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13940" BrowseName="InputArguments" ParentNodeId="i=13939" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13940" BrowseName="InputArguments" ParentNodeId="i=13939" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2884,14 +3731,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13941" BrowseName="OutputArguments" ParentNodeId="i=13939" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13941" BrowseName="OutputArguments" ParentNodeId="i=13939" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2912,14 +3758,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13949" BrowseName="CertificateTypes" ParentNodeId="i=13916" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13949" BrowseName="CertificateTypes" ParentNodeId="i=13916" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2941,6 +3786,12 @@
   </UAObjectType>
   <UAObjectType NodeId="i=12558" BrowseName="HttpsCertificateType">
     <DisplayName>HttpsCertificateType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12556</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="i=15181" BrowseName="UserCredentialCertificateType">
+    <DisplayName>UserCredentialCertificateType</DisplayName>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12556</Reference>
     </References>
@@ -3019,7 +3870,6 @@
   </UAObject>
   <UAVariable NodeId="i=13953" BrowseName="Size" ParentNodeId="i=13952" DataType="UInt64">
     <DisplayName>Size</DisplayName>
-    <Description>The size of the file in bytes.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -3028,7 +3878,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13954" BrowseName="Writable" ParentNodeId="i=13952" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
-    <Description>Whether the file is writable.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -3037,7 +3886,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13955" BrowseName="UserWritable" ParentNodeId="i=13952" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
-    <Description>Whether the file is writable by the current user.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -3046,7 +3894,6 @@
   </UAVariable>
   <UAVariable NodeId="i=13956" BrowseName="OpenCount" ParentNodeId="i=13952" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
-    <Description>The current number of open file handles.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -3062,7 +3909,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13959" BrowseName="InputArguments" ParentNodeId="i=13958" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13959" BrowseName="InputArguments" ParentNodeId="i=13958" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3083,14 +3930,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13960" BrowseName="OutputArguments" ParentNodeId="i=13958" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13960" BrowseName="OutputArguments" ParentNodeId="i=13958" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3111,7 +3957,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3126,7 +3971,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13962" BrowseName="InputArguments" ParentNodeId="i=13961" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13962" BrowseName="InputArguments" ParentNodeId="i=13961" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3147,7 +3992,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3163,7 +4007,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13964" BrowseName="InputArguments" ParentNodeId="i=13963" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13964" BrowseName="InputArguments" ParentNodeId="i=13963" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3184,7 +4028,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3200,14 +4043,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13965" BrowseName="OutputArguments" ParentNodeId="i=13963" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13965" BrowseName="OutputArguments" ParentNodeId="i=13963" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3228,7 +4070,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3243,7 +4084,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13967" BrowseName="InputArguments" ParentNodeId="i=13966" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13967" BrowseName="InputArguments" ParentNodeId="i=13966" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3264,7 +4105,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3280,7 +4120,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3296,7 +4135,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13969" BrowseName="InputArguments" ParentNodeId="i=13968" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13969" BrowseName="InputArguments" ParentNodeId="i=13968" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3317,14 +4156,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13970" BrowseName="OutputArguments" ParentNodeId="i=13968" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13970" BrowseName="OutputArguments" ParentNodeId="i=13968" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3345,7 +4183,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3360,7 +4197,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13972" BrowseName="InputArguments" ParentNodeId="i=13971" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13972" BrowseName="InputArguments" ParentNodeId="i=13971" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3381,7 +4218,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3397,7 +4233,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3421,7 +4256,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=13952</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=13975" BrowseName="InputArguments" ParentNodeId="i=13974" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13975" BrowseName="InputArguments" ParentNodeId="i=13974" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3442,14 +4277,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13976" BrowseName="OutputArguments" ParentNodeId="i=13974" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=13976" BrowseName="OutputArguments" ParentNodeId="i=13974" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3470,14 +4304,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=13984" BrowseName="CertificateTypes" ParentNodeId="i=13951" DataType="NodeId" ValueRank="1">
+  <UAVariable NodeId="i=13984" BrowseName="CertificateTypes" ParentNodeId="i=13951" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3485,7 +4318,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=13951</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=12708" BrowseName="ServerCapabilities" ParentNodeId="i=12581" DataType="String" ValueRank="1">
+  <UAVariable NodeId="i=12708" BrowseName="ServerCapabilities" ParentNodeId="i=12581" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>ServerCapabilities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3493,7 +4326,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=12581</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=12583" BrowseName="SupportedPrivateKeyFormats" ParentNodeId="i=12581" DataType="String" ValueRank="1">
+  <UAVariable NodeId="i=12583" BrowseName="SupportedPrivateKeyFormats" ParentNodeId="i=12581" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SupportedPrivateKeyFormats</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3526,7 +4359,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12581</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12617" BrowseName="InputArguments" ParentNodeId="i=12616" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12617" BrowseName="InputArguments" ParentNodeId="i=12616" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3547,7 +4380,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3563,7 +4395,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3579,7 +4410,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3594,8 +4424,9 @@
                 <Identifier>i=15</Identifier>
               </DataType>
               <ValueRank>1</ValueRank>
-              <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3611,7 +4442,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3627,14 +4457,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12618" BrowseName="OutputArguments" ParentNodeId="i=12616" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12618" BrowseName="OutputArguments" ParentNodeId="i=12616" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3655,7 +4484,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3678,7 +4506,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12581</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12732" BrowseName="InputArguments" ParentNodeId="i=12731" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12732" BrowseName="InputArguments" ParentNodeId="i=12731" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3699,7 +4527,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3715,7 +4542,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3731,7 +4557,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3747,7 +4572,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3763,14 +4587,13 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12733" BrowseName="OutputArguments" ParentNodeId="i=12731" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12733" BrowseName="OutputArguments" ParentNodeId="i=12731" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3791,7 +4614,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3806,7 +4628,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">i=12581</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="i=12776" BrowseName="OutputArguments" ParentNodeId="i=12775" DataType="i=296" ValueRank="1">
+  <UAVariable NodeId="i=12776" BrowseName="OutputArguments" ParentNodeId="i=12775" DataType="i=296" ValueRank="1" ArrayDimensions="0">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3826,8 +4648,9 @@
                 <Identifier>i=15</Identifier>
               </DataType>
               <ValueRank>1</ValueRank>
-              <ArrayDimensions />
-              <Description p5:nil="true" xmlns:p5="http://www.w3.org/2001/XMLSchema-instance" />
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3858,6 +4681,348 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=12620</Reference>
     </References>
   </UAVariable>
+  <UAObjectType NodeId="i=17496" BrowseName="KeyCredentialConfigurationFolderType">
+    <DisplayName>KeyCredentialConfigurationFolderType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent">i=17511</Reference>
+      <Reference ReferenceType="HasComponent">i=17522</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="i=17511" BrowseName="&lt;ServiceName&gt;" SymbolicName="ServiceName_Placeholder" ParentNodeId="i=17496">
+    <DisplayName>&lt;ServiceName&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=17512</Reference>
+      <Reference ReferenceType="HasProperty">i=17513</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=18001</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17496</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="i=17512" BrowseName="ResourceUri" ParentNodeId="i=17511" DataType="String">
+    <DisplayName>ResourceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17511</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17513" BrowseName="ProfileUri" ParentNodeId="i=17511" DataType="String">
+    <DisplayName>ProfileUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17511</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=17522" BrowseName="CreateCredential" ParentNodeId="i=17496">
+    <DisplayName>CreateCredential</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=17523</Reference>
+      <Reference ReferenceType="HasProperty">i=17524</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17496</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=17523" BrowseName="InputArguments" ParentNodeId="i=17522" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17522</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ResourceUri</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ProfileUri</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>EndpointUrls</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="i=17524" BrowseName="OutputArguments" ParentNodeId="i=17522" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17522</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>CredentialNodeId</Name>
+              <DataType>
+                <Identifier>i=17</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="i=18155" BrowseName="KeyCredentialConfiguration">
+    <DisplayName>KeyCredentialConfiguration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=12637</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17496</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="i=18001" BrowseName="KeyCredentialConfigurationType">
+    <DisplayName>KeyCredentialConfigurationType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=18069</Reference>
+      <Reference ReferenceType="HasProperty">i=18165</Reference>
+      <Reference ReferenceType="HasProperty">i=18004</Reference>
+      <Reference ReferenceType="HasProperty">i=18005</Reference>
+      <Reference ReferenceType="HasComponent">i=18006</Reference>
+      <Reference ReferenceType="HasComponent">i=18008</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=18069" BrowseName="ResourceUri" ParentNodeId="i=18001" DataType="String">
+    <DisplayName>ResourceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=18165" BrowseName="ProfileUri" ParentNodeId="i=18001" DataType="String">
+    <DisplayName>ProfileUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=18004" BrowseName="EndpointUrls" ParentNodeId="i=18001" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>EndpointUrls</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=18005" BrowseName="ServiceStatus" ParentNodeId="i=18001" DataType="StatusCode">
+    <DisplayName>ServiceStatus</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18001</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="i=18006" BrowseName="UpdateCredential" ParentNodeId="i=18001">
+    <DisplayName>UpdateCredential</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=18007</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=18001</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="i=18007" BrowseName="InputArguments" ParentNodeId="i=18006" DataType="i=296" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18006</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>CredentialId</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>CredentialSecret</Name>
+              <DataType>
+                <Identifier>i=15</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>CertificateThumbprint</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>SecurityPolicyUri</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="i=18008" BrowseName="DeleteCredential" ParentNodeId="i=18001">
+    <DisplayName>DeleteCredential</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=18001</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="i=18011" BrowseName="KeyCredentialAuditEventType" IsAbstract="true">
+    <DisplayName>KeyCredentialAuditEventType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=18028</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=18028" BrowseName="ResourceUri" ParentNodeId="i=18011" DataType="String">
+    <DisplayName>ResourceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=18011</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="i=18029" BrowseName="KeyCredentialUpdatedAuditEventType">
+    <DisplayName>KeyCredentialUpdatedAuditEventType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="i=18047" BrowseName="KeyCredentialDeletedAuditEventType">
+    <DisplayName>KeyCredentialDeletedAuditEventType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="i=17732" BrowseName="AuthorizationServices">
+    <DisplayName>AuthorizationServices</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=12637</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="i=17852" BrowseName="AuthorizationServiceConfigurationType">
+    <DisplayName>AuthorizationServiceConfigurationType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">i=18072</Reference>
+      <Reference ReferenceType="HasProperty">i=17860</Reference>
+      <Reference ReferenceType="HasProperty">i=18073</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=18072" BrowseName="ServiceUri" ParentNodeId="i=17852" DataType="String">
+    <DisplayName>ServiceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17852</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=17860" BrowseName="ServiceCertificate" ParentNodeId="i=17852" DataType="ByteString">
+    <DisplayName>ServiceCertificate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17852</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=18073" BrowseName="IssuerEndpointUrl" ParentNodeId="i=17852" DataType="String">
+    <DisplayName>IssuerEndpointUrl</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=17852</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="i=12680" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=12554</Reference>
+      <Reference ReferenceType="HasDescription">i=12681</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
   <UAObject NodeId="i=12676" BrowseName="Default XML" SymbolicName="DefaultXml">
     <DisplayName>Default XML</DisplayName>
     <References>
@@ -3866,11 +5031,10 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=12680" BrowseName="Default Binary" SymbolicName="DefaultBinary">
-    <DisplayName>Default Binary</DisplayName>
+  <UAObject NodeId="i=15044" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasEncoding" IsForward="false">i=12554</Reference>
-      <Reference ReferenceType="HasDescription">i=12681</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>

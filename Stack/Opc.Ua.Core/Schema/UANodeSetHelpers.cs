@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -19,7 +19,7 @@ using System.Xml.Serialization;
 
 
 namespace Opc.Ua.Export
-{    
+{
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
@@ -32,7 +32,7 @@ namespace Opc.Ua.Export
         public UANodeSet()
         {
         }
-        
+
         /// <summary>
         /// Loads a nodeset from a stream.
         /// </summary>
@@ -41,7 +41,7 @@ namespace Opc.Ua.Export
         public static UANodeSet Read(Stream istrm)
         {
             StreamReader reader = new StreamReader(istrm);
-            
+
             try
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(UANodeSet));
@@ -52,7 +52,7 @@ namespace Opc.Ua.Export
                 reader.Dispose();
             }
         }
-        
+
         /// <summary>
         /// Write a nodeset to a stream.
         /// </summary>
@@ -60,7 +60,7 @@ namespace Opc.Ua.Export
         public void Write(Stream istrm)
         {
             StreamWriter writer = new StreamWriter(istrm, Encoding.UTF8);
-            
+
             try
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(UANodeSet));
@@ -123,9 +123,9 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Adds a node to the set.
         /// </summary>
-        public void Export(ISystemContext context, NodeState node)
+        public void Export(ISystemContext context, NodeState node, bool outputRedundantNames =true)
         {
-            if (node == null) throw new ArgumentNullException("node");
+            if (node == null) throw new ArgumentNullException(nameof(node));
 
             if (Opc.Ua.NodeId.IsNull(node.NodeId))
             {
@@ -158,8 +158,7 @@ namespace Opc.Ua.Export
                     value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = Export(o.ArrayDimensions);
-                    value.AccessLevel = o.AccessLevel;
-                    value.UserAccessLevel = o.UserAccessLevel;
+                    value.AccessLevel = o.AccessLevelEx;
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
 
@@ -180,7 +179,7 @@ namespace Opc.Ua.Export
                         value.Value = document.DocumentElement;
                     }
 
-                    exportedNode = value;                 
+                    exportedNode = value;
                     break;
                 }
 
@@ -189,7 +188,11 @@ namespace Opc.Ua.Export
                     MethodState o = (MethodState)node;
                     UAMethod value = new UAMethod();
                     value.Executable = o.Executable;
-                    value.UserExecutable = o.UserExecutable;
+
+                    if (o.TypeDefinitionId != o.NodeId)
+                    {
+                        value.MethodDeclarationId = Export(o.TypeDefinitionId, context.NamespaceUris);
+                    }
 
                     if (o.Parent != null)
                     {
@@ -248,7 +251,8 @@ namespace Opc.Ua.Export
                     DataTypeState o = (DataTypeState)node;
                     UADataType value = new UADataType();
                     value.IsAbstract = o.IsAbstract;
-                    value.Definition = Export(o.Definition, context.NamespaceUris);
+                    value.Definition = Export(o, o.DataTypeDefinition, context.NamespaceUris, outputRedundantNames);
+                    value.Purpose = o.Purpose;
                     exportedNode = value;
                     break;
                 }
@@ -258,7 +262,12 @@ namespace Opc.Ua.Export
                     ReferenceTypeState o = (ReferenceTypeState)node;
                     UAReferenceType value = new UAReferenceType();
                     value.IsAbstract = o.IsAbstract;
-                    value.InverseName = Export(new Opc.Ua.LocalizedText[] { o.InverseName });
+
+                    if (!Opc.Ua.LocalizedText.IsNullOrEmpty(o.InverseName))
+                    {
+                        value.InverseName = Export(new Opc.Ua.LocalizedText[] { o.InverseName });
+                    }
+
                     value.Symmetric = o.Symmetric;
                     exportedNode = value;
                     break;
@@ -267,8 +276,27 @@ namespace Opc.Ua.Export
 
             exportedNode.NodeId = Export(node.NodeId, context.NamespaceUris);
             exportedNode.BrowseName = Export(node.BrowseName, context.NamespaceUris);
-            exportedNode.DisplayName = Export(new Opc.Ua.LocalizedText[] { node.DisplayName });
-            exportedNode.Description = Export(new Opc.Ua.LocalizedText[] { node.Description });
+
+            if (outputRedundantNames || node.DisplayName.Text != node.BrowseName.Name)
+            {
+                exportedNode.DisplayName = Export(new Opc.Ua.LocalizedText[] { node.DisplayName });
+            }
+            else
+            {
+                exportedNode.DisplayName = null;
+            }
+
+            if (node.Description != null && !String.IsNullOrEmpty(node.Description.Text))
+            {
+                exportedNode.Description = Export(new Opc.Ua.LocalizedText[] { node.Description });
+            }
+            else
+            {
+                exportedNode.Description = new LocalizedText[0];
+            }
+
+            exportedNode.Category = (node.Categories != null && node.Categories.Count > 0) ? new List<string>(node.Categories).ToArray() : null;
+            exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
 
@@ -279,11 +307,20 @@ namespace Opc.Ua.Export
 
             // export references.
             INodeBrowser browser = node.CreateBrowser(context, null, null, true, BrowseDirection.Both, null, null, true);
-            List<Reference> exportedReferences = new List<Reference>();            
+            List<Reference> exportedReferences = new List<Reference>();
             IReference reference = browser.Next();
 
             while (reference != null)
             {
+                if (node.NodeClass == NodeClass.Method)
+                {
+                    if (!reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
+                    {
+                        reference = browser.Next();
+                        continue;
+                    }
+                }
+
                 Reference exportedReference = new Reference();
 
                 exportedReference.ReferenceType = ExportAlias(reference.ReferenceTypeId, context.NamespaceUris);
@@ -322,7 +359,7 @@ namespace Opc.Ua.Export
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                Export(context, children[ii]);
+                Export(context, children[ii], outputRedundantNames);
             }
         }
         #endregion
@@ -471,8 +508,8 @@ namespace Opc.Ua.Export
                     value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     value.ValueRank = o.ValueRank;
                     value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
-                    value.AccessLevel = o.AccessLevel;
-                    value.UserAccessLevel = o.UserAccessLevel;
+                    value.AccessLevelEx = o.AccessLevel;
+                    value.UserAccessLevel = (byte)(o.AccessLevel & 0xFF);
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
 
@@ -493,7 +530,8 @@ namespace Opc.Ua.Export
                     UAMethod o = (UAMethod)node;
                     MethodState value = new MethodState(null);
                     value.Executable = o.Executable;
-                    value.UserExecutable = o.UserExecutable;
+                    value.UserExecutable = o.Executable;
+                    value.TypeDefinitionId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
                     importedNode = value;
                     break;
                 }
@@ -542,7 +580,23 @@ namespace Opc.Ua.Export
                     UADataType o = (UADataType)node;
                     DataTypeState value = new DataTypeState();
                     value.IsAbstract = o.IsAbstract;
-                    value.Definition = Import(o.Definition, context.NamespaceUris);
+                    Opc.Ua.DataTypeDefinition dataTypeDefinition = Import(o, o.Definition, context.NamespaceUris);
+                    value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition);
+                    value.Purpose = o.Purpose;
+                    value.DataTypeModifier = DataTypeModifier.None;
+
+                    if (o.Definition != null)
+                    {
+                        if (o.Definition.IsOptionSet)
+                        {
+                            value.DataTypeModifier = DataTypeModifier.OptionSet;
+                        }
+                        else if (o.Definition.IsUnion)
+                        {
+                            value.DataTypeModifier = DataTypeModifier.Union;
+                        }
+                    }
+
                     importedNode = value;
                     break;
                 }
@@ -562,7 +616,15 @@ namespace Opc.Ua.Export
             importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);
             importedNode.BrowseName = ImportQualifiedName(node.BrowseName, context.NamespaceUris);
             importedNode.DisplayName = Import(node.DisplayName);
+
+            if (importedNode.DisplayName == null)
+            {
+                importedNode.DisplayName = new Ua.LocalizedText(importedNode.BrowseName.Name);
+            }
+
             importedNode.Description = Import(node.Description);
+            importedNode.Categories = (node.Category != null && node.Category.Length > 0) ? node.Category : null;
+            importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
 
@@ -783,48 +845,97 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports a DataTypeDefinition
         /// </summary>
-        private Opc.Ua.Export.DataTypeDefinition Export(Opc.Ua.UADataTypeDefinition source, NamespaceTable namespaceUris)
+        private Opc.Ua.Export.DataTypeDefinition Export(
+            DataTypeState dataType,
+            ExtensionObject source,
+            NamespaceTable namespaceUris,
+            bool outputRedundantNames)
         {
-            if (source == null)
+            if (source == null || source.Body == null)
             {
                 return null;
             }
 
             DataTypeDefinition definition = new DataTypeDefinition();
 
-            definition.Name = Export(source.Name, namespaceUris);
-            definition.SymbolicName = source.SymbolicName;
-            definition.BaseType = Export(source.BaseType, namespaceUris);
-
-            if (source.Fields != null)
+            if (outputRedundantNames || dataType.BrowseName != null)
             {
-                List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
+                definition.Name = Export(dataType.BrowseName, namespaceUris);
+            }
 
-                foreach (DataTypeDefinitionField field in source.Fields)
+            if (dataType.BrowseName.Name != dataType.SymbolicName)
+            {
+                definition.SymbolicName = dataType.SymbolicName;
+            }
+
+            switch (dataType.DataTypeModifier)
+            {
+                case DataTypeModifier.Union: { definition.IsUnion = true; break; }
+                case DataTypeModifier.OptionSet: { definition.IsOptionSet = true; break; }
+            }
+
+            StructureDefinition structureDefinition = source.Body as StructureDefinition;
+
+            if (structureDefinition != null)
+            {
+                if (structureDefinition.StructureType == StructureType.Union)
                 {
-                    Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
-
-                    output.Name = field.Name;
-                    output.SymbolicName = field.SymbolicName;
-                    output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
-
-                    if (NodeId.IsNull(field.DataType))
-                    {
-                        output.DataType = Export(DataTypeIds.BaseDataType, namespaceUris);
-                    }
-                    else
-                    {
-                        output.DataType = Export(field.DataType, namespaceUris);
-                    }
-
-                    output.ValueRank = field.ValueRank;
-                    output.Value = field.Value;
-                    output.Definition = Export(field.Definition, namespaceUris);
-
-                    fields.Add(output);
+                    definition.IsUnion = true;
                 }
 
-                definition.Field = fields.ToArray();
+                if (structureDefinition.Fields != null)
+                {
+                    List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
+
+                    foreach (StructureField field in structureDefinition.Fields)
+                    {
+                        Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
+
+                        output.Name = field.Name;
+                        output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
+                        output.IsOptional = field.IsOptional;
+
+                        if (NodeId.IsNull(field.DataType))
+                        {
+                            output.DataType = Export(DataTypeIds.BaseDataType, namespaceUris);
+                        }
+                        else
+                        {
+                            output.DataType = Export(field.DataType, namespaceUris);
+                        }
+
+                        output.ValueRank = field.ValueRank;
+
+                        fields.Add(output);
+                    }
+
+                    definition.Field = fields.ToArray();
+                }
+            }
+
+            EnumDefinition enumDefinition = source.Body as EnumDefinition;
+
+            if (enumDefinition != null)
+            {
+                if (enumDefinition.Fields != null)
+                {
+                    List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
+
+                    foreach (EnumField field in enumDefinition.Fields)
+                    {
+                        Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
+
+                        output.Name = field.Name;
+                        output.DisplayName = Export(new Opc.Ua.LocalizedText[] { field.Name });
+                        output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
+                        output.ValueRank = ValueRanks.Scalar;
+                        output.Value = (int)field.Value;
+
+                        fields.Add(output);
+                    }
+
+                    definition.Field = fields.ToArray();
+                }
             }
 
             return definition;
@@ -833,39 +944,82 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a DataTypeDefinition
         /// </summary>
-        private Opc.Ua.UADataTypeDefinition Import(Opc.Ua.Export.DataTypeDefinition source, NamespaceTable namespaceUris)
+        private Opc.Ua.DataTypeDefinition Import(UADataType dataType, Opc.Ua.Export.DataTypeDefinition source, NamespaceTable namespaceUris)
         {
             if (source == null)
             {
                 return null;
             }
 
-            Opc.Ua.UADataTypeDefinition definition = new Opc.Ua.UADataTypeDefinition();
-
-            definition.Name = ImportQualifiedName(source.Name, namespaceUris);
-            definition.SymbolicName = source.SymbolicName;
-            definition.BaseType = ImportQualifiedName(source.BaseType, namespaceUris);
+            Opc.Ua.DataTypeDefinition definition = null;
 
             if (source.Field != null)
             {
-                List<Opc.Ua.DataTypeDefinitionField> fields = new List<Opc.Ua.DataTypeDefinitionField>();
-
-                foreach (DataTypeField field in source.Field)
+                // check if definition is for enumeration or structure.
+                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup)
                 {
-                    Opc.Ua.DataTypeDefinitionField output = new Opc.Ua.DataTypeDefinitionField();
+                    return fieldLookup.Value == -1;
+                });
 
-                    output.Name = field.Name;
-                    output.SymbolicName = field.SymbolicName;
-                    output.Description = Import(field.Description);
-                    output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
-                    output.ValueRank = field.ValueRank;
-                    output.Value = field.Value;
-                    output.Definition = Import(field.Definition, namespaceUris);
+                if (isStructure)
+                {
+                    StructureDefinition structureDefinition = new StructureDefinition();
+                    structureDefinition.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);
 
-                    fields.Add(output);
+                    if (source.IsUnion)
+                    {
+                        structureDefinition.StructureType = StructureType.Union;
+                    }
+
+                    if (source.Field != null)
+                    {
+                        List<StructureField> fields = new List<StructureField>();
+
+                        foreach (DataTypeField field in source.Field)
+                        {
+                            if (field.IsOptional)
+                            {
+                                structureDefinition.StructureType = StructureType.StructureWithOptionalFields;
+                            }
+
+                            StructureField output = new StructureField();
+
+                            output.Name = field.Name;
+                            output.Description = Import(field.Description);
+                            output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
+                            output.ValueRank = field.ValueRank;
+                            output.IsOptional = field.IsOptional;
+
+                            fields.Add(output);
+                        }
+
+                        structureDefinition.Fields = fields.ToArray();
+                    }
+                    definition = structureDefinition;
                 }
+                else
+                {
+                    EnumDefinition enumDefinition = new EnumDefinition();
+                    if (source.Field != null)
+                    {
+                        List<EnumField> fields = new List<EnumField>();
 
-                definition.Fields = fields;
+                        foreach (DataTypeField field in source.Field)
+                        {
+                            EnumField output = new EnumField();
+
+                            output.Name = field.Name;
+                            output.DisplayName = Import(field.DisplayName);
+                            output.Description = Import(field.Description);
+                            output.Value = field.Value;
+
+                            fields.Add(output);
+                        }
+
+                        enumDefinition.Fields = fields.ToArray();
+                    }
+                    definition = enumDefinition;
+                }
             }
 
             return definition;
@@ -1193,12 +1347,12 @@ namespace Opc.Ua.Export
             {
                 return UInt16.MaxValue;
             }
-            
+
             // find or append uri.
             return serverUris.GetIndexOrAppend(this.ServerUris[serverIndex - 1]);
         }
         #endregion
-        
+
         #region Private Fields
         #endregion
     }

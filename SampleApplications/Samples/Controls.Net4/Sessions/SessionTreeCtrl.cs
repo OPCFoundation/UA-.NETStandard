@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -191,7 +191,7 @@ namespace Opc.Ua.Sample.Controls
             m_endpoint = endpoint;
 
             // copy the message context.
-            m_messageContext = m_configuration.CreateMessageContext();
+            m_messageContext = m_configuration.CreateMessageContext(true);
 
 
             X509Certificate2 clientCertificate = null;
@@ -227,6 +227,7 @@ namespace Opc.Ua.Sample.Controls
                 endpoint.Description,
                 endpoint.Configuration,
                 clientCertificate,
+                m_configuration.SecurityConfiguration.SendCertificateChain ? clientCertificateChain : null,
                 m_messageContext);
 
             // create the session.

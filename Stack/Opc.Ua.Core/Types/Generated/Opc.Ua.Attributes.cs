@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -155,18 +155,23 @@ namespace Opc.Ua
         public const uint DataTypeDefinition = 23;
 
         /// <summary>
-        /// The permissions available for the node.
+        /// The permissions for the node granted to roles.
         /// </summary>
-        public const uint Permissions = 24;
+        public const uint RolePermissions = 24;
 
         /// <summary>
-        /// The subset of permissions available for the current user.
+        /// The subset of permissions available for the roles available to the current session.
         /// </summary>
-        public const uint UserPermissions = 25;
+        public const uint UserRolePermissions = 25;
 
         /// <summary>
-        /// The permissions granted to roles.
+        /// The access restrictions assigned to the node.
         /// </summary>
-        public const uint RolePermissions = 26;
+        public const uint AccessRestrictions = 26;
+
+        /// <summary>
+        /// How a variable may be accessed.
+        /// </summary>
+        public const uint AccessLevelEx = 27;
     }
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -85,7 +85,7 @@ namespace Opc.Ua.Security
             get { return this.IssuerCertificates; }
             set { this.IssuerCertificates = value; }
         }
-        
+
         /// <summary>
         /// Casts a ApplicationType value. 
         /// </summary>
@@ -196,7 +196,7 @@ namespace Opc.Ua.Security
 
             return output;
         }
-        
+
         /// <summary>
         /// Creates a CertificateTrustList object. 
         /// </summary>
@@ -329,6 +329,8 @@ namespace Opc.Ua.Security
             profiles.Add(CreateProfile(SecurityPolicies.Basic128Rsa15));
             profiles.Add(CreateProfile(SecurityPolicies.Basic256));
             profiles.Add(CreateProfile(SecurityPolicies.Basic256Sha256));
+            profiles.Add(CreateProfile(SecurityPolicies.Aes128_Sha256_RsaOaep));
+            profiles.Add(CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss));
 
             if (policies != null)
             {
@@ -387,28 +389,21 @@ namespace Opc.Ua.Security
                 switch (profileUri)
                 {
                     case SecurityPolicies.None:
-                    {
-                        policy.SecurityMode = MessageSecurityMode.None;
-                        break;
-                    }
+                        {
+                            policy.SecurityMode = MessageSecurityMode.None;
+                            break;
+                        }
 
                     case SecurityPolicies.Basic128Rsa15:
-                    {
-                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        break;
-                    }
-
                     case SecurityPolicies.Basic256:
-                    {
-                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        break;
-                    }
-
                     case SecurityPolicies.Basic256Sha256:
-                    {
-                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        break;
-                    }
+                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    case SecurityPolicies.Aes256_Sha256_RsaPss:
+                        {
+                            policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                            break;
+                        }
+
                 }
             }
 
@@ -459,7 +454,7 @@ namespace Opc.Ua.Security
             return output.OpenStore();
         }
     }
-    
+
     /// <summary>
     /// An identifier for a certificate store.
     /// </summary>

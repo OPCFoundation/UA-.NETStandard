@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -170,7 +170,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                nodeSet.Export(context, this[ii]);
+                nodeSet.Export(context, this[ii], true);
             }
 
             nodeSet.Write(ostrm);
@@ -403,9 +403,9 @@ namespace Opc.Ua
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
         public void LoadFromResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
         {
-            if (resourcePath == null) throw new ArgumentNullException("resourcePath");
+            if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
 
-            if (assembly == null) throw new ArgumentNullException("assembly");
+            if (assembly == null) throw new ArgumentNullException(nameof(assembly));
             
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
@@ -431,9 +431,9 @@ namespace Opc.Ua
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
         public void LoadFromBinaryResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
         {
-            if (resourcePath == null) throw new ArgumentNullException("resourcePath");
+            if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
 
-            if (assembly == null) throw new ArgumentNullException("assembly");
+            if (assembly == null) throw new ArgumentNullException(nameof(assembly));
             
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
@@ -560,8 +560,8 @@ namespace Opc.Ua
         /// <param name="type">The system type.</param>
         public void RegisterType(NodeId typeDefinitionId, Type type)
         {
-            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException("typeDefinitionId");
-            if (type == null) throw new ArgumentNullException("type");
+            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException(nameof(typeDefinitionId));
+            if (type == null) throw new ArgumentNullException(nameof(type));
             
             if (m_types == null)
             {
@@ -577,7 +577,7 @@ namespace Opc.Ua
         /// <param name="typeDefinitionId">The type definition.</param>
         public void UnRegisterType(NodeId typeDefinitionId)
         {
-            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException("typeDefinitionId");
+            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException(nameof(typeDefinitionId));
 
             if (m_types != null)
             {

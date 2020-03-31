@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -20,12 +20,17 @@ namespace Opc.Ua
     /// Defines functions used to encode objects in a stream.
     /// </summary>
     public interface IEncoder
-    {        
+    {
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
         EncodingType EncodingType { get; }
-        
+
+        /// <summary>
+        /// Selects the reversible encoding type.
+        /// </summary>
+        bool UseReversibleEncoding { get; }
+
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>

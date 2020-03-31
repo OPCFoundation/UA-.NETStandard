@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -116,7 +116,6 @@ namespace Opc.Ua
             
             // decrypt.
             EncryptedData encryptedData = new EncryptedData();
-
             encryptedData.Data = m_password;
             encryptedData.Algorithm = m_encryptionAlgorithm;
 
@@ -136,16 +135,19 @@ namespace Opc.Ua
 
             if (senderNonce != null)
             {
-                 startOfNonce -= senderNonce.Length;
+                startOfNonce -= senderNonce.Length;
 
+                int result = 0;
                 for (int ii = 0; ii < senderNonce.Length; ii++)
                 {
-                    if (senderNonce[ii] != decryptedPassword[ii+startOfNonce])
-                    {
-                        throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
-                    }
+                    result |= senderNonce[ii] ^ decryptedPassword[ii + startOfNonce];
                 }
-            }            
+
+                if (result != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
+                }
+            }
                      
             // convert to UTF-8.
             m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
@@ -208,22 +210,29 @@ namespace Opc.Ua
         /// </summary>
         public override bool Verify(byte[] dataToVerify, SignatureData signatureData, string securityPolicyUri)
         {
-            X509Certificate2 certificate = m_certificate;
-            
-            if (certificate == null)
-            {   
-                certificate = CertificateFactory.Create(m_certificateData, true);
-            }          
-            
-            bool valid = SecurityPolicies.Verify(
-                certificate, 
-                securityPolicyUri, 
-                dataToVerify,
-                signatureData);
+            try
+            {
+                X509Certificate2 certificate = m_certificate;
 
-            m_certificateData = certificate.RawData;
+                if (certificate == null)
+                {
+                    certificate = CertificateFactory.Create(m_certificateData, true);
+                }
 
-            return valid;
+                bool valid = SecurityPolicies.Verify(
+                    certificate,
+                    securityPolicyUri,
+                    dataToVerify,
+                    signatureData);
+
+                m_certificateData = certificate.RawData;
+
+                return valid;
+            }
+            catch (Exception e)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not verify user signature!");
+            }
         }
         #endregion
 

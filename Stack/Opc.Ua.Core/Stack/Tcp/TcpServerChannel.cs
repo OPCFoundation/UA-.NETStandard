@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,33 +12,50 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
+
     /// <summary>
     /// Manages the server side of a UA TCP channel.
     /// </summary>
     public class TcpServerChannel : UaSCUaBinaryChannel
     {
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public TcpServerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            EndpointDescriptionCollection endpoints)
+        :
+            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
+        {
+        }
+
         #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
         public TcpServerChannel(
             string contextId,
-            UaTcpChannelListener listener,
+            ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
             EndpointDescriptionCollection endpoints)
         :
-            base(contextId, bufferManager, quotas, serverCertificate, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            base(contextId, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
             m_listener = listener;
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
@@ -79,7 +96,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Attach(uint channelId, Socket socket)
         {
-            if (socket == null) throw new ArgumentNullException("socket");
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -112,11 +132,14 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            if (socket == null) throw new ArgumentNullException("socket");
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
-                // make sure the same client certificate is being used.     
+                // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
                 // check for replay attacks.
@@ -135,7 +158,7 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.TokenId = GetNewTokenId();
 
-                    // put channel back in open state.                    
+                    // put channel back in open state.
                     ActivateToken(token);
                     State = TcpChannelState.Open;
 
@@ -161,7 +184,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SendResponse(uint requestId, IServiceResponse response)
         {
-            if (response == null) throw new ArgumentNullException("response");
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
 
             lock (DataLock)
             {
@@ -242,7 +268,7 @@ namespace Opc.Ua.Bindings
                     if (messageType == TcpMessageType.Hello)
                     {
                         //Utils.Trace("Channel {0}: ProcessHelloMessage", ChannelId);
-                        return ProcessHelloMessage(messageType, messageChunk);
+                        return ProcessHelloMessage(messageChunk);
                     }
 
                     // process open secure channel repsonse.
@@ -352,7 +378,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts a timer that will clean up the channel if it is not opened/re-opened.
         /// </summary>
-        private void StartCleanupTimer(ServiceResult reason)
+        protected void StartCleanupTimer(ServiceResult reason)
         {
             CleanupTimer();
             m_cleanupTimer = new Timer(new TimerCallback(OnCleanup), reason, Quotas.ChannelLifetime, Timeout.Infinite);
@@ -601,9 +627,9 @@ namespace Opc.Ua.Bindings
         /// Processes a Hello message from the client.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
-        private bool ProcessHelloMessage(uint messageType, ArraySegment<byte> messageChunk)
+        private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected Hello message.");
@@ -735,7 +761,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected OpenSecureChannel message.");
@@ -770,26 +796,30 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signare and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
-                if (innerException != null && (
-                    innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                    innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
-                    innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
-                    innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
-                    innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked))
+                // If the certificate structre, signature and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
+                if (innerException != null)
                 {
-                    ForceChannelFault(innerException, innerException.StatusCode, e.Message);
-                    return false;
-                }
-                else if (innerException != null && innerException.StatusCode == StatusCodes.BadCertificateUntrusted)
-                {
-                    ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
-                    return false;
+                    if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
+                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
+                    {
+                        ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
+                        return false;
+                    }
+                    else if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
+                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
+                    {
+                        ForceChannelFault(innerException, innerException.StatusCode, e.Message);
+                        return false;
+                    }
                 }
 
                 ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
@@ -982,6 +1012,7 @@ namespace Opc.Ua.Bindings
                 TcpMessageType.Open,
                 requestId,
                 ServerCertificate,
+                ServerCertificateChain,
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length));
 
@@ -1085,7 +1116,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessRequestMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
-            // validate the channel state.            
+            // validate the channel state.
             if (State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected request message.");
@@ -1177,7 +1208,7 @@ namespace Opc.Ua.Bindings
             {
                 Utils.Trace(e, "Unexpected error processing request.");
                 SendServiceFault(token, requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request."));
-                return false;
+                return true;
             }
             finally
             {
@@ -1192,11 +1223,11 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private TcpChannelRequestEventHandler m_RequestReceived;
         private long m_lastTokenId;
-        private UaTcpChannelListener m_listener;
+        private ITcpChannelListener m_listener;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private Timer m_cleanupTimer;
         private bool m_responseRequired;
-        private const string g_ImplementationString = "TcpServerChannel UA-TCP " + AssemblyVersionInfo.CurrentVersion;
+        private string g_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 

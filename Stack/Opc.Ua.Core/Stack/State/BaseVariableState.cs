@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -543,7 +543,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The behavoir to use when reading or writing all or part of the object.
+        /// The behavior to use when reading or writing all or part of the object.
         /// </summary>
         /// <value>The copy policy that specifies the policies to use when handling reads and write to value.</value>
         /// <remarks>
@@ -639,17 +639,18 @@ namespace Opc.Ua
         {
             get
             {
-                return m_accessLevel;
+                return (byte)(m_accessLevel & 0xFF);
             }
 
             set
             {
-                if (m_accessLevel != value)
+                if (AccessLevel != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_accessLevel = value;
+                // set first 8 bits of AccessLevelEx
+                m_accessLevel = (m_accessLevel & 0xFFFFFF00) | value;
             }
         }
 
@@ -719,6 +720,29 @@ namespace Opc.Ua
                 }
 
                 m_historizing = value;
+            }
+        }
+
+        /// <summary>
+        /// A bit mask specifying how the value may be accessed.
+        /// </summary>
+        /// <value>The extended access level.</value>
+        [DataMember(Name = "AccessLevelEx", Order = 8, IsRequired = false, EmitDefaultValue = false)]
+        public uint AccessLevelEx
+        {
+            get
+            {
+                return m_accessLevel;
+            }
+
+            set
+            {
+                if (m_accessLevel != value)
+                {
+                    ChangeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_accessLevel = value;
             }
         }
         #endregion
@@ -813,6 +837,16 @@ namespace Opc.Ua
         /// Raised when the Historizing attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteHistorizing;
+
+        /// <summary>
+        /// Raised when the AccessLevelEx attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<uint> OnReadAccessLevelEx;
+
+        /// <summary>
+        /// Raised when the AccessLevelEx attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
         #endregion
 
         #region Serialization Functions
@@ -1098,7 +1132,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.AccessLevel) != 0)
             {
-                encoder.WriteByte(null, m_accessLevel);
+                encoder.WriteByte(null, AccessLevel);
             }
 
             if ((attributesToSave & AttributesToSave.UserAccessLevel) != 0)
@@ -1114,7 +1148,7 @@ namespace Opc.Ua
             if ((attributesToSave & AttributesToSave.Historizing) != 0)
             {
                 encoder.WriteBoolean(null, m_historizing);
-            }            
+            }
         }
 
         /// <summary>
@@ -1163,7 +1197,7 @@ namespace Opc.Ua
 
             if ((attibutesToLoad & AttributesToSave.AccessLevel) != 0)
             {
-                m_accessLevel = decoder.ReadByte(null);
+                AccessLevel = decoder.ReadByte(null);
             }
 
             if ((attibutesToLoad & AttributesToSave.UserAccessLevel) != 0)
@@ -1340,7 +1374,7 @@ namespace Opc.Ua
 
                 case Attributes.AccessLevel:
                 {
-                    byte accessLevel = m_accessLevel;
+                    byte accessLevel = AccessLevel;
 
                     if (OnReadAccessLevel != null)
                     {
@@ -1350,6 +1384,23 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         value = accessLevel;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.AccessLevelEx:
+                {
+                    uint accessLevelEx = m_accessLevel;
+
+                    if (OnReadAccessLevelEx != null)
+                    {
+                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = accessLevelEx;
                     }
 
                     return result;
@@ -1406,7 +1457,7 @@ namespace Opc.Ua
                     return result;
                 }
             }
-            
+
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
 
@@ -1452,7 +1503,7 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            // check if the read behavoir has been overridden.
+            // check if the read behavior has been overridden.
             if (OnReadValue != null)
             {
                 result = OnReadValue(
@@ -1478,7 +1529,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            // use default behavoir.
+            // use default behavior.
             if (OnSimpleReadValue != null)
             {
                 result = OnSimpleReadValue(
@@ -1821,7 +1872,7 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            // check if the write behavoir has been overridden.
+            // check if the write behavior has been overridden.
             if (OnWriteValue != null)
             {
                 result = OnWriteValue(
@@ -1879,7 +1930,11 @@ namespace Opc.Ua
                         return (StatusCode)(uint)value;
                     }
                 }
-                return StatusCodes.BadTypeMismatch;
+                // test for special case Null type
+                if (!(m_dataType.IsNullNodeId && value == null))
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
             }
 
             value = ExtractValueFromVariant(context, value, true);
@@ -1945,7 +2000,7 @@ namespace Opc.Ua
         private NodeId m_dataType;
         private int m_valueRank;
         private ReadOnlyList<uint> m_arrayDimensions;
-        private byte m_accessLevel;
+        private uint m_accessLevel;
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
@@ -2338,7 +2393,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The behavoir to use when reading or writing all or part of the object.
+        /// The behavior to use when reading or writing all or part of the object.
         /// </summary>
         public VariableCopyPolicy CopyPolicy
         {

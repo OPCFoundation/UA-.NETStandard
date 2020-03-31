@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -29,16 +29,16 @@ namespace Opc.Ua
         /// <remarks>
         /// The syntax depends on the store implementation.
         /// </remarks>
-		void Open(string location);
+        void Open(string location);
 
         /// <summary>
         /// Closes the store.
         /// </summary>
-		void Close();
+        void Close();
 
-		/// <summary>
-		/// Enumerates the certificates in the store.
-		/// </summary>
+        /// <summary>
+        /// Enumerates the certificates in the store.
+        /// </summary>
         Task<X509Certificate2Collection> Enumerate();
 
         /// <summary>
@@ -60,11 +60,16 @@ namespace Opc.Ua
         /// <param name="thumbprint">The thumbprint.</param>
         /// <returns>The matching certificate</returns>
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
-        
+
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
+
+        /// <summary>
+        /// Whether the store supports CRLs.
+        /// </summary>
+        bool SupportsCRLs { get; }
 
         /// <summary>
         /// Returns the CRLs in the store.
@@ -74,7 +79,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer);
+        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
 
         /// <summary>
         /// Adds a CRL to the store.

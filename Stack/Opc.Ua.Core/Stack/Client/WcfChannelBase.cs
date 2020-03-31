@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -206,6 +206,14 @@ namespace Opc.Ua
              
                 return m_messageContext; 
             }
+        }
+
+        /// <summary>
+        ///  Gets the the channel's current security token.
+        /// </summary>
+        public ChannelToken CurrentToken
+        {
+            get { return null; }
         }
 
         /// <summary>
@@ -670,6 +678,27 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             ServiceMessageContext messageContext)
         {
+            return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+        }
+
+        /// <summary>
+        /// Creates a new UA-binary transport channel if requested. Null otherwise.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="description">The description for the endpoint.</param>
+        /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certificate chain.</param>
+        /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <returns></returns>
+        public static ITransportChannel CreateUaBinaryChannel(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            ServiceMessageContext messageContext)
+        {
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
 
@@ -690,10 +719,14 @@ namespace Opc.Ua
             }
 
             // note: WCF channels are not supported
-            if (!useUaTcp && !useHttps)
+            if (!useUaTcp
+#if !NO_HTTPS
+                && !useHttps
+#endif
+                )
             {
                 throw ServiceResultException.Create(
-                    StatusCodes.BadServiceUnsupported,
+                    StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile\r\n");
             }
 
@@ -706,6 +739,7 @@ namespace Opc.Ua
             settings.Description = description;
             settings.Configuration = endpointConfiguration;
             settings.ClientCertificate = clientCertificate;
+            settings.ClientCertificateChain = clientCertificateChain;
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
@@ -733,7 +767,9 @@ namespace Opc.Ua
             }
             else if (useHttps)
             {
+#if !NO_HTTPS
                 channel = new HttpsTransportChannel();
+#endif
             }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);
@@ -784,14 +820,13 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-
         internal TransportChannelSettings m_settings;
         internal ServiceMessageContext m_messageContext;
         internal ITransportChannel m_wcfBypassChannel;
         internal int m_operationTimeout;
         internal ChannelFactory m_channelFactory;
         internal IChannelBase m_channel;
-        internal const string g_ImplementationString = "Opc.Ua.ChannelBase WCF Client " + AssemblyVersionInfo.CurrentVersion;
+        internal string g_ImplementationString = "Opc.Ua.ChannelBase WCF Client " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
     
@@ -988,7 +1023,7 @@ namespace Opc.Ua
 
                 if (asyncResult == null)
                 {
-                    throw new ArgumentException("End called with an invalid IAsyncResult object.", "ar");
+                    throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
 
                 if (!asyncResult.WaitForComplete())

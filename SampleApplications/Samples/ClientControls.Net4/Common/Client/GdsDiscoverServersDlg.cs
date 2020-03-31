@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -126,7 +126,8 @@ namespace Opc.Ua.Client.Controls
 
             if (urls.Count == 0)
             {
-                urls.Add("opc.tcp://localhost:48041/GdsServer");
+                // TODO find servers with LDS
+                urls.Add("opc.tcp://localhost:58800/GlobalDiscoveryServer");
             }
 
             ServerCTRL.Configuration = configuration;

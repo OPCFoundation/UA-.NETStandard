@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+using Opc.Ua.Client.Controls;
 
 namespace Opc.Ua.Sample.Controls
 {
@@ -64,7 +66,7 @@ namespace Opc.Ua.Sample.Controls
             this.WriteBTN = new System.Windows.Forms.Button();
             this.SplitterPN = new System.Windows.Forms.SplitContainer();
             this.BrowseCTRL = new Opc.Ua.Sample.Controls.BrowseTreeCtrl();
-            this.WriteResultsCTRL = new Opc.Ua.Sample.Controls.DataListCtrl();
+            this.WriteResultsCTRL = new Opc.Ua.Client.Controls.DataListCtrl();
             this.WriteValuesCTRL = new Opc.Ua.Sample.Controls.WriteValueListCtrl();
             this.MainPN = new System.Windows.Forms.Panel();
             this.ButtonsPN.SuspendLayout();

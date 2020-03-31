@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -48,7 +48,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryDecoder(Stream stream, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_istrm = stream;
             m_reader = new BinaryReader(m_istrm);
@@ -126,12 +126,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the stream that the decoder is reading from.
+        /// </summary>
+        public Stream BaseStream
+        {
+            get
+            {
+                return m_reader.BaseStream;
+            }
+        }
+
+        /// <summary>
         /// Decodes a message from a stream.
         /// </summary>
         public static IEncodeable DecodeMessage(Stream stream, System.Type expectedType, ServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException("stream");
-            if (context == null) throw new ArgumentNullException("context");
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(stream, context);
 
@@ -150,8 +161,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(buffer, context);
 
@@ -166,7 +177,7 @@ namespace Opc.Ua
                 // lookup message session-less envelope type.
                 Type actualType = context.Factory.GetSystemType(absoluteId);
 
-                if (actualType == null || actualType != typeof(SessionLessServiceMessageType))
+                if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingError, Utils.Format("Cannot decode session-less service message with type id: {0}.", absoluteId));
                 }
@@ -189,8 +200,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, ServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
-            if (context == null) throw new ArgumentNullException("context");
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             BinaryDecoder decoder = new BinaryDecoder(buffer, context);
 
@@ -399,9 +410,14 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
+            }
+
+            if (length == 0)
+            {
+                return string.Empty;
             }
 
             if (maxStringLength > 0 && maxStringLength < length)
@@ -414,7 +430,10 @@ namespace Opc.Ua
             }
 
             byte[] bytes = m_reader.ReadBytes(length);
-            return new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+
+            // If 0 terminated, decrease length by one before converting to string
+            var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
+            return Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
         }
 
         /// <summary>
@@ -468,7 +487,7 @@ namespace Opc.Ua
         {
             int length = m_reader.ReadInt32();
 
-            if (length == -1)
+            if (length < 0)
             {
                 return null;
             }
@@ -498,7 +517,23 @@ namespace Opc.Ua
             }
 
             XmlDocument document = new XmlDocument();
-            document.InnerXml = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+
+            try
+            {
+                // If 0 terminated, decrease length by one before converting to string
+                var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
+                string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
+
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
+                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                {
+                    document.Load(reader);
+                }
+            }
+            catch (XmlException)
+            {
+                return null;
+            }
 
             return document.DocumentElement;
         }
@@ -757,7 +792,7 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType)
         {
-            if (systemType == null) throw new ArgumentNullException("systemType");
+            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
             IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
@@ -1510,7 +1545,7 @@ namespace Opc.Ua
                 extension.Body = ReadXmlElement(null);
 
                 // attempt to decode a known type.
-                if (systemType != null)
+                if (systemType != null && extension.Body!= null)
                 {
                     XmlElement element = extension.Body as XmlElement;
                     XmlDecoder xmlDecoder = new XmlDecoder(element, this.Context);
@@ -1539,6 +1574,14 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+                // set type identifier for custom complex data types before decode.
+                IComplexTypeInstance complexTypeInstance = encodeable as IComplexTypeInstance;
+
+                if (complexTypeInstance != null)
+                {
+                    complexTypeInstance.TypeId = extension.TypeId;
+                }
             }
 
             // get the length.
@@ -1548,7 +1591,7 @@ namespace Opc.Ua
             if (encodeable == null)
             {
                 // figure out how long the object is.
-                if (length == -1)
+                if (length < 0)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
@@ -1570,11 +1613,24 @@ namespace Opc.Ua
                 return extension;
             }
 
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             // save the current position.
             int start = Position;
 
-            // decode body.            
+            // decode body.
             encodeable.Decode(this);
+
+            m_nestingLevel--;
 
             // skip any unread data.
             int unused = length - (Position - start);

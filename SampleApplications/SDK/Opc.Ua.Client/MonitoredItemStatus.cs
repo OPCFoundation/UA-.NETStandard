@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -198,8 +198,8 @@ namespace Opc.Ua.Client
             MonitoredItemCreateResult  result,
             ServiceResult              error)
         {
-            if (request == null) throw new ArgumentNullException("request");
-            if (result == null)  throw new ArgumentNullException("result");
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (result == null)  throw new ArgumentNullException(nameof(result));
             
             m_nodeId           = request.ItemToMonitor.NodeId;
             m_attributeId      = request.ItemToMonitor.AttributeId;
@@ -234,8 +234,8 @@ namespace Opc.Ua.Client
             MonitoredItemModifyResult  result,
             ServiceResult              error)
         {
-            if (request == null) throw new ArgumentNullException("request");
-            if (result == null)  throw new ArgumentNullException("result");
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (result == null)  throw new ArgumentNullException(nameof(result));
             
             m_error = error;
 

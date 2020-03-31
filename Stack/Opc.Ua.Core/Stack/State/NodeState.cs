@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Xml;
 using System.Text;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace Opc.Ua
@@ -347,7 +348,7 @@ namespace Opc.Ua
         {
             get
             {
-                return m_writeMask;
+                return m_userWriteMask;
             }
 
             set
@@ -360,6 +361,100 @@ namespace Opc.Ua
                 m_userWriteMask = value;
             }
         }
+
+        /// <summary>
+        /// Specifies  a list of permissions for the node assigned to roles.
+        /// </summary>
+        /// <value>The Permissions that apply to the node.</value>
+        public RolePermissionTypeCollection RolePermissions
+        {
+            get
+            {
+                return m_rolePermissions;
+            }
+
+            set
+            {
+                if (m_rolePermissions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_rolePermissions = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies  a list of permissions for the node assigned to roles for the current user.
+        /// </summary>
+        /// <value>The Permissions that apply to the node for the current user.</value>
+        public RolePermissionTypeCollection UserRolePermissions
+        {
+            get
+            {
+                return m_userRolePermissions;
+            }
+
+            set
+            {
+                if (m_userRolePermissions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_userRolePermissions = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies  a mask indicating any access restrictions that apply to the node.
+        /// </summary>
+        /// <value>The server specific access restrictions of the node.</value>
+        public AccessRestrictionType AccessRestrictions
+        {
+            get
+            {
+                return m_accessRestrictions;
+            }
+
+            set
+            {
+                if (m_accessRestrictions != value)
+                {
+                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                }
+
+                m_accessRestrictions = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// </summary>
+        /// <value>
+        /// The extensions.
+        /// </value>
+        public System.Xml.XmlElement[] Extensions
+        {
+            get
+            {
+                return m_extensions;
+            }
+            set
+            {
+                m_extensions = value;
+            }
+        }
+
+        /// <summary>
+        /// The categories assigned to the node.
+        /// </summary>
+        public IList<string> Categories { get; set; }
+
+        /// <summary>
+        /// The release status for the node.
+        /// </summary>
+        public Opc.Ua.Export.ReleaseStatus ReleaseStatus { get; set; }
         #endregion
 
         #region Serialization Methods
@@ -708,7 +803,12 @@ namespace Opc.Ua
             /// <summary>
             /// The StatusCode associated with the Value attribute.
             /// </summary>
-            StatusCode = 0x20000000
+            StatusCode = 0x20000000,
+
+            /// <summary>
+            /// The DataTypeDefinition attribute of a DataType Node.
+            /// </summary>
+            DataTypeDefinition = 0x40000000
         }
         #endregion
 
@@ -912,9 +1012,9 @@ namespace Opc.Ua
                 {
                     BaseInstanceState child = UpdateChild(context, decoder);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    throw e;
+                    throw;
                 }
             }
         }
@@ -1993,6 +2093,16 @@ namespace Opc.Ua
         public NodeStateChangedHandler OnStateChanged;
 
         /// <summary>
+        /// Called when a reference gets added to the node
+        /// </summary>
+        public NodeStateReferenceAdded OnReferenceAdded;
+
+        /// <summary>
+        /// Called when a reference gets removed from the node
+        /// </summary>
+        public NodeStateReferenceRemoved OnReferenceRemoved;
+        
+        /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
         public NodeStateReportEventHandler OnReportEvent;
@@ -2081,6 +2191,36 @@ namespace Opc.Ua
         /// Called when the UserWriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask> OnWriteUserWriteMask;
+
+        /// <summary>
+        /// Called when the RolePermissions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadRolePermissions;
+
+        /// <summary>
+        /// Called when the RolePermissions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteRolePermissions;
+
+        /// <summary>
+        /// Called when the UserRolePermissions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadUserRolePermissions;
+
+        /// <summary>
+        /// Called when the UserRolePermissions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteUserRolePermissions;
+
+        /// <summary>
+        /// Called when the AccessRestrictions attribute is read.
+        /// </summary>
+        public NodeAttributeEventHandler<AccessRestrictionType> OnReadAccessRestrictions;
+
+        /// <summary>
+        /// Called when the AccessRestrictions attribute is written.
+        /// </summary>
+        public NodeAttributeEventHandler<AccessRestrictionType> OnWriteAccessRestrictions;
         #endregion
 
         #region Public Methods
@@ -3356,6 +3496,57 @@ namespace Opc.Ua
 
                     return result;
                 }
+
+                case Attributes.RolePermissions:
+                {
+                    RolePermissionTypeCollection rolePermissions = m_rolePermissions;
+
+                    if (OnReadRolePermissions != null)
+                    {
+                        result = OnReadRolePermissions(context, this, ref rolePermissions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = rolePermissions;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.UserRolePermissions:
+                {
+                    RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
+
+                    if (OnReadUserRolePermissions != null)
+                    {
+                        result = OnReadUserRolePermissions(context, this, ref userRolePermissions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = userRolePermissions;
+                    }
+
+                    return result;
+                }
+
+                case Attributes.AccessRestrictions:
+                {
+                    AccessRestrictionType accessRestrictions = m_accessRestrictions;
+
+                    if (OnReadAccessRestrictions != null)
+                    {
+                        result = OnReadAccessRestrictions(context, this, ref accessRestrictions);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        value = (ushort)m_accessRestrictions;
+                    }
+
+                    return result;
+                }
             }
 
             return StatusCodes.BadAttributeIdInvalid;
@@ -3809,7 +4000,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath,
             int index)
         {
-            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException("index");
+            if (index < 0 || index >= Int32.MaxValue) throw new ArgumentOutOfRangeException(nameof(index));
 
             BaseInstanceState instance = FindChild(context, browsePath[index], false, null);
 
@@ -4140,8 +4331,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4150,6 +4341,8 @@ namespace Opc.Ua
 
             m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId), null);
             m_changeMasks |= NodeStateChangeMasks.References;
+
+            OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
         }
 
         /// <summary>
@@ -4163,8 +4356,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
-            if (NodeId.IsNull(targetId)) throw new ArgumentNullException("targetId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
             if (m_references == null)
             {
@@ -4174,6 +4367,7 @@ namespace Opc.Ua
             if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
             {
                 m_changeMasks |= NodeStateChangeMasks.References;
+                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
                 return true;
             }
 
@@ -4186,7 +4380,7 @@ namespace Opc.Ua
         /// <param name="references">The list of references to add.</param>
         public void AddReferences(IList<IReference> references)
         {
-            if (references == null) throw new ArgumentNullException("references");
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             if (m_references == null)
             {
@@ -4198,6 +4392,7 @@ namespace Opc.Ua
                 if (!m_references.ContainsKey(references[ii]))
                 {
                     m_references.Add(references[ii], null);
+                    OnReferenceAdded?.Invoke(this, references[ii].ReferenceTypeId, references[ii].IsInverse, references[ii].TargetId);
                 }
             }
 
@@ -4213,14 +4408,21 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException("referenceTypeId");
+            if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
 
             if (m_references == null)
             {
                 return false;
             }
 
-            return m_references.RemoveAll(referenceTypeId, isInverse);
+            var refsToRemove = m_references
+                .Select(r => r.Key)
+                .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
+                .ToList();
+            
+            refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
+
+            return refsToRemove.Count != 0;
         }
         #endregion
 
@@ -4376,15 +4578,20 @@ namespace Opc.Ua
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
+        private RolePermissionTypeCollection m_rolePermissions;
+        private RolePermissionTypeCollection m_userRolePermissions;
+        private AccessRestrictionType m_accessRestrictions;
         protected List<BaseInstanceState> m_children;
         private IReferenceDictionary<object> m_references;
         protected NodeStateChangeMasks m_changeMasks;
         private int m_areEventsMonitored;
         private bool m_initialized;
         private List<Notifier> m_notifiers;
+        private System.Xml.XmlElement[] m_extensions;
         #endregion
     }
 
+    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>
@@ -4435,6 +4642,24 @@ namespace Opc.Ua
         ISystemContext context,
         NodeState node,
         NodeStateChangeMasks changes);
+    
+    /// <summary>
+    /// Used to receive notifications when a reference get added to the node
+    /// </summary>
+    public delegate void NodeStateReferenceAdded(
+        NodeState node,
+        NodeId referenceTypeId,
+        bool isInverse,
+        ExpandedNodeId targetId);
+    
+    /// <summary>
+    /// Used to receive notifications when a reference get removed to the node
+    /// </summary>
+    public delegate void NodeStateReferenceRemoved(
+        NodeState node,
+        NodeId referenceTypeId,
+        bool isInverse,
+        ExpandedNodeId targetId);
 
     /// <summary>
     /// Used to receive notifications when a node produces an event.

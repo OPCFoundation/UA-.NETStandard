@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -183,9 +183,9 @@ namespace Opc.Ua.Server.Controls
                 }
                 itemsLB.Text = Convert.ToString( itemTotal );
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                // ClientUtils.HandleException(this.Text, exception);
+                ServerUtils.HandleException(this.Text, exception);
             }
         }
         #endregion

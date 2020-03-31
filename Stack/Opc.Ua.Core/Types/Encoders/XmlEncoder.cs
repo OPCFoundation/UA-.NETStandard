@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -267,7 +267,12 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
-        
+
+        /// <summary>
+        /// Xml Encoder always produces reversible encoding.
+        /// </summary>
+        public bool UseReversibleEncoding => true;
+
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
@@ -283,7 +288,7 @@ namespace Opc.Ua
         {
             m_namespaces.Pop();
         }
-        
+
         /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
@@ -457,6 +462,7 @@ namespace Opc.Ua
         {       
             if (BeginField(fieldName, false, false))
             {
+                value = Utils.NormalizeToUniversalTime(value);
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
@@ -517,9 +523,7 @@ namespace Opc.Ua
         {            
             if (BeginField(fieldName, value == null, true))
             {
-                XmlReader reader = XmlReader.Create(new StringReader(value.Value));
-                m_writer.WriteNode(reader, false);
-                reader.Dispose();
+                m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);
             }
         }

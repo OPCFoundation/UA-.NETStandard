@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -44,24 +44,24 @@ namespace Opc.Ua
         /// The URI scheme for the UA TCP protocol. 
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";
-        
+
         /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
         public const int UaTcpDefaultPort = 4840;
-        
+
         /// <summary>
         /// The urls of the discovery servers on a node.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         public static readonly string[] DiscoveryUrls = new string[]
-        { 
+        {
             "opc.tcp://{0}:4840",
             "https://{0}:4843",
             "http://{0}:52601/UADiscovery",
             "http://{0}/UADiscovery/Default.svc"
         };
-        
+
         /// <summary>
         /// The class that provides the default implementation for the UA TCP protocol.
         /// </summary>
@@ -91,7 +91,7 @@ namespace Opc.Ua
 #else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
-        #endif
+#endif
 
         private static string s_traceFileName = string.Empty;
         private static long s_BaseLineTicks = DateTime.UtcNow.Ticks;
@@ -116,12 +116,7 @@ namespace Opc.Ua
             /// <summary>
             /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
             /// </summary>
-            DebugAndFile = 2,
-
-            /// <summary>
-            /// Write to trace listeners and a file (if specified).
-            /// </summary>
-            StdOutAndFile = 3
+            DebugAndFile = 2
         }
 
         /// <summary>
@@ -134,7 +129,7 @@ namespace Opc.Ua
             /// Do not output any messages.
             /// </summary>
             public const int None = 0x0;
-            
+
             /// <summary>
             /// Output error messages.
             /// </summary>
@@ -191,7 +186,6 @@ namespace Opc.Ua
             public const int All = 0x7FFFFFFF;
         }
 
-
         /// <summary>
         /// Sets the output for tracing (thead safe).
         /// </summary>
@@ -220,6 +214,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns Tracing class instance for event attaching.
+        /// </summary>
+        public static Tracing Tracing
+        {
+            get { return Tracing.Instance; }
+        }
+
+        /// <summary>
         /// Writes a trace statement.
         /// </summary>
         private static void TraceWriteLine(string message, params object[] args)
@@ -242,7 +244,7 @@ namespace Opc.Ua
                 catch (Exception)
                 {
                     output = message;
-                } 
+                }
             }
 
             // write to the log file.
@@ -334,13 +336,13 @@ namespace Opc.Ua
                 }
             }
         }
-        
+
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Trace((int)TraceMasks.Information, format, args);
+            Trace((int)TraceMasks.Information, format, false, args);
         }
 
         /// <summary>
@@ -349,16 +351,24 @@ namespace Opc.Ua
         [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace((int)TraceMasks.OperationDetail, format, args);
+            Trace((int)TraceMasks.OperationDetail, format, false, args);
         }
 
         /// <summary>
-        /// Writes an informational message to the trace log.
+        /// Writes an exception/error message to the trace log.
         /// </summary>
         public static void Trace(Exception e, string format, params object[] args)
         {
+            Trace(e, format, false, args);
+        }
+
+        /// <summary>
+        /// Writes an exception/error message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, string format, bool handled, params object[] args)
+        {
             StringBuilder message = new StringBuilder();
-                        
+
             // format message.            
             if (args != null && args.Length > 0)
             {
@@ -369,13 +379,13 @@ namespace Opc.Ua
                 catch (Exception)
                 {
                     message.Append(format);
-                } 
+                }
             }
             else
             {
                 message.Append(format);
             }
-            
+
             // append exception information.
             if (e != null)
             {
@@ -389,18 +399,18 @@ namespace Opc.Ua
                 {
                     message.AppendFormat(CultureInfo.InvariantCulture, " {0} '{1}'", e.GetType().Name, e.Message);
                 }
-                
+
                 // append stack trace.
                 if ((s_traceMasks & (int)TraceMasks.StackTrace) != 0)
                 {
-                    message.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n{0}\r\n", new String('=', 40));              
+                    message.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n{0}\r\n", new String('=', 40));
                     message.Append(new ServiceResult(e).ToLongString());
                     message.AppendFormat(CultureInfo.InvariantCulture, "\r\n{0}\r\n", new String('=', 40));
                 }
             }
-            
+
             // trace message.
-            Trace((int)TraceMasks.Error, message.ToString(), null);
+            Trace(e, (int)TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
@@ -408,18 +418,39 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
+            Trace(traceMask, format, false, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Trace(int traceMask, string format, bool handled, params object[] args)
+        {
+            Trace(null, traceMask, format, handled, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, int traceMask, string format, bool handled, params object[] args)
+        {
+            if (!handled)
+            {
+                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e, args));
+            }
+
             // do nothing if mask not enabled.
             if ((s_traceMasks & traceMask) == 0)
             {
                 return;
             }
 
-            double seconds = ((double)(HiResClock.UtcNow.Ticks - s_BaseLineTicks))/TimeSpan.TicksPerSecond;
-            
+            double seconds = ((double)(HiResClock.UtcNow.Ticks - s_BaseLineTicks)) / TimeSpan.TicksPerSecond;
+
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
+            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)
@@ -431,7 +462,7 @@ namespace Opc.Ua
                 catch (Exception)
                 {
                     message.Append(format);
-                } 
+                }
             }
             else
             {
@@ -440,9 +471,9 @@ namespace Opc.Ua
 
             TraceWriteLine(message.ToString(), null);
         }
-#endregion
+        #endregion
 
-#region File Access
+        #region File Access
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
@@ -502,27 +533,37 @@ namespace Opc.Ua
             }
             else
             {
-                folder = input.Substring(1, index-1);
-                path = input.Substring(index+1);
+                folder = input.Substring(1, index - 1);
+                path = input.Substring(index + 1);
             }
 
-            folder = ReplaceSpecialFolderWithEnvVar(folder);
-
             StringBuilder buffer = new StringBuilder();
-
-            string value = Environment.GetEnvironmentVariable(folder);
-            if (value != null)
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
+            // check for special folder.
+            Environment.SpecialFolder specialFolder;
+            if (!Enum.TryParse<Environment.SpecialFolder>(folder, out specialFolder))
             {
-                buffer.Append(value);
+#endif
+                folder = ReplaceSpecialFolderWithEnvVar(folder);
+                string value = Environment.GetEnvironmentVariable(folder);
+                if (value != null)
+                {
+                    buffer.Append(value);
+                }
+                else
+                {
+                    if (folder == "LocalFolder")
+                    {
+                        buffer.Append(DefaultLocalFolder);
+                    }
+                }
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
             else
             {
-                if (folder == "LocalFolder")
-                {
-                    buffer.Append(DefaultLocalFolder);
-                }
+                buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-
+#endif
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -540,8 +581,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            string path = null; 
-            
+            string path = null;
+
             // check source tree.
             DirectoryInfo directory = new DirectoryInfo(Directory.GetCurrentDirectory());
 
@@ -561,7 +602,7 @@ namespace Opc.Ua
 
                 directory = directory.Parent;
             }
-            
+
             // return what was found.
             return path;
         }
@@ -577,17 +618,17 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
-        public static string GetAbsoluteFilePath(string filePath, bool checkCurrentDirectory, bool throwOnError, bool createAlways, bool writable=false)
+        public static string GetAbsoluteFilePath(string filePath, bool checkCurrentDirectory, bool throwOnError, bool createAlways, bool writable = false)
         {
             filePath = Utils.ReplaceSpecialFolderNames(filePath);
 
             if (!String.IsNullOrEmpty(filePath))
-            {            
+            {
                 FileInfo file = new FileInfo(filePath);
 
                 // check for absolute path.
                 bool isAbsolute = Utils.IsPathRooted(filePath);
-                
+
                 if (isAbsolute)
                 {
                     if (file.Exists)
@@ -600,7 +641,7 @@ namespace Opc.Ua
                         return CreateFile(file, filePath, throwOnError);
                     }
                 }
-                
+
                 if (!isAbsolute)
                 {
                     // look current directory.
@@ -672,13 +713,13 @@ namespace Opc.Ua
 
                 if (throwOnError)
                 {
-                    throw e;
+                    throw;
                 }
 
                 return filePath;
-            } 
+            }
         }
-        
+
         /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
@@ -696,12 +737,12 @@ namespace Opc.Ua
             dirPath = Utils.ReplaceSpecialFolderNames(dirPath);
 
             if (!String.IsNullOrEmpty(dirPath))
-            {            
+            {
                 DirectoryInfo directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
                 bool isAbsolute = Utils.IsPathRooted(dirPath);
-                
+
                 if (isAbsolute)
                 {
                     if (directory.Exists)
@@ -715,7 +756,7 @@ namespace Opc.Ua
                         return directory.FullName;
                     }
                 }
-                
+
                 if (!isAbsolute)
                 {
                     // look current directory.
@@ -731,7 +772,7 @@ namespace Opc.Ua
                     if (directory.Exists)
                     {
                         return directory.FullName;
-                    }     
+                    }
 
                     // create the directory.
                     if (createAlways)
@@ -773,30 +814,31 @@ namespace Opc.Ua
             {
                 return Utils.Format("{0}...", filePath.Substring(0, maxLength));
             }
-            
+
             // keep file name.
             int end = filePath.LastIndexOf(Path.DirectorySeparatorChar);
-            
+
             while (end > start && filePath.Length - end < maxLength)
             {
-                end = filePath.LastIndexOf(Path.DirectorySeparatorChar, end-1);
+                end = filePath.LastIndexOf(Path.DirectorySeparatorChar, end - 1);
 
                 if (filePath.Length - end > maxLength)
                 {
-                    end = filePath.IndexOf(Path.DirectorySeparatorChar, end+1);
+                    end = filePath.IndexOf(Path.DirectorySeparatorChar, end + 1);
                     break;
                 }
             }
-            
+
             // format the result.
-            return Utils.Format("{0}...{1}", filePath.Substring(0, start+1), filePath.Substring(end));
+            return Utils.Format("{0}...{1}", filePath.Substring(0, start + 1), filePath.Substring(end));
         }
-#endregion
-#region String, Object and Data Convienence Functions
+        #endregion
+
+        #region String, Object and Data Convienence Functions
         private const int MAX_MESSAGE_LENGTH = 1024;
 
         private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
-        private const uint FORMAT_MESSAGE_FROM_SYSTEM    = 0x00001000;
+        private const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
 
         /// <summary>
         /// Supresses any exceptions while disposing the object.
@@ -826,7 +868,7 @@ namespace Opc.Ua
 #endif
             }
         }
-        
+
         /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
@@ -834,9 +876,29 @@ namespace Opc.Ua
         {
             get { return s_TimeBase; }
         }
-        
-        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1);
-        
+
+        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Normalize a DateTime to UniversalTime.
+        /// </summary>
+        public static DateTime NormalizeToUniversalTime(DateTime value)
+        {
+            if (value <= DateTime.MinValue)
+            {
+                return DateTime.MinValue;
+            }
+            if (value >= DateTime.MaxValue)
+            {
+                return DateTime.MaxValue;
+            }
+            if (value.Kind != DateTimeKind.Utc)
+            {
+                return value.ToUniversalTime();
+            }
+            return value;
+        }
+
         /// <summary>
         /// Returns an absolute deadline for a timeout.
         /// </summary>
@@ -851,7 +913,7 @@ namespace Opc.Ua
 
             return now + timeSpan;
         }
-                
+
         /// <summary>
         /// Returns a timeout as integer number of milliseconds
         /// </summary>
@@ -879,6 +941,41 @@ namespace Opc.Ua
         public static string GetHostName()
         {
             return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
+        }
+
+        public static string GetFullQualifiedDomainName()
+        {
+            string domainName = null;
+            try
+            {
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
+                domainName = Dns.GetHostEntry("localhost").HostName;
+#endif
+            }
+            catch
+            {
+            }
+            if (String.IsNullOrEmpty(domainName))
+            {
+                return Dns.GetHostName();
+            }
+            return domainName;
+        }
+
+        /// <summary>
+        /// Normalize ipv4/ipv6 address for comparisons.
+        /// </summary>
+        public static string NormalizedIPAddress(string ipAddress)
+        {
+            try
+            {
+                IPAddress normalizedAddress = IPAddress.Parse(ipAddress);
+                return normalizedAddress.ToString();
+            }
+            catch
+            {
+                return ipAddress;
+            }
         }
 
         /// <summary>
@@ -910,7 +1007,7 @@ namespace Opc.Ua
             StringBuilder buffer = new StringBuilder();
 
             buffer.Append(uri.Substring(0, index));
-            buffer.Append((hostname == null)?GetHostName():hostname);
+            buffer.Append((hostname == null) ? GetHostName() : hostname);
             buffer.Append(uri.Substring(index + "localhost".Length));
 
             return buffer.ToString();
@@ -1004,7 +1101,7 @@ namespace Opc.Ua
                 {
                     return true;
                 }
-                
+
                 return false;
             }
             catch (Exception)
@@ -1043,25 +1140,25 @@ namespace Opc.Ua
             if (String.IsNullOrEmpty(instanceUri))
             {
                 UriBuilder builder = new UriBuilder();
-                
+
                 builder.Scheme = Utils.UriSchemeHttps;
-                builder.Host   = GetHostName();
-                builder.Port   = -1;
-                builder.Path   = Guid.NewGuid().ToString();
-                
-                return builder.Uri.ToString();;
+                builder.Host = GetHostName();
+                builder.Port = -1;
+                builder.Path = Guid.NewGuid().ToString();
+
+                return builder.Uri.ToString();
             }
 
             // prefix non-urls with the hostname.
             if (!instanceUri.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
-            {                
+            {
                 UriBuilder builder = new UriBuilder();
-                
+
                 builder.Scheme = Utils.UriSchemeHttps;
-                builder.Host   = GetHostName();
-                builder.Port   = -1;
-                builder.Path   = Uri.EscapeDataString(instanceUri);
-                
+                builder.Host = GetHostName();
+                builder.Port = -1;
+                builder.Path = Uri.EscapeDataString(instanceUri);
+
                 return builder.Uri.ToString();
             }
 
@@ -1085,9 +1182,9 @@ namespace Opc.Ua
         public static uint IncrementIdentifier(ref long identifier)
         {
             System.Threading.Interlocked.CompareExchange(ref identifier, 0, UInt32.MaxValue);
-            return (uint)System.Threading.Interlocked.Increment(ref identifier); 
+            return (uint)System.Threading.Interlocked.Increment(ref identifier);
         }
-        
+
         /// <summary>
         /// Increments a identifier (wraps around if max exceeded).
         /// </summary>
@@ -1096,7 +1193,7 @@ namespace Opc.Ua
             System.Threading.Interlocked.CompareExchange(ref identifier, 0, Int32.MaxValue);
             return System.Threading.Interlocked.Increment(ref identifier);
         }
-                
+
         /// <summary>
         /// Safely converts an UInt32 identifier to a Int32 identifier.
         /// </summary>
@@ -1135,17 +1232,17 @@ namespace Opc.Ua
         {
             Array flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
 
-            int[] indexes = new int[array.Rank];            
+            int[] indexes = new int[array.Rank];
             int[] dimensions = new int[array.Rank];
-        
-            for (int jj = array.Rank-1; jj >= 0; jj--)
+
+            for (int jj = array.Rank - 1; jj >= 0; jj--)
             {
-                dimensions[jj] = array.GetLength(array.Rank-jj-1);
+                dimensions[jj] = array.GetLength(array.Rank - jj - 1);
             }
 
             for (int ii = 0; ii < array.Length; ii++)
             {
-                indexes[array.Rank-1] = ii % dimensions[0];
+                indexes[array.Rank - 1] = ii % dimensions[0];
 
                 for (int jj = 1; jj < array.Rank; jj++)
                 {
@@ -1156,15 +1253,15 @@ namespace Opc.Ua
                         multiplier *= dimensions[kk];
                     }
 
-                    indexes[array.Rank-jj-1] = (ii/multiplier) % dimensions[jj];
+                    indexes[array.Rank - jj - 1] = (ii / multiplier) % dimensions[jj];
                 }
-                
+
                 flatArray.SetValue(array.GetValue(indexes), ii);
             }
-            
+
             return flatArray;
         }
-        
+
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
@@ -1175,8 +1272,8 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length*2);
-                
+            StringBuilder builder = new StringBuilder(buffer.Length * 2);
+
             for (int ii = 0; ii < buffer.Length; ii++)
             {
                 builder.AppendFormat("{0:X2}", buffer[ii]);
@@ -1207,7 +1304,7 @@ namespace Opc.Ua
 
             int ii = 0;
 
-            while (ii < bytes.Length*2)
+            while (ii < bytes.Length * 2)
             {
                 int index = digits.IndexOf(buffer[ii]);
 
@@ -1351,7 +1448,7 @@ namespace Opc.Ua
                     {
                         continue;
                     }
-                    
+
                     string actualLanguageId = GetLanguageId(names[jj].Locale);
 
                     if (String.Compare(languageId, actualLanguageId, StringComparison.OrdinalIgnoreCase) == 0)
@@ -1360,7 +1457,7 @@ namespace Opc.Ua
                     }
                 }
             }
-                
+
             // return default.
             return defaultName;
         }
@@ -1382,25 +1479,53 @@ namespace Opc.Ua
             {
                 return value;
             }
-            
+
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
             {
                 return value;
             }
 
-            // copy arrays.
+            // copy arrays, any dimension.
             Array array = value as Array;
             if (array != null)
             {
-                Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
-
-                for (int ii = 0; ii < array.Length; ii++)
+                if (array.Rank == 1)
                 {
-                    clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
+                    Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
+                    for (int ii = 0; ii < array.Length; ii++)
+                    {
+                        clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
+                    }
+                    return clone;
                 }
+                else
+                {
+                    int[] arrayRanks = new int[array.Rank];
+                    int[] arrayIndex = new int[array.Rank];
+                    for (int ii = 0; ii < array.Rank; ii++)
+                    {
+                        arrayRanks[ii] = array.GetLength(ii);
+                        arrayIndex[ii] = 0;
+                    }
+                    Array clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
+                    for (int ii = 0; ii < array.Length; ii++)
+                    {
+                        clone.SetValue(Utils.Clone(array.GetValue(arrayIndex)), arrayIndex);
 
-                return clone;
+                        // iterate the index array
+                        for (int ix = 0; ix < array.Rank; ix++)
+                        {
+                            arrayIndex[ix]++;
+                            if (arrayIndex[ix] < arrayRanks[ix])
+                            {
+                                break;
+                            }
+                            arrayIndex[ix] = 0;
+                        }
+                    }
+                    return clone;
+                }
             }
 
             // copy XmlNode.
@@ -1413,6 +1538,14 @@ namespace Opc.Ua
             // copy ExtensionObject.
             {
                 ExtensionObject castedObject = value as ExtensionObject;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy ExtensionObjectCollection.
+            {
+                ExtensionObjectCollection castedObject = value as ExtensionObjectCollection;
                 if (castedObject != null)
                 {
                     return castedObject.MemberwiseClone();
@@ -1607,6 +1740,14 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
+            // copy ContentFilterElement.
+            {
+                ContentFilterElement castedObject = value as ContentFilterElement;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
 
             // copy ContentFilterElementCollection.
             {
@@ -1696,11 +1837,57 @@ namespace Opc.Ua
                     return castedObject.MemberwiseClone();
                 }
             }
+            // copy Opc.Ua.ExpandedNodeId
+            {
+                ExpandedNodeId castedObject = value as ExpandedNodeId;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.TimeZoneDataType
+            {
+                TimeZoneDataType castedObject = value as TimeZoneDataType;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+            // copy Opc.Ua.LiteralOperand
+            {
+                LiteralOperand castedObject = value as LiteralOperand;
+                if (castedObject != null)
+                {
+                    return castedObject.MemberwiseClone();
+                }
+            }
+
+            //try to find the MemberwiseClone method by reflection.
+            MethodInfo memberwiseCloneMethod = type.GetMethod("MemberwiseClone", BindingFlags.Public | BindingFlags.Instance);
+            if (memberwiseCloneMethod != null)
+            {
+                object clone = memberwiseCloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
+
+            //try to find the Clone method by reflection.
+            MethodInfo cloneMethod = type.GetMethod("Clone", BindingFlags.Public | BindingFlags.Instance);
+            if (cloneMethod != null)
+            {
+                object clone = cloneMethod.Invoke(value, null);
+                if (clone != null)
+                {
+                    return clone;
+                }
+            }
 
             // don't know how to clone object.
             throw new NotSupportedException(Utils.Format("Don't know how to clone objects of type '{0}'", type.FullName));
         }
-             
+
         /// <summary>
         /// Checks if two values are equal.
         /// </summary>
@@ -1733,8 +1920,14 @@ namespace Opc.Ua
             if (value1.GetType() != value2.GetType())
             {
                 return value1.Equals(value2);
-            }                      
-            
+            }
+
+            // check for DateTime objects
+            if (value1 is DateTime)
+            {
+                return (Utils.NormalizeToUniversalTime((DateTime)value1).CompareTo(Utils.NormalizeToUniversalTime((DateTime)value2))) == 0;
+            }
+
             // check for compareable objects.
             IComparable comparable1 = value1 as IComparable;
 
@@ -1742,7 +1935,7 @@ namespace Opc.Ua
             {
                 return comparable1.CompareTo(value2) == 0;
             }
-            
+
             // check for encodeable objects.
             IEncodeable encodeable1 = value1 as IEncodeable;
 
@@ -1757,7 +1950,7 @@ namespace Opc.Ua
 
                 return encodeable1.IsEqual(encodeable2);
             }
-                        
+
             // check for XmlElement objects.
             XmlElement element1 = value1 as XmlElement;
 
@@ -1787,7 +1980,7 @@ namespace Opc.Ua
                 }
 
                 // shorter arrays are less than longer arrays.
-                if (array1.Length != array2.Length) 
+                if (array1.Length != array2.Length)
                 {
                     return false;
                 }
@@ -1806,7 +1999,7 @@ namespace Opc.Ua
                 // arrays are identical.
                 return true;
             }
-             
+
             // check enumerables.
             IEnumerable enumerable1 = value1 as IEnumerable;
 
@@ -1852,7 +2045,7 @@ namespace Opc.Ua
             // check for objects that override the Equals function.
             return value1.Equals(value2);
         }
-        
+
         /// <summary>
         /// Tests if the specified string matches the specified pattern.
         /// </summary>
@@ -1881,12 +2074,12 @@ namespace Opc.Ua
             }
             else
             {
-                if (target.ToUpperInvariant() == pattern.ToUpperInvariant())
+                if (String.Equals(target, pattern, StringComparison.InvariantCultureIgnoreCase))
                 {
                     return true;
                 }
             }
- 
+
             char c;
             char p;
             char l;
@@ -1902,190 +2095,190 @@ namespace Opc.Ua
                 {
                     return (tIndex >= target.Length); // if end of string true
                 }
-    
+
                 switch (p)
                 {
                     // match zero or more char.
                     case '*':
-                    {
-                        while (tIndex < target.Length) 
-                        {   
-                            if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
+                        {
+                            while (tIndex < target.Length)
                             {
-                                return true;
+                                if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
+                                {
+                                    return true;
+                                }
                             }
+
+                            return Match(target, pattern.Substring(pIndex), caseSensitive);
                         }
-            
-                        return Match(target, pattern.Substring(pIndex), caseSensitive);
-                    }
 
                     // match any one char.
                     case '?':
-                    {
-                        // check if end of string when looking for a single character.
-                        if (tIndex >= target.Length) 
                         {
-                            return false;  
-                        }
+                            // check if end of string when looking for a single character.
+                            if (tIndex >= target.Length)
+                            {
+                                return false;
+                            }
 
-                        // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length-1)
-                        {
-                            return false;
-                        }
+                            // check if end of pattern and still string data left.
+                            if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                            {
+                                return false;
+                            }
 
-                        tIndex++;
-                        break;
-                    }
+                            tIndex++;
+                            break;
+                        }
 
                     // match char set 
-                    case '[': 
-                    {
-                        c = ConvertCase(target[tIndex++], caseSensitive);
-
-                        if (tIndex > target.Length)
+                    case '[':
                         {
-                            return false; // syntax 
-                        }
+                            c = ConvertCase(target[tIndex++], caseSensitive);
 
-                        l = '\0'; 
-
-                        // match a char if NOT in set []
-                        if (pattern[pIndex] == '!') 
-                        {
-                            ++pIndex;
-
-                            p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                            while (pIndex < pattern.Length) 
+                            if (tIndex > target.Length)
                             {
-                                if (p == ']') // if end of char set, then 
-                                {
-                                    break; // no match found 
-                                }
-
-                                if (p == '-') 
-                                {
-                                    // check a range of chars? 
-                                    p = ConvertCase(pattern[pIndex], caseSensitive);
-
-                                    // get high limit of range 
-                                    if (pIndex > pattern.Length || p == ']')
-                                    {
-                                        return false; // syntax 
-                                    }
-
-                                    if (c >= l && c <= p) 
-                                    {
-                                        return false; // if in range, return false
-                                    }
-                                } 
-
-                                l = p;
-                        
-                                if (c == p) // if char matches this element 
-                                {
-                                    return false; // return false 
-                                }
-                                
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-                            } 
-                        }
-
-                        // match if char is in set []
-                        else 
-                        {
-                            p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                            while (pIndex < pattern.Length) 
-                            {
-                                if (p == ']') // if end of char set, then no match found 
-                                {
-                                    return false;
-                                }
-
-                                if (p == '-') 
-                                {   
-                                    // check a range of chars? 
-                                    p = ConvertCase(pattern[pIndex], caseSensitive);
-                            
-                                    // get high limit of range 
-                                    if (pIndex > pattern.Length || p == ']')
-                                    {
-                                        return false; // syntax 
-                                    }
-
-                                    if (c >= l  &&  c <= p) 
-                                    {
-                                        break; // if in range, move on 
-                                    }
-                                } 
-
-                                l = p;
-                        
-                                if (c == p) // if char matches this element move on 
-                                {
-                                    break;           
-                                }
-                                
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-                            } 
-
-                            while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
-                            {
-                                p = pattern[pIndex++];             
+                                return false; // syntax 
                             }
-                        }
 
-                        break; 
-                    }
+                            l = '\0';
+
+                            // match a char if NOT in set []
+                            if (pattern[pIndex] == '!')
+                            {
+                                ++pIndex;
+
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+
+                                while (pIndex < pattern.Length)
+                                {
+                                    if (p == ']') // if end of char set, then 
+                                    {
+                                        break; // no match found 
+                                    }
+
+                                    if (p == '-')
+                                    {
+                                        // check a range of chars? 
+                                        p = ConvertCase(pattern[pIndex], caseSensitive);
+
+                                        // get high limit of range 
+                                        if (pIndex > pattern.Length || p == ']')
+                                        {
+                                            return false; // syntax 
+                                        }
+
+                                        if (c >= l && c <= p)
+                                        {
+                                            return false; // if in range, return false
+                                        }
+                                    }
+
+                                    l = p;
+
+                                    if (c == p) // if char matches this element 
+                                    {
+                                        return false; // return false 
+                                    }
+
+                                    p = ConvertCase(pattern[pIndex++], caseSensitive);
+                                }
+                            }
+
+                            // match if char is in set []
+                            else
+                            {
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+
+                                while (pIndex < pattern.Length)
+                                {
+                                    if (p == ']') // if end of char set, then no match found 
+                                    {
+                                        return false;
+                                    }
+
+                                    if (p == '-')
+                                    {
+                                        // check a range of chars? 
+                                        p = ConvertCase(pattern[pIndex], caseSensitive);
+
+                                        // get high limit of range 
+                                        if (pIndex > pattern.Length || p == ']')
+                                        {
+                                            return false; // syntax 
+                                        }
+
+                                        if (c >= l && c <= p)
+                                        {
+                                            break; // if in range, move on 
+                                        }
+                                    }
+
+                                    l = p;
+
+                                    if (c == p) // if char matches this element move on 
+                                    {
+                                        break;
+                                    }
+
+                                    p = ConvertCase(pattern[pIndex++], caseSensitive);
+                                }
+
+                                while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
+                                {
+                                    p = pattern[pIndex++];
+                                }
+                            }
+
+                            break;
+                        }
 
                     // match digit.
                     case '#':
-                    {
-                        c = target[tIndex++]; 
-
-                        if (!Char.IsDigit(c))
                         {
-                            return false; // not a digit
-                        }
+                            c = target[tIndex++];
 
-                        break;
-                    }
+                            if (!Char.IsDigit(c))
+                            {
+                                return false; // not a digit
+                            }
+
+                            break;
+                        }
 
                     // match exact char.
-                    default: 
-                    {
-                        c = ConvertCase(target[tIndex++], caseSensitive); 
-                
-                        if (c != p) // check for exact char
+                    default:
                         {
-                            return false; // not a match
-                        }
+                            c = ConvertCase(target[tIndex++], caseSensitive);
 
-                        // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length-1)
-                        {
-                            return false;
-                        }
+                            if (c != p) // check for exact char
+                            {
+                                return false; // not a match
+                            }
 
-                        break;
-                    }
-                } 
+                            // check if end of pattern and still string data left.
+                            if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                            {
+                                return false;
+                            }
+
+                            break;
+                        }
+                }
             }
 
             if (tIndex >= target.Length)
             {
                 return (pIndex >= pattern.Length); // if end of pattern true
             }
-    
+
             return true;
-        } 
-        
+        }
+
         // ConvertCase
         private static char ConvertCase(char c, bool caseSensitive)
         {
-            return (caseSensitive)?c:Char.ToUpperInvariant(c);
+            return (caseSensitive) ? c : Char.ToUpperInvariant(c);
         }
 
         /// <summary>
@@ -2099,7 +2292,7 @@ namespace Opc.Ua
             info.Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes;
             info.DaylightSavingInOffset = true;
 
-            return info;           
+            return info;
         }
 
         /// <summary>
@@ -2154,11 +2347,11 @@ namespace Opc.Ua
                 catch (Exception ex)
                 {
                     Utils.Trace("Exception parsing extension: " + ex.Message);
-                    throw ex;
+                    throw;
                 }
                 finally
                 {
-                   reader.Dispose();
+                    reader.Dispose();
                 }
             }
 
@@ -2218,7 +2411,7 @@ namespace Opc.Ua
             // replace existing element.
             if (extensions != null)
             {
-                for (int ii =  0; ii < extensions.Count; ii++)
+                for (int ii = 0; ii < extensions.Count; ii++)
                 {
                     if (extensions[ii] != null && extensions[ii].LocalName == elementName.Name && extensions[ii].NamespaceURI == elementName.Namespace)
                     {
@@ -2234,7 +2427,7 @@ namespace Opc.Ua
                     }
                 }
             }
-            
+
             // add new element.
             if (value != null)
             {
@@ -2246,9 +2439,9 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
-#region Reflection Helper Functions
+        #region Reflection Helper Functions
         /// <summary>
         /// Returns the public static field names for a class.
         /// </summary>
@@ -2259,7 +2452,7 @@ namespace Opc.Ua
             int ii = 0;
 
             string[] names = new string[fields.Length];
-            
+
             foreach (FieldInfo field in fields)
             {
                 names[ii++] = field.Name;
@@ -2292,10 +2485,10 @@ namespace Opc.Ua
                     }
                 }
             }
-                            
+
             return null;
         }
-                
+
         /// <summary>
         /// Returns the numeric constant associated with a name.
         /// </summary>
@@ -2313,13 +2506,21 @@ namespace Opc.Ua
 
             return 0;
         }
-        
+
         /// <summary>
         /// Returns the linker timestamp for an assembly. 
         /// </summary>
         public static DateTime GetAssemblyTimestamp()
         {
-            return DateTime.Now;
+            try
+            {
+#if !NETSTANDARD1_4 && !NETSTANDARD1_3
+                return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
+#endif
+            }
+            catch
+            { }
+            return new DateTime(1970, 1, 1, 0, 0, 0);
         }
 
         /// <summary>
@@ -2327,7 +2528,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            return AssemblyVersionInfo.CurrentVersion;
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
         }
 
         /// <summary>
@@ -2335,12 +2536,12 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblyBuildNumber()
         {
-            return AssemblyVersionInfo.CurrentFileVersion;
+            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version;
         }
 
-#endregion
-        
-#region Security Helper Functions
+        #endregion
+
+        #region Security Helper Functions
         /// <summary>
         /// Appends a list of byte arrays.
         /// </summary>
@@ -2350,7 +2551,7 @@ namespace Opc.Ua
             {
                 return new byte[0];
             }
-            
+
             int length = 0;
 
             for (int ii = 0; ii < arrays.Length; ii++)
@@ -2362,7 +2563,7 @@ namespace Opc.Ua
             }
 
             byte[] output = new byte[length];
-                        
+
             int pos = 0;
 
             for (int ii = 0; ii < arrays.Length; ii++)
@@ -2376,7 +2577,7 @@ namespace Opc.Ua
 
             return output;
         }
-        
+
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
@@ -2389,7 +2590,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid, 
+                    StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of an X509 certificate.",
                     e);
             }
@@ -2403,7 +2604,7 @@ namespace Opc.Ua
         public static X509Certificate2Collection ParseCertificateChainBlob(byte[] certificateData)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
-            List<byte> certificatesBytes = new List<byte>(certificateData); 
+            List<byte> certificatesBytes = new List<byte>(certificateData);
             X509Certificate2 certificate = null;
 
             while (certificatesBytes.Count > 0)
@@ -2412,7 +2613,7 @@ namespace Opc.Ua
                 {
                     certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
@@ -2423,7 +2624,6 @@ namespace Opc.Ua
                 certificateChain.Add(certificate);
                 certificatesBytes.RemoveRange(0, certificate.RawData.Length);
             }
-            
 
             return certificateChain;
         }
@@ -2439,12 +2639,12 @@ namespace Opc.Ua
 
             byte result = 0;
             for (int i = 0; i < a.Length; i++)
-                result |= (byte) (a[i] ^ b[i]);
+                result |= (byte)(a[i] ^ b[i]);
 
             return result == 0;
         }
 
-        public class Nonce
+        public static class Nonce
         {
             static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
@@ -2457,6 +2657,71 @@ namespace Opc.Ua
                 m_rng.GetBytes(randomBytes);
                 return randomBytes;
             }
+
+            /// <summary>
+            /// Returns the length of the symmetric encryption key for a security policy.
+            /// </summary>
+            public static uint GetNonceLength(string securityPolicyUri)
+            {
+                switch (securityPolicyUri)
+                {
+                    case SecurityPolicies.Basic128Rsa15:
+                        {
+                            return 16;
+                        }
+
+                    case SecurityPolicies.Basic256:
+                    case SecurityPolicies.Basic256Sha256:
+                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    case SecurityPolicies.Aes256_Sha256_RsaPss:
+                        {
+                            return 32;
+                        }
+
+                    default:
+                    case SecurityPolicies.None:
+                        {
+                            return 0;
+                        }
+                }
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and security policy.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
+            {
+                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+            }
+
+            /// <summary>
+            /// Validates the nonce for a message security mode and a minimum length.
+            /// </summary>
+            public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
+            {
+                // no nonce needed for no security.
+                if (securityMode == MessageSecurityMode.None)
+                {
+                    return true;
+                }
+
+                // check the length.
+                if (nonce == null || nonce.Length < minNonceLength)
+                {
+                    return false;
+                }
+
+                // try to catch programming errors by rejecting nonces with all zeros.
+                for (int ii = 0; ii < nonce.Length; ii++)
+                {
+                    if (nonce[ii] != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -2464,7 +2729,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA1 hmac = new HMACSHA1(secret);
             return PSHA(hmac, label, data, offset, length);
@@ -2475,10 +2740,10 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA256(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException("secret");
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
             // create the hmac.
             HMACSHA256 hmac = new HMACSHA256(secret);
-            return PSHA( hmac, label, data, offset, length);
+            return PSHA(hmac, label, data, offset, length);
         }
 
         /// <summary>
@@ -2486,9 +2751,9 @@ namespace Opc.Ua
         /// </summary>
         private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
-            if (hmac == null) throw new ArgumentNullException("hmac");
-            if (offset < 0) throw new ArgumentOutOfRangeException("offset");
-            if (length < 0) throw new ArgumentOutOfRangeException("length");
+            if (hmac == null) throw new ArgumentNullException(nameof(hmac));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
 
             byte[] seed = null;
 
@@ -2603,7 +2868,7 @@ namespace Opc.Ua
                     break;
                 }
             }
-            
+
             StringBuilder buffer = new StringBuilder();
 
             string key = null;
@@ -2661,7 +2926,7 @@ namespace Opc.Ua
 
                         buffer.Append(value);
 
-                        if (value.Length > 0 && value[value.Length-1] != '"')
+                        if (value.Length > 0 && value[value.Length - 1] != '"')
                         {
                             buffer.Append('"');
                         }
@@ -2902,7 +3167,7 @@ namespace Opc.Ua
             {
                 return true;
             }
-            
+
             // parse the names.
             List<string> fields1 = ParseDistinguishedName(name1);
             List<string> fields2 = ParseDistinguishedName(name2);
@@ -2912,6 +3177,10 @@ namespace Opc.Ua
             {
                 return false;
             }
+
+            // sort to ensure similar entries are compared
+            fields1.Sort(StringComparer.OrdinalIgnoreCase);
+            fields2.Sort(StringComparer.OrdinalIgnoreCase);
 
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
@@ -2935,7 +3204,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            
+
             // parse the names.
             List<string> certificateName = ParseDistinguishedName(certificate.Subject);
 
@@ -2960,6 +3229,139 @@ namespace Opc.Ua
 
             return true;
         }
-#endregion
+
+        /// <summary>
+        /// Lazy helper to allow runtime check for Mono.
+        /// </summary>
+        private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() =>
+        {
+            return Type.GetType("Mono.Runtime") != null;
+        });
+
+        /// <summary>
+        /// Determine if assembly uses mono runtime.
+        /// </summary>
+        /// <returns>true if running on Mono runtime</returns>
+        public static bool IsRunningOnMono()
+        {
+            return IsRunningOnMonoValue.Value;
+        }
+        #endregion
+    }
+
+    /// <summary>
+    /// Used as underlying tracing object for event processing.
+    /// </summary>
+    public class Tracing
+    {
+        #region Private Members
+        private static object m_syncRoot = new Object();
+        private static Tracing s_instance;
+        #endregion Private Members
+
+        #region Singleton Instance
+        /// <summary>
+        /// Private constructor.
+        /// </summary>
+        private Tracing()
+        { }
+
+        /// <summary>
+        /// Public Singleton Instance getter.
+        /// </summary>
+        public static Tracing Instance
+        {
+            get
+            {
+                if (s_instance == null)
+                {
+                    lock (m_syncRoot)
+                    {
+                        if (s_instance == null)
+                        {
+                            s_instance = new Tracing();
+                        }
+                    }
+                }
+                return s_instance;
+            }
+        }
+        #endregion Singleton Instance
+
+        #region Public Events
+        /// <summary>
+        /// Occurs when a trace call is made.
+        /// </summary>
+        public event EventHandler<TraceEventArgs> TraceEventHandler;
+        #endregion Public Events
+
+        #region Internal Members
+        internal void RaiseTraceEvent(TraceEventArgs eventArgs)
+        {
+            if (TraceEventHandler != null)
+            {
+                try
+                {
+                    TraceEventHandler(this, eventArgs);
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
+                }
+            }
+        }
+        #endregion
+    }
+
+    /// <summary>
+    /// The event arguments provided when a trace event is raised.
+    /// </summary>
+    public class TraceEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes a new instance of the TraceEventArgs class.
+        /// </summary>
+        /// <param name="traceMask">The trace mask.</param>
+        /// <param name="format">The format.</param>
+        /// <param name="message">The message.</param>
+        /// <param name="exception">The exception.</param>
+        /// <param name="args">The arguments.</param>
+        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
+        {
+            TraceMask = traceMask;
+            Format = format;
+            Message = message;
+            Exception = exception;
+            Arguments = args;
+        }
+        #endregion Constructors
+
+        #region Public Properties
+        /// <summary>
+        /// Gets the trace mask.
+        /// </summary>
+        public int TraceMask { get; private set; }
+
+        /// <summary>
+        /// Gets the format.
+        /// </summary>
+        public string Format { get; private set; }
+
+        /// <summary>
+        /// Gets the arguments.
+        /// </summary>
+        public object[] Arguments { get; private set; }
+
+        /// <summary>
+        /// Gets the message.
+        /// </summary>
+        public string Message { get; private set; }
+
+        /// <summary>
+        /// Gets the exception.
+        /// </summary>
+        public Exception Exception { get; private set; }
+        #endregion Public Properties
     }
 }

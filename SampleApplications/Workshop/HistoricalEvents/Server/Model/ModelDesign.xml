@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://opcfoundation.org/Quickstarts/HistoricalEvents"
+  TargetNamespace="http://opcfoundation.org/Quickstarts/HistoricalEvents"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="HistoricalEvents" Prefix="Quickstarts.HistoricalEvents" InternalPrefix="Quickstarts.HistoricalEvents">http://opcfoundation.org/Quickstarts/HistoricalEvents</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="WellTestReportType" BaseType="ua:BaseEventType">
+    <opc:Description>A report containing the results of a well test.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="NameWell" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Human recognizable context for the well that contains the well test. </opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="UidWell" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Unique identifier for the well. This uniquely represents the well referenced by the (possibly non-unique) NameWell.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="TestDate" DataType="ua:DateTime" ValueRank="Scalar">
+        <opc:Description>The date-time of well test.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="TestReason" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>The reason for the well test: initial, periodic, revision.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:ObjectType SymbolicName="FluidLevelTestReportType" BaseType="WellTestReportType">
+    <opc:Description>A report for a fluid level test.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="FluidLevel" DataType="ua:Double" ValueRank="Scalar" TypeDefinition="ua:AnalogItemType">
+        <opc:Description>The fluid level achieved in the well. The value is given as length units from the top of the well.</opc:Description>
+        <opc:Children>
+          <opc:Property SymbolicName="ua:EngineeringUnits">
+            <opc:Description>The unit of measure for length.</opc:Description>
+          </opc:Property>
+        </opc:Children>
+      </opc:Variable>
+      <opc:Property SymbolicName="TestedBy" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>The business associate that conducted the test. This is generally a person.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="InjectionTestReportType" BaseType="WellTestReportType">
+    <opc:Description>A report for a fluid level test.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="TestDuration" DataType="ua:Double" ValueRank="Scalar" TypeDefinition="ua:AnalogItemType">
+        <opc:Description>The time length (with uom) of the well test.</opc:Description>
+        <opc:Children>
+          <opc:Property SymbolicName="ua:EngineeringUnits">
+            <opc:Description>The unit of measure for time.</opc:Description>
+          </opc:Property>
+        </opc:Children>
+      </opc:Variable>
+      <opc:Property SymbolicName="InjectedFluid" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>The fluid that is being injected. .</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="WellType" BaseType="ua:BaseObjectType">
+    <opc:Description>A physical well.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Plaforms" TypeDefinition="ua:FolderType" SupportsEvents="true">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
+        <opc:TargetId>ua:Server</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+</opc:ModelDesign>

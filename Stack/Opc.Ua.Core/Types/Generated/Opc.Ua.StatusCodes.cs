@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -148,6 +148,11 @@ namespace Opc.Ua
         /// An error occurred verifying security.
         /// </summary>
         public const uint BadSecurityChecksFailed = 0x80130000;
+
+        /// <summary>
+        /// The certificate does not meet the requirements of the security policy.
+        /// </summary>
+        public const uint BadCertificatePolicyCheckFailed = 0x81140000;
 
         /// <summary>
         /// The certificate has expired or is not yet valid.
@@ -435,7 +440,7 @@ namespace Opc.Ua
         public const uint BadContentFilterInvalid = 0x80480000;
 
         /// <summary>
-        /// An unregognized operator was provided in a filter.
+        /// An unrecognized operator was provided in a filter.
         /// </summary>
         public const uint BadFilterOperatorInvalid = 0x80C10000;
 
@@ -475,7 +480,7 @@ namespace Opc.Ua
         public const uint BadNoContinuationPoints = 0x804B0000;
 
         /// <summary>
-        /// The operation could not be processed because all continuation points have been allocated.
+        /// The reference type id does not refer to a valid reference type node.
         /// </summary>
         public const uint BadReferenceTypeIdInvalid = 0x804C0000;
 
@@ -488,6 +493,11 @@ namespace Opc.Ua
         /// The node is not part of the view.
         /// </summary>
         public const uint BadNodeNotInView = 0x804E0000;
+
+        /// <summary>
+        /// The number was not accepted because of a numeric overflow.
+        /// </summary>
+        public const uint BadNumericOverflow = 0x81120000;
 
         /// <summary>
         /// The ServerUri is not a valid URI.
@@ -740,7 +750,12 @@ namespace Opc.Ua
         public const uint BadArgumentsMissing = 0x80760000;
 
         /// <summary>
-        /// The server has reached its  maximum number of subscriptions.
+        /// The executable attribute does not allow the execution of the method.
+        /// </summary>
+        public const uint BadNotExecutable = 0x81110000;
+
+        /// <summary>
+        /// The server has reached its maximum number of subscriptions.
         /// </summary>
         public const uint BadTooManySubscriptions = 0x80770000;
 
@@ -773,6 +788,11 @@ namespace Opc.Ua
         /// The sub-state machine is not currently active.
         /// </summary>
         public const uint BadStateNotActive = 0x80BF0000;
+
+        /// <summary>
+        /// An equivalent rule already exists.
+        /// </summary>
+        public const uint BadAlreadyExists = 0x81150000;
 
         /// <summary>
         /// The server cannot process the request because it is too busy.
@@ -1060,7 +1080,7 @@ namespace Opc.Ua
         public const uint BadAggregateConfigurationRejected = 0x80DA0000;
 
         /// <summary>
-        /// The request pecifies fields which are not valid for the EventType or cannot be saved by the historian.
+        /// The request specifies fields which are not valid for the EventType or cannot be saved by the historian.
         /// </summary>
         public const uint GoodDataIgnored = 0x00D90000;
 
@@ -1068,6 +1088,11 @@ namespace Opc.Ua
         /// The request was rejected by the server because it did not meet the criteria set by the server.
         /// </summary>
         public const uint BadRequestNotAllowed = 0x80E40000;
+
+        /// <summary>
+        /// The request has not been processed by the server yet.
+        /// </summary>
+        public const uint BadRequestNotComplete = 0x81130000;
 
         /// <summary>
         /// The value does not come from the real source and has been edited by the server.
@@ -1103,6 +1128,51 @@ namespace Opc.Ua
         /// A dependent value has been changed but the change has not been applied to the device. The quality of the dominant variable is Bad.
         /// </summary>
         public const uint BadDependentValueChanged = 0x80E30000;
+
+        /// <summary>
+        /// It is delivered with a dominant Variable value when a dependent Variable has changed but the change has not been applied.
+        /// </summary>
+        public const uint GoodEdited_DependentValueChanged = 0x01160000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant Variable has changed but the change has not been applied.
+        /// </summary>
+        public const uint GoodEdited_DominantValueChanged = 0x01170000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant or dependent Variable has changed but change has not been applied.
+        /// </summary>
+        public const uint GoodEdited_DominantValueChanged_DependentValueChanged = 0x01180000;
+
+        /// <summary>
+        /// It is delivered with a Variable value when Variable has changed but the value is not legal.
+        /// </summary>
+        public const uint BadEdited_OutOfRange = 0x81190000;
+
+        /// <summary>
+        /// It is delivered with a Variable value when a source Variable has changed but the value is not legal.
+        /// </summary>
+        public const uint BadInitialValue_OutOfRange = 0x811A0000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant Variable has changed and the value is not legal.
+        /// </summary>
+        public const uint BadOutOfRange_DominantValueChanged = 0x811B0000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant Variable has changed, the value is not legal and the change has not been applied.
+        /// </summary>
+        public const uint BadEdited_OutOfRange_DominantValueChanged = 0x811C0000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant or dependent Variable has changed and the value is not legal.
+        /// </summary>
+        public const uint BadOutOfRange_DominantValueChanged_DependentValueChanged = 0x811D0000;
+
+        /// <summary>
+        /// It is delivered with a dependent Variable value when a dominant or dependent Variable has changed, the value is not legal and the change has not been applied.
+        /// </summary>
+        public const uint BadEdited_OutOfRange_DominantValueChanged_DependentValueChanged = 0x811E0000;
 
         /// <summary>
         /// The communication layer has raised an event.

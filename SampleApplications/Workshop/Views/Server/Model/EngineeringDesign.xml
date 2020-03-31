@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+	xmlns="http://opcfoundation.org/UA/Quickstarts/Engineering"
+  TargetNamespace="http://opcfoundation.org/UA/Quickstarts/Engineering"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="Engineering" Prefix="Quickstarts.Engineering" InternalPrefix="Quickstarts.Engineering">http://opcfoundation.org/UA/Quickstarts/Engineering</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:Property SymbolicName="SerialNumber" DataType="ua:String"></opc:Property>
+  <opc:Property SymbolicName="Manufacturer" DataType="ua:String"></opc:Property>
+  
+</opc:ModelDesign>

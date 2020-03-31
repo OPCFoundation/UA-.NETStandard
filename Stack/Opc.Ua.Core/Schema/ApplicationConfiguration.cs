@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -653,62 +654,26 @@ namespace Opc.Ua
                 return 0;
             }
 
+            byte result = 0;
             switch (policyUri)
             {
+                case SecurityPolicies.Basic128Rsa15: result = 2; break;
+                case SecurityPolicies.Basic256: result = 4; break;
+                case SecurityPolicies.Basic256Sha256: result = 6; break;
+                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
+                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
                 case SecurityPolicies.None:
-                {
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic128Rsa15:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 1;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 4;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 2;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 5;
-                    }
-
-                    return 0;
-                }
-
-                case SecurityPolicies.Basic256Sha256:
-                {
-                    if (mode == MessageSecurityMode.Sign)
-                    {
-                        return 3;
-                    }
-                    if (mode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        return 6;
-                    }
-
-                    return 0;
-                }
-
-                default:
-                {
-                    return 0;
-                }
+                default: return 0;
             }
+
+            if (mode == MessageSecurityMode.SignAndEncrypt)
+            {
+                result += 100;
+            }
+
+            return result;
         }
-        
+
         /// <summary>
         /// Specifies whether the messages are signed and encrypted or simply signed
         /// </summary>
@@ -794,7 +759,10 @@ namespace Opc.Ua
             m_nonceLength = 32;
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
+            m_rejectUnknownRevocationStatus = false;
             m_minCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_addAppCertToTrustedStore = true;
+            m_sendCertificateChain = false;
         }
 
         /// <summary>
@@ -824,7 +792,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The trusted certificate store.
+        /// The store containing any additional issuer certificates.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
@@ -846,7 +814,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The store containing any additional issuer certificates.
+        /// The trusted certificate store.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
@@ -931,30 +899,177 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
+        /// </summary>
+        /// <remarks>
+        /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        public bool RejectUnknownRevocationStatus
+        {
+            get { return m_rejectUnknownRevocationStatus; }
+            set { m_rejectUnknownRevocationStatus = value; }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating which minimum certificate key strength is accepted.
         /// </summary>
         /// <remarks>
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public ushort MinimumCertificateKeySize
         {
             get { return m_minCertificateKeySize; }
             set { m_minCertificateKeySize = value; }
         }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
+        /// </summary>
+        /// <remarks>
+        /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        public bool AddAppCertToTrustedStore
+        {
+            get { return m_addAppCertToTrustedStore; }
+            set { m_addAppCertToTrustedStore = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the application should send the complete certificate chain.
+        /// </summary>
+        /// <remarks>
+        /// If set to true the complete certificate chain will be sent for CA signed certificates.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
+        public bool SendCertificateChain
+        {
+            get { return m_sendCertificateChain; }
+            set { m_sendCertificateChain = value; }
+        }
+
+        /// <summary>
+        /// The store containing additional user issuer certificates.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        public CertificateTrustList UserIssuerCertificates
+        {
+            get
+            {
+                return m_userIssuerCertificates;
+            }
+
+            set
+            {
+                m_userIssuerCertificates = value;
+
+                if (m_userIssuerCertificates == null)
+                {
+                    m_userIssuerCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The store containing trusted user certificates.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
+        public CertificateTrustList TrustedUserCertificates
+        {
+            get
+            {
+                return m_trustedUserCertificates;
+            }
+
+            set
+            {
+                m_trustedUserCertificates = value;
+
+                if (m_trustedUserCertificates == null)
+                {
+                    m_trustedUserCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The store containing additional Https issuer certificates.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        public CertificateTrustList HttpsIssuerCertificates
+        {
+            get
+            {
+                return m_httpsIssuerCertificates;
+            }
+
+            set
+            {
+                m_httpsIssuerCertificates = value;
+
+                if (m_httpsIssuerCertificates == null)
+                {
+                    m_httpsIssuerCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The store containing trusted Https certificates.
+        /// </summary>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
+        public CertificateTrustList TrustedHttpsCertificates
+        {
+            get
+            {
+                return m_trustedHttpsCertificates;
+            }
+
+            set
+            {
+                m_trustedHttpsCertificates = value;
+
+                if (m_trustedHttpsCertificates == null)
+                {
+                    m_trustedHttpsCertificates = new CertificateTrustList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the server nonce validation errors should be suppressed.
+        /// </summary>
+        /// <remarks>
+        /// If set to true the server nonce validation errors are suppressed.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
+        public bool SuppressNonceValidationErrors
+        {
+            get { return m_suppressNonceValidationErrors; }
+            set { m_suppressNonceValidationErrors = value; }
+        }
         #endregion
 
         #region Private Fields
         private CertificateIdentifier m_applicationCertificate;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
+        private CertificateTrustList m_httpsIssuerCertificates;
+        private CertificateTrustList m_trustedHttpsCertificates;
+        private CertificateTrustList m_userIssuerCertificates;
+        private CertificateTrustList m_trustedUserCertificates;
         private int m_nonceLength;
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private bool m_autoAcceptUntrustedCertificates;
         private string m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
+        private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
+        private bool m_addAppCertToTrustedStore;
+        private bool m_sendCertificateChain;
+        private bool m_suppressNonceValidationErrors;
         #endregion
     }
     #endregion
@@ -1124,6 +1239,55 @@ namespace Opc.Ua
         public void Initialize(StreamingContext context)
         {
             Initialize();
+        }
+
+        /// <summary>
+        /// Remove unsupported security policies and expand wild cards.
+        /// </summary>
+        [OnDeserialized()]
+        private void ValidateSecurityPolicyCollection(StreamingContext context)
+        {
+            var supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
+            var newPolicies = new ServerSecurityPolicyCollection();
+            foreach (var securityPolicy in m_securityPolicies)
+            {
+                if (String.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
+                {
+                    // add wild card policies
+                    foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
+                    {
+                        var newPolicy = new ServerSecurityPolicy() {
+                            SecurityMode = securityPolicy.SecurityMode,
+                            SecurityPolicyUri = policyUri
+                        };
+                        if (newPolicies.Find(s =>
+                            s.SecurityMode == newPolicy.SecurityMode &&
+                            String.Compare(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri) == 0
+                            ) == null)
+                        {
+                            newPolicies.Add(newPolicy);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < supportedPolicies.Length; i++)
+                    {
+                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
+                        {
+                            if (newPolicies.Find(s =>
+                                s.SecurityMode == securityPolicy.SecurityMode &&
+                                String.Compare(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri) == 0
+                                ) == null)
+                            {
+                                newPolicies.Add(securityPolicy);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            m_securityPolicies = newPolicies;
         }
         #endregion
 
@@ -1302,6 +1466,11 @@ namespace Opc.Ua
             m_maxEventQueueSize = 10000;
             // see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
             m_serverProfileArray = new string[] { "Standard UA Server Profile" };
+            m_shutdownDelay = 5;
+            m_serverCapabilities = new string[] { "DA" };
+            m_supportedPrivateKeyFormats = new string[] { };
+            m_maxTrustListSize = 0;
+            m_multicastDnsEnabled = false;
         }
 
         /// <summary>
@@ -1620,6 +1789,76 @@ namespace Opc.Ua
                 }
         }
 
+        /// <summary>
+        /// Gets or sets the server shutdown delay.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 29)]
+        public int ShutdownDelay
+        {
+            get { return m_shutdownDelay; }
+            set
+            {
+                m_shutdownDelay = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the server capabilities.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 30)]
+        public StringCollection ServerCapabilities
+        {
+            get { return m_serverCapabilities; }
+            set
+            {
+                m_serverCapabilities = value;
+                if (m_serverCapabilities == null)
+                {
+                    m_serverCapabilities = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the supported private key format.
+        /// </summary>
+        /// <value>The array of server profiles.</value>
+        [DataMember(IsRequired = false, Order = 31)]
+        public StringCollection SupportedPrivateKeyFormats
+        {
+            get { return m_supportedPrivateKeyFormats; }
+            set
+            {
+                m_supportedPrivateKeyFormats = value;
+                if (m_supportedPrivateKeyFormats == null)
+                {
+                    m_supportedPrivateKeyFormats = new StringCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the max size of the trust list.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 32)]
+        public int MaxTrustListSize
+        {
+            get { return m_maxTrustListSize; }
+            set { m_maxTrustListSize = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets if multicast DNS is enabled.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 33)]
+        public bool MultiCastDnsEnabled
+        {
+            get { return m_multicastDnsEnabled; }
+            set { m_multicastDnsEnabled = value; }
+        }
+
         #endregion
 
         #region Private Members
@@ -1649,6 +1888,11 @@ namespace Opc.Ua
         private int m_maxSubscriptionCount;
         private int m_maxEventQueueSize;
         private StringCollection m_serverProfileArray;
+        private int m_shutdownDelay;
+        private StringCollection m_serverCapabilities;
+        private StringCollection m_supportedPrivateKeyFormats;
+        private int m_maxTrustListSize;
+        private bool m_multicastDnsEnabled;
         #endregion
     }
     #endregion
@@ -2048,7 +2292,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeLocation))
                     {
-                        return Utils.Format("LocalMachine\\{0}", m_storeName);
+                        return Utils.Format("CurrentUser\\{0}", m_storeName);
                     }
 
                     return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
@@ -2140,7 +2384,6 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_trustedCertificates = new CertificateIdentifierCollection();
-
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 
@@ -31,9 +32,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            EndpointConfiguration configuration = EndpointConfiguration.Create();
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, configuration, new ServiceMessageContext());
-            return new DiscoveryClient(channel);
+            return DiscoveryClient.Create(discoveryUrl, null);
         }
 
         /// <summary>
@@ -44,17 +43,46 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
         {
-            if (configuration == null)
+            return DiscoveryClient.Create(discoveryUrl, configuration, null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <returns></returns>
+        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration endpointConfiguration, ApplicationConfiguration applicationConfiguration)
+        {
+            if (endpointConfiguration == null)
             {
-                configuration = EndpointConfiguration.Create();
+                endpointConfiguration = EndpointConfiguration.Create();
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, configuration, new ServiceMessageContext());
+            // check if application configuration contains instance certificate.
+            X509Certificate2 clientCertificate = null;
+
+            try
+            {
+                if (applicationConfiguration != null &&
+                    applicationConfiguration.SecurityConfiguration != null &&
+                    applicationConfiguration.SecurityConfiguration.ApplicationCertificate != null)
+                {
+                    clientCertificate = applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
+                }
+            }
+            catch
+            {
+                //ignore erros
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
             return new DiscoveryClient(channel);
         }
 
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Invokes the GetEndpoints service.
@@ -71,6 +99,34 @@ namespace Opc.Ua
                 null,
                 profileUris,
                 out endpoints);
+
+            // if a server is behind a firewall, can only be accessed with a FQDN or IP address
+            // it may return URLs that are not accessible to the client. This problem can be avoided 
+            // by assuming that the domain in the URL used to call GetEndpoints can be used to 
+            // access any of the endpoints. This code patches the returned endpoints accordingly.
+            Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
+            if (endpointUrl != null)
+            {
+                // patch discovery Url to endpoint Url used for service call
+                foreach (EndpointDescription discoveryEndPoint in endpoints)
+                {
+                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
+                    if (endpointUrl.Scheme == discoveryEndPointUri.Scheme)
+                    {
+                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
+                        builder.Host = endpointUrl.DnsSafeHost;
+                        builder.Port = endpointUrl.Port;
+                        discoveryEndPoint.EndpointUrl = builder.ToString();
+                    }
+
+                    if (discoveryEndPoint.Server != null &&
+                        discoveryEndPoint.Server.DiscoveryUrls != null)
+                    {
+                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
+                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
+                    }
+                }
+            }
 
             return endpoints;
         }
@@ -140,7 +196,8 @@ namespace Opc.Ua
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext)
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
         {
             // create a dummy description.
             EndpointDescription endpoint = new EndpointDescription();
@@ -155,7 +212,7 @@ namespace Opc.Ua
                 null,
                 endpoint,
                 endpointConfiguration,
-                (System.Security.Cryptography.X509Certificates.X509Certificate2)null,
+                clientCertificate,
                 messageContext);
 
             return channel;

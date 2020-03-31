@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Selectors;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -68,19 +67,6 @@ namespace Quickstarts.ReferenceServer
             // create the custom node managers.
             nodeManagers.Add(new EmptyNodeManager(server, configuration));
 
-            // get the ShutdownDelay configuration parameter.
-            ReferenceServerConfiguration referenceServerConfiguration = configuration.ParseExtension<ReferenceServerConfiguration>();
-
-            if (referenceServerConfiguration != null)
-            {
-                m_shutdownDelay = referenceServerConfiguration.ShutdownDelay;
-            }
-            else
-            {
-                // default value of 5 seconds.
-                m_shutdownDelay = 5;
-            }
-
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
         }
@@ -97,7 +83,7 @@ namespace Quickstarts.ReferenceServer
 
             properties.ManufacturerName = "OPC Foundation";
             properties.ProductName = "Quickstart Reference Server";
-            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.0";
+            properties.ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.03";
             properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
             properties.BuildNumber = Utils.GetAssemblyBuildNumber();
             properties.BuildDate = Utils.GetAssemblyTimestamp();
@@ -130,6 +116,24 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
+        /// Initializes the server before it starts up.
+        /// </summary>
+        /// <remarks>
+        /// This method is called before any startup processing occurs. The sub-class may update the 
+        /// configuration object or do any other application specific startup tasks.
+        /// </remarks>
+        protected override void OnServerStarting(ApplicationConfiguration configuration)
+        {
+            Utils.Trace("The server is starting.");
+
+            base.OnServerStarting(configuration);
+
+            // it is up to the application to decide how to validate user identity tokens.
+            // this function creates validator for X509 identity tokens.
+            CreateUserIdentityValidators(configuration);
+        }
+
+        /// <summary>
         /// Called after the server has been started.
         /// </summary>
         protected override void OnServerStarted(IServerInternal server)
@@ -138,49 +142,48 @@ namespace Quickstarts.ReferenceServer
 
             // request notifications when the user identity is changed. all valid users are accepted by default.
             server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
-        }
 
-        /// <summary>
-        /// Cleans up before the server shuts down.
-        /// </summary>
-        /// <remarks>
-        /// This method is called before any shutdown processing occurs.
-        /// </remarks>
-        protected override void OnServerStopping()
-        {
             try
             {
-                // check for connected clients
-                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
+                // allow a faster sampling interval for CurrentTime node.
+                server.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+            }
+            catch
+            { }
+            
+        }
 
-                if (currentessions.Count > 0)
+        #endregion
+        #region User Validation Functions
+        /// <summary>
+        /// Creates the objects used to validate the user identity tokens supported by the server.
+        /// </summary>
+        private void CreateUserIdentityValidators(ApplicationConfiguration configuration)
+        {
+            for (int ii = 0; ii < configuration.ServerConfiguration.UserTokenPolicies.Count; ii++)
+            {
+                UserTokenPolicy policy = configuration.ServerConfiguration.UserTokenPolicies[ii];
+
+                // create a validator for a certificate token policy.
+                if (policy.TokenType == UserTokenType.Certificate)
                 {
-                    // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
-                    ServerInternal.Status.Value.State = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
-                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-
-                    for (uint timeTillShutdown = m_shutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
+                    // check if user certificate trust lists are specified in configuration.
+                    if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
+                        configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        ServerInternal.Status.Value.SecondsTillShutdown = timeTillShutdown;
-                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = timeTillShutdown;
-                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                        CertificateValidator certificateValidator = new CertificateValidator();
+                        certificateValidator.Update(configuration.SecurityConfiguration).Wait();
+                        certificateValidator.Update(configuration.SecurityConfiguration.UserIssuerCertificates,
+                            configuration.SecurityConfiguration.TrustedUserCertificates,
+                            configuration.SecurityConfiguration.RejectedCertificateStore);
 
-                        Thread.Sleep(1000);
+                        // set custom validator for user certificates.
+                        m_userCertificateValidator = certificateValidator.GetChannelValidator();
                     }
                 }
             }
-            catch
-            {
-                // ignore error during shutdown procedure.
-            }
-
-            base.OnServerStopping();
         }
-        #endregion
-        #region User Validation Functions
+
         /// <summary>
         /// Called when a client tries to change its user identity.
         /// </summary>
@@ -191,8 +194,7 @@ namespace Quickstarts.ReferenceServer
 
             if (userNameToken != null)
             {
-                VerifyPassword(userNameToken.UserName, userNameToken.DecryptedPassword);
-                args.Identity = new UserIdentity(userNameToken);
+                args.Identity = VerifyPassword(userNameToken);
                 return;
             }
 
@@ -201,7 +203,7 @@ namespace Quickstarts.ReferenceServer
 
             if (x509Token != null)
             {
-                VerifyCertificate(x509Token.Certificate);
+                VerifyUserTokenCertificate(x509Token.Certificate);
                 args.Identity = new UserIdentity(x509Token);
                 Utils.Trace("X509 Token Accepted: {0}", args.Identity.DisplayName);
                 return;
@@ -211,8 +213,10 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Validates the password for a username token.
         /// </summary>
-        private void VerifyPassword(string userName, string password)
+        private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
+            var userName = userNameToken.UserName;
+            var password = userNameToken.DecryptedPassword;
             if (String.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -227,8 +231,15 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
+            // User with permission to configure server
+            if (userName == "sysadmin" && password == "demo")
+            {
+                return new SystemConfigurationIdentity(new UserIdentity(userNameToken));
+            }
+
+            // standard users for CTT verification
             if (!((userName == "user1" && password == "password") ||
-                 (userName == "user2" && password == "password1")))
+                (userName == "user2" && password == "password1")))
             {
                 // construct translation object with default text.
                 TranslationInfo info = new TranslationInfo(
@@ -241,27 +252,27 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(new ServiceResult(
                     StatusCodes.BadUserAccessDenied,
                     "InvalidPassword",
-                    "http://opcfoundation.org/UA/Sample/",
+                    LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
+
+            return new UserIdentity(userNameToken);
         }
 
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
-        private void VerifyCertificate(X509Certificate2 certificate)
+        private void VerifyUserTokenCertificate(X509Certificate2 certificate)
         {
             try
             {
-                CertificateValidator.Validate(certificate);
-
-                // determine if self-signed.
-                bool isSelfSigned = Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
-
-                // do not allow self signed application certs as user token
-                if (isSelfSigned && Utils.HasApplicationURN(certificate))
+                if (m_userCertificateValidator != null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadCertificateUseNotAllowed);
+                    m_userCertificateValidator.Validate(certificate);
+                }
+                else
+                {
+                    CertificateValidator.Validate(certificate);
                 }
             }
             catch (Exception e)
@@ -293,14 +304,14 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(new ServiceResult(
                     result,
                     info.Key,
-                    "http://opcfoundation.org/UA/Sample/",
+                    LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
         }
+        #endregion
 
         #region Private Fields
-        private uint m_shutdownDelay = 0;
-        #endregion 
+        private X509CertificateValidator m_userCertificateValidator;
         #endregion
     }
 }

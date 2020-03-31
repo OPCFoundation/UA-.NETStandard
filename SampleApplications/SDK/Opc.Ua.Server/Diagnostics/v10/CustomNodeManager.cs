@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
 
                     if (source == null)
                     {
-                        return;
+                        continue;
                     }
 
                     // add reference to external target.
@@ -976,8 +976,8 @@ namespace Opc.Ua.Server
             ref ContinuationPoint       continuationPoint, 
             IList<ReferenceDescription> references)
         {
-            if (continuationPoint == null) throw new ArgumentNullException("continuationPoint");
-            if (references == null) throw new ArgumentNullException("references");
+            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (references == null) throw new ArgumentNullException(nameof(references));
 
             // check for view.
             if (!ViewDescription.IsDefault(continuationPoint.View))

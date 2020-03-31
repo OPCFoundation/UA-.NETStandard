@@ -18,7 +18,7 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <TargetFrameworkProfile />
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
@@ -63,40 +63,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.configuration" />
     <Reference Include="System.Configuration.Install" />
-    <Reference Include="System.Core">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
     <Reference Include="System.Data" />
-    <Reference Include="System.Data.Linq">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
     <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.Serialization">
-      <RequiredTargetFramework>3.0</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Security.Cryptography.X509Certificates.4.3.0\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ServiceModel">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.XmlDocument, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Xml.XmlDocument.4.3.0\lib\net46\System.Xml.XmlDocument.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Browse\AttrbuteListCtrl.Designer.cs">
@@ -358,13 +333,13 @@
     <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.designer.cs">
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.Designer.cs">
       <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
     </Compile>
     <Compile Include="Common\DiscoveredServerOnNetworkListDlg.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.designer.cs">
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.Designer.cs">
       <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
     </Compile>
     <Compile Include="Common\SelectHostCtrl.cs">
@@ -487,7 +462,6 @@
     <Compile Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.Designer.cs">
       <DependentUpon>DateTimeValueEditDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="Configuration\Common %28OLD%29\MessageDlg.cs" />
     <Compile Include="Configuration\Common %28OLD%29\NodeIdCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -645,6 +619,19 @@
     <Compile Include="Endpoints\UsernameTokenDlg.Designer.cs">
       <DependentUpon>UsernameTokenDlg.cs</DependentUpon>
     </Compile>
+    <Compile Include="ExceptionDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ExceptionDlg.designer.cs">
+      <DependentUpon>ExceptionDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="HeaderBranding.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="HeaderBranding.designer.cs">
+      <DependentUpon>HeaderBranding.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MessageDlg.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\AssemblyVersionInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -995,6 +982,12 @@
       <DependentUpon>UsernameTokenDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="ExceptionDlg.resx">
+      <DependentUpon>ExceptionDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="HeaderBranding.resx">
+      <DependentUpon>HeaderBranding.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -1017,13 +1010,18 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
       <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
+      <Project>{fe9eeb39-0698-4a19-b770-e66836ce0002}</Project>
+      <Name>Opc.Ua.Client.ComplexTypes</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>

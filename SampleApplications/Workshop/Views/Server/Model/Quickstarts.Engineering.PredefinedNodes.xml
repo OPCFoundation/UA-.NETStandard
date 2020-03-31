@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<uax:ListOfNodeState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <uax:NamespaceUris>
+    <uax:NamespaceUri>http://opcfoundation.org/UA/Quickstarts/Engineering</uax:NamespaceUri>
+  </uax:NamespaceUris>
+  <SerialNumber xmlns="http://opcfoundation.org/UA/Quickstarts/Engineering">
+    <uax:NodeClass>Variable_2</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=443</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>SerialNumber</uax:Name>
+    </uax:BrowseName>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=46</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=68</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>443</uax:NumericId>
+    <uax:DataType>
+      <uax:Identifier>i=12</uax:Identifier>
+    </uax:DataType>
+    <uax:AccessLevel>1</uax:AccessLevel>
+    <uax:UserAccessLevel>1</uax:UserAccessLevel>
+  </SerialNumber>
+  <Manufacturer xmlns="http://opcfoundation.org/UA/Quickstarts/Engineering">
+    <uax:NodeClass>Variable_2</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=444</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>Manufacturer</uax:Name>
+    </uax:BrowseName>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=46</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=68</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>444</uax:NumericId>
+    <uax:DataType>
+      <uax:Identifier>i=12</uax:Identifier>
+    </uax:DataType>
+    <uax:AccessLevel>1</uax:AccessLevel>
+    <uax:UserAccessLevel>1</uax:UserAccessLevel>
+  </Manufacturer>
+</uax:ListOfNodeState>

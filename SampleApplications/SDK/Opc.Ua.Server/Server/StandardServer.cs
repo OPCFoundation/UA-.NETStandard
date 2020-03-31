@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -341,7 +341,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        parsedClientCertificate = CertificateFactory.Create(clientCertificate, true);
+                        X509Certificate2Collection clientCertificateChain = Utils.ParseCertificateChainBlob(clientCertificate);
+                        parsedClientCertificate = clientCertificateChain[0];
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
@@ -357,7 +358,7 @@ namespace Opc.Ua.Server
                                     "The URI specified in the ApplicationDescription does not match the URI in the Certificate.");
                             }
 
-                            CertificateValidator.Validate(parsedClientCertificate);
+                            CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
                     catch (Exception e)
@@ -395,29 +396,44 @@ namespace Opc.Ua.Server
                     out sessionId,
                     out authenticationToken,
                     out serverNonce,
-                    out revisedSessionTimeout);           
-                                
+                    out revisedSessionTimeout);
+
                 lock (m_lock)
-                {                
+                {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
                     {
-                        serverCertificate = InstanceCertificate.RawData;
+                        // check if complete chain should be sent.
+                        if (Configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count >0)
+                        {
+                            List<byte> serverCertificateChain = new List<byte>();
+
+                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            {
+                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                            }
+
+                            serverCertificate = serverCertificateChain.ToArray();
+                        }
+                        else
+                        {
+                            serverCertificate = InstanceCertificate.RawData;
+                        }
                     }
-                                 
+
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
                     // return the software certificates assigned to the server.
                     serverSoftwareCertificates = new SignedSoftwareCertificateCollection(ServerProperties.SoftwareCertificates);
-                    
+
                     // sign the nonce provided by the client.
                     serverSignature = null;
-                    
+
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(clientCertificate, clientNonce);
+                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
                         serverSignature = SecurityPolicies.Sign(InstanceCertificate, context.SecurityPolicyUri, dataToSign);
                     }
                 }
@@ -574,10 +590,12 @@ namespace Opc.Ua.Server
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
+                    ServerInternal.ServerDiagnostics.RejectedSessionCount++;
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
 
                     if (IsSecurityError(e.StatusCode))
                     {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedSessionCount++;
                         ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
                     }
                 }
@@ -856,7 +874,6 @@ namespace Opc.Ua.Server
             }   
         }
 
-
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
@@ -908,7 +925,7 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }  
         }
-        
+
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
@@ -1069,7 +1086,6 @@ namespace Opc.Ua.Server
             } 
         }
 
-
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
@@ -1132,7 +1148,6 @@ namespace Opc.Ua.Server
             } 
         }
 
-
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
@@ -1186,7 +1201,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
@@ -1239,7 +1253,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
 
         /// <summary>
         /// Invokes the CreateSubscription service.
@@ -1310,7 +1323,6 @@ namespace Opc.Ua.Server
             }         
         }
 
-
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
@@ -1363,7 +1375,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             } 
         }
-
 
         /// <summary>
         /// Invokes the Publish service.
@@ -1449,6 +1460,7 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
+
         /// <summary>
         /// Begins an asynchronous publish operation.
         /// </summary>
@@ -1663,7 +1675,6 @@ namespace Opc.Ua.Server
             }         
         }
 
-
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
@@ -1852,7 +1863,6 @@ namespace Opc.Ua.Server
             }  
         }
 
-
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
@@ -1912,7 +1922,6 @@ namespace Opc.Ua.Server
             }    
         }
 
-
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
@@ -1968,7 +1977,6 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-
 
         /// <summary>
         /// Invokes the SetMonitoringMode service.
@@ -2029,7 +2037,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
@@ -2053,7 +2060,23 @@ namespace Opc.Ua.Server
                 if (methodsToCall == null || methodsToCall.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
+
+                uint maxNodesPerMethodCall = 0;
+
+                try
+                {
+                    maxNodesPerMethodCall = ServerInternal.ServerObject.ServerCapabilities.OperationLimits.MaxNodesPerMethodCall.Value;
+                }
+                catch
+                {
+                    //ignore erros
+                }
+
+                if (maxNodesPerMethodCall > 0 && methodsToCall.Count > maxNodesPerMethodCall)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManyOperations);
+                }
 
                 m_serverInternal.NodeManager.Call(
                     context,
@@ -2183,7 +2206,11 @@ namespace Opc.Ua.Server
                                     ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-
+                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration();
+                                    mdnsDiscoveryConfig.ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+                                    mdnsDiscoveryConfig.MdnsServerName = Utils.GetHostName();
+                                    ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
                                         requestHeader,
                                         m_registrationInfo,
@@ -2678,7 +2705,7 @@ namespace Opc.Ua.Server
             serverDescription.ApplicationType = configuration.ApplicationType;
             serverDescription.ProductUri = configuration.ProductUri;
             serverDescription.DiscoveryUrls = GetDiscoveryUrls();
-                          
+
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
@@ -2862,6 +2889,8 @@ namespace Opc.Ua.Server
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += new EventHandler<ConfigurationWatcherEventArgs>(this.OnConfigurationChanged);
                     }
+
+                    CertificateValidator.CertificateUpdate += OnCertificateUpdate;
                 }
                 catch (Exception e)
                 {
@@ -2879,6 +2908,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override void OnServerStopping()
         {
+            ShutDownDelay();
+
             // halt any outstanding timer.
             lock (m_registrationLock)
             {
@@ -2921,6 +2952,41 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Implements the server shutdown delay if session are connected.
+        /// </summary>
+        protected void ShutDownDelay()
+        {
+            try
+            {
+                // check for connected clients
+                IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
+
+                if (currentessions.Count > 0)
+                {
+                    // provide some time for the connected clients to detect the shutdown state.
+                    ServerInternal.Status.Value.ShutdownReason = new LocalizedText("en-US", "Application closed.");
+                    ServerInternal.Status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application closed.");
+                    ServerInternal.Status.Value.State = ServerState.Shutdown;
+                    ServerInternal.Status.Variable.State.Value = ServerState.Shutdown;
+                    ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                    for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
+                    {
+                        ServerInternal.Status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
+                        ServerInternal.Status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
+                        ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                        Thread.Sleep(1000);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore error during shutdown procedure.
             }
         }
 
@@ -3070,9 +3136,9 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();    
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

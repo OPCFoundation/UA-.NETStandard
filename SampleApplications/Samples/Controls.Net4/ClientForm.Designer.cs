@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -83,7 +83,7 @@ namespace Opc.Ua.Sample.Controls
             this.BrowseCTRL = new Opc.Ua.Sample.Controls.BrowseTreeCtrl();
             this.NotificationsCTRL = new Opc.Ua.Sample.Controls.NotificationMessageListCtrl();
             this.EndpointSelectorCTRL = new Opc.Ua.Client.Controls.EndpointSelectorCtrl();
-            this.serverHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.clientHeaderBranding1 = new Opc.Ua.Client.Controls.HeaderBranding();
             this.DiscoveryServersOnNetworkMI = new System.Windows.Forms.ToolStripMenuItem();
             this.MainMenu.SuspendLayout();
             this.StatusStrip.SuspendLayout();
@@ -338,16 +338,16 @@ namespace Opc.Ua.Sample.Controls
             // 
             // serverHeaderBranding1
             // 
-            this.serverHeaderBranding1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.serverHeaderBranding1.BackColor = System.Drawing.Color.White;
-            this.serverHeaderBranding1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.serverHeaderBranding1.Location = new System.Drawing.Point(0, 24);
-            this.serverHeaderBranding1.MaximumSize = new System.Drawing.Size(0, 100);
-            this.serverHeaderBranding1.MinimumSize = new System.Drawing.Size(500, 90);
-            this.serverHeaderBranding1.Name = "serverHeaderBranding1";
-            this.serverHeaderBranding1.Padding = new System.Windows.Forms.Padding(3);
-            this.serverHeaderBranding1.Size = new System.Drawing.Size(553, 90);
-            this.serverHeaderBranding1.TabIndex = 9;
+            this.clientHeaderBranding1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.clientHeaderBranding1.BackColor = System.Drawing.Color.White;
+            this.clientHeaderBranding1.Dock = System.Windows.Forms.DockStyle.Top;
+            this.clientHeaderBranding1.Location = new System.Drawing.Point(0, 24);
+            this.clientHeaderBranding1.MaximumSize = new System.Drawing.Size(0, 100);
+            this.clientHeaderBranding1.MinimumSize = new System.Drawing.Size(500, 90);
+            this.clientHeaderBranding1.Name = "serverHeaderBranding1";
+            this.clientHeaderBranding1.Padding = new System.Windows.Forms.Padding(3);
+            this.clientHeaderBranding1.Size = new System.Drawing.Size(553, 90);
+            this.clientHeaderBranding1.TabIndex = 9;
             // 
             // DiscoveryServersOnNetworkMI
             // 
@@ -364,7 +364,7 @@ namespace Opc.Ua.Sample.Controls
             this.Controls.Add(this.MainPN);
             this.Controls.Add(this.StatusStrip);
             this.Controls.Add(this.EndpointSelectorCTRL);
-            this.Controls.Add(this.serverHeaderBranding1);
+            this.Controls.Add(this.clientHeaderBranding1);
             this.Controls.Add(this.MainMenu);
             this.MainMenuStrip = this.MainMenu;
             this.Name = "ClientForm";
@@ -413,7 +413,7 @@ namespace Opc.Ua.Sample.Controls
         private System.Windows.Forms.ToolStripMenuItem Discovery_RegisterMI;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripMenuItem Task_TestMI;
-        private Opc.Ua.Server.Controls.ServerHeaderBranding serverHeaderBranding1;
+        private Opc.Ua.Client.Controls.HeaderBranding clientHeaderBranding1;
         private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem contentsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem DiscoveryServersOnNetworkMI;

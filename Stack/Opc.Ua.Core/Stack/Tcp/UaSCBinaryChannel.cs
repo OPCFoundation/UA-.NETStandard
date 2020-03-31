@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -24,6 +24,7 @@ namespace Opc.Ua.Bindings
     public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
     {
         #region Constructors
+
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -35,9 +36,32 @@ namespace Opc.Ua.Bindings
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
+        :
+            this(contextId, bufferManager, quotas, serverCertificate, null, endpoints, securityMode, securityPolicyUri)
+        { }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        public UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain,
+            EndpointDescriptionCollection endpoints,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
         {
-            if (bufferManager == null) throw new ArgumentNullException("bufferManager");
-            if (quotas == null) throw new ArgumentNullException("quotas");
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
+
+            if (quotas == null)
+            {
+                throw new ArgumentNullException(nameof(quotas));
+            }
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -55,13 +79,16 @@ namespace Opc.Ua.Bindings
 
             if (securityMode != MessageSecurityMode.None)
             {
-                if (serverCertificate == null) throw new ArgumentNullException("serverCertificate");
+                if (serverCertificate == null)
+                {
+                    throw new ArgumentNullException(nameof(serverCertificate));
+                }
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
                     throw new ArgumentException(
                         Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
-                        "serverCertificate");
+                            nameof(serverCertificate));
                 }
             }
 
@@ -69,12 +96,13 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentException(
                     Utils.Format("UTF-8 form of the security policy URI may not be more than {0} bytes.", TcpMessageLimits.MaxSecurityPolicyUriSize),
-                    "securityPolicyUri");
+                        nameof(securityPolicyUri));
             }
 
             m_bufferManager = bufferManager;
             m_quotas = quotas;
             m_serverCertificate = serverCertificate;
+            m_serverCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
             m_securityMode = securityMode;
             m_securityPolicyUri = securityPolicyUri;
@@ -180,12 +208,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            Task.Run(() =>
-            {
-                if (m_StateChanged != null)
-                {
-                    m_StateChanged(this, state, reason);
-                }
+            Task.Run(() => {
+                m_StateChanged?.Invoke(this, state, reason);
             });
         }
 
@@ -361,7 +385,6 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 ServiceResult error = ServiceResult.Good;
-
                 try
                 {
                     Utils.TraceDebug("Bytes written: {0}", e.BytesTransferred);
@@ -378,6 +401,11 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
+                    if (ex is InvalidOperationException)
+                    {
+                        // suppress chained exception in HandleWriteComplete/ReturnBuffer
+                        e.BufferList = null;
+                    }
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
                     HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }
@@ -405,10 +433,14 @@ namespace Opc.Ua.Bindings
                     if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        HandleWriteComplete(null, state, args.BytesTransferred, error);
+                        args.Dispose();
                     }
-
-                    HandleWriteComplete(null, state, args.BytesTransferred, error);
-                    args.Dispose();
+                    else
+                    {
+                        // success, call Complete
+                        OnWriteComplete(null, args);
+                    }
                 }
             }
             catch (Exception ex)
@@ -439,10 +471,13 @@ namespace Opc.Ua.Bindings
                     if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        HandleWriteComplete(buffers, state, args.BytesTransferred, error);
+                        args.Dispose();
                     }
-
-                    HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                    args.Dispose();
+                    else
+                    {
+                        OnWriteComplete(null, args);
+                    }
                 }
             }
             catch (Exception ex)
@@ -555,7 +590,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageType & 0x000000FF));
             buffer[offset++] = (byte)((messageType & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageType & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageType & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageType & 0xFF000000) >> 24);
         }
 
         /// <summary>
@@ -565,7 +600,7 @@ namespace Opc.Ua.Bindings
         {
             if (offset >= Int32.MaxValue - 4)
             {
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
             offset += 4;
@@ -573,7 +608,7 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
-            buffer[offset  ] = (byte)((messageSize & 0xFF000000) >> 24);
+            buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
         }
         #endregion
 
@@ -581,15 +616,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
-        protected object DataLock
-        {
-            get { return m_lock; }
-        }
+        protected object DataLock => m_lock;
 
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        internal IMessageSocket Socket
+        protected internal IMessageSocket Socket
         {
             get { return m_socket; }
 
@@ -602,18 +634,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The buffer manager for the channel.
         /// </summary>
-        protected BufferManager BufferManager
-        {
-            get { return m_bufferManager; }
-        }
+        protected BufferManager BufferManager => m_bufferManager;
 
         /// <summary>
         /// The resource quotas for the channel.
         /// </summary>
-        protected ChannelQuotas Quotas
-        {
-            get { return m_quotas; }
-        }
+        protected ChannelQuotas Quotas => m_quotas;
 
         /// <summary>
         /// The size of the receive buffer.

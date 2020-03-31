@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Reciprocal Community License ("RCL") Version 1.00
  * 
@@ -23,18 +23,23 @@
 
 #if !NO_HTTPS
 
-using System;
-using System.Net;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Logging;
+using System;
+using System.IdentityModel.Selectors;
+using System.IO;
+using System.Net;
 using System.Security.Authentication;
-using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
+
+#if NETSTANDARD2_0
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+#endif
+
 
 namespace Opc.Ua.Bindings
 {
@@ -42,7 +47,7 @@ namespace Opc.Ua.Bindings
     {
         public static UaHttpsChannelListener Listener { get; set; }
 
-        public void Configure(IApplicationBuilder appBuilder, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder appBuilder)
         {
             appBuilder.Run(async context =>
             {
@@ -55,7 +60,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Listener.SendAsync(context);
+                    await Listener.SendAsync(context);
                 }
             });
         }
@@ -92,11 +97,8 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                lock (m_lock)
-                {
-                    Utils.SilentDispose(m_host);
-                    m_host = null;
-                }
+                Utils.SilentDispose(m_host);
+                m_host = null;
             }
         }
         #endregion
@@ -117,22 +119,22 @@ namespace Opc.Ua.Bindings
 
             m_uri = baseAddress;
             m_descriptions = settings.Descriptions;
-            m_configuration = settings.Configuration;
+            var configuration = settings.Configuration;
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
 
-            m_quotas.MaxBufferSize = m_configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = m_configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = m_configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = m_configuration.SecurityTokenLifetime;
+            m_quotas.MaxBufferSize = configuration.MaxBufferSize;
+            m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+            m_quotas.ChannelLifetime = configuration.ChannelLifetime;
+            m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
 
             m_quotas.MessageContext = new ServiceMessageContext();
 
-            m_quotas.MessageContext.MaxArrayLength = m_configuration.MaxArrayLength;
-            m_quotas.MessageContext.MaxByteStringLength = m_configuration.MaxByteStringLength;
-            m_quotas.MessageContext.MaxMessageSize = m_configuration.MaxMessageSize;
-            m_quotas.MessageContext.MaxStringLength = m_configuration.MaxStringLength;
+            m_quotas.MessageContext.MaxArrayLength = configuration.MaxArrayLength;
+            m_quotas.MessageContext.MaxByteStringLength = configuration.MaxByteStringLength;
+            m_quotas.MessageContext.MaxMessageSize = configuration.MaxMessageSize;
+            m_quotas.MessageContext.MaxStringLength = configuration.MaxStringLength;
             m_quotas.MessageContext.NamespaceUris = settings.NamespaceUris;
             m_quotas.MessageContext.ServerUris = new StringTable();
             m_quotas.MessageContext.Factory = settings.Factory;
@@ -174,22 +176,36 @@ namespace Opc.Ua.Bindings
         public void Start()
         {
             Startup.Listener = this;
-            m_host = new WebHostBuilder();
-
+            m_hostBuilder = new WebHostBuilder();
+#if NETSTANDARD2_0 || NETSTANDARD2_1
+            HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
+            httpsOptions.CheckCertificateRevocation = false;
+            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
+            httpsOptions.ServerCertificate = m_serverCert;
+            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+            m_hostBuilder.UseKestrel(options =>
+            {              
+                options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
+                {
+                    listenOptions.NoDelay = true;
+                    listenOptions.UseHttps(httpsOptions);
+                });
+            });
+#else
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-
-            m_host.UseKestrel(options =>
+            m_hostBuilder.UseKestrel(options =>
             {
                 options.NoDelay = true;
                 options.UseHttps(httpsOptions);
             });
-            m_host.UseContentRoot(Directory.GetCurrentDirectory());
-            m_host.UseStartup<Startup>();
-            m_host.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
+#endif
+            m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            m_hostBuilder.UseStartup<Startup>();
+            m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
         }
 
         /// <summary>
@@ -205,7 +221,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        public async void SendAsync(HttpContext context)
+        public async Task SendAsync(HttpContext context)
         {
             IAsyncResult result = null;
 
@@ -220,11 +236,25 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                byte[] buffer = new byte[(int)context.Request.ContentLength];
-                lock (m_lock)
+                if (context.Request.ContentType != "application/octet-stream")
                 {
-                    Task<int> task = context.Request.Body.ReadAsync(buffer, 0, (int)context.Request.ContentLength);
-                    task.Wait();
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.");
+                    return;
+                }
+
+                int length = (int) context.Request.ContentLength;
+                byte[] buffer = await ReadBodyAsync(context.Request);
+
+                if (buffer.Length != length)
+                {
+                    context.Response.ContentLength = 0;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.");
+                    return;
                 }
 
                 IServiceRequest input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
@@ -284,20 +314,51 @@ namespace Opc.Ua.Bindings
                 await context.Response.WriteAsync(e.Message);
             }
         }
+
+        /// <summary>
+        /// Called when a UpdateCertificate event occured.
+        /// </summary>
+        internal void CertificateUpdate(
+            X509CertificateValidator validator,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain)
+        {
+            Stop();
+
+            m_quotas.CertificateValidator = validator;
+            m_serverCert = serverCertificate;
+            foreach (var description in m_descriptions)
+            {
+                if (description.ServerCertificate != null)
+                {
+                    description.ServerCertificate = serverCertificate.RawData;
+                }
+            }
+
+            Start();
+        }
+
+        private async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        {
+            using (var memory = new MemoryStream())
+            using (var reader = new StreamReader(req.Body))
+            {
+                await reader.BaseStream.CopyToAsync(memory);
+                return memory.ToArray();
+            }
+        }
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
-
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
-        private EndpointConfiguration m_configuration;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
-        private WebHostBuilder m_host;
+        private IWebHostBuilder m_hostBuilder;
+        private IWebHost m_host;
         private X509Certificate2 m_serverCert;
-        #endregion
+#endregion
     }
 }
 

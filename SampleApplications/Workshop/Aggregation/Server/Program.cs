@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,14 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server.Controls;
+using System;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace AggregationServer
 {
@@ -54,6 +52,7 @@ namespace AggregationServer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType = ApplicationType.Server;
             application.ConfigSectionName = "Quickstarts.AggregationServer";
@@ -70,12 +69,11 @@ namespace AggregationServer
                 await application.Start(new AggregationServer());
 
                 // run the application interactively.
-                Application.Run(new Opc.Ua.Server.Controls.ServerForm(application));
+                Application.Run(new ServerForm(application));
             }
             catch (Exception e)
             {
-                Utils.Trace(application.ApplicationName, e);
-                return;
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -27,12 +27,13 @@ namespace Opc.Ua.Bindings
             m_messageSocketFactory = messageSocketFactory;
         }
         #endregion
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -49,7 +50,7 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
-        #region IBinaryTransportChannel Members
+        #region IMessageSocketChannel Members
         /// <summary>
         /// Returns the channel's underlying message socket if connected / available.
         /// </summary>
@@ -63,33 +64,29 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
-        public TransportChannelFeatures SupportedFeatures
-        {
-            get { return TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest; }
-        }
+        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest;
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
         /// </summary>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_settings.Description; }
-        }
+        public EndpointDescription EndpointDescription => m_settings.Description;
 
         /// <summary>
         /// Gets the configuration for the channel.
         /// </summary>
-        public EndpointConfiguration EndpointConfiguration
-        {
-            get { return m_settings.Configuration; }
-        }
+        public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
 
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public ServiceMessageContext MessageContext => m_quotas.MessageContext;
+
+        /// <summary>
+        ///  Gets the the channel's current security token.
+        /// </summary>
+        public ChannelToken CurrentToken
         {
-            get { return m_quotas.MessageContext; }
+            get { lock (m_lock) { return m_channel?.CurrentToken; } }
         }
 
         /// <summary>
@@ -97,7 +94,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int OperationTimeout
         {
-            get { return m_operationTimeout;  }
+            get { return m_operationTimeout; }
             set { m_operationTimeout = value; }
         }
 
@@ -120,7 +117,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public void Open()
         {
-            // opens when the first request is called to preserve previous behavoir.
+            // opens when the first request is called to preserve previous behavior.
         }
 
         /// <summary>
@@ -144,6 +141,7 @@ namespace Opc.Ua.Bindings
                     m_messageSocketFactory,
                     m_quotas,
                     m_settings.ClientCertificate,
+                    m_settings.ClientCertificateChain,
                     m_settings.ServerCertificate,
                     m_settings.Description);
 
@@ -181,28 +179,33 @@ namespace Opc.Ua.Bindings
                 // if this happens the new channel is shutdown because of a security violation.
                 UaSCUaBinaryClientChannel channel = m_channel;
                 m_channel = null;
-                
-                // reconnect.
-                OpenOnDemand();
 
-                // begin connect operation.
-                IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
-                m_channel.EndConnect(result);
-
-                // close existing channel.
-                if (channel != null)
+                try
                 {
-                    try
+                    // reconnect.
+                    OpenOnDemand();
+
+                    // begin connect operation.
+                    IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
+                    m_channel.EndConnect(result);
+                }
+                finally
+                {
+                    // close existing channel.
+                    if (channel != null)
                     {
-                        channel.Close(1000);
-                    }
-                    catch (Exception)
-                    {
-                        // do nothing.
-                    }
-                    finally
-                    {
-                        channel.Dispose();
+                        try
+                        {
+                            channel.Close(1000);
+                        }
+                        catch (Exception)
+                        {
+                            // do nothing.
+                        }
+                        finally
+                        {
+                            channel.Dispose();
+                        }
                     }
                 }
             }
@@ -389,6 +392,7 @@ namespace Opc.Ua.Bindings
                 m_messageSocketFactory,
                 m_quotas,
                 m_settings.ClientCertificate,
+                m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
                 m_settings.Description);
         }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Controls
         public ReferenceTypeCtrl()
         {
             InitializeComponent();
-            m_baseTypeId = ReferenceTypes.References;
+            m_baseTypeId = Opc.Ua.ReferenceTypeIds.References;
         }
         #endregion
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Controls
 
             if (NodeId.IsNull(m_baseTypeId))
             {
-                m_baseTypeId = ReferenceTypes.References;
+                m_baseTypeId = ReferenceTypeIds.References;
             }
 
             ReferenceTypesCB.Items.Clear();

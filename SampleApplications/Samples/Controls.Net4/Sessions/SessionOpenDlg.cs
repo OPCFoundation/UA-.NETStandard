@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,19 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Client;
+using Opc.Ua.Client.ComplexTypes;
+using Opc.Ua.Client.Controls;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
 using System.Reflection;
+using System.Text;
 using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-
-using Opc.Ua.Client;
-using Opc.Ua.Client.Controls;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Sample.Controls
 {
@@ -58,6 +54,7 @@ namespace Opc.Ua.Sample.Controls
         private const string m_BrowseCertificates = "<Browse...>";
         private static long m_Counter = 0;
         private IList<string> m_preferredLocales;
+        private bool m_checkDomain = true;
         #endregion
         
         #region Public Interface
@@ -163,7 +160,7 @@ namespace Opc.Ua.Sample.Controls
 
                 Cursor = Cursors.WaitCursor;
 
-                ThreadPool.QueueUserWorkItem(Open, new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales });
+                ThreadPool.QueueUserWorkItem(Open, new object[] { m_session, SessionNameTB.Text, identity, m_preferredLocales, m_checkDomain });
                 
                 CancelBTN.Enabled = false;
                 OkBTN.Enabled = false;
@@ -193,6 +190,35 @@ namespace Opc.Ua.Sample.Controls
             try
             {
                 Cursor = Cursors.Default;
+
+                ServiceResultException sre = e as ServiceResultException;
+                if (sre != null)
+                {
+                    if (m_checkDomain && sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    {
+                        StringBuilder buffer = new StringBuilder();
+
+                        buffer.AppendFormat(sre.Message);
+                        buffer.AppendFormat("\r\n\r\nRetry without certificate hostname validation?");
+
+                        DialogResult result = MessageBox.Show(
+                            buffer.ToString(),
+                            "Exception: BadCertificateHostNameInvalid",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning);
+
+                        if (result == DialogResult.Yes)
+                        {
+                            m_checkDomain = false;
+                            OkBTN.Enabled = true;
+                            OkBTN.PerformClick();
+                            return;
+                        }
+
+                        DialogResult = DialogResult.OK;
+                        return;
+                    }
+                }
 
                 if (e != null)
                 {
@@ -228,9 +254,13 @@ namespace Opc.Ua.Sample.Controls
                 string sessionName = ((object[])state)[1] as string;
                 IUserIdentity identity = ((object[])state)[2] as IUserIdentity;
                 IList<string> preferredLocales = ((object[])state)[3] as IList<string>;
+                bool? checkDomain = ((object[])state)[4] as bool?;
 
                 // open the session.
-                session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales);
+                session.Open(sessionName, (uint)session.SessionTimeout, identity, preferredLocales, checkDomain ?? true);
+
+                var typeSystemLoader = new ComplexTypeSystem(session);
+                typeSystemLoader.Load().Wait();
 
                 OpenComplete(null);
             }

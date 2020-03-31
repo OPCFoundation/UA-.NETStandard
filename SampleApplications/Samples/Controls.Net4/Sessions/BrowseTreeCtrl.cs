@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Sample.Controls
                 reference.TypeDefinition  = null;
                                 
                 string text = GetTargetText(reference);
-                string icon = GuiUtils2.GetTargetIcon(m_browser.Session, reference);
+                string icon = GuiUtils.GetTargetIcon(m_browser.Session, reference);
 
                 TreeNode root = AddNode(null, reference, text, icon);
                 root.Nodes.Add(new TreeNode());
@@ -725,7 +725,7 @@ namespace Opc.Ua.Sample.Controls
                 }
 
                 string text = GetTargetText(reference);
-                string icon = GuiUtils2.GetTargetIcon(m_browser.Session, reference);
+                string icon = GuiUtils.GetTargetIcon(m_browser.Session, reference);
 
                 TreeNode container = parent;
 

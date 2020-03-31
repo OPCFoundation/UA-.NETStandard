@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// </summary>
         public static RelativePath Parse(string browsePath, ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException("typeTree");
+            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
             // parse the string.
             RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath);
@@ -498,8 +498,8 @@ namespace Opc.Ua
             /// </summary>
             public Element(RelativePathElement element, ITypeTable typeTree)
             {                
-                if (element == null) throw new ArgumentNullException("element");
-                if (typeTree == null) throw new ArgumentNullException("typeTree");
+                if (element == null) throw new ArgumentNullException(nameof(element));
+                if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
                 m_referenceTypeName = null;
                 m_targetName = element.TargetName;

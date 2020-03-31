@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2013 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,18 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using Opc.Ua;
-using Opc.Ua.Server;
+using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server;
+using System;
 using System.IO;
+using System.Reflection;
+using System.Windows.Forms;
 
 namespace Opc.Ua.Sample
 {
@@ -76,9 +71,7 @@ namespace Opc.Ua.Sample
             }
 
             TrayIcon.Text = this.Text = application.ApplicationName;
-
-            ComponentResourceManager resources = new ComponentResourceManager(typeof(ServerForm));
-            TrayIcon.Icon = (Icon)(resources.GetObject("App.ico"));
+            this.Icon = TrayIcon.Icon = ClientUtils.GetAppIcon();
         }
         #endregion
 

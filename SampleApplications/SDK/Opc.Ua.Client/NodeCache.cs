@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public NodeCache(Session session)
         {
-            if (session == null) throw new ArgumentNullException("session");
+            if (session == null) throw new ArgumentNullException(nameof(session));
 
             m_session  = session;
             m_typeTree = new TypeTable(m_session.NamespaceUris);
@@ -594,7 +594,9 @@ namespace Opc.Ua.Client
         public void LoadUaDefinedTypes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Core.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", typeof(ArgumentCollection).GetTypeInfo().Assembly, true);
+
+            var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
             
             for (int ii = 0; ii < predefinedNodes.Count; ii++)
             {

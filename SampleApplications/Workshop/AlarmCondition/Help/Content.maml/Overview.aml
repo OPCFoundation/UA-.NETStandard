@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<topic id="b65ff79f-8f78-4713-b71f-ce4defa02281" revisionNumber="1">
+  <developerConceptualDocument xmlns="http://ddue.schemas.microsoft.com/authoring/2003/5" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!--
+    <summary>
+      <para>Optional summary abstract</para>
+    </summary>
+    -->
+    <introduction>
+      <autoOutline />
+      <para>
+      This Quickstart includes UA Client and Server applications which implement the features
+      defined by Part 9 of the UA Specification. The applications are built with the UA .NET SDK.
+      </para>
+    </introduction>
+    <section address="Section1">
+      <title>Installation</title>
+      <content>
+        <para>
+        This Quickstart is distributed with an installer that will place the source into the 
+        "%ProgramFiles%\OPC Foundation\UA SDK\v1.0\Quickstarts" directory. 
+        A link to the Visual Studio 2008 solution file can be found in the 
+        Programs Menu under the OPC Foundation folder.
+        </para>
+        <para>
+		The Quickstarts require Visual Studio 2008 with SP1 and the .NET Framework 3.5 SP1.
+		</para>
+      </content>
+    </section>
+    <section address="Section2">
+      <title>Server</title>
+      <content>
+        <para>
+		The AlarmConditionServer is a UA Server application that provides access to an Alarm simulation system. 
+		The system has several alarm sources which are organized into an hierarchy of areas. The areas, the source
+		and the alarms can be viewed with an UA client application.
+        </para>
+        <para>
+		When the AlarmConditionServer starts it will automatically create an application instance certificate if 
+		one does not already exist on the machine. It then start listening for requests via a UA TCP and a 
+		HTTP/SOAP endpoint.
+        </para>        
+        <para>
+        By default the AlarmConditionServer is configured to use the following addresses:
+		<list class="bullet">
+		<listItem>
+        <para>
+		http://localhost:62541/UA/AlarmConditionServer
+		</para>
+		</listItem>
+		<listItem>
+        <para>
+		opc.tcp://localhost:62542/UA/AlarmConditionServer
+		</para>
+		</listItem>
+		</list>
+		This addresses can be changed by editing the AlarmConditionServer.Config.xml file.
+        </para>      
+      </content>
+    </section>
+    <section address="Section3">
+      <title>Client</title>
+      <content>
+        <para>
+		The AlarmConditionClient is a UA Client application that allows a user to monitor the Conditions 
+		exposed by a UA server. It provides a list of all of the active Conditions that can be filtered 
+		by Area, Severity or Condition Type. The user is able to review the detailed state of any 
+		Condition and to issue commands that change the state of the Condition.
+        </para>
+        
+        <para>
+        When the AlarmConditionClient starts it will automatically create an application instance 
+        certificate if one does not already exist on the machine. It then displays the default URL for 
+        the AlarmConditionServer in the address bar. Clicking the 'Connect' button will establish a 
+        session with the Server and display the current state of any Conditions.
+        </para>        
+      </content>
+    </section>
+    <relatedTopics>
+    </relatedTopics>
+  </developerConceptualDocument>
+</topic>

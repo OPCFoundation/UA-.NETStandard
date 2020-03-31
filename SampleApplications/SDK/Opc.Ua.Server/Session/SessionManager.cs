@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException("server");
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             m_server = server;
 
@@ -276,6 +276,13 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(authenticationToken, out session))
                 {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+
+                // check if session timeout has expired.
+                if (session.HasExpired)
+                {
+                    m_server.CloseSession(null, session.Id, false);
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -337,7 +344,7 @@ namespace Opc.Ua.Server
             {
                 if (e is ServiceResultException)
                 {
-                    throw e;
+                    throw;
                 }
 
                 throw ServiceResultException.Create(
@@ -424,7 +431,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException("requestHeader");
+            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
 
             Session session = null;
 

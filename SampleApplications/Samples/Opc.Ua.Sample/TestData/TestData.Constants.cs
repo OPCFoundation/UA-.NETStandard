@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -186,14 +186,24 @@ namespace TestData
     public static partial class Methods
     {
         /// <summary>
-        /// The identifier for the GenerateValuesMethodType Method.
-        /// </summary>
-        public const uint GenerateValuesMethodType = 9369;
-
-        /// <summary>
         /// The identifier for the TestDataObjectType_GenerateValues Method.
         /// </summary>
         public const uint TestDataObjectType_GenerateValues = 9385;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Disable = 9415;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Enable = 9414;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_AddComment = 9416;
 
         /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_Acknowledge Method.
@@ -201,54 +211,124 @@ namespace TestData
         public const uint TestDataObjectType_CycleComplete_Acknowledge = 9436;
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public const uint ScalarValue1MethodType = 9441;
+        public const uint ScalarValueObjectType_CycleComplete_Disable = 9482;
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public const uint ScalarValue2MethodType = 9444;
+        public const uint ScalarValueObjectType_CycleComplete_Enable = 9481;
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AddComment Method.
         /// </summary>
-        public const uint ScalarValue3MethodType = 9447;
+        public const uint ScalarValueObjectType_CycleComplete_AddComment = 9483;
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Acknowledge Method.
         /// </summary>
-        public const uint ArrayValue1MethodType = 9670;
+        public const uint ScalarValueObjectType_CycleComplete_Acknowledge = 9503;
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public const uint ArrayValue2MethodType = 9673;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Disable = 9566;
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public const uint ArrayValue3MethodType = 9676;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Enable = 9565;
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AddComment Method.
         /// </summary>
-        public const uint UserScalarValue1MethodType = 10000;
+        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment = 9567;
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Acknowledge Method.
         /// </summary>
-        public const uint UserScalarValue2MethodType = 10003;
+        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge = 9587;
 
         /// <summary>
-        /// The identifier for the UserArrayValue1MethodType Method.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public const uint UserArrayValue1MethodType = 10086;
+        public const uint ArrayValueObjectType_CycleComplete_Disable = 9711;
 
         /// <summary>
-        /// The identifier for the UserArrayValue2MethodType Method.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public const uint UserArrayValue2MethodType = 10089;
+        public const uint ArrayValueObjectType_CycleComplete_Enable = 9710;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_AddComment = 9712;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Acknowledge = 9732;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Disable = 9795;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Enable = 9794;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment = 9796;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge = 9816;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Disable = 9953;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Enable = 9952;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_AddComment = 9954;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge = 9974;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Disable = 10039;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Enable = 10038;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_AddComment = 10040;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge = 10060;
 
         /// <summary>
         /// The identifier for the MethodTestType_ScalarMethod1 Method.
@@ -831,6 +911,26 @@ namespace TestData
         public const uint Data_Conditions_SystemStatus = 11384;
 
         /// <summary>
+        /// The identifier for the ScalarValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ScalarValueDataType_Encoding_DefaultBinary = 11437;
+
+        /// <summary>
+        /// The identifier for the ArrayValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint ArrayValueDataType_Encoding_DefaultBinary = 11438;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint UserScalarValueDataType_Encoding_DefaultBinary = 11439;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint UserArrayValueDataType_Encoding_DefaultBinary = 11440;
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint ScalarValueDataType_Encoding_DefaultXml = 11418;
@@ -851,24 +951,24 @@ namespace TestData
         public const uint UserArrayValueDataType_Encoding_DefaultXml = 11421;
 
         /// <summary>
-        /// The identifier for the ScalarValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint ScalarValueDataType_Encoding_DefaultBinary = 11437;
+        public const uint ScalarValueDataType_Encoding_DefaultJson = 15047;
 
         /// <summary>
-        /// The identifier for the ArrayValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint ArrayValueDataType_Encoding_DefaultBinary = 11438;
+        public const uint ArrayValueDataType_Encoding_DefaultJson = 15048;
 
         /// <summary>
-        /// The identifier for the UserScalarValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the UserScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint UserScalarValueDataType_Encoding_DefaultBinary = 11439;
+        public const uint UserScalarValueDataType_Encoding_DefaultJson = 15049;
 
         /// <summary>
-        /// The identifier for the UserArrayValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the UserArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public const uint UserArrayValueDataType_Encoding_DefaultBinary = 11440;
+        public const uint UserArrayValueDataType_Encoding_DefaultJson = 15050;
     }
     #endregion
 
@@ -941,11 +1041,6 @@ namespace TestData
     public static partial class Variables
     {
         /// <summary>
-        /// The identifier for the GenerateValuesMethodType_InputArguments Variable.
-        /// </summary>
-        public const uint GenerateValuesMethodType_InputArguments = 9370;
-
-        /// <summary>
         /// The identifier for the GenerateValuesEventType_Iterations Variable.
         /// </summary>
         public const uint GenerateValuesEventType_Iterations = 9381;
@@ -966,9 +1061,134 @@ namespace TestData
         public const uint TestDataObjectType_GenerateValues_InputArguments = 9386;
 
         /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_EventId = 9388;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_EventType = 9389;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_SourceNode = 9390;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_SourceName = 9391;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Time = 9392;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ReceiveTime = 9393;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Message = 9395;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Severity = 9396;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ConditionClassId = 11578;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ConditionClassName = 11579;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ConditionName = 11557;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_BranchId = 9397;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Retain = 9398;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_EnabledState = 9399;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_EnabledState_Id = 9400;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Quality = 9405;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Quality_SourceTimestamp = 9406;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_LastSeverity = 9409;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9410;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Comment = 9411;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_Comment_SourceTimestamp = 9412;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ClientUserId = 9413;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_AddComment_InputArguments = 9417;
+
+        /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_AckedState Variable.
         /// </summary>
         public const uint TestDataObjectType_CycleComplete_AckedState = 9420;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_AckedState_Id = 9421;
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint TestDataObjectType_CycleComplete_ConfirmedState_Id = 9429;
 
         /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_Acknowledge_InputArguments Variable.
@@ -981,34 +1201,149 @@ namespace TestData
         public const uint TestDataObjectType_CycleComplete_Confirm_InputArguments = 9439;
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public const uint ScalarValue1MethodType_InputArguments = 9442;
+        public const uint ScalarValueObjectType_GenerateValues_InputArguments = 9453;
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public const uint ScalarValue1MethodType_OutputArguments = 9443;
+        public const uint ScalarValueObjectType_CycleComplete_EventId = 9455;
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public const uint ScalarValue2MethodType_InputArguments = 9445;
+        public const uint ScalarValueObjectType_CycleComplete_EventType = 9456;
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public const uint ScalarValue2MethodType_OutputArguments = 9446;
+        public const uint ScalarValueObjectType_CycleComplete_SourceNode = 9457;
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_SourceName Variable.
         /// </summary>
-        public const uint ScalarValue3MethodType_InputArguments = 9448;
+        public const uint ScalarValueObjectType_CycleComplete_SourceName = 9458;
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Time Variable.
         /// </summary>
-        public const uint ScalarValue3MethodType_OutputArguments = 9449;
+        public const uint ScalarValueObjectType_CycleComplete_Time = 9459;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ReceiveTime = 9460;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Message = 9462;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Severity = 9463;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ConditionClassId = 11580;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ConditionClassName = 11581;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ConditionName = 11558;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_BranchId = 9464;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Retain = 9465;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_EnabledState = 9466;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_EnabledState_Id = 9467;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Quality = 9472;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9473;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_LastSeverity = 9476;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9477;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Comment = 9478;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9479;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ClientUserId = 9480;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9484;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_AckedState = 9487;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_AckedState_Id = 9488;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9496;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9504;
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint ScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9506;
 
         /// <summary>
         /// The identifier for the ScalarValueObjectType_BooleanValue Variable.
@@ -1146,6 +1481,151 @@ namespace TestData
         public const uint ScalarValueObjectType_UIntegerValue = 9533;
 
         /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_GenerateValues_InputArguments = 9537;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_EventId = 9539;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_EventType = 9540;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_SourceNode = 9541;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_SourceName = 9542;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Time = 9543;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ReceiveTime = 9544;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Message = 9546;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Severity = 9547;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassId = 11582;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionClassName = 11583;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConditionName = 11559;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_BranchId = 9548;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Retain = 9549;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState = 9550;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_EnabledState_Id = 9551;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Quality = 9556;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9557;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity = 9560;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9561;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Comment = 9562;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9563;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ClientUserId = 9564;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9568;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState = 9571;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_AckedState_Id = 9572;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9580;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9588;
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9590;
+
+        /// <summary>
         /// The identifier for the AnalogScalarValueObjectType_SByteValue Variable.
         /// </summary>
         public const uint AnalogScalarValueObjectType_SByteValue = 9591;
@@ -1276,34 +1756,149 @@ namespace TestData
         public const uint AnalogScalarValueObjectType_UIntegerValue_EURange = 9666;
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public const uint ArrayValue1MethodType_InputArguments = 9671;
+        public const uint ArrayValueObjectType_GenerateValues_InputArguments = 9682;
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public const uint ArrayValue1MethodType_OutputArguments = 9672;
+        public const uint ArrayValueObjectType_CycleComplete_EventId = 9684;
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public const uint ArrayValue2MethodType_InputArguments = 9674;
+        public const uint ArrayValueObjectType_CycleComplete_EventType = 9685;
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public const uint ArrayValue2MethodType_OutputArguments = 9675;
+        public const uint ArrayValueObjectType_CycleComplete_SourceNode = 9686;
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_SourceName Variable.
         /// </summary>
-        public const uint ArrayValue3MethodType_InputArguments = 9677;
+        public const uint ArrayValueObjectType_CycleComplete_SourceName = 9687;
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Time Variable.
         /// </summary>
-        public const uint ArrayValue3MethodType_OutputArguments = 9678;
+        public const uint ArrayValueObjectType_CycleComplete_Time = 9688;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ReceiveTime = 9689;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Message = 9691;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Severity = 9692;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ConditionClassId = 11584;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ConditionClassName = 11585;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ConditionName = 11560;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_BranchId = 9693;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Retain = 9694;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_EnabledState = 9695;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_EnabledState_Id = 9696;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Quality = 9701;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 9702;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_LastSeverity = 9705;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9706;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Comment = 9707;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 9708;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ClientUserId = 9709;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_AddComment_InputArguments = 9713;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_AckedState = 9716;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_AckedState_Id = 9717;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_ConfirmedState_Id = 9725;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 9733;
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint ArrayValueObjectType_CycleComplete_Confirm_InputArguments = 9735;
 
         /// <summary>
         /// The identifier for the ArrayValueObjectType_BooleanValue Variable.
@@ -1441,6 +2036,151 @@ namespace TestData
         public const uint ArrayValueObjectType_UIntegerValue = 9762;
 
         /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_GenerateValues_InputArguments = 9766;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_EventId = 9768;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_EventType = 9769;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_SourceNode = 9770;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_SourceName = 9771;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Time = 9772;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ReceiveTime = 9773;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Message = 9775;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Severity = 9776;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassId = 11586;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionClassName = 11587;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConditionName = 11561;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_BranchId = 9777;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Retain = 9778;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState = 9779;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_EnabledState_Id = 9780;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Quality = 9785;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 9786;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity = 9789;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9790;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Comment = 9791;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 9792;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ClientUserId = 9793;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments = 9797;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState = 9800;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_AckedState_Id = 9801;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id = 9809;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 9817;
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments = 9819;
+
+        /// <summary>
         /// The identifier for the AnalogArrayValueObjectType_SByteValue Variable.
         /// </summary>
         public const uint AnalogArrayValueObjectType_SByteValue = 9820;
@@ -1571,6 +2311,151 @@ namespace TestData
         public const uint AnalogArrayValueObjectType_UIntegerValue_EURange = 9895;
 
         /// <summary>
+        /// The identifier for the UserScalarValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_GenerateValues_InputArguments = 9924;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_EventId = 9926;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_EventType = 9927;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_SourceNode = 9928;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_SourceName = 9929;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Time = 9930;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ReceiveTime = 9931;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Message = 9933;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Severity = 9934;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassId = 11588;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionClassName = 11589;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ConditionName = 11562;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_BranchId = 9935;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Retain = 9936;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_EnabledState = 9937;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_EnabledState_Id = 9938;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Quality = 9943;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = 9944;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity = 9947;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 9948;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Comment = 9949;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = 9950;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ClientUserId = 9951;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_AddComment_InputArguments = 9955;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_AckedState = 9958;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_AckedState_Id = 9959;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_ConfirmedState_Id = 9967;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = 9975;
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint UserScalarValueObjectType_CycleComplete_Confirm_InputArguments = 9977;
+
+        /// <summary>
         /// The identifier for the UserScalarValueObjectType_BooleanValue Variable.
         /// </summary>
         public const uint UserScalarValueObjectType_BooleanValue = 9978;
@@ -1681,24 +2566,149 @@ namespace TestData
         public const uint UserScalarValueObjectType_VariantValue = 9999;
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType_InputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public const uint UserScalarValue1MethodType_InputArguments = 10001;
+        public const uint UserArrayValueObjectType_GenerateValues_InputArguments = 10010;
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType_OutputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public const uint UserScalarValue1MethodType_OutputArguments = 10002;
+        public const uint UserArrayValueObjectType_CycleComplete_EventId = 10012;
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType_InputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public const uint UserScalarValue2MethodType_InputArguments = 10004;
+        public const uint UserArrayValueObjectType_CycleComplete_EventType = 10013;
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType_OutputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public const uint UserScalarValue2MethodType_OutputArguments = 10005;
+        public const uint UserArrayValueObjectType_CycleComplete_SourceNode = 10014;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_SourceName = 10015;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Time = 10016;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ReceiveTime = 10017;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Message = 10019;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Severity = 10020;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassId = 11590;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionClassName = 11591;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ConditionName = 11563;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_BranchId = 10021;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Retain = 10022;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_EnabledState = 10023;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_EnabledState_Id = 10024;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Quality = 10029;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = 10030;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity = 10033;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = 10034;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Comment = 10035;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = 10036;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ClientUserId = 10037;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_AddComment_InputArguments = 10041;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_AckedState = 10044;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_AckedState_Id = 10045;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_ConfirmedState_Id = 10053;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = 10061;
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public const uint UserArrayValueObjectType_CycleComplete_Confirm_InputArguments = 10063;
 
         /// <summary>
         /// The identifier for the UserArrayValueObjectType_BooleanValue Variable.
@@ -1811,26 +2821,6 @@ namespace TestData
         public const uint UserArrayValueObjectType_VariantValue = 10085;
 
         /// <summary>
-        /// The identifier for the UserArrayValue1MethodType_InputArguments Variable.
-        /// </summary>
-        public const uint UserArrayValue1MethodType_InputArguments = 10087;
-
-        /// <summary>
-        /// The identifier for the UserArrayValue1MethodType_OutputArguments Variable.
-        /// </summary>
-        public const uint UserArrayValue1MethodType_OutputArguments = 10088;
-
-        /// <summary>
-        /// The identifier for the UserArrayValue2MethodType_InputArguments Variable.
-        /// </summary>
-        public const uint UserArrayValue2MethodType_InputArguments = 10090;
-
-        /// <summary>
-        /// The identifier for the UserArrayValue2MethodType_OutputArguments Variable.
-        /// </summary>
-        public const uint UserArrayValue2MethodType_OutputArguments = 10091;
-
-        /// <summary>
         /// The identifier for the MethodTestType_ScalarMethod1_InputArguments Variable.
         /// </summary>
         public const uint MethodTestType_ScalarMethod1_InputArguments = 10094;
@@ -1931,6 +2921,41 @@ namespace TestData
         public const uint MethodTestType_UserArrayMethod2_OutputArguments = 10122;
 
         /// <summary>
+        /// The identifier for the TestSystemConditionType_EnabledState_Id Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_EnabledState_Id = 10136;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_Quality_SourceTimestamp = 10142;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_LastSeverity_SourceTimestamp = 10146;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_Comment_SourceTimestamp = 10148;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_AddComment_InputArguments Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_AddComment_InputArguments = 10153;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_ConditionRefresh_InputArguments Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_ConditionRefresh_InputArguments = 10155;
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_ConditionRefresh2_InputArguments Variable.
+        /// </summary>
+        public const uint TestSystemConditionType_ConditionRefresh2_InputArguments = 15018;
+
+        /// <summary>
         /// The identifier for the TestSystemConditionType_MonitoredNodeCount Variable.
         /// </summary>
         public const uint TestSystemConditionType_MonitoredNodeCount = 10156;
@@ -1974,11 +2999,6 @@ namespace TestData
         /// The identifier for the Data_Static_Scalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public const uint Data_Static_Scalar_CycleComplete_ReceiveTime = 10169;
-
-        /// <summary>
-        /// The identifier for the Data_Static_Scalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_Scalar_CycleComplete_LocalTime = 10170;
 
         /// <summary>
         /// The identifier for the Data_Static_Scalar_CycleComplete_Message Variable.
@@ -2266,11 +3286,6 @@ namespace TestData
         public const uint Data_Static_Array_CycleComplete_ReceiveTime = 10253;
 
         /// <summary>
-        /// The identifier for the Data_Static_Array_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_Array_CycleComplete_LocalTime = 10254;
-
-        /// <summary>
         /// The identifier for the Data_Static_Array_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Static_Array_CycleComplete_Message = 10255;
@@ -2556,11 +3571,6 @@ namespace TestData
         public const uint Data_Static_UserScalar_CycleComplete_ReceiveTime = 10337;
 
         /// <summary>
-        /// The identifier for the Data_Static_UserScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_UserScalar_CycleComplete_LocalTime = 10338;
-
-        /// <summary>
         /// The identifier for the Data_Static_UserScalar_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Static_UserScalar_CycleComplete_Message = 10339;
@@ -2821,11 +3831,6 @@ namespace TestData
         public const uint Data_Static_UserArray_CycleComplete_ReceiveTime = 10416;
 
         /// <summary>
-        /// The identifier for the Data_Static_UserArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_UserArray_CycleComplete_LocalTime = 10417;
-
-        /// <summary>
         /// The identifier for the Data_Static_UserArray_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Static_UserArray_CycleComplete_Message = 10418;
@@ -3084,11 +4089,6 @@ namespace TestData
         /// The identifier for the Data_Static_AnalogScalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public const uint Data_Static_AnalogScalar_CycleComplete_ReceiveTime = 10495;
-
-        /// <summary>
-        /// The identifier for the Data_Static_AnalogScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_AnalogScalar_CycleComplete_LocalTime = 10496;
 
         /// <summary>
         /// The identifier for the Data_Static_AnalogScalar_CycleComplete_Message Variable.
@@ -3369,11 +4369,6 @@ namespace TestData
         /// The identifier for the Data_Static_AnalogArray_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public const uint Data_Static_AnalogArray_CycleComplete_ReceiveTime = 10630;
-
-        /// <summary>
-        /// The identifier for the Data_Static_AnalogArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Static_AnalogArray_CycleComplete_LocalTime = 10631;
 
         /// <summary>
         /// The identifier for the Data_Static_AnalogArray_CycleComplete_Message Variable.
@@ -3756,11 +4751,6 @@ namespace TestData
         public const uint Data_Dynamic_Scalar_CycleComplete_ReceiveTime = 10797;
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_Scalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_Scalar_CycleComplete_LocalTime = 10798;
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_Scalar_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Dynamic_Scalar_CycleComplete_Message = 10799;
@@ -4044,11 +5034,6 @@ namespace TestData
         /// The identifier for the Data_Dynamic_Array_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public const uint Data_Dynamic_Array_CycleComplete_ReceiveTime = 10881;
-
-        /// <summary>
-        /// The identifier for the Data_Dynamic_Array_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_Array_CycleComplete_LocalTime = 10882;
 
         /// <summary>
         /// The identifier for the Data_Dynamic_Array_CycleComplete_Message Variable.
@@ -4336,11 +5321,6 @@ namespace TestData
         public const uint Data_Dynamic_UserScalar_CycleComplete_ReceiveTime = 10965;
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_UserScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_UserScalar_CycleComplete_LocalTime = 10966;
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_UserScalar_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Dynamic_UserScalar_CycleComplete_Message = 10967;
@@ -4601,11 +5581,6 @@ namespace TestData
         public const uint Data_Dynamic_UserArray_CycleComplete_ReceiveTime = 11044;
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_UserArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_UserArray_CycleComplete_LocalTime = 11045;
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_UserArray_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Dynamic_UserArray_CycleComplete_Message = 11046;
@@ -4864,11 +5839,6 @@ namespace TestData
         /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public const uint Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime = 11123;
-
-        /// <summary>
-        /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_AnalogScalar_CycleComplete_LocalTime = 11124;
 
         /// <summary>
         /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_Message Variable.
@@ -5151,11 +6121,6 @@ namespace TestData
         public const uint Data_Dynamic_AnalogArray_CycleComplete_ReceiveTime = 11258;
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_AnalogArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Dynamic_AnalogArray_CycleComplete_LocalTime = 11259;
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_AnalogArray_CycleComplete_Message Variable.
         /// </summary>
         public const uint Data_Dynamic_AnalogArray_CycleComplete_Message = 11260;
@@ -5426,11 +6391,6 @@ namespace TestData
         public const uint Data_Conditions_SystemStatus_ReceiveTime = 11390;
 
         /// <summary>
-        /// The identifier for the Data_Conditions_SystemStatus_LocalTime Variable.
-        /// </summary>
-        public const uint Data_Conditions_SystemStatus_LocalTime = 11391;
-
-        /// <summary>
         /// The identifier for the Data_Conditions_SystemStatus_Message Variable.
         /// </summary>
         public const uint Data_Conditions_SystemStatus_Message = 11392;
@@ -5521,36 +6481,6 @@ namespace TestData
         public const uint Data_Conditions_SystemStatus_MonitoredNodeCount = 11417;
 
         /// <summary>
-        /// The identifier for the TestData_XmlSchema Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema = 11441;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_NamespaceUri = 11443;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_ScalarValueDataType Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_ScalarValueDataType = 11444;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_ArrayValueDataType Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_ArrayValueDataType = 11447;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_UserScalarValueDataType Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_UserScalarValueDataType = 11450;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_UserArrayValueDataType = 11453;
-
-        /// <summary>
         /// The identifier for the TestData_BinarySchema Variable.
         /// </summary>
         public const uint TestData_BinarySchema = 11422;
@@ -5559,6 +6489,11 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_NamespaceUri Variable.
         /// </summary>
         public const uint TestData_BinarySchema_NamespaceUri = 11424;
+
+        /// <summary>
+        /// The identifier for the TestData_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public const uint TestData_BinarySchema_Deprecated = 15045;
 
         /// <summary>
         /// The identifier for the TestData_BinarySchema_ScalarValueDataType Variable.
@@ -5579,6 +6514,41 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_UserArrayValueDataType Variable.
         /// </summary>
         public const uint TestData_BinarySchema_UserArrayValueDataType = 11434;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema = 11441;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_NamespaceUri = 11443;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_Deprecated = 15046;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_ScalarValueDataType Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_ScalarValueDataType = 11444;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_ArrayValueDataType Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_ArrayValueDataType = 11447;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_UserScalarValueDataType Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_UserScalarValueDataType = 11450;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_UserArrayValueDataType = 11453;
     }
     #endregion
 
@@ -5731,14 +6701,24 @@ namespace TestData
     public static partial class MethodIds
     {
         /// <summary>
-        /// The identifier for the GenerateValuesMethodType Method.
-        /// </summary>
-        public static readonly ExpandedNodeId GenerateValuesMethodType = new ExpandedNodeId(TestData.Methods.GenerateValuesMethodType, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the TestDataObjectType_GenerateValues Method.
         /// </summary>
         public static readonly ExpandedNodeId TestDataObjectType_GenerateValues = new ExpandedNodeId(TestData.Methods.TestDataObjectType_GenerateValues, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.TestDataObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.TestDataObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.TestDataObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_Acknowledge Method.
@@ -5746,54 +6726,124 @@ namespace TestData
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.TestDataObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue1MethodType = new ExpandedNodeId(TestData.Methods.ScalarValue1MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.ScalarValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue2MethodType = new ExpandedNodeId(TestData.Methods.ScalarValue2MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.ScalarValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AddComment Method.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue3MethodType = new ExpandedNodeId(TestData.Methods.ScalarValue3MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.ScalarValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType Method.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Acknowledge Method.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue1MethodType = new ExpandedNodeId(TestData.Methods.ArrayValue1MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.ScalarValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue2MethodType = new ExpandedNodeId(TestData.Methods.ArrayValue2MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.AnalogScalarValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue3MethodType = new ExpandedNodeId(TestData.Methods.ArrayValue3MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.AnalogScalarValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AddComment Method.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue1MethodType = new ExpandedNodeId(TestData.Methods.UserScalarValue1MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.AnalogScalarValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType Method.
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Acknowledge Method.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue2MethodType = new ExpandedNodeId(TestData.Methods.UserScalarValue2MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.AnalogScalarValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserArrayValue1MethodType Method.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Disable Method.
         /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue1MethodType = new ExpandedNodeId(TestData.Methods.UserArrayValue1MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.ArrayValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserArrayValue2MethodType Method.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Enable Method.
         /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue2MethodType = new ExpandedNodeId(TestData.Methods.UserArrayValue2MethodType, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.ArrayValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.ArrayValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.ArrayValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.AnalogArrayValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.AnalogArrayValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.AnalogArrayValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.AnalogArrayValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.UserScalarValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.UserScalarValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.UserScalarValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.UserScalarValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Disable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Disable = new ExpandedNodeId(TestData.Methods.UserArrayValueObjectType_CycleComplete_Disable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Enable Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Enable = new ExpandedNodeId(TestData.Methods.UserArrayValueObjectType_CycleComplete_Enable, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AddComment Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_AddComment = new ExpandedNodeId(TestData.Methods.UserArrayValueObjectType_CycleComplete_AddComment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Acknowledge Method.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Acknowledge = new ExpandedNodeId(TestData.Methods.UserArrayValueObjectType_CycleComplete_Acknowledge, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the MethodTestType_ScalarMethod1 Method.
@@ -6376,6 +7426,26 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus = new ExpandedNodeId(TestData.Objects.Data_Conditions_SystemStatus, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the ScalarValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.ArrayValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.UserScalarValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueDataType_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultXml, TestData.Namespaces.TestData);
@@ -6396,24 +7466,24 @@ namespace TestData
         public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the ArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.ArrayValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.ArrayValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the UserScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.UserScalarValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserScalarValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.UserScalarValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserArrayValueDataType_Encoding_DefaultBinary Object.
+        /// The identifier for the UserArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
-        public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -6486,11 +7556,6 @@ namespace TestData
     public static partial class VariableIds
     {
         /// <summary>
-        /// The identifier for the GenerateValuesMethodType_InputArguments Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId GenerateValuesMethodType_InputArguments = new ExpandedNodeId(TestData.Variables.GenerateValuesMethodType_InputArguments, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the GenerateValuesEventType_Iterations Variable.
         /// </summary>
         public static readonly ExpandedNodeId GenerateValuesEventType_Iterations = new ExpandedNodeId(TestData.Variables.GenerateValuesEventType_Iterations, TestData.Namespaces.TestData);
@@ -6511,9 +7576,134 @@ namespace TestData
         public static readonly ExpandedNodeId TestDataObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_AckedState Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestDataObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the TestDataObjectType_CycleComplete_Acknowledge_InputArguments Variable.
@@ -6526,34 +7716,149 @@ namespace TestData
         public static readonly ExpandedNodeId TestDataObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.TestDataObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue1MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue1MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue1MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue1MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue1MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue2MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue2MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue2MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue2MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue2MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType_InputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_SourceName Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue3MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue3MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ScalarValue3MethodType_OutputArguments Variable.
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Time Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ScalarValue3MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ScalarValue3MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the ScalarValueObjectType_BooleanValue Variable.
@@ -6691,6 +7996,151 @@ namespace TestData
         public static readonly ExpandedNodeId ScalarValueObjectType_UIntegerValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_UIntegerValue, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the AnalogScalarValueObjectType_SByteValue Variable.
         /// </summary>
         public static readonly ExpandedNodeId AnalogScalarValueObjectType_SByteValue = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_SByteValue, TestData.Namespaces.TestData);
@@ -6821,34 +8271,149 @@ namespace TestData
         public static readonly ExpandedNodeId AnalogScalarValueObjectType_UIntegerValue_EURange = new ExpandedNodeId(TestData.Variables.AnalogScalarValueObjectType_UIntegerValue_EURange, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue1MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue1MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue1MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue1MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue1MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue2MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue2MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue2MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue2MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue2MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType_InputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_SourceName Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue3MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue3MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the ArrayValue3MethodType_OutputArguments Variable.
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Time Variable.
         /// </summary>
-        public static readonly ExpandedNodeId ArrayValue3MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.ArrayValue3MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the ArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId ArrayValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the ArrayValueObjectType_BooleanValue Variable.
@@ -6986,6 +8551,151 @@ namespace TestData
         public static readonly ExpandedNodeId ArrayValueObjectType_UIntegerValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_UIntegerValue, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the AnalogArrayValueObjectType_SByteValue Variable.
         /// </summary>
         public static readonly ExpandedNodeId AnalogArrayValueObjectType_SByteValue = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_SByteValue, TestData.Namespaces.TestData);
@@ -7116,6 +8826,151 @@ namespace TestData
         public static readonly ExpandedNodeId AnalogArrayValueObjectType_UIntegerValue_EURange = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_UIntegerValue_EURange, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the UserScalarValueObjectType_GenerateValues_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EventId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EventType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_SourceNode Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserScalarValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserScalarValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the UserScalarValueObjectType_BooleanValue Variable.
         /// </summary>
         public static readonly ExpandedNodeId UserScalarValueObjectType_BooleanValue = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_BooleanValue, TestData.Namespaces.TestData);
@@ -7226,24 +9081,149 @@ namespace TestData
         public static readonly ExpandedNodeId UserScalarValueObjectType_VariantValue = new ExpandedNodeId(TestData.Variables.UserScalarValueObjectType_VariantValue, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType_InputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_GenerateValues_InputArguments Variable.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue1MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValue1MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue1MethodType_OutputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EventId Variable.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue1MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValue1MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_EventId = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_EventId, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType_InputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EventType Variable.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue2MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValue2MethodType_InputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_EventType = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_EventType, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserScalarValue2MethodType_OutputArguments Variable.
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_SourceNode Variable.
         /// </summary>
-        public static readonly ExpandedNodeId UserScalarValue2MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.UserScalarValue2MethodType_OutputArguments, TestData.Namespaces.TestData);
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_SourceNode = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_SourceNode, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_SourceName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_SourceName = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_SourceName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Time Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Time = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Time, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ReceiveTime Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Message Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Message, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Severity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Severity = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Severity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionClassId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ConditionClassId = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ConditionClassId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionClassName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ConditionClassName = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ConditionClassName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConditionName Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ConditionName = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ConditionName, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_BranchId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_BranchId = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_BranchId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Retain Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Retain = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Retain, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EnabledState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_EnabledState = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_EnabledState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_EnabledState_Id = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Quality Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Quality = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Quality, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_LastSeverity Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_LastSeverity = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_LastSeverity, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Comment Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Comment = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Comment, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ClientUserId Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ClientUserId = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ClientUserId, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AckedState Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_AckedState = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_AckedState, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_AckedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_AckedState_Id = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_AckedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_ConfirmedState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_ConfirmedState_Id = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_ConfirmedState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Acknowledge_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the UserArrayValueObjectType_CycleComplete_Confirm_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId UserArrayValueObjectType_CycleComplete_Confirm_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_CycleComplete_Confirm_InputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the UserArrayValueObjectType_BooleanValue Variable.
@@ -7356,26 +9336,6 @@ namespace TestData
         public static readonly ExpandedNodeId UserArrayValueObjectType_VariantValue = new ExpandedNodeId(TestData.Variables.UserArrayValueObjectType_VariantValue, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the UserArrayValue1MethodType_InputArguments Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue1MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValue1MethodType_InputArguments, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the UserArrayValue1MethodType_OutputArguments Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue1MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValue1MethodType_OutputArguments, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the UserArrayValue2MethodType_InputArguments Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue2MethodType_InputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValue2MethodType_InputArguments, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the UserArrayValue2MethodType_OutputArguments Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId UserArrayValue2MethodType_OutputArguments = new ExpandedNodeId(TestData.Variables.UserArrayValue2MethodType_OutputArguments, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the MethodTestType_ScalarMethod1_InputArguments Variable.
         /// </summary>
         public static readonly ExpandedNodeId MethodTestType_ScalarMethod1_InputArguments = new ExpandedNodeId(TestData.Variables.MethodTestType_ScalarMethod1_InputArguments, TestData.Namespaces.TestData);
@@ -7476,6 +9436,41 @@ namespace TestData
         public static readonly ExpandedNodeId MethodTestType_UserArrayMethod2_OutputArguments = new ExpandedNodeId(TestData.Variables.MethodTestType_UserArrayMethod2_OutputArguments, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the TestSystemConditionType_EnabledState_Id Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_EnabledState_Id = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_EnabledState_Id, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_Quality_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_Quality_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_Quality_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_LastSeverity_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_LastSeverity_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_LastSeverity_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_Comment_SourceTimestamp Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_Comment_SourceTimestamp = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_Comment_SourceTimestamp, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_AddComment_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_AddComment_InputArguments = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_AddComment_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_ConditionRefresh_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_ConditionRefresh_InputArguments = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_ConditionRefresh_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestSystemConditionType_ConditionRefresh2_InputArguments Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestSystemConditionType_ConditionRefresh2_InputArguments = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_ConditionRefresh2_InputArguments, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the TestSystemConditionType_MonitoredNodeCount Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestSystemConditionType_MonitoredNodeCount = new ExpandedNodeId(TestData.Variables.TestSystemConditionType_MonitoredNodeCount, TestData.Namespaces.TestData);
@@ -7519,11 +9514,6 @@ namespace TestData
         /// The identifier for the Data_Static_Scalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_Scalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the Data_Static_Scalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_Scalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the Data_Static_Scalar_CycleComplete_Message Variable.
@@ -7811,11 +9801,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_Array_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_Array_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Static_Array_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_Array_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_Array_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Static_Array_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_Array_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Static_Array_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -8101,11 +10086,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_UserScalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Static_UserScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_UserScalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Static_UserScalar_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_UserScalar_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -8366,11 +10346,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_UserArray_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_UserArray_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Static_UserArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_UserArray_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_UserArray_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Static_UserArray_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_UserArray_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Static_UserArray_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -8629,11 +10604,6 @@ namespace TestData
         /// The identifier for the Data_Static_AnalogScalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_AnalogScalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_AnalogScalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the Data_Static_AnalogScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_AnalogScalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_AnalogScalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the Data_Static_AnalogScalar_CycleComplete_Message Variable.
@@ -8914,11 +10884,6 @@ namespace TestData
         /// The identifier for the Data_Static_AnalogArray_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Static_AnalogArray_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Static_AnalogArray_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the Data_Static_AnalogArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Static_AnalogArray_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Static_AnalogArray_CycleComplete_LocalTime, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the Data_Static_AnalogArray_CycleComplete_Message Variable.
@@ -9301,11 +11266,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_Scalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_Scalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_Scalar_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -9589,11 +11549,6 @@ namespace TestData
         /// The identifier for the Data_Dynamic_Array_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_Array_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the Data_Dynamic_Array_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_Array_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_CycleComplete_LocalTime, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the Data_Dynamic_Array_CycleComplete_Message Variable.
@@ -9881,11 +11836,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_UserScalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_UserScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_UserScalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_UserScalar_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_UserScalar_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -10146,11 +12096,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_UserArray_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserArray_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_UserArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_UserArray_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserArray_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_UserArray_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_UserArray_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserArray_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -10409,11 +12354,6 @@ namespace TestData
         /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogScalar_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_AnalogScalar_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogScalar_CycleComplete_LocalTime, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the Data_Dynamic_AnalogScalar_CycleComplete_Message Variable.
@@ -10696,11 +12636,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_CycleComplete_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogArray_CycleComplete_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Dynamic_AnalogArray_CycleComplete_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_CycleComplete_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogArray_CycleComplete_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Dynamic_AnalogArray_CycleComplete_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Dynamic_AnalogArray_CycleComplete_Message = new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogArray_CycleComplete_Message, TestData.Namespaces.TestData);
@@ -10971,11 +12906,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus_ReceiveTime = new ExpandedNodeId(TestData.Variables.Data_Conditions_SystemStatus_ReceiveTime, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the Data_Conditions_SystemStatus_LocalTime Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId Data_Conditions_SystemStatus_LocalTime = new ExpandedNodeId(TestData.Variables.Data_Conditions_SystemStatus_LocalTime, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the Data_Conditions_SystemStatus_Message Variable.
         /// </summary>
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus_Message = new ExpandedNodeId(TestData.Variables.Data_Conditions_SystemStatus_Message, TestData.Namespaces.TestData);
@@ -11066,36 +12996,6 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Conditions_SystemStatus_MonitoredNodeCount = new ExpandedNodeId(TestData.Variables.Data_Conditions_SystemStatus_MonitoredNodeCount, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the TestData_XmlSchema Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_NamespaceUri Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_NamespaceUri = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_NamespaceUri, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_ScalarValueDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_ScalarValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_ScalarValueDataType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_ArrayValueDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_ArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_ArrayValueDataType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_UserScalarValueDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_UserScalarValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_UserScalarValueDataType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_UserArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_UserArrayValueDataType, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the TestData_BinarySchema Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_BinarySchema = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema, TestData.Namespaces.TestData);
@@ -11104,6 +13004,11 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_NamespaceUri Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_BinarySchema_NamespaceUri = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_NamespaceUri, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_BinarySchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_BinarySchema_Deprecated = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_Deprecated, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the TestData_BinarySchema_ScalarValueDataType Variable.
@@ -11124,6 +13029,41 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_UserArrayValueDataType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_BinarySchema_UserArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_UserArrayValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_NamespaceUri Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_NamespaceUri = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_NamespaceUri, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_Deprecated Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_Deprecated = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_Deprecated, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_ScalarValueDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_ScalarValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_ScalarValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_ArrayValueDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_ArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_ArrayValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_UserScalarValueDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_UserScalarValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_UserScalarValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_UserArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_UserArrayValueDataType, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -11131,6 +13071,7 @@ namespace TestData
     /// <summary>
     /// Declares all of the BrowseNames used in the Model Design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class BrowseNames
     {
         /// <summary>
@@ -11157,21 +13098,6 @@ namespace TestData
         /// The BrowseName for the ArrayMethod3 component.
         /// </summary>
         public const string ArrayMethod3 = "ArrayMethod3";
-
-        /// <summary>
-        /// The BrowseName for the ArrayValue1MethodType component.
-        /// </summary>
-        public const string ArrayValue1MethodType = "ArrayValue1MethodType";
-
-        /// <summary>
-        /// The BrowseName for the ArrayValue2MethodType component.
-        /// </summary>
-        public const string ArrayValue2MethodType = "ArrayValue2MethodType";
-
-        /// <summary>
-        /// The BrowseName for the ArrayValue3MethodType component.
-        /// </summary>
-        public const string ArrayValue3MethodType = "ArrayValue3MethodType";
 
         /// <summary>
         /// The BrowseName for the ArrayValueDataType component.
@@ -11287,11 +13213,6 @@ namespace TestData
         /// The BrowseName for the GenerateValuesEventType component.
         /// </summary>
         public const string GenerateValuesEventType = "GenerateValuesEventType";
-
-        /// <summary>
-        /// The BrowseName for the GenerateValuesMethodType component.
-        /// </summary>
-        public const string GenerateValuesMethodType = "GenerateValuesMethodType";
 
         /// <summary>
         /// The BrowseName for the GuidDataType component.
@@ -11419,21 +13340,6 @@ namespace TestData
         public const string ScalarMethod3 = "ScalarMethod3";
 
         /// <summary>
-        /// The BrowseName for the ScalarValue1MethodType component.
-        /// </summary>
-        public const string ScalarValue1MethodType = "ScalarValue1MethodType";
-
-        /// <summary>
-        /// The BrowseName for the ScalarValue2MethodType component.
-        /// </summary>
-        public const string ScalarValue2MethodType = "ScalarValue2MethodType";
-
-        /// <summary>
-        /// The BrowseName for the ScalarValue3MethodType component.
-        /// </summary>
-        public const string ScalarValue3MethodType = "ScalarValue3MethodType";
-
-        /// <summary>
         /// The BrowseName for the ScalarValueDataType component.
         /// </summary>
         public const string ScalarValueDataType = "ScalarValueDataType";
@@ -11544,16 +13450,6 @@ namespace TestData
         public const string UserArrayMethod2 = "UserArrayMethod2";
 
         /// <summary>
-        /// The BrowseName for the UserArrayValue1MethodType component.
-        /// </summary>
-        public const string UserArrayValue1MethodType = "UserArrayValue1MethodType";
-
-        /// <summary>
-        /// The BrowseName for the UserArrayValue2MethodType component.
-        /// </summary>
-        public const string UserArrayValue2MethodType = "UserArrayValue2MethodType";
-
-        /// <summary>
         /// The BrowseName for the UserArrayValueDataType component.
         /// </summary>
         public const string UserArrayValueDataType = "UserArrayValueDataType";
@@ -11572,16 +13468,6 @@ namespace TestData
         /// The BrowseName for the UserScalarMethod2 component.
         /// </summary>
         public const string UserScalarMethod2 = "UserScalarMethod2";
-
-        /// <summary>
-        /// The BrowseName for the UserScalarValue1MethodType component.
-        /// </summary>
-        public const string UserScalarValue1MethodType = "UserScalarValue1MethodType";
-
-        /// <summary>
-        /// The BrowseName for the UserScalarValue2MethodType component.
-        /// </summary>
-        public const string UserScalarValue2MethodType = "UserScalarValue2MethodType";
 
         /// <summary>
         /// The BrowseName for the UserScalarValueDataType component.
@@ -11619,6 +13505,7 @@ namespace TestData
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Namespaces
     {
         /// <summary>

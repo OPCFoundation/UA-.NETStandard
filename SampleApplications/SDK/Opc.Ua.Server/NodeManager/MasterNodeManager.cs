@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -50,8 +50,8 @@ namespace Opc.Ua.Server
             string                   dynamicNamespaceUri,
             params INodeManager[]    additionalManagers)
         {
-            if (server == null) throw new ArgumentNullException("server");
-            if (configuration == null) throw new ArgumentNullException("configuration");
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             m_server = server;
             m_nodeManagers = new List<INodeManager>();
@@ -77,9 +77,9 @@ namespace Opc.Ua.Server
             namespaceManagers[0] = registeredManagers = new List<INodeManager>();            
             namespaceManagers[1] = registeredManagers = new List<INodeManager>();
 
-            // always add the diagnostics node manager to the start of the list.
-            DiagnosticsNodeManager diagnosticsManager = new DiagnosticsNodeManager(server, configuration);
-            RegisterNodeManager(diagnosticsManager, registeredManagers, namespaceManagers);
+            // always add the diagnostics and configuration node manager to the start of the list.
+            ConfigurationNodeManager configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
+            RegisterNodeManager(configurationAndDiagnosticsManager, registeredManagers, namespaceManagers);
                         
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
@@ -342,8 +342,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
-            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException("namespaceUri");
-            if (nodeManager == null) throw new ArgumentNullException("nodeManager");
+            if (String.IsNullOrEmpty(namespaceUri)) throw new ArgumentNullException(nameof(namespaceUri));
+            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
 
             // look up the namespace uri.
             int index = m_server.NamespaceUris.GetIndex(namespaceUri);
@@ -520,7 +520,7 @@ namespace Opc.Ua.Server
             NodeIdCollection nodesToRegister,
             out NodeIdCollection registeredNodeIds)
         {
-            if (nodesToRegister == null) throw new ArgumentNullException("nodesToRegister");
+            if (nodesToRegister == null) throw new ArgumentNullException(nameof(nodesToRegister));
 
             // return the node id provided.
             registeredNodeIds = new NodeIdCollection(nodesToRegister.Count);
@@ -557,7 +557,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeIdCollection nodesToUnregister)
         {
-            if (nodesToUnregister == null) throw new ArgumentNullException("nodesToUnregister");
+            if (nodesToUnregister == null) throw new ArgumentNullException(nameof(nodesToUnregister));
 
             Utils.Trace(
                 (int)Utils.TraceMasks.ServiceDetail,
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server
             out BrowsePathResultCollection results, 
             out DiagnosticInfoCollection   diagnosticInfos)
         {
-            if (browsePaths == null)throw new ArgumentNullException("browsePaths");
+            if (browsePaths == null)throw new ArgumentNullException(nameof(browsePaths));
             
             bool diagnosticsExist = false;
             results = new BrowsePathResultCollection(browsePaths.Count);
@@ -904,8 +904,8 @@ namespace Opc.Ua.Server
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (nodesToBrowse == null) throw new ArgumentNullException("nodesToBrowse");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (nodesToBrowse == null) throw new ArgumentNullException(nameof(nodesToBrowse));
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
@@ -1013,8 +1013,8 @@ namespace Opc.Ua.Server
             out BrowseResultCollection   results,
             out DiagnosticInfoCollection diagnosticInfos)
         {            
-            if (context == null) throw new ArgumentNullException("context");
-            if (continuationPoints == null) throw new ArgumentNullException("continuationPoints");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (continuationPoints == null) throw new ArgumentNullException(nameof(continuationPoints));
 
             bool diagnosticsExist = false;
             results = new BrowseResultCollection(continuationPoints.Count);
@@ -1288,8 +1288,8 @@ namespace Opc.Ua.Server
             BrowseResultMask     resultMask,
             ReferenceDescription description)
         {
-            if (targetId == null)    throw new ArgumentNullException("targetId");
-            if (description == null) throw new ArgumentNullException("description");
+            if (targetId == null)    throw new ArgumentNullException(nameof(targetId));
+            if (description == null) throw new ArgumentNullException(nameof(description));
                         
             // find node manager that owns the node.
             INodeManager nodeManager = null;                
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Server
             out DataValueCollection      values,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (nodesToRead == null) throw new ArgumentNullException("nodesToRead");
+            if (nodesToRead == null) throw new ArgumentNullException(nameof(nodesToRead));
             
             if (maxAge < 0)
             {
@@ -1598,8 +1598,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection     results, 
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (context == null)      throw new ArgumentNullException("context");
-            if (nodesToWrite == null) throw new ArgumentNullException("nodesToWrite");
+            if (context == null)      throw new ArgumentNullException(nameof(context));
+            if (nodesToWrite == null) throw new ArgumentNullException(nameof(nodesToWrite));
 
             int count = nodesToWrite.Count;
 
@@ -1829,8 +1829,8 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection   diagnosticInfos)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (methodsToCall == null) throw new ArgumentNullException("methodsToCall");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (methodsToCall == null) throw new ArgumentNullException(nameof(methodsToCall));
             
             bool diagnosticsExist = false;
             results = new CallMethodResultCollection(methodsToCall.Count);
@@ -1948,12 +1948,12 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult>     filterResults,
             IList<IMonitoredItem>             monitoredItems)
         {
-            if (context == null)        throw new ArgumentNullException("context");
-            if (itemsToCreate == null)  throw new ArgumentNullException("itemsToCreate");
-            if (errors == null)         throw new ArgumentNullException("errors");
-            if (filterResults == null)   throw new ArgumentNullException("filterResults");
-            if (monitoredItems == null) throw new ArgumentNullException("monitoredItems");
-            if (publishingInterval < 0) throw new ArgumentOutOfRangeException("publishingInterval");
+            if (context == null)        throw new ArgumentNullException(nameof(context));
+            if (itemsToCreate == null)  throw new ArgumentNullException(nameof(itemsToCreate));
+            if (errors == null)         throw new ArgumentNullException(nameof(errors));
+            if (filterResults == null)   throw new ArgumentNullException(nameof(filterResults));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (publishingInterval < 0) throw new ArgumentOutOfRangeException(nameof(publishingInterval));
 
             if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
             {
@@ -2155,11 +2155,11 @@ namespace Opc.Ua.Server
             IList<ServiceResult>              errors,
             IList<MonitoringFilterResult>     filterResults)
         {
-            if (context == null)        throw new ArgumentNullException("context");
-            if (itemsToModify == null)  throw new ArgumentNullException("itemsToModify");
-            if (monitoredItems == null) throw new ArgumentNullException("monitoredItems");
-            if (errors == null)         throw new ArgumentNullException("errors");
-            if (filterResults == null)   throw new ArgumentNullException("filterResults");
+            if (context == null)        throw new ArgumentNullException(nameof(context));
+            if (itemsToModify == null)  throw new ArgumentNullException(nameof(itemsToModify));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (errors == null)         throw new ArgumentNullException(nameof(errors));
+            if (filterResults == null)   throw new ArgumentNullException(nameof(filterResults));
 
             if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
             {
@@ -2321,9 +2321,9 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> itemsToDelete, 
             IList<ServiceResult>  errors)
         {  
-            if (context == null)       throw new ArgumentNullException("context");
-            if (itemsToDelete == null) throw new ArgumentNullException("itemsToDelete");
-            if (errors == null)        throw new ArgumentNullException("errors");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (itemsToDelete == null) throw new ArgumentNullException(nameof(itemsToDelete));
+            if (errors == null)        throw new ArgumentNullException(nameof(errors));
 
             List<bool> processedItems = new List<bool>(itemsToDelete.Count);
 
@@ -2414,9 +2414,9 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> itemsToModify, 
             IList<ServiceResult>  errors)
         {
-            if (context == null)       throw new ArgumentNullException("context");
-            if (itemsToModify == null) throw new ArgumentNullException("itemsToModify");
-            if (errors == null)        throw new ArgumentNullException("errors");
+            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (itemsToModify == null) throw new ArgumentNullException(nameof(itemsToModify));
+            if (errors == null)        throw new ArgumentNullException(nameof(errors));
 
             // call each node manager.
             List<bool> processedItems = new List<bool>(itemsToModify.Count);
@@ -2497,7 +2497,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
-        protected IList<INodeManager> NodeManagers
+        public IList<INodeManager> NodeManagers
         {
             get { return m_nodeManagers; }
         }

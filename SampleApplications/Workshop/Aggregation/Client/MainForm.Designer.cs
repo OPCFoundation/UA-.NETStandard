@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2017 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Server.Controls;
+using Opc.Ua.Client.Controls;
 
 namespace AggregationClient
 {
@@ -78,7 +78,7 @@ namespace AggregationClient
             this.SubscribeMI = new System.Windows.Forms.ToolStripMenuItem();
             this.CallMI = new System.Windows.Forms.ToolStripMenuItem();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
-            this.clientHeaderBranding1 = new Opc.Ua.Server.Controls.ServerHeaderBranding();
+            this.clientHeaderBranding1 = new Opc.Ua.Client.Controls.HeaderBranding();
             this.MenuBar.SuspendLayout();
             this.MainPN.SuspendLayout();
             this.BrowseMenu.SuspendLayout();
@@ -297,6 +297,6 @@ namespace AggregationClient
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem Server_ChangeUserOrLocaleMI;
         private System.Windows.Forms.ToolStripMenuItem CallMI;
-        private ServerHeaderBranding clientHeaderBranding1;
+        private HeaderBranding clientHeaderBranding1;
     }
 }

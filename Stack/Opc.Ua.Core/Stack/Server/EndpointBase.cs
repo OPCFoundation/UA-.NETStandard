@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2016, OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)
         {
-            if (host == null) throw new ArgumentNullException("host");
+            if (host == null) throw new ArgumentNullException(nameof(host));
 
             m_host = host;
             m_server = host.Server;
@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// </summary>
         protected EndpointBase(ServerBase server)
         {
-            if (server == null) throw new ArgumentNullException("server");
+            if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_host = null;
             m_server = server;
@@ -101,8 +101,8 @@ namespace Opc.Ua
             AsyncCallback callback,
             object callbackData)
         {
-            if (channeId == null) throw new ArgumentNullException("channeId");
-            if (request == null) throw new ArgumentNullException("request");
+            if (channeId == null) throw new ArgumentNullException(nameof(channeId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
             // create operation.
             ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
@@ -797,7 +797,7 @@ namespace Opc.Ua
 
                 if (result == null)
                 {
-                    throw new ArgumentException("End called with an invalid IAsyncResult object.", "ar");
+                    throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
 
                 if (result.m_response == null)
@@ -896,7 +896,7 @@ namespace Opc.Ua
         private Dictionary<ExpandedNodeId,ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private const string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + AssemblyVersionInfo.CurrentVersion;
+        private string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }

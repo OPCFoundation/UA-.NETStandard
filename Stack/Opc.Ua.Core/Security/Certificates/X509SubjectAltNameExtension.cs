@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -91,7 +92,7 @@ namespace Opc.Ua
                 buffer.Append(m_uris[ii]);
             }
 
-            for (int ii = 0; ii <  m_domainNames.Count; ii++)
+            for (int ii = 0; ii < m_domainNames.Count; ii++)
             {
                 if (buffer.Length > 0)
                 {
@@ -137,7 +138,7 @@ namespace Opc.Ua
         /// </summary>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException("asnEncodedData");
+            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
             this.Oid = asnEncodedData.Oid;
             Parse(asnEncodedData.RawData);
         }
@@ -190,36 +191,28 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-        /// Extract URI, DNS and IP from formatted Subject Alternative Name.
+        /// Extract URI, DNS and IP from Subject Alternative Name.
         /// </summary>
-        private void ParseSubjectAltNameUsageExtension(string formattedData)
+        private void ParseSubjectAltNameUsageExtension(Org.BouncyCastle.Asn1.X509.GeneralNames generalNames)
         {
             List<string> uris = new List<string>();
             List<string> domainNames = new List<string>();
             List<string> ipAddresses = new List<string>();
-
-            string[] pairedData = formattedData.Split(',');
-
-            // find desired keys in formatted data
-            foreach (string pair in pairedData)
+            foreach (var generalName in generalNames.GetNames())
             {
-                // Windows style
-                string[] splitPair = pair.Trim().Split(new Char[] { ':', '=' }, 2);
-                if (splitPair.Length == 2)
+                switch (generalName.TagNo)
                 {
-                    if (splitPair[0] == s_UniformResourceIdentifier || splitPair[0] == s_URI)
-                    {
-                        uris.Add(splitPair[1]);
-                    }
-                    else if (splitPair[0] == s_DnsName || splitPair[0] == s_Dns)
-                    {
-                        domainNames.Add(splitPair[1]);
-                    }
-                    else if (splitPair[0] == s_IpAddress || splitPair[0] == s_Ip)
-                    {
-                        ipAddresses.Add(splitPair[1]);
-                    }
-                    // ignore unknown keys
+                    case Org.BouncyCastle.Asn1.X509.GeneralName.UniformResourceIdentifier:
+                        uris.Add(generalName.Name.ToString());
+                        break;
+                    case Org.BouncyCastle.Asn1.X509.GeneralName.DnsName:
+                        domainNames.Add(generalName.Name.ToString());
+                        break;
+                    case Org.BouncyCastle.Asn1.X509.GeneralName.IPAddress:
+                        ipAddresses.Add(IPAddressToString(Org.BouncyCastle.Asn1.DerOctetString.GetInstance(generalName.Name).GetOctets()));
+                        break;
+                    default:
+                        break;
                 }
             }
             m_uris = new ReadOnlyList<string>(uris);
@@ -227,14 +220,35 @@ namespace Opc.Ua
             m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
         }
 
+        /// <summary>
+        /// Create a normalized IPv4 or IPv6 address from a 4 byte or 16 byte array.
+        /// </summary>
+        private string IPAddressToString(byte[] encodedIPAddress)
+        {
+            try
+            {
+                IPAddress address = new IPAddress(encodedIPAddress);
+                return address.ToString();
+            }
+            catch
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate contains invalid IP address.");
+            }
+        }
+
+        /// <summary>
+        /// Parse certificate for alternate name extension.
+        /// </summary>
         private void Parse(byte[] data)
         {
             if (base.Oid.Value == SubjectAltNameOid ||
                 base.Oid.Value == SubjectAltName2Oid)
             {
-                AsnEncodedData asnData = new AsnEncodedData(base.Oid.Value, data);
-                string formattedData = asnData.Format(false);
-                ParseSubjectAltNameUsageExtension(formattedData);
+                Org.BouncyCastle.Asn1.Asn1OctetString altNames = new Org.BouncyCastle.Asn1.DerOctetString(data);
+                var altNamesObjects = Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(altNames);
+                ParseSubjectAltNameUsageExtension(Org.BouncyCastle.Asn1.X509.GeneralNames.GetInstance(altNamesObjects));
             }
             else
             {
@@ -251,11 +265,9 @@ namespace Opc.Ua
         /// definitions see RFC 3280 4.2.1.7
         /// </summary>
         private const string s_UniformResourceIdentifier = "URL";
-        private const string s_URI = "URI";
         private const string s_DnsName = "DNS Name";
-        private const string s_Dns = "DNS";
         private const string s_IpAddress = "IP Address";
-        private const string s_Ip = "IP";
+
         private const string s_SubjectAltNameOid = "2.5.29.7";
         private const string s_SubjectAltName2Oid = "2.5.29.17";
         private const string s_FriendlyName = "Subject Alternative Name";

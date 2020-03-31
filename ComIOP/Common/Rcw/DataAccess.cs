@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -1282,7 +1282,7 @@ namespace OpcRcw.Da
 		public const string OPC_CONSISTENCY_WINDOW_UNKNOWN        = "Unknown";
 		public const string OPC_CONSISTENCY_WINDOW_NOT_CONSISTENT = "Not Consistent";
 
-		// complex data write behavoir values.
+		// complex data write behavior values.
 		public const string OPC_WRITE_BEHAVIOR_BEST_EFFORT        = "Best Effort";
 		public const string OPC_WRITE_BEHAVIOR_ALL_OR_NOTHING     = "All or Nothing";
 	}

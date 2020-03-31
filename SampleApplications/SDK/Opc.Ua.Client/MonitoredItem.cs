@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -77,12 +77,22 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The template used to specify the monitoring parameters.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public MonitoredItem(MonitoredItem template, bool copyEventHandlers)
+        public MonitoredItem(MonitoredItem template, bool copyEventHandlers) : this(template, copyEventHandlers, false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
+        /// </summary>
+        /// <param name="template">The template used to specify the monitoring parameters.</param>
+        /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
+        /// <param name="copyClientHandle">if set to <c>true</c> the clientHandle is of the template copied.</param>
+        public MonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
         {
             Initialize();
-                       
+
             if (template != null)
-            {          
+            {
                 string displayName = template.DisplayName;
 
                 if (displayName != null)
@@ -120,6 +130,11 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_Notification = template.m_Notification;
+                }
+
+                if (copyClientHandle)
+                {
+                    m_clientHandle = template.m_clientHandle;
                 }
 
                 // this ensures the state is consistent with the node class.
@@ -607,7 +622,7 @@ namespace Opc.Ua.Client
                         // validate SourceTimestamp of the notification.
                         if (datachange.Value != null && datachange.Value.SourceTimestamp > DateTime.UtcNow)
                         {
-                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.ServerTimestamp.ToLocalTime(), ClientHandle);
+                            Utils.Trace("Received SourceTimestamp {0} is in the future for MonitoredItemId {1}", datachange.Value.SourceTimestamp.ToLocalTime(), ClientHandle);
                         }
 
                         if (datachange.Value != null && datachange.Value.StatusCode.Overflow)
@@ -929,7 +944,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message = datachange.Message;
 
-            if (message != null)
+            if (message == null)
             {
                 return null;
             }
@@ -951,7 +966,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message = eventFields.Message;
 
-            if (message != null)
+            if (message == null)
             {
                 return null;
             }
