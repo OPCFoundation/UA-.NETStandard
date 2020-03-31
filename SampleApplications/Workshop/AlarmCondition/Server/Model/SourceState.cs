@@ -239,7 +239,6 @@ namespace Quickstarts.AlarmConditionServer
             node.ConditionName.Value = node.SymbolicName;
             node.Time.Value = DateTime.UtcNow;
             node.ReceiveTime.Value = node.Time.Value;
-            node.LocalTime.Value = Utils.GetTimeZoneInfo();
             node.Message.Value = "The dialog was activated";
             node.Retain.Value = true;
 
@@ -391,7 +390,6 @@ namespace Quickstarts.AlarmConditionServer
             node.ConditionName.Value = node.SymbolicName;
             node.Time.Value = DateTime.UtcNow;
             node.ReceiveTime.Value = node.Time.Value;
-            node.LocalTime.Value = Utils.GetTimeZoneInfo();
             node.BranchId.Value = branchId;
             
             // set up method handlers.
