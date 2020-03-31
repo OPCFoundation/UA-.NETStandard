@@ -55,7 +55,7 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:62541/AggregationServer</ua:String>
+      <ua:String>opc.tcp://localhost:4840/AggregationServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>
@@ -167,7 +167,7 @@
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
 
-    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
+    <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>AggregationServer.nodes.xml</NodeManagerSaveFile>
 
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
