@@ -109,6 +109,16 @@ namespace Opc.Ua
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
 
         /// <summary>
+        /// Communicates with UA JSON over WebSockets.
+        /// </summary>
+        public const string WssJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/wss-uajson";
+
+        /// <summary>
+        /// Communicates with UA JSON over WebSockets.
+        /// </summary>
+        public const string WssBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary";
+        
+        /// <summary>
         /// An Issued User Token that complies with the JWT specification.
         /// </summary>
         public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";

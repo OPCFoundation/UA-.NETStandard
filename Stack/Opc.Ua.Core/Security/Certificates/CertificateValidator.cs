@@ -239,11 +239,10 @@ namespace Opc.Ua
 
             try
             {
+                InternalValidate(chain).GetAwaiter().GetResult();
+
                 lock (m_lock)
                 {
-
-                    InternalValidate(chain).GetAwaiter().GetResult();
-
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
@@ -752,6 +751,11 @@ namespace Opc.Ua
                     issuer = issuers[ii];
                 }
 
+                if (!chainStatusChecked && element.ChainElementStatus.Length == 0)
+                { 
+                    chainStatusChecked = true;
+                }
+
                 // check for chain status errors.
                 foreach (X509ChainStatus status in element.ChainElementStatus)
                 {
@@ -775,6 +779,7 @@ namespace Opc.Ua
 
                         throw new ServiceResultException(result);
                     }
+
                     chainStatusChecked = true;
                 }
 
@@ -1043,10 +1048,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
+        internal CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate, bool doNotBlock = false)
         {
             m_error = error;
             m_certificate = certificate;
+            DoNotBlock = doNotBlock;
         }
 #endregion
 
@@ -1060,6 +1066,11 @@ namespace Opc.Ua
         /// The certificate.
         /// </summary>
         public X509Certificate2 Certificate => m_certificate;
+
+        /// <summary>
+        /// If TRUE the call shall be be blocked for user input or other actions.
+        /// </summary>
+        public bool DoNotBlock { get; private set; }
 
         /// <summary>
         /// Whether the certificate should be accepted.

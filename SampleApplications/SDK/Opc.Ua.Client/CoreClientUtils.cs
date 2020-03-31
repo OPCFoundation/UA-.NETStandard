@@ -52,7 +52,7 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = 5000;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = DiscoveryClient.Create(new Uri("opc.tcp://localhost:4840"), endpointConfiguration))
+            using (DiscoveryClient client = DiscoveryClient.Create(new Uri("opc.tcp://localhost:4840"), endpointConfiguration, configuration))
             {
                 ApplicationDescriptionCollection servers = client.FindServers(null);
 
@@ -94,7 +94,11 @@ namespace Opc.Ua.Client
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="operationTimeout">Optional. Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
-        public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity, int operationTimeout = -1)
+        public static EndpointDescription SelectEndpoint(
+            string discoveryUrl,
+            bool useSecurity,
+            int operationTimeout = -1,
+            ApplicationConfiguration applicationConfiguration = null)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
             if (discoveryUrl.StartsWith(Utils.UriSchemeHttps))
@@ -109,6 +113,7 @@ namespace Opc.Ua.Client
             Uri uri = new Uri(discoveryUrl);
 
             EndpointConfiguration configuration = EndpointConfiguration.Create();
+
             if (operationTimeout > 0)
             {
                 configuration.OperationTimeout = operationTimeout;
@@ -117,7 +122,7 @@ namespace Opc.Ua.Client
             EndpointDescription selectedEndpoint = null;
 
             // Connect to the server's discovery endpoint and find the available configuration.
-            using (DiscoveryClient client = DiscoveryClient.Create(uri, configuration))
+            using (DiscoveryClient client = DiscoveryClient.Create(uri, configuration, applicationConfiguration))
             {
                 EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
 

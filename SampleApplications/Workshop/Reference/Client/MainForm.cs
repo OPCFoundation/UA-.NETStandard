@@ -61,7 +61,7 @@ namespace Quickstarts.ReferenceClient
         {
             InitializeComponent();
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+            ConnectServerCTRL.ServerUrl = "opc.wss://localhost:62542/";
             this.Text = m_configuration.ApplicationName;
         }
         #endregion

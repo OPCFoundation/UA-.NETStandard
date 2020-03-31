@@ -289,7 +289,7 @@ namespace Opc.Ua.Sample.Controls
                 // update the endpoint.
                 if (endpoint.UpdateBeforeConnect)
                 {
-                    endpoint.UpdateFromServer();
+                    endpoint.UpdateFromServer(m_configuration);
                 }
 
                 SessionClient client = null;

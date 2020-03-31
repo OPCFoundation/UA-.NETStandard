@@ -645,7 +645,12 @@ namespace Opc.Ua
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
-                      
+            else if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
+            {
+                description.TransportProfileUri = Profiles.WssJsonTransport;
+                description.Server.DiscoveryUrls.Add(description.EndpointUrl);
+            }
+
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(this, description, null);
             endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
@@ -823,9 +828,14 @@ namespace Opc.Ua
                         m_description.TransportProfileUri = Profiles.HttpsBinaryTransport;
                     }
 
-                    if (url.Scheme == Utils.UriSchemeOpcTcp)
+                    else if (url.Scheme == Utils.UriSchemeOpcTcp)
                     {
                         m_description.TransportProfileUri = Profiles.UaTcpTransport;
+                    }
+
+                    else if(url.Scheme == Utils.UriSchemeOpcWss)
+                    {
+                        m_description.TransportProfileUri = Profiles.WssBinaryTransport;
                     }
 
                     break;
@@ -1015,24 +1025,25 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public void UpdateFromServer()
+        public void UpdateFromServer(ApplicationConfiguration configuration = null)
         {
-            UpdateFromServer(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
+            UpdateFromServer(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, configuration);
         }
         
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
         public void UpdateFromServer(
-            Uri                 endpointUrl,
+            Uri endpointUrl,
             MessageSecurityMode securityMode, 
-            string              securityPolicyUri)
+            string securityPolicyUri,
+            ApplicationConfiguration configuration = null)
         { 
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
-            DiscoveryClient client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+            DiscoveryClient client = DiscoveryClient.Create(discoveryUrl, m_configuration, configuration);
 
             try
             {

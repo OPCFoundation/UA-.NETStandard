@@ -46,9 +46,19 @@ namespace Opc.Ua
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
+        /// The URI scheme for the UA TCP protocol. 
+        /// </summary>
+        public const string UriSchemeOpcWss = "opc.wss";
+        
+        /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
         public const int UaTcpDefaultPort = 4840;
+
+        /// <summary>
+        /// The default port for the UA TCP protocol over WebSockets.
+        /// </summary>
+        public const int UaWebSocketsDefaultPort = 4843;
 
         /// <summary>
         /// The urls of the discovery servers on a node.

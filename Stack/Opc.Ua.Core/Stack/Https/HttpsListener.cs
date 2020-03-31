@@ -200,68 +200,14 @@ namespace Opc.Ua.Bindings
                 });
             });
 #else
-            var tlsCertificate = m_serverCert;
-
-            // use a certificate that web browser clients would accept if one is available.
-            var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
-            store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
-
-            foreach (var certificate in store.Certificates)
-            {
-                if (!certificate.HasPrivateKey)
-                {
-                    continue;
-                }
-
-                bool match = certificate.Subject.Contains(m_uri.DnsSafeHost);
-
-                if (!match)
-                {
-                    var domains = Utils.GetDomainsFromCertficate(certificate);
-
-                    if (domains != null)
-                    {
-                        foreach (var domain in domains)
-                        {
-                            Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] Found SSL Domain ({domain}). {certificate.Subject}");
-
-                            if (String.Compare(domain, m_uri.DnsSafeHost, true) == 0)
-                            {
-                                match = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] Found SSL Certficate ({match}). {certificate.Subject} {certificate.Thumbprint}");
-
-                if (match)
-                {
-                    try
-                    {
-                        // verify private key is accessible.
-                        if (certificate.PrivateKey.KeySize >= 1024)
-                        {
-                            tlsCertificate = certificate;
-                            Utils.Trace(Utils.TraceMasks.Error, $"[HttpsListener] SSL Certficate Selected ({m_uri.DnsSafeHost})");
-                            break;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // ignore bad certificates.
-                    }
-                }
-            }
-
-            store.Close();
+            var tlsCertificate = FindBestTlsCertificate(this.GetType().Name, m_uri, m_serverCert);
 
             HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = tlsCertificate;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+
             m_hostBuilder.UseKestrel(options =>
             {
                 options.NoDelay = true;
@@ -279,6 +225,66 @@ namespace Opc.Ua.Bindings
         public void Stop()
         {
             Dispose();
+        }
+
+        public static X509Certificate2 FindBestTlsCertificate(string context, Uri url, X509Certificate2 tlsCertificate)
+        {
+            // use a certificate that web browser clients would accept if one is available.
+            var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+
+            foreach (var certificate in store.Certificates)
+            {
+                if (!certificate.HasPrivateKey)
+                {
+                    continue;
+                }
+
+                bool match = certificate.Subject.Contains(url.DnsSafeHost);
+
+                if (!match)
+                {
+                    var domains = Utils.GetDomainsFromCertficate(certificate);
+
+                    if (domains != null)
+                    {
+                        foreach (var domain in domains)
+                        {
+                            Utils.Trace(Utils.TraceMasks.Error, $"[{context}] Found SSL Domain ({domain}). {certificate.Subject}");
+
+                            if (String.Compare(domain, url.DnsSafeHost, true) == 0)
+                            {
+                                match = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                Utils.Trace(Utils.TraceMasks.Error, $"[{context}] Found SSL Certficate ({match}). {certificate.Subject} {certificate.Thumbprint}");
+
+                if (match)
+                {
+                    try
+                    {
+                        // verify private key is accessible.
+                        if (certificate.PrivateKey.KeySize >= 1024)
+                        {
+                            tlsCertificate = certificate;
+                            Utils.Trace(Utils.TraceMasks.Error, $"[{context}] SSL Certficate Selected ({url.DnsSafeHost})");
+                            break;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // ignore bad certificates.
+                    }
+                }
+            }
+
+            store.Close();
+
+            return tlsCertificate;
         }
         #endregion
 

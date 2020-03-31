@@ -2180,7 +2180,7 @@ namespace Opc.Ua.Server
 
                                 if (updateRequired)
                                 {
-                                    endpoint.UpdateFromServer();
+                                    endpoint.UpdateFromServer(configuration);
                                 }
 
                                 lock (m_registrationLock)
@@ -2722,6 +2722,15 @@ namespace Opc.Ua.Server
             // create HTTPS host.
 #if !NO_HTTPS
             endpointsForHost = CreateHttpsServiceHost(
+                hosts,
+                configuration,
+                configuration.ServerConfiguration.BaseAddresses,
+                serverDescription,
+                configuration.ServerConfiguration.SecurityPolicies);
+
+            endpoints.AddRange(endpointsForHost);
+
+            endpointsForHost = CreateWssServiceHost(
                 hosts,
                 configuration,
                 configuration.ServerConfiguration.BaseAddresses,

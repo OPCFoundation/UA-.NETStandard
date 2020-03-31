@@ -892,7 +892,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect)
             {
-                endpoint.UpdateFromServer();
+                endpoint.UpdateFromServer(configuration);
 
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;

@@ -77,7 +77,13 @@ namespace Opc.Ua
                 //ignore erros
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
+            ITransportChannel channel = DiscoveryChannel.Create(
+                discoveryUrl,
+                endpointConfiguration,
+                new ServiceMessageContext(),
+                clientCertificate,
+                applicationConfiguration);
+
             return new DiscoveryClient(channel);
         }
 
@@ -197,7 +203,8 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             ServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            X509Certificate2 clientCertificate = null,
+            ApplicationConfiguration configuration = null)
         {
             // create a dummy description.
             EndpointDescription endpoint = new EndpointDescription();
@@ -209,7 +216,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             ITransportChannel channel = CreateUaBinaryChannel(
-                null,
+                configuration,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,

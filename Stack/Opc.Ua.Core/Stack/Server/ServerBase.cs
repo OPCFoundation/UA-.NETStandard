@@ -312,6 +312,13 @@ namespace Opc.Ua
                         break;
                     }
 
+                    case Utils.UriSchemeOpcWss:
+                    {
+                        address.ProfileUri = Profiles.WssBinaryTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
+                    }
+
                     case Utils.UriSchemeOpcTcp:
                     {
                         address.ProfileUri = Profiles.UaTcpTransport;
@@ -672,6 +679,14 @@ namespace Opc.Ua
                     httpsListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
                     continue;
                 }
+
+                WebSocketTransportListener wssListener = listener as WebSocketTransportListener;
+
+                if (wssListener != null)
+                {
+                    wssListener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, null);
+                    continue;
+                }
 #endif
             }
         }
@@ -927,7 +942,151 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    string message = "Could not load HTTPS Stack Listener.";
+                    string message = "Could not load WebSocket Stack Listener.";
+                    if (e.InnerException != null)
+                    {
+                        message += (" " + e.InnerException.Message);
+                    }
+                    Utils.Trace(e, message);
+                }
+            }
+
+            return endpoints;
+        }
+
+
+        /// <summary>
+        /// Create a new service host for UA HTTPS.
+        /// </summary>
+        protected List<EndpointDescription> CreateWssServiceHost(
+            IDictionary<string, Task> hosts,
+            ApplicationConfiguration configuration,
+            IList<string> baseAddresses,
+            ApplicationDescription serverDescription,
+            List<ServerSecurityPolicy> securityPolicies)
+        {
+            // generate a unique host name.
+            string hostName = String.Empty;
+
+            if (hosts.ContainsKey(hostName))
+            {
+                hostName = "/WSS";
+            }
+
+            if (hosts.ContainsKey(hostName))
+            {
+                hostName += Utils.Format("/{0}", hosts.Count);
+            }
+
+            // build list of uris.
+            List<Uri> uris = new List<Uri>();
+            EndpointDescriptionCollection endpoints = new EndpointDescriptionCollection();
+
+            // create the endpoint configuration to use.
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            string computerName = Utils.GetHostName();
+
+            for (int ii = 0; ii < baseAddresses.Count; ii++)
+            {
+                if (!baseAddresses[ii].StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                UriBuilder uri = new UriBuilder(baseAddresses[ii]);
+
+                if (uri.Path[uri.Path.Length - 1] != '/')
+                {
+                    uri.Path += "/";
+                }
+
+                if (String.Compare(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    uri.Host = computerName;
+                }
+
+                uris.Add(uri.Uri);
+
+                if (uri.Scheme == Utils.UriSchemeOpcWss)
+                {
+                    foreach (ServerSecurityPolicy policy in securityPolicies)
+                    {
+                        // the prototype only support these policies.
+                        if (policy.SecurityPolicyUri != SecurityPolicies.None && policy.SecurityPolicyUri != SecurityPolicies.Basic256)
+                        {
+                            continue;
+                        }
+
+                        EndpointDescription description = new EndpointDescription();
+
+                        description.EndpointUrl = uri.ToString();
+                        description.Server = serverDescription;
+
+                        if (InstanceCertificate != null)
+                        {
+                            description.ServerCertificate = InstanceCertificate.RawData;
+
+                            // check if complete chain should be sent.
+                            if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count > 0)
+                            {
+                                List<byte> serverCertificateChain = new List<byte>();
+
+                                for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                                {
+                                    serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                                }
+
+                                description.ServerCertificate = serverCertificateChain.ToArray();
+                            }
+                        }
+
+                        description.SecurityMode = policy.SecurityMode;
+                        description.SecurityPolicyUri = policy.SecurityPolicyUri;
+                        description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
+                        description.TransportProfileUri = Profiles.WssBinaryTransport;
+
+                        endpoints.Add(description);
+
+                        var description2 = new EndpointDescription();
+
+                        description2.EndpointUrl = uri.ToString();
+                        description2.Server = serverDescription;
+                        description2.ServerCertificate = description.ServerCertificate;
+                        description2.SecurityMode = policy.SecurityMode;
+                        description2.SecurityPolicyUri = policy.SecurityPolicyUri;
+                        description2.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        description2.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
+                        description2.TransportProfileUri = Profiles.WssJsonTransport;
+
+                        endpoints.Add(description2);
+                    }
+                }
+
+                // create the stack listener.
+                try
+                {
+                    TransportListenerSettings settings = new TransportListenerSettings();
+
+                    settings.Descriptions = endpoints;
+                    settings.Configuration = endpointConfiguration;
+                    settings.ServerCertificate = this.InstanceCertificate;
+                    settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
+                    settings.NamespaceUris = this.MessageContext.NamespaceUris;
+                    settings.Factory = this.MessageContext.Factory;
+
+                    ITransportListener listener = new Opc.Ua.Bindings.WebSocketTransportListener();
+
+                    listener.Open(
+                       uri.Uri,
+                       settings,
+                       GetEndpointInstance(this));
+
+                    TransportListeners.Add(listener);
+                }
+                catch (Exception e)
+                {
+                    string message = "Could not load WebSocket Stack Listener.";
                     if (e.InnerException != null)
                     {
                         message += (" " + e.InnerException.Message);

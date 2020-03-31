@@ -701,7 +701,7 @@ namespace Opc.Ua
         {
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
-
+            bool useWss = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcWss);
 
             switch (description.TransportProfileUri)
             {
@@ -721,7 +721,7 @@ namespace Opc.Ua
             // note: WCF channels are not supported
             if (!useUaTcp
 #if !NO_HTTPS
-                && !useHttps
+                && !useHttps && !useWss
 #endif
                 )
             {
@@ -740,6 +740,11 @@ namespace Opc.Ua
             settings.Configuration = endpointConfiguration;
             settings.ClientCertificate = clientCertificate;
             settings.ClientCertificateChain = clientCertificateChain;
+
+            if (configuration != null)
+            {
+                settings.CertificateValidator = configuration.CertificateValidator;
+            }
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
@@ -769,6 +774,12 @@ namespace Opc.Ua
             {
 #if !NO_HTTPS
                 channel = new HttpsTransportChannel();
+#endif
+            }
+            else if (useWss)
+            {
+#if !NO_HTTPS
+                channel = new WebSocketTransportChannel(configuration);
 #endif
             }
 

@@ -287,7 +287,11 @@ namespace Opc.Ua.Client.Controls
             }
 
             // select the best endpoint.
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, m_discoverTimeout);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                serverUrl,
+                UseSecurityCK.Checked,
+                m_discoverTimeout,
+                m_configuration);
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
@@ -551,7 +555,15 @@ namespace Opc.Ua.Client.Controls
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new CertificateValidationEventHandler(CertificateValidator_CertificateValidation), sender, e);
+                if (e.DoNotBlock)
+                {
+                    this.BeginInvoke(new CertificateValidationEventHandler(CertificateValidator_CertificateValidation), sender, e);
+                }
+                else
+                {
+                    this.Invoke(new CertificateValidationEventHandler(CertificateValidator_CertificateValidation), sender, e);
+                }
+
                 return;
             }
 
@@ -561,13 +573,24 @@ namespace Opc.Ua.Client.Controls
 
                 if (!m_configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    DialogResult result = MessageBox.Show(
-                        e.Certificate.Subject,
-                        "Untrusted Certificate",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning);
+                    if (e.DoNotBlock)
+                    {
+                        MessageBox.Show(
+                            $"Connect failed because Certificate is not trusted. Please check the rejected folder.",
+                            "Untrusted Certificate",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        DialogResult result = MessageBox.Show(
+                            e.Certificate.Subject,
+                            "Untrusted Certificate",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning);
 
-                    e.Accept = (result == DialogResult.Yes);
+                        e.Accept = (result == DialogResult.Yes);
+                    }
                 }
             }
             catch (Exception exception)
