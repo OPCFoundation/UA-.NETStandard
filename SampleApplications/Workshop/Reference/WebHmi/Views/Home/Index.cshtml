@@ -1,0 +1,92 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="jumbotron">
+    <h2>OPC UA Technology Demonstration</h2>
+    <p class="lead">Using OPC UA with JavaScript, JSON and simple REST like APIs.</p>
+</div>
+
+<div>
+
+    @if ((bool?)ViewData["ShowWarning"] == true)
+    {
+        <p class="font-weight-bolder text-danger border-danger">
+            The site is still being worked on so it will not function properly at times.
+        </p>
+    }
+
+    <p>
+        OPC UA has a layered architecture that is designed to be independent of the implementation
+        technology. Many of the OPC UA stacks have been designed with pluggable apis that make it
+        easy to add support for new transports and data encodings. This website provides a
+        demonstration of how to develop OPC UA applications using HTTPS with JSON messages.
+    </p>
+
+    <p>
+        This website interacts with an instance of the ReferenceServer which is available as
+        part of the <a href="https://github.com/OPCFoundation/UA-.NETStandard">UA-.NETStandard</a>
+        codebase. The website server is configured to forward web requests to the HTTPS endpoint
+        on this server.
+    </p>
+
+    <p>
+        The code used to build this website is also on <a href="https://github.com/OPCFoundation/UA-.NET-Legacy/tree/prototyping/WebSockets/WebHmi">GitHub</a>.
+    </p>
+
+    <p>
+        This website uses an OAuth2 server associated with a WordPress <a href="https://wptest.opcfoundation.org/">instance</a>. All HTTP requests will fail
+        with the BadUserIdentityTokenRejected error until the web application acquires an authorization token from the OAuth server.
+        This happens when the use clicks the 'Login' button at the top right. The following figure illustrates the process:
+    </p>
+
+    <div id="accordion">
+        <div class="card">
+            <div class="card-header bg-transparent" id="heading">
+                <p class="mb-0">
+                    <button class="btn btn-link btn-sm" data-toggle="collapse" data-target="#image" aria-expanded="false" aria-controls="image">
+                        Login Sequence Diagram
+                    </button>
+                </p>
+            </div>
+
+            <div id="image" class="collapse" aria-labelledby="heading" data-parent="#accordion">
+                <div class="card-body">
+                    <img src="~/images/oauth.png" alt="Login Sequence Diagram">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p>
+        Logging requires a user with access to the WordPress intance.
+        Two test accounts have been created with the password 'password':
+
+        <ul class="list-group">
+            <li class="list-group-item">Alice</li>
+            <li class="list-group-item">Bob</li>
+        </ul>
+        More information about OPC UA support for OAuth2 can be found <a href="https://reference.opcfoundation.org/v104/Core/docs/Part6/6.5.3/">here</a>.
+    </p>
+
+    <p>
+        The JSON encoding used by these pages is defined in
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part6/5.4.1/'>Part 6</a> of the OPC UA Specification.
+        The <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.2/'>Read</a>,
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.4/'>Write</a>,
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.11.2/'>Call</a> and
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.13.2/'>Subscribe</a>
+        services are defined in Part 4.
+    </p>
+
+    <p>
+        The demonstration has 4 pages that illustrate common tasks OPC UA clients need to do:
+    </p>
+
+    <ul class="list-group">
+        <li class="list-group-item"><a href="/Home/Read/">Read values using HTTPS/JSON</a>.</li>
+        <li class="list-group-item"><a href="/Home/Write/">Write values using HTTPS/JSON</a>.</li>
+        <li class="list-group-item"><a href="/Home/Call/">Calls methods using HTTPS/JSON</a>.</li>
+        <li class="list-group-item"><a href="/Home/Subscribe/">Subscribes to data using WebSockets/JSON</a>.</li>
+    </ul>
+</div>

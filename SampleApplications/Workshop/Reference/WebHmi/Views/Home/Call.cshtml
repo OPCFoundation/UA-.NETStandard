@@ -1,0 +1,241 @@
+﻿@{
+    ViewData["Title"] = "Call";
+}
+
+<div class="jumbotron">
+    <h2>@ViewData["Title"]</h2>
+    <p class="lead">A page that uses JSON, JavaScript and HTTP to call methods on an OPC UA server.</p>
+</div>
+
+<div>
+
+    @if ((bool?)ViewData["ShowWarning"] == true)
+    {
+        <p class="font-weight-bolder text-danger border-danger">
+            The site is still being worked on so it will not function properly at times.
+        </p>
+    }
+
+    <p>
+        This page uses JavaScript to construct a JSON call request and HTTPS to POST it to the
+        OPC UA ReferenceServer. The same methods can be called by any OPC UA Client using TCP and the binary
+        data encoding. The parameters in the Call requests and responses are defined
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.11.2/'>here</a>.
+    </p>
+
+    <p>
+        The following figure illustrates the interactions between the website and the OPC UA ReferenceServer:
+    </p>
+    <div id="accordion">
+        <div class="card">
+            <div class="card-header bg-transparent" id="heading">
+                <p class="mb-0">
+                    <button class="btn btn-link btn-sm" data-toggle="collapse" data-target="#image" aria-expanded="false" aria-controls="image">
+                        Call Sequence Diagram
+                    </button>
+                </p>
+            </div>
+
+            <div id="image" class="collapse" aria-labelledby="heading" data-parent="#accordion">
+                <div class="card-body">
+                    <img src="~/images/call.png" alt="Call Sequence Diagram">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p>
+        Restrictions on cross-site scripting require the web server to forward requests to the
+        HTTP endpoint exposed by the OPC UA ReferenceServer.
+    </p>
+
+    <p>
+        A BadUserIdentityToken rejected error will appear if not logged in. The access token is sent to the server as the
+        Authorization header in the HTTP request.
+    </p>
+
+</div>
+
+<br />
+
+@using (Html.BeginForm("Call", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <span class="btn btn-secondary" name="label" style="min-width:120px;">X</span>
+    </div>
+    <input type="text" class="form-control" name="X" placeholder="" value="3" size="40" style="max-width:450px;">
+    <small id="errorX" class="form-text text-danger" style="margin-left:5px;display:none">
+        The value must be an unsigned integer.
+    </small>
+</div>
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <span class="btn btn-secondary" name="label" style="min-width:120px;">Y</span>
+    </div>
+    <input type="text" class="form-control" name="Y" placeholder="" value="4" size="40" style="max-width:450px;">
+    <small id="errorY" class="form-text text-danger" style="margin-left:5px;display:none">
+        The value must be an unsigned integer.
+    </small>
+</div>
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <span class="btn btn-secondary" name="label" style="min-width:120px;">Result</span>
+    </div>
+    <input type="text" class="form-control" name="result" placeholder="" size="40" style="max-width:450px;">
+</div>
+<div class="input-group">
+    <input type="submit" name="Add" class="btn btn-primary" value="Add" style="width:120px;margin-right:5px;" />
+    <input type="submit" name="Substract" class="btn btn-primary" value="Subtract" style="width: 120px; margin-right: 5px;" />
+    <input type="submit" name="Multiply" class="btn btn-primary" value="Multiply" style="width: 120px; margin-right: 5px;" />
+    <input type="submit" name="Divide" class="btn btn-primary" value="Divide" style="width:120px;margin-right:5px;" />
+</div>
+
+}
+
+<br />
+<br />
+
+<div class="container">
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#request">Request</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#response">Response</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="request" class="container tab-pane active" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+        <div id="response" class="container tab-pane fade" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+
+        // needed because the different methods require different numeric types.
+        const ArgumentDataTypes = JSON.parse('{"Add":[10,7],"Substract":[4,3],"Multiply":[4,5],"Divide":[6,5]}');
+
+        // This function validate the numeric field to ensure the value is with the ranges for all methods.
+        function validate(name) {
+
+            var number = $('[name=' + name + ']').val();
+
+            if (number === "" || !$.isNumeric(number) || number < 0 || number > 65535) {
+                $('#error' + name).show();
+                return undefined;
+            }
+            else {
+                $('#error' + name).hide();
+            }
+
+            return number;
+        }
+
+        function call(request) {
+            var data = JSON.stringify(request, null, 4);
+
+            var log = $('#request').find('pre');
+            log.text(data);
+
+            var target = $('[name="result"]');
+
+            // this code redirects to the UA server running on a machine accessible to the HTTP server.
+            // this indirection is needed because of the protections in browsers that block scripts accessing different sites.
+
+            $.ajax("/Home/Invoke/", {
+                type: "POST",
+                data: data,
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+                    var accessToken = "@ViewData["AccessToken"]";
+                    if (accessToken) {
+                        xhr.setRequestHeader ("Authorization", "Bearer " + accessToken);
+                    }
+                }
+            })
+                .done(function (response, textStatus, jqXHR) {
+
+                    var log = $('#response').find('pre');
+                    log.text(JSON.stringify(response, null, 4));
+
+                    if (response.ServiceId === CallResponseId) {
+                        var results = response.Body.Results;
+
+                        if (results.length) {
+                            if (!results[0].StatusCode || results[0].StatusCode === 0) {
+                                target.val(results[0].OutputArguments[0].Body);
+                            }
+                            else {
+                                target.val(getErrorString(results[0].StatusCode));
+                            }
+                        }
+                    }
+                    else if (response.ServiceId === ServiceFaultId) {
+                        target.val(getErrorString(response.Body.ResponseHeader.ServiceResult));
+                    }
+                    else {
+                        target.val("Unknown ResponseType: " + response.ServiceId);
+                    }
+                })
+                .fail(function (jqxhr, settings, ex) {
+                    if (target.length) {
+                        target.val("Server Error:" + ex);
+                    }
+                });
+        }
+
+        $(function () {
+
+            $(document).on('click', ':submit', function (e) {
+
+                e.preventDefault();
+
+                var name = $(this).attr("name");
+
+                // construct the JSON that will be sent as the call request.
+                var request = {};
+                request.ServiceId = CallRequestId;
+
+                request.Body = {};
+                request.Body.RequestHeader = {};
+                request.Body.RequestHeader.Timestamp = new Date().toISOString();
+                request.Body.RequestHeader.RequestHandle = ++nextRequestId;
+                request.Body.RequestHeader.TimeoutHint = 30000;
+                request.Body.RequestHeader.ReturnDiagnostics = 2; // return text associated with service level errors.
+                request.Body.RequestHeader.AuthenticationToken = null;
+
+                var methodToCall = {};
+                methodToCall.ObjectId = JSON.parse("{\"IdType\":1,\"Id\":\"Methods\",\"Namespace\":2}");
+                methodToCall.MethodId = JSON.parse("{\"IdType\":1,\"Id\":\"Methods_" + name + "\",\"Namespace\":2}");
+                methodToCall.InputArguments = [];
+
+                var x = validate("X");
+                if (!x) return;
+
+                var y = validate("Y");
+                if (!y) return;
+
+                var argument = JSON.parse("{\"Type\":" + ArgumentDataTypes[name][0] + ",\"Body\":" + x + "}");
+                methodToCall.InputArguments.push(argument);
+
+                argument = JSON.parse("{\"Type\":" + ArgumentDataTypes[name][1] + ",\"Body\":" + y + "}");
+                methodToCall.InputArguments.push(argument);
+
+                request.Body.MethodsToCall = [];
+                request.Body.MethodsToCall.push(methodToCall);
+
+                // post the JSON to the server and update controls with the call response.
+                call(request);
+
+            });
+        });
+
+    </script>
+}

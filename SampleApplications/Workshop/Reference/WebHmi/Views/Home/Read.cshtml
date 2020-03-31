@@ -1,0 +1,227 @@
+﻿@{
+    ViewData["Title"] = "Read";
+}
+
+<div class="jumbotron">
+    <h2>@ViewData["Title"]</h2>
+    <p class="lead">A page that uses JSON, JavaScript and HTTP to read data from an OPC UA server.</p>
+</div>
+
+<div>
+
+    @if ((bool?)ViewData["ShowWarning"] == true)
+    {
+        <p class="font-weight-bolder text-danger border-danger">
+            The site is still being worked on so it will not function properly at times.
+        </p>
+    }
+
+    <p>
+        This page uses JavaScript to construct a JSON read request and HTTPS to POST it to the
+        OPC UA ReferenceServer. The same variables can be read by any OPC UA Client using TCP and the binary
+        data encoding. The parameters in the Read requests and responses are defined
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.2/'>here</a>.
+    </p>
+
+    <p>
+        The following figure illustrates the interactions between the website and the OPC UA ReferenceServer:
+    </p>
+
+    <div id="accordion">
+        <div class="card">
+            <div class="card-header bg-transparent" id="heading">
+                <p class="mb-0">
+                    <button class="btn btn-link btn-sm" data-toggle="collapse" data-target="#image" aria-expanded="false" aria-controls="image">
+                        Read Sequence Diagram
+                    </button>
+                </p>
+            </div>
+
+            <div id="image" class="collapse" aria-labelledby="heading" data-parent="#accordion">
+                <div class="card-body">
+                    <img src="~/images/read.png" alt="Read Sequence Diagram">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p>
+        Restrictions on cross-site scripting require the web server to forward requests to the
+        HTTP endpoint exposed by the OPC UA ReferenceServer.
+    </p>
+
+    <p>
+        A BadUserIdentityToken rejected error will appear if not logged in. The access token is sent to the server as the
+        Authorization header in the HTTP request.
+    </p>
+
+    <p>
+        The syntax used to specify NodeIds is defined in <a href="https://reference.opcfoundation.org/v104/Core/docs/Part6/5.3.1/#5.3.1.10">Part 6</a>.
+    </p>
+</div>
+
+<br />
+
+@using (Html.BeginForm("Read", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Node ID</span>
+        </div>
+        <input type="text" class="form-control" name="NodeId" placeholder="Enter a Node ID using Part 6 syntax." value="ns=2;s=Scalar_Simulation_Double" size="40" style="max-width:450px;">
+        <small id="errorNodeId" class="form-text text-danger" style="margin-left:5px;display:none">
+            The value must conform to the NodeId syntax defined in Part 6.
+        </small>
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Value</span>
+        </div>
+        <input type="text" class="form-control" name="Value" placeholder="Click read to fetch the value." size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Timestamp</span>
+        </div>
+        <input type="text" class="form-control" name="Timestamp" placeholder="" size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group">
+        <input type="submit" name="Read" class="btn btn-primary" value="Read" style="width:120px;margin-right:5px;" />
+    </div>
+
+}
+
+<br />
+<br />
+
+<div class="container">
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#request">Request</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#response">Response</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="request" class="container tab-pane active" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+        <div id="response" class="container tab-pane fade" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+
+        function read(request) {
+            var data = JSON.stringify(request, null, 4);
+
+            var log = $('#request').find('pre');
+            log.text(data);
+
+            var target = $('[name="Value"]');
+            var timestamp = $('[name="Timestamp"]');
+
+            // this code redirects to the UA server running on a machine accessible to the HTTP server.
+            // this indirection is needed because of the protections in browsers that block scripts accessing different sites.
+
+            $.ajax("/Home/Invoke/", {
+                type: "POST",
+                data: data,
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+
+                    var accessToken = "@ViewData["AccessToken"]";
+
+                    if (accessToken) {
+                        xhr.setRequestHeader ("Authorization", "Bearer " + accessToken);
+                    }
+                }
+            })
+                .done(function (response, textStatus, jqXHR) {
+
+                    var log = $('#response').find('pre');
+                    log.text(JSON.stringify(response, null, 4));
+
+                    if (response.ServiceId === ReadResponseId) {
+                        var results = response.Body.Results;
+
+                        if (results.length) {
+                            if (!results[0].StatusCode || results[0].StatusCode === 0) {
+                                target.val(results[0].Value.Body);
+                                timestamp.val(results[0].SourceTimestamp);
+                            }
+                            else {
+                                target.val("Server Error: " + results[0].StatusCode.toString(16));
+                                timestamp.val("");
+                            }
+                        }
+                    }
+                    else if (response.ServiceId === ServiceFaultId) {
+                        target.val(getErrorString(response.Body.ResponseHeader.ServiceResult));
+                        timestamp.val("");
+                    }
+                    else {
+                        target.val("Unknown ResponseType: " + response.ServiceId);
+                    }
+                })
+                .fail(function (jqxhr, settings, ex) {
+                    if (target.length) {
+                        target.val("Server Error:" + ex);
+                        timestamp.val("");
+                    }
+                });
+        }
+
+        $(function () {
+
+            $(document).on('click', ':submit', function (e) {
+
+                e.preventDefault();
+
+                var source = $('[name="NodeId"]').val();
+
+                // construct the JSON that will be sent as the read request.
+                var request = {};
+                request.ServiceId = ReadRequestId;
+
+                request.Body = {};
+                request.Body.RequestHeader = {};
+                request.Body.RequestHeader.Timestamp = new Date().toISOString();
+                request.Body.RequestHeader.RequestHandle = ++nextRequestId;
+                request.Body.RequestHeader.TimeoutHint = 30000;
+                request.Body.RequestHeader.ReturnDiagnostics = 2; // return text associated with service level errors.
+                request.Body.RequestHeader.AuthenticationToken = null;
+
+                request.Body.MaxAge = 0; // read from device always
+                request.Body.TimestampsToReturn = 0; // source only
+
+                var nodeId = parseNodeId(source);
+
+                if (!nodeId) {
+                    $('#errorNodeId' + name).show();
+                    return;
+                }
+                else {
+                    $('#errorNodeId' + name).hide();
+                }
+
+                var nodeToRead = {};
+                nodeToRead.NodeId = nodeId;
+                nodeToRead.AttributeId = ValueAttributeId;
+
+                request.Body.NodesToRead = [];
+                request.Body.NodesToRead.push(nodeToRead);
+
+                // post the JSON to the server and update controls with the read response.
+                read(request);
+
+            });
+        });
+
+    </script>
+}

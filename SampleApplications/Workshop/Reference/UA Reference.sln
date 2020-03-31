@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reference Client", "Client\Reference Client.csproj", "{9C1E7F15-2EE3-440D-8E17-00C38073822A}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -37,6 +37,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Sample Controls", "..\..\Samples\Controls.Net4\UA Sample Controls.csproj", "{92AE819B-4938-4502-AC32-67063F9893CD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebHmi", "WebHmi\WebHmi.csproj", "{AE6829B7-7C9C-485C-9047-0443FB7576DB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -92,6 +94,10 @@ Global
 		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AE6829B7-7C9C-485C-9047-0443FB7576DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE6829B7-7C9C-485C-9047-0443FB7576DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE6829B7-7C9C-485C-9047-0443FB7576DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE6829B7-7C9C-485C-9047-0443FB7576DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,9 +1,16 @@
-# OPC Foundation UA .Net Standard Library Reference Server
+# OPC Foundation UA .Net Standard Library Reference Server with WebSockets and JSON support.
 
 ## Introduction
 This OPC Server is designed to be the default OPC UA Server when opening the [OPC UA Compliance Test Tool](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) and it uses an address-space that matches the design of the UACTT. 
 
 It is built with the Quickstart application template (OPC Server) and uses the OPC Foundation UA .NET Standard Library SDK. Therefore it supports both the opc.tcp and https transports. There is a .Net 4.6 based server with UI and a .Net Standard 2.0 console version of the server which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
+
+This version of the ReferenceServer has support for JSON and WebSockets with following caveats:
+ * The WebSockets channel only suppory Basic256 security policy;
+ * The implementation requires a CA issued SSL Certificate in the LocalMachine store with the CA in the Trusted Roots;
+ * The WebHmi will not work unless that SSL Certificate CA has an online CRL set up and available.
+
+The WebHmi project is an ASP .NET Core web application that uses JavaScript to communicate with the Server.
 
 ## How to build and run the Windows OPC UA Reference Server with UACTT
 1. Open the solution **UA Reference.sln** with Visual Studio 2017.

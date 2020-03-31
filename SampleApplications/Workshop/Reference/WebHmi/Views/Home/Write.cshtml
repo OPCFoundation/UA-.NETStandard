@@ -1,0 +1,252 @@
+﻿@{
+    ViewData["Title"] = "Write";
+}
+
+<div class="jumbotron">
+    <h2>@ViewData["Title"]</h2>
+    <p class="lead">A page that uses JSON, JavaScript and HTTP to write data to an OPC UA server.</p>
+</div>
+
+<div>
+
+    @if ((bool?)ViewData["ShowWarning"] == true)
+    {
+        <p class="font-weight-bolder text-danger border-danger">
+            The site is still being worked on so it will not function properly at times.
+        </p>
+    }
+
+    <p>
+        This page uses JavaScript to construct a JSON write request and HTTPS to POST it to the
+        OPC UA ReferenceServer. The same variables can be written by any OPC UA Client using TCP and the binary
+        data encoding. The parameters in the Write requests and responses are defined
+        <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.4/'>here</a>.
+    </p>
+
+    <p>
+        The following figure illustrates the interactions between the website and the OPC UA ReferenceServer:
+    </p>
+
+    <div id="accordion">
+        <div class="card">
+            <div class="card-header bg-transparent" id="heading">
+                <p class="mb-0">
+                    <button class="btn btn-link btn-sm" data-toggle="collapse" data-target="#image" aria-expanded="false" aria-controls="image">
+                        Write Sequence Diagram
+                    </button>
+                </p>
+            </div>
+
+            <div id="image" class="collapse" aria-labelledby="heading" data-parent="#accordion">
+                <div class="card-body">
+                    <img src="~/images/write.png" alt="Write Sequence Diagram">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p>
+        Restrictions on cross-site scripting require the web server to forward requests to the
+        HTTP endpoint exposed by the OPC UA ReferenceServer.
+    </p>
+
+    <p>
+        A BadUserIdentityToken rejected error will appear if not logged in. The access token is sent to the server as the
+        Authorization header in the HTTP request.
+    </p>
+
+    <p>
+        The syntax used to specify NodeIds is defined in <a href="https://reference.opcfoundation.org/v104/Core/docs/Part6/5.3.1/#5.3.1.10">Part 6</a>.
+    </p>
+    <p class="text-info">
+        Note that this example only allows writes to values that accept numbers as inputs. This was to keep the example as simple as possible.
+    </p>
+</div>
+
+<br />
+
+@using (Html.BeginForm("Write", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Node ID</span>
+        </div>
+        <input type="text" class="form-control" name="NodeId" placeholder="Enter a Node ID using Part 6 syntax." value="ns=2;s=Scalar_Static_Double" size="40" style="max-width:450px;">
+        <small id="errorNodeId" class="form-text text-danger" style="margin-left:5px;display:none">
+            The value must conform to the NodeId syntax defined in Part 6.
+        </small>
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Value</span>
+        </div>
+        <input type="text" class="form-control" name="Value" placeholder="Enter a numeric value." value="123" size="40" style="max-width:450px;">
+        <small id="errorValue" class="form-text text-danger" style="margin-left:5px;display:none">
+            The value must be a numeric value.
+        </small>
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:120px;">Result</span>
+        </div>
+        <input type="text" class="form-control" name="Result" placeholder="" size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group">
+        <input type="submit" name="Write" class="btn btn-primary" value="Write" style="width:120px;margin-right:5px;" />
+    </div>
+
+}
+
+<br />
+<br />
+
+<div class="container">
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#request">Request</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#response">Response</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="request" class="container tab-pane active" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+        <div id="response" class="container tab-pane fade" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        
+        // This function validate the value to ensure it is a valid number.
+        function validate(name) {
+
+            var number = $('[name=' + name + ']').val();
+
+            if (number === "" || !$.isNumeric(number)) {
+                $('#error' + name).show();
+                return undefined;
+            }
+            else {
+                $('#error' + name).hide();
+            }
+
+            return number;
+        }
+
+        function write(request) {
+            var data = JSON.stringify(request, null, 4);
+
+            var log = $('#request').find('pre');
+            log.text(data);
+
+            var target = $('[name="Result"]');
+
+            // this code redirects to the UA server running on a machine accessible to the HTTP server.
+            // this indirection is needed because of the protections in browsers that block scripts accessing different sites.
+
+            $.ajax("/Home/Invoke/", {
+                type: "POST",
+                data: data,
+                contentType: "application/json; charset=utf-8",
+                beforeSend: function (xhr) {
+                    var accessToken = "@ViewData["AccessToken"]";
+                    if (accessToken) {
+                        xhr.setRequestHeader ("Authorization", "Bearer " + accessToken);
+                    }
+                }
+            })
+                .done(function (response, textStatus, jqXHR) {
+
+                    var log = $('#response').find('pre');
+                    log.text(JSON.stringify(response, null, 4));
+
+                    if (response.ServiceId === WriteResponseId) {
+                        var results = response.Body.Results;
+
+                        if (results.length) {
+                            target.val(getErrorString(results[0]));
+                        }
+                    }
+                    else if (response.ServiceId === ServiceFaultId) {
+                        target.val(getErrorString(response.Body.ResponseHeader.ServiceResult));
+                    }
+                    else {
+                        target.val("Unknown ResponseType: " + response.ServiceId);
+                    }
+                })
+                .fail(function (jqxhr, settings, error) {
+                    if (target.length) {
+                        target.val("Server Error: " + error);
+                    }
+                });
+        }
+
+        $(function () {
+
+            $(document).on('click', ':submit', function (e) {
+
+                e.preventDefault();
+
+                var source = $('[name="NodeId"]').val();
+                var accessToken = "@ViewData["AccessToken"]";
+
+                // need the datatype in order to ensure the correct type is written.
+                readAttribute(source, DataTypeAttributeId, accessToken, function (dataTypeId) {
+                                    
+                    // construct the JSON that will be sent as the write request.
+                    var request = {};
+                    request.ServiceId = WriteRequestId;
+
+                    request.Body = {};
+                    request.Body.RequestHeader = {};
+                    request.Body.RequestHeader.Timestamp = new Date().toISOString();
+                    request.Body.RequestHeader.RequestHandle = ++nextRequestId;
+                    request.Body.RequestHeader.TimeoutHint = 30000;
+                    request.Body.RequestHeader.ReturnDiagnostics = 2; // return text associated with service level errors.
+                    request.Body.RequestHeader.AuthenticationToken = null;
+
+                    var nodeId = parseNodeId(source);
+
+                    var value = validate("Value");
+                    if (!value) return;
+
+                    if (!nodeId) {
+                        $('#errorNodeId' + name).show();
+                        return;
+                    }
+                    else {
+                        $('#errorNodeId' + name).hide();
+                    }
+
+                    var nodeToWrite = {};
+                    nodeToWrite.NodeId = nodeId;
+                    nodeToWrite.AttributeId = ValueAttributeId; 
+                    nodeToWrite.Value = {};
+                    nodeToWrite.Value.Value = {};
+
+                    if (dataTypeId) {
+                        nodeToWrite.Value.Value.Type = dataTypeId.Body.Id;
+                    }
+                    else {
+                        nodeToWrite.Value.Value.Type = 6; // Int32 used as default of DataType could not be read.
+                    }
+
+                    nodeToWrite.Value.Value.Body = parseInt(value);
+
+                    request.Body.NodesToWrite = [];
+                    request.Body.NodesToWrite.push(nodeToWrite);
+
+                    // post the JSON to the server and update controls with the write response.
+                    write(request);
+                });
+            });
+        });
+
+    </script>
+}

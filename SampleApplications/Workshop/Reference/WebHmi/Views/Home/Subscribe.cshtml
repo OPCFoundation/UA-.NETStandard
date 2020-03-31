@@ -1,0 +1,344 @@
+﻿@{
+    ViewData["Title"] = "Subscribe";
+}
+
+<div class="jumbotron">
+    <h2>@ViewData["Title"]</h2>
+    <p class="lead">A page that uses JSON, JavaScript and WebSockets to subscribe to data in an OPC UA server.</p>
+</div>
+
+<div>
+
+    @if ((bool?)ViewData["ShowWarning"] == true)
+    {
+        <p class="font-weight-bolder text-danger border-danger">
+            The site is still being worked on so it will not function properly at times.
+        </p>
+    }
+
+    <p>
+        This page uses JavaScript to construct JSON messages needed to create a session and a subscription
+        with an OPC UA ReferenceServer. The parameters in the CreateSession, ActivateSession and CreateSubscription requests and responses
+        are defined in <a href='https://reference.opcfoundation.org/v104/Core/docs/Part4/5.10.2/'>Part 4</a>.
+    </p>
+
+    <p>
+        The following figure illustrates the interactions between the website and the OPC UA ReferenceServer:
+    </p>
+
+    <div id="accordion">
+        <div class="card">
+            <div class="card-header bg-transparent" id="heading">
+                <p class="mb-0">
+                    <button class="btn btn-link btn-sm" data-toggle="collapse" data-target="#image" aria-expanded="false" aria-controls="image">
+                        Subscribe Sequence Diagram
+                    </button>
+                </p>
+            </div>
+
+            <div id="image" class="collapse" aria-labelledby="heading" data-parent="#accordion">
+                <div class="card-body">
+                    <img src="~/images/subscribe.png" alt="Subscribe Sequence Diagram">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br />
+    <p>
+        The syntax used to specify NodeIds is defined in <a href="https://reference.opcfoundation.org/v104/Core/docs/Part6/5.3.1/#5.3.1.10">Part 6</a>.
+    </p>
+
+</div>
+
+<br />
+
+@using (Html.BeginForm("Subscribe", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:165px;">Server</span>
+        </div>
+        <input type="text" class="form-control" name="Server" placeholder="A domain and port number." value="prototyping.opcfoundation.org:62542" size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:165px;">Node ID</span>
+        </div>
+        <input type="text" class="form-control" name="NodeId" placeholder="Enter a Node ID using Part 6 syntax." value="ns=2;s=Scalar_Simulation_Double" size="40" style="max-width:450px;">
+        <small id="errorNodeId" class="form-text text-danger" style="margin-left:5px;display:none">
+            The value must conform to the NodeId syntax defined in Part 6.
+        </small>
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:165px;">Value</span>
+        </div>
+        <input type="text" class="form-control" name="Value" placeholder="Click Connect to see updates." size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:165px;">Timestamp</span>
+        </div>
+        <input type="text" class="form-control" name="Timestamp" placeholder="Click Connect to see updates." size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="btn btn-secondary" name="label" style="min-width:165px;">Sequence Number</span>
+        </div>
+        <input type="text" class="form-control" name="SequenceNumber" placeholder="Click Connect to see updates." size="40" style="max-width:450px;">
+    </div>
+    <div class="input-group">
+        <input type="submit" name="Connect" class="btn btn-primary" value="Connect" style="width:120px;margin-right:5px;" />
+        <input type="submit" name="Disconnect" class="btn btn-primary" value="Disconnect" style="width:120px;margin-right:5px;" />
+    </div>
+}
+
+<br />
+<br />
+
+<div class="container">
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#log">Activity Log</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#request">Last Request</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#response">Last Response</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="log" class="container tab-pane active" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+        <div id="request" class="container tab-pane fade" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+        <div id="response" class="container tab-pane fade" style="border:solid;border-width:1px;border-color:lightgray">
+            <pre style="min-width:768px;width:100%;border:none"></pre>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <!--Script references. -->
+    <script>
+        $(function () {
+
+            const CreateSessionRequest = JSON.parse("{\"Id\":459}");
+            const CreateSessionResponse = JSON.parse("{\"Id\":462}");
+            const ActivateSessionRequest = JSON.parse("{\"Id\":465}");
+            const ActivateSessionResponse = JSON.parse("{\"Id\":468}");
+            const CreateSubscriptionRequest = JSON.parse("{\"Id\":785}");
+            const CreateSubscriptionResponse = JSON.parse("{\"Id\":788}");
+            const CreateMonitoredItemsRequest = JSON.parse("{\"Id\":749}");
+            const CreateMonitoredItemsResponse = JSON.parse("{\"Id\":752}");
+            const PublishRequest = JSON.parse("{\"Id\":824}");
+            const PublishResponse = JSON.parse("{\"Id\":827}");
+            const CloseSessionRequest = JSON.parse("{\"Id\":471}");
+            const CloseSessionResponse = JSON.parse("{\"Id\":474}");
+
+            var sessionId;
+            var subscriptionId;
+            var monitoredItemId;
+
+            function logRequest(json) {
+                var log = $('#request').find('pre');
+                log.text(JSON.stringify(json, null, 4));
+            }
+
+            function logResponse(json) {
+                var log = $('#response').find('pre');
+                log.text(JSON.stringify(json, null, 4));
+            }
+
+            function logMessage(message) {
+                var log = $('#log').find('pre');
+                var time = new Date().toTimeString().substring(0, 8);
+
+                if (log.text().length > 1000) {
+                    log.text(time + ": " + message);
+                    log.append('.&#13;&#10;');
+                }
+                else {
+                    log.append(time + ": " + message + '.&#13;&#10;');
+                }
+            }
+
+            $(document).on('click', ':submit', function (e) {
+
+                e.preventDefault();
+
+                var action = $(this).attr("name");
+
+                var server = $('[name="Server"]').val();
+                var source = $('[name="NodeId"]').val();
+
+                if (socket !== undefined) {
+
+                    var request = createRequest(CloseSessionRequest);
+                    request.Body.DeleteSubscriptions = true;
+                    logMessage('Send CloseSession Request #' + nextRequestId.toString());
+                    socket.send(JSON.stringify(request));
+                    socket.close();
+                    socket = undefined;
+                }
+
+                if (action == "Disconnect") {
+                    logMessage('Disconnected');
+                    return;
+                }
+
+                var nodeId = parseNodeId(source);
+
+                if (!nodeId) {
+                    $('#errorNodeId' + name).show();
+                    return;
+                }
+                else {
+                    $('#errorNodeId' + name).hide();
+                }
+
+                socket = new WebSocket("wss://" + server, "opcua+uajson");
+                socket.onmessage = function (event) {
+
+                    // parse the response.
+                    var response = JSON.parse(event.data);
+                    logResponse(response);
+
+                    var result = response.Body.ResponseHeader.ServiceResult;
+                    var requestId = response.Body.ResponseHeader.RequestHandle;
+                    var typeId = response.TypeId;
+
+                    if (result !== undefined) {
+                        logMessage('ERROR for Request #' + requestId.toString() + ": " + result.toString(16));
+                        return;
+                    }
+
+                    if (typeId.Id === CreateSessionResponse.Id) {
+
+                        sessionId = response.Body.SessionId;
+                        authenticationToken = response.Body.AuthenticationToken;
+
+                        var request = createRequest(ActivateSessionRequest);
+
+                        logMessage('Send ActivateSession Request #' + nextRequestId.toString());
+                        logRequest(request);
+                        socket.send(JSON.stringify(request));
+                        return;
+                    }
+
+                    if (typeId.Id === ActivateSessionResponse.Id) {
+
+                        var request = createRequest(CreateSubscriptionRequest);
+
+                        request.Body.RequestedPublishingInterval = 1000;
+                        request.Body.RequestedMaxKeepAliveCount = 10;
+                        request.Body.RequestedLifetimeCount = 10;
+                        request.Body.MaxNotificationsPerPublish = 1000;
+                        request.Body.PublishingEnabled = true;
+                        request.Body.Priority = 255;
+
+                        logMessage('Send CreateSubscription Request #' + nextRequestId.toString());
+                        logRequest(request);
+                        socket.send(JSON.stringify(request));
+                        return;
+                    }
+
+                    if (typeId.Id === CreateSubscriptionResponse.Id) {
+
+                        subscriptionId = response.Body.SubscriptionId;
+
+                        var request = createRequest(CreateMonitoredItemsRequest);
+
+                        request.Body.SubscriptionId = subscriptionId;
+                        request.Body.TimestampsToReturn = "Source";
+
+                        var item = {};
+                        item.ItemToMonitor = {};
+                        item.ItemToMonitor.NodeId = nodeId;
+                        item.ItemToMonitor.AttributeId = ValueAttributeId;
+                        item.MonitoringMode = 2;
+                        item.RequestedParameters = {};
+                        item.RequestedParameters.SamplingInterval = 1000;
+                        item.RequestedParameters.QueueSize = 0;
+                        item.RequestedParameters.DiscardOldest = true;
+                        item.RequestedParameters.ClientHandle = 1;
+
+                        request.Body.ItemsToCreate = [];
+                        request.Body.ItemsToCreate.push(item);
+
+                        logMessage('Send CreateMonitoredItems Request #' + nextRequestId.toString());
+                        logRequest(request);
+                        socket.send(JSON.stringify(request));
+                        return;
+                    }
+
+                    if (typeId.Id === CreateMonitoredItemsResponse.Id) {
+
+                        monitoredItemId = response.Body.Results[0].MonitoredItemId;
+
+                        var request = createRequest(PublishRequest);
+
+                        logMessage('Send Publish Request #' + nextRequestId.toString());
+                        logRequest(request);
+                        socket.send(JSON.stringify(request));
+                        return;
+                    }
+
+                    if (typeId.Id === PublishResponse.Id) {
+
+                        $('[name="SequenceNumber"]').val(response.Body.NotificationMessage.SequenceNumber);
+
+                        if (response.Body.NotificationMessage.NotificationData.length > 0) {
+                            if (response.Body.NotificationMessage.NotificationData[0].Body.MonitoredItems.length > 0) {
+                                $('[name="Value"]').val(response.Body.NotificationMessage.NotificationData[0].Body.MonitoredItems[0].Value.Value.Body);
+                                $('[name="Timestamp"]').val(response.Body.NotificationMessage.NotificationData[0].Body.MonitoredItems[0].Value.SourceTimestamp);
+                            }
+                        }
+
+                        var request = createRequest(PublishRequest);
+
+                        request.Body.SubscriptionAcknowledgements = [];
+                        var acknowledgement = {};
+                        acknowledgement.SubscriptionId = response.Body.SubscriptionId;
+                        acknowledgement.SequenceNumber = response.Body.NotificationMessage.SequenceNumber;
+                        request.Body.SubscriptionAcknowledgements.push(acknowledgement);
+
+                        logMessage('Send Publish Request #' + nextRequestId.toString());
+                        logRequest(request);
+                        socket.send(JSON.stringify(request));
+                        return;
+                    }
+                };
+
+                socket.onerror = function (event) {
+                    $('[name="Value"]').val('Could not connect to ' + server);
+                };
+
+                socket.onopen = function (event) {
+
+                    var request = createRequest(CreateSessionRequest);
+
+                    request.Body.ClientDescription = {};
+                    request.Body.ClientDescription.ApplicationName = "Prototype Browser Based Client";
+                    request.Body.ClientDescription.ApplicationUri = document.URL;
+                    request.Body.ClientDescription.ProductUri = "urn:opcfoundation.org:prototyping:websockets:webclient";
+                    request.Body.ClientDescription.ApplicationType = 1;
+                    request.Body.SessionName = "Browser";
+                    request.Body.EndpointUrl = "opc.wss://" + server;
+                    request.Body.RequestedSessionTimeout = 120000;
+                    request.Body.MaxResponseMessageSize = 1000000;
+
+                    logMessage('Send CreateSession Request #' + nextRequestId.toString());
+                    logRequest(request);
+                    socket.send(JSON.stringify(request));
+                };
+            });
+        });
+
+    </script>
+}

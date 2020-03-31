@@ -74,14 +74,14 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>https://localhost:62540/</ua:String>
-      <ua:String>opc.tcp://localhost:62541/</ua:String>
-      <ua:String>opc.wss://localhost:62542/</ua:String>
-    </BaseAddresses>
-    <!-- 
       <ua:String>https://prototyping.opcfoundation.org:62540/</ua:String>
       <ua:String>opc.tcp://prototyping.opcfoundation.org:62541/</ua:String>
       <ua:String>opc.wss://prototyping.opcfoundation.org:62542/</ua:String>
+    </BaseAddresses>
+    <!-- 
+      <ua:String>https://localhost:62540/</ua:String>
+      <ua:String>opc.tcp://localhost:62541/</ua:String>
+      <ua:String>opc.wss://localhost:62542/</ua:String>
       
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
     used to communicate with the server. The URL used by the client when calling
