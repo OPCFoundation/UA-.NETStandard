@@ -14,7 +14,7 @@
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <DockerfileRunArguments>-p 4840:4840</DockerfileRunArguments>
+    <DockerfileRunArguments>-p 62530:62530</DockerfileRunArguments>
   </PropertyGroup>
 
   <ItemGroup>

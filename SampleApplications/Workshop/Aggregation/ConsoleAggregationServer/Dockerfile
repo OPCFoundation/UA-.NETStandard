@@ -21,5 +21,5 @@ RUN dotnet publish "ConsoleAggregationServer.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-EXPOSE 4840
+EXPOSE 62530
 ENTRYPOINT ["dotnet", "ConsoleAggregationServer.dll"]
