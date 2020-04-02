@@ -28,14 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Security.Cryptography.X509Certificates;
 using System.Windows.Forms;
-using System.IO;
-using System.Threading.Tasks;
 using Opc.Ua;
-using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
 
 namespace ReverseHelloTestServer
@@ -59,7 +53,7 @@ namespace ReverseHelloTestServer
             InitializeComponent();
             this.Icon = ClientUtils.GetAppIcon();
         }
-        
+
         /// <summary>
         /// Creates a form which uses the specified client configuration.
         /// </summary>
@@ -86,7 +80,7 @@ namespace ReverseHelloTestServer
         {
             try
             {
-                m_server.StartMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65301"));
+                m_server.StartMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65300"));
                 Connect_DotNetTestClientMI.Enabled = false;
                 Disconnect_DotNetTestClientMI.Enabled = true;
             }
@@ -100,7 +94,7 @@ namespace ReverseHelloTestServer
         {
             try
             {
-                m_server.StopMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65301"));
+                m_server.StopMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65300"));
                 Connect_DotNetTestClientMI.Enabled = true;
                 Disconnect_DotNetTestClientMI.Enabled = false;
             }

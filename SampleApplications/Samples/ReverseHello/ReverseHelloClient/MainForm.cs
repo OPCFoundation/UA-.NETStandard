@@ -67,7 +67,7 @@ namespace ReverseHelloTestClient
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.wss://localhost:65200/";
+            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:65200/";
             m_connectionManager = connectionManager;
             m_connectionManager.ConnectionWaiting += ConnectionManager_ConnectionWaiting;
             m_connections = new Dictionary<Uri, ConnectionWaitingEventArgs>();

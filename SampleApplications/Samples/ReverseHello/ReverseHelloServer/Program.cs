@@ -63,7 +63,7 @@ namespace ReverseHelloTestServer
 
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Server;
-            application.ConfigSectionName = "ReverseHelloTestServer";
+            application.ConfigSectionName = "ReverseHelloServer";
 
             try
             {
@@ -81,14 +81,14 @@ namespace ReverseHelloTestServer
                 }
 
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // start the server.
                 var server = new ReverseHelloServer();
-                application.Start(server);
+                application.Start(server).Wait();
 
                 // run the application interactively.
                 Application.Run(new MainForm(server, application.ApplicationConfiguration));

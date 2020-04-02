@@ -52,7 +52,7 @@ namespace ReverseHelloTestClient
 
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Client;
-            application.ConfigSectionName = "ReverseHelloTestClient";
+            application.ConfigSectionName = "ReverseHelloClient";
 
             try
             {
@@ -77,7 +77,7 @@ namespace ReverseHelloTestClient
             }
             catch (Exception e)
             {
-                ExceptionDlg.Show(application.ApplicationName, e);
+                //ExceptionDlg.Show(application.ApplicationName, e);
                 return;
             }
         }
