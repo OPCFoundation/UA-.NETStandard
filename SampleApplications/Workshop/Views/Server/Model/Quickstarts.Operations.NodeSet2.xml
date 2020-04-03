@@ -1,8 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/Quickstarts/Operations</Uri>
   </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Quickstarts/Operations">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
+    </Model>
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -40,28 +45,28 @@
     <Alias Alias="HasEncoding">i=38</Alias>
     <Alias Alias="HasDescription">i=39</Alias>
   </Aliases>
-  <UAVariable NodeId="ns=1;i=443" BrowseName="1:SetPoint" DataType="Double" ValueRank="0">
+  <UAVariable NodeId="ns=1;i=443" BrowseName="1:SetPoint" DataType="Double" ValueRank="-2">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=446</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2368</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=446" BrowseName="EURange" DataType="i=884">
+  <UAVariable NodeId="ns=1;i=446" BrowseName="EURange" ParentNodeId="ns=1;i=443" DataType="i=884">
     <DisplayName>EURange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=443</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=449" BrowseName="1:Measurement" DataType="Double" ValueRank="0">
+  <UAVariable NodeId="ns=1;i=449" BrowseName="1:Measurement" DataType="Double" ValueRank="-2">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=452</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2368</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=452" BrowseName="EURange" DataType="i=884">
+  <UAVariable NodeId="ns=1;i=452" BrowseName="EURange" ParentNodeId="ns=1;i=449" DataType="i=884">
     <DisplayName>EURange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

@@ -78,11 +78,11 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the object with specific values.
         /// </remarks>
-        /// <param name="additionalInfo">Additional, textual information</param>
+        /// <param name="symbolicId">The symbolic ID</param>
+        /// <param name="namespaceUri">The namespace URI applicable</param>
         /// <param name="locale">The locale for the localized text value</param>
         /// <param name="localizedText">The localized text value</param>
-        /// <param name="namespaceUri">The namespace URI applicable</param>
-        /// <param name="symbolicId">The symbolic ID</param>
+        /// <param name="additionalInfo">Additional, textual information</param>
         public DiagnosticInfo(
             int    symbolicId,
             int    namespaceUri,

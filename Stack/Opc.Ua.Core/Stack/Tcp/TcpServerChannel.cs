@@ -1208,7 +1208,7 @@ namespace Opc.Ua.Bindings
             {
                 Utils.Trace(e, "Unexpected error processing request.");
                 SendServiceFault(token, requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request."));
-                return false;
+                return true;
             }
             finally
             {

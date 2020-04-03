@@ -108,13 +108,13 @@ namespace Opc.Ua.Client.ComplexTypes
             // test forbidden combinations
             if (!isSupportedType)
             {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                throw new DataTypeNotSupportedException(
                     "The structure definition uses a Terminator or LengthInBytes, which are not supported.");
             }
 
             if (isUnionType && hasBitField)
             {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                throw new DataTypeNotSupportedException(
                     "The structure definition combines a Union and a bit filed, both of which are not supported in a single structure.");
             }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else
                     {
-                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        throw new DataTypeNotSupportedException(
                             "Options for bit selectors must be 32 bit in size, use the Int32 datatype and must be the first element in the structure.");
                     }
                     continue;
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (switchFieldBitPosition != 0 &&
                     switchFieldBitPosition != 32)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     var lastField = structureDefinition.Fields.Last();
                     if (lastField.Name != field.LengthField)
                     {
-                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        throw new DataTypeNotSupportedException(
                             "The length field must precede the type field of an array.");
                     }
                     lastField.Name = field.Name;
@@ -193,14 +193,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             if (structureDefinition.Fields.Count != 0)
                             {
-                                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                                throw new DataTypeNotSupportedException(
                                     "The switch field of a union must be the first field in the complex type.");
                             }
                             continue;
                         }
                         if (structureDefinition.Fields.Count != dataTypeFieldPosition)
                         {
-                            throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            throw new DataTypeNotSupportedException(
                                 "The count of the switch field of the union member is not matching the field position.");
                         }
                         dataTypeFieldPosition++;
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             byte value;
                             if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
                             {
-                                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                                throw new DataTypeNotSupportedException(
                                     $"The switch field for {field.SwitchField} does not exist.");
                             }
                         }
@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown,
+                    throw new DataTypeNotFoundException(
                         $"The type {typeName.Name} was not found in the internal type factory.");
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
                 {
-                    throw new ComplexTypeSystem.DataTypeNotFoundException(
+                    throw new DataTypeNotFoundException(
                         typeName.Name,
                         $"The type {typeName.Name} in namespace {typeName.Namespace} was not found.");
                 }

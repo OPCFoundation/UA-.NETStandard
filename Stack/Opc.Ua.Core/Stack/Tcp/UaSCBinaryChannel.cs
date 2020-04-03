@@ -208,12 +208,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            Task.Run(() =>
-            {
-                if (m_StateChanged != null)
-                {
-                    m_StateChanged(this, state, reason);
-                }
+            Task.Run(() => {
+                m_StateChanged?.Invoke(this, state, reason);
             });
         }
 
@@ -389,7 +385,6 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 ServiceResult error = ServiceResult.Good;
-
                 try
                 {
                     Utils.TraceDebug("Bytes written: {0}", e.BytesTransferred);
@@ -406,6 +401,11 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
+                    if (ex is InvalidOperationException)
+                    {
+                        // suppress chained exception in HandleWriteComplete/ReturnBuffer
+                        e.BufferList = null;
+                    }
                     error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
                     HandleWriteComplete((BufferCollection)e.BufferList, e.UserToken, e.BytesTransferred, error);
                 }

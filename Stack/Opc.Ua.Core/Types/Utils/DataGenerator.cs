@@ -12,9 +12,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Xml;
 
 namespace Opc.Ua.Test
@@ -64,14 +64,11 @@ namespace Opc.Ua.Test
         {
             m_random = new Random(seed);
         }
-        
+
         /// <summary cref="IRandomSource.NextBytes" />
         public void NextBytes(byte[] bytes, int offset, int count)
         {
-            if (bytes == null)
-            {
-                throw new ArgumentNullException(nameof(bytes));
-            }
+            if (bytes == null) throw new ArgumentNullException(nameof(bytes));
 
             if (offset < 0 || (offset != 0 && offset >= bytes.Length))
             {
@@ -97,7 +94,6 @@ namespace Opc.Ua.Test
                 byte[] buffer = new byte[count];
                 m_random.NextBytes(buffer);
                 Array.Copy(buffer, 0, bytes, offset, count);
-
             }
         }
 
@@ -108,7 +104,7 @@ namespace Opc.Ua.Test
             {
                 throw new ArgumentOutOfRangeException(nameof(max));
             }
-            
+
             if (max < Int32.MaxValue)
             {
                 max++;
@@ -116,7 +112,7 @@ namespace Opc.Ua.Test
 
             return m_random.Next(max);
         }
-        
+
         private Random m_random;
     }
 
@@ -147,21 +143,20 @@ namespace Opc.Ua.Test
             {
                 m_random = new RandomSource();
             }
-            
+
             // load the boundary values.
-            m_boundaryValues = new SortedDictionary<string,object[]>();
+            m_boundaryValues = new SortedDictionary<string, object[]>();
 
             for (int ii = 0; ii < s_AvailableBoundaryValues.Length; ii++)
             {
                 m_boundaryValues[s_AvailableBoundaryValues[ii].SystemType.Name] = s_AvailableBoundaryValues[ii].Values.ToArray();
             }
-            
-            // load the localized tokens.
-            m_tokenValues = LoadStringData("Opc.Ua.Core.Types.Utils.LocalizedData.txt");
 
+            // load the localized tokens.
+            m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
             if (m_tokenValues.Count == 0)
             {
-                m_tokenValues = LoadStringData("Opc.Ua.Core.Utils.LocalizedData.txt");
+                m_tokenValues = LoadStringData("Opc.Ua.Utils.LocalizedData.txt");
             }
 
             // index the available locales.
@@ -191,7 +186,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxStringLength
         {
-            get { return m_maxStringLength;  }
+            get { return m_maxStringLength; }
             set { m_maxStringLength = value; }
         }
 
@@ -200,7 +195,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public DateTime MinDateTimeValue
         {
-            get { return m_minDateTimeValue;  }
+            get { return m_minDateTimeValue; }
             set { m_minDateTimeValue = value; }
         }
 
@@ -209,7 +204,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public DateTime MaxDateTimeValue
         {
-            get { return m_maxDateTimeValue;  }
+            get { return m_maxDateTimeValue; }
             set { m_maxDateTimeValue = value; }
         }
 
@@ -218,7 +213,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxXmlAttributeCount
         {
-            get { return m_maxXmlAttributeCount;  }
+            get { return m_maxXmlAttributeCount; }
             set { m_maxXmlAttributeCount = value; }
         }
 
@@ -227,7 +222,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public int MaxXmlElementCount
         {
-            get { return m_maxXmlElementCount;  }
+            get { return m_maxXmlElementCount; }
             set { m_maxXmlElementCount = value; }
         }
 
@@ -236,7 +231,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public NamespaceTable NamespaceUris
         {
-            get { return m_namespaceUris;  }
+            get { return m_namespaceUris; }
             set { m_namespaceUris = value; }
         }
 
@@ -245,7 +240,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public StringTable ServerUris
         {
-            get { return m_serverUris;  }
+            get { return m_serverUris; }
             set { m_serverUris = value; }
         }
 
@@ -254,7 +249,7 @@ namespace Opc.Ua.Test
         /// </summary>
         public int BoundaryValueFrequency
         {
-            get { return m_boundaryValueFrequency;  }
+            get { return m_boundaryValueFrequency; }
             set { m_boundaryValueFrequency = value; }
         }
 
@@ -263,9 +258,9 @@ namespace Opc.Ua.Test
         /// </summary>
         private bool UseBoundaryValue()
         {
-            return m_random.NextInt32(99) < m_boundaryValueFrequency;            
+            return m_random.NextInt32(99) < m_boundaryValueFrequency;
         }
-        
+
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
@@ -328,18 +323,18 @@ namespace Opc.Ua.Test
                 {
                     // randomly choose a built-in type.
                     BuiltInType builtInType = BuiltInType.Variant;
-                    
+
                     while (builtInType == BuiltInType.Variant || builtInType == BuiltInType.DataValue)
                     {
                         builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
                     }
 
-                    return GetRandomVariant(builtInType, false);                    
+                    return GetRandomVariant(builtInType, false);
                 }
 
                 return GetRandom(expectedType);
             }
-            
+
             // calculate the length of each dimension.
             int[] actualDimensions = new int[dimensions];
 
@@ -355,10 +350,10 @@ namespace Opc.Ua.Test
                     actualDimensions[ii] = m_random.NextInt32(m_maxArrayLength);
                 }
             }
-            
+
             // create an array.
             Array output = TypeInfo.CreateArray(expectedType, actualDimensions);
-                       
+
             // generate random values for each element in the array.
             int length = output.Length;
             int[] indexes = new int[actualDimensions.Length];
@@ -370,14 +365,15 @@ namespace Opc.Ua.Test
                 for (int jj = 0; jj < indexes.Length; jj++)
                 {
                     divisor /= actualDimensions[jj];
-                    indexes[jj] = (ii/divisor)%actualDimensions[jj];
+                    indexes[jj] = (ii / divisor) % actualDimensions[jj];
                 }
-                
+
                 object value = GetRandom(dataType, ValueRanks.Scalar, null, typeTree);
-                        
+
                 if (value != null)
                 {
-                    if (expectedType == BuiltInType.Guid)
+                    if (expectedType == BuiltInType.Guid &&
+                        value is Guid)
                     {
                         value = new Uuid((Guid)value);
                     }
@@ -410,7 +406,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Double: { return GetRandomDouble(); }
                 case BuiltInType.String: { return GetRandomString(); }
                 case BuiltInType.DateTime: { return GetRandomDateTime(); }
-                case BuiltInType.Guid: { return GetRandomGuid(); }
+                case BuiltInType.Guid: { return GetRandomUuid(); }
                 case BuiltInType.ByteString: { return GetRandomByteString(); }
                 case BuiltInType.XmlElement: { return GetRandomXmlElement(); }
                 case BuiltInType.NodeId: { return GetRandomNodeId(); }
@@ -421,6 +417,8 @@ namespace Opc.Ua.Test
                 case BuiltInType.Variant: { return GetRandomVariant(); }
                 case BuiltInType.Enumeration: { return GetRandomInt32(); }
                 case BuiltInType.ExtensionObject: { return GetRandomExtensionObject(); }
+                case BuiltInType.DataValue: { return GetRandomDataValue(); }
+                case BuiltInType.DiagnosticInfo: { return GetRandomDiagnosticInfo(); }
 
                 case BuiltInType.Number:
                 {
@@ -430,13 +428,13 @@ namespace Opc.Ua.Test
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3)*2) + (int)BuiltInType.SByte);
+                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomVariant(builtInType, false);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3)*2) + (int)BuiltInType.Byte);
+                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomVariant(builtInType, false);
                 }
             }
@@ -451,6 +449,7 @@ namespace Opc.Ua.Test
         {
             switch (expectedType)
             {
+                case BuiltInType.Null: { return GetNullArray<object>(length, fixedLength); }
                 case BuiltInType.Boolean: { return GetRandomArray<bool>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.SByte: { return GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.Byte: { return GetRandomArray<byte>(useBoundaryValues, length, fixedLength); }
@@ -473,8 +472,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.LocalizedText: { return GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.StatusCode: { return GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.Variant: { return GetRandomArray<Variant>(useBoundaryValues, length, fixedLength); }
-                case BuiltInType.Enumeration: { return GetRandomArray<int>(useBoundaryValues, length, fixedLength); }
-
+                case BuiltInType.ExtensionObject: { return GetRandomArray<ExtensionObject>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.Number:
                 {
                     BuiltInType builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
@@ -483,15 +481,16 @@ namespace Opc.Ua.Test
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3)*2) + (int)BuiltInType.SByte);
+                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3)*2) + (int)BuiltInType.Byte);
+                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
+                case BuiltInType.Enumeration: { return GetRandomArray<int>(useBoundaryValues, length, fixedLength); }
             }
 
             return null;
@@ -505,7 +504,7 @@ namespace Opc.Ua.Test
             Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
             Variant[] variants = new Variant[array.Length];
             TypeInfo typeInfo = new TypeInfo(builtInType, ValueRanks.Scalar);
-            
+
             for (int ii = 0; ii < variants.Length; ii++)
             {
                 variants[ii] = new Variant(array.GetValue(ii), typeInfo);
@@ -513,7 +512,7 @@ namespace Opc.Ua.Test
 
             return variants;
         }
-        
+
         /// <summary>
         /// This method returns a random value of values for the type.
         /// </summary>
@@ -530,6 +529,31 @@ namespace Opc.Ua.Test
             }
 
             return (T)GetRandom(typeof(T));
+        }
+
+        /// <summary>
+        /// This method returns a random array of values for the type.
+        /// </summary>
+        public T[] GetNullArray<T>(int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return null;
+            }
+
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+
+            T[] value = new T[length];
+
+            for (int ii = 0; ii < value.Length; ii++)
+            {
+                value[ii] = default(T);
+            }
+
+            return value;
         }
 
         /// <summary>
@@ -565,14 +589,23 @@ namespace Opc.Ua.Test
                 if (element == null)
                 {
                     element = default(T);
+                    if (element == null)
+                    {
+                        // ensure a valid null type is returned
+                        Type t = typeof(T);
+                        if (t == typeof(ExpandedNodeId)) { element = ExpandedNodeId.Null; }
+                        else if (t == typeof(NodeId)) { element = NodeId.Null; }
+                        else if (t == typeof(LocalizedText)) { element = LocalizedText.Null; }
+                        else if (t == typeof(QualifiedName)) { element = QualifiedName.Null; }
+                    }
                 }
-                
+
                 value[ii] = (T)element;
-            }   
+            }
 
             return value;
         }
-        
+
         #region Boolean
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -593,7 +626,7 @@ namespace Opc.Ua.Test
             {
                 return (sbyte)(SByte.MinValue + (buffer - SByte.MaxValue) - 1);
             }
-                
+
             return (sbyte)buffer;
         }
         #endregion
@@ -606,7 +639,7 @@ namespace Opc.Ua.Test
             return (byte)m_random.NextInt32(Byte.MaxValue);
         }
         #endregion
-        
+
         #region Int16
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -618,7 +651,7 @@ namespace Opc.Ua.Test
             {
                 return (short)(Int16.MinValue + (buffer - Int16.MaxValue) - 1);
             }
-                
+
             return (short)buffer;
         }
         #endregion
@@ -651,7 +684,7 @@ namespace Opc.Ua.Test
             return BitConverter.ToUInt32(bytes, 0);
         }
         #endregion
-        
+
         #region Int64
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -662,7 +695,7 @@ namespace Opc.Ua.Test
             return BitConverter.ToInt64(bytes, 0);
         }
         #endregion
-        
+
         #region UInt64
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -673,7 +706,7 @@ namespace Opc.Ua.Test
             return BitConverter.ToUInt64(bytes, 0);
         }
         #endregion
-        
+
         #region Float
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -684,7 +717,7 @@ namespace Opc.Ua.Test
             return BitConverter.ToSingle(bytes, 0);
         }
         #endregion
-        
+
         #region Double
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -722,19 +755,19 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public DateTime GetRandomDateTime()
         {
-            int minTicks = (int)(m_minDateTimeValue.Ticks>>32);
-            int maxTicks = (int)(m_maxDateTimeValue.Ticks>>32);
+            int minTicks = (int)(m_minDateTimeValue.Ticks >> 32);
+            int maxTicks = (int)(m_maxDateTimeValue.Ticks >> 32);
 
             long delta = GetRandomRange(minTicks, maxTicks);
 
-            long higherTicks = (delta<<32);
+            long higherTicks = (delta << 32);
 
             uint lowerTicks = GetRandomUInt32();
-            
-            return new DateTime(higherTicks+lowerTicks, DateTimeKind.Utc);
+
+            return new DateTime(higherTicks + lowerTicks, DateTimeKind.Utc);
         }
         #endregion
-        
+
         #region Guid
         /// <summary cref="GetRandom(Type)" />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
@@ -752,7 +785,7 @@ namespace Opc.Ua.Test
             byte[] bytes = new byte[16];
             m_random.NextBytes(bytes, 0, bytes.Length);
             return new Uuid(new Guid(bytes));
-        }      
+        }
         #endregion
 
         #region ByteString
@@ -823,9 +856,9 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public NodeId GetRandomNodeId()
         {
-            ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count-1);
+            ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count - 1);
 
-            IdType idType = (IdType)m_random.NextInt32(4);            
+            IdType idType = (IdType)m_random.NextInt32(4);
 
             switch (idType)
             {
@@ -844,7 +877,7 @@ namespace Opc.Ua.Test
                     return new NodeId(GetRandomByteString(), ns);
                 }
             }
-                    
+
             return new NodeId(GetRandomUInt32(), ns);
         }
         #endregion
@@ -854,8 +887,8 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ExpandedNodeId GetRandomExpandedNodeId()
         {
-            NodeId nodeId = GetRandomNodeId();            
-            ushort serverIndex = m_serverUris.Count == 0 ? (ushort)0 : (ushort)m_random.NextInt32(m_serverUris.Count-1);
+            NodeId nodeId = GetRandomNodeId();
+            ushort serverIndex = m_serverUris.Count == 0 ? (ushort)0 : (ushort)m_random.NextInt32(m_serverUris.Count - 1);
             return new ExpandedNodeId(nodeId, m_namespaceUris.GetString(nodeId.NamespaceIndex), serverIndex);
         }
         #endregion
@@ -865,7 +898,7 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public QualifiedName GetRandomQualifiedName()
         {
-            ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count-1);
+            ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count - 1);
             return new QualifiedName(CreateString(GetRandomLocale(), true), ns);
         }
         #endregion
@@ -885,30 +918,30 @@ namespace Opc.Ua.Test
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public StatusCode GetRandomStatusCode()
         {
-            int offset = GetRandomRange((int)(StatusCodes.BadUnexpectedError>>16), (int)(StatusCodes.BadMaxConnectionsReached>>16));
-            return (uint)(StatusCodes.BadUnexpectedError + (offset<<16));
+            int offset = GetRandomRange((int)(StatusCodes.BadUnexpectedError >> 16), (int)(StatusCodes.BadMaxConnectionsReached >> 16));
+            return (uint)(StatusCodes.BadUnexpectedError + (offset << 16));
         }
         #endregion
-        
+
         #region Variant
         /// <summary cref="GetRandom(Type)" />
         public Variant GetRandomVariant()
-        {            
+        {
             return GetRandomVariant(true);
         }
-        
+
         /// <summary cref="GetRandom(Type)" />
         public Variant GetRandomVariant(bool allowArrays)
-        {            
+        {
             // randomly choose a built-in type.
             BuiltInType builtInType = BuiltInType.Variant;
-            
+
             while (builtInType == BuiltInType.Variant || builtInType == BuiltInType.DataValue)
             {
                 builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
             }
-            
-            return GetRandomVariant(builtInType, (allowArrays)?(m_random.NextInt32(1) == 1):false);
+
+            return GetRandomVariant(builtInType, (allowArrays) ? (m_random.NextInt32(1) == 1) : false);
         }
 
         /// <summary>
@@ -916,7 +949,7 @@ namespace Opc.Ua.Test
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
-        {      
+        {
             if (builtInType == BuiltInType.Null)
             {
                 return Variant.Null;
@@ -926,7 +959,7 @@ namespace Opc.Ua.Test
 
             if (isArray)
             {
-                length = m_random.NextInt32(m_maxArrayLength-1);
+                length = m_random.NextInt32(m_maxArrayLength - 1);
             }
             else if (builtInType == BuiltInType.Variant)
             {
@@ -950,7 +983,7 @@ namespace Opc.Ua.Test
                     case BuiltInType.Double: { return new Variant(GetRandomArray<double>(true, length, true)); }
                     case BuiltInType.String: { return new Variant(GetRandomArray<string>(true, length, true)); }
                     case BuiltInType.DateTime: { return new Variant(GetRandomArray<DateTime>(true, length, true)); }
-                    case BuiltInType.Guid: { return new Variant(GetRandomArray<Guid>(true, length, true)); }
+                    case BuiltInType.Guid: { return new Variant(GetRandomArray<Uuid>(true, length, true)); }
                     case BuiltInType.ByteString: { return new Variant(GetRandomArray<byte[]>(true, length, true)); }
                     case BuiltInType.XmlElement: { return new Variant(GetRandomArray<XmlElement>(true, length, true)); }
                     case BuiltInType.NodeId: { return new Variant(GetRandomArray<NodeId>(true, length, true)); }
@@ -965,7 +998,7 @@ namespace Opc.Ua.Test
             return new Variant(GetRandom(builtInType));
         }
         #endregion
-        
+
         #region ExtensionObject
         /// <summary cref="GetRandom(Type)" />
         public ExtensionObject GetRandomExtensionObject()
@@ -974,7 +1007,7 @@ namespace Opc.Ua.Test
 
             if (NodeId.IsNull(typeId))
             {
-                return new ExtensionObject();
+                return ExtensionObject.Null;
             }
             object body = null;
 
@@ -990,8 +1023,32 @@ namespace Opc.Ua.Test
             return new ExtensionObject(typeId, body);
         }
         #endregion
+
+        #region DataValue
+        public DataValue GetRandomDataValue()
+        {
+            Variant variant = GetRandomVariant();
+            StatusCode statusCode = GetRandomStatusCode();
+            DateTime sourceTimeStamp = GetRandomDateTime();
+            DateTime serverTimeStamp = GetRandomDateTime();
+            return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
+        }
         #endregion
-                
+
+        #region DiagnosticInfo
+        public DiagnosticInfo GetRandomDiagnosticInfo()
+        {
+            // TODO: return random values
+            return new DiagnosticInfo(
+                ServiceResult.Good,
+                DiagnosticsMasks.NoInnerStatus,
+                true,
+                new StringTable());
+        }
+        #endregion
+
+        #endregion
+
         #region BoundaryValues Class
         /// <summary>
         /// Stores the boundary values for a data type.
@@ -1001,7 +1058,7 @@ namespace Opc.Ua.Test
             public BoundaryValues(Type systemType, params object[] values)
             {
                 SystemType = systemType;
-                
+
                 if (values != null)
                 {
                     Values = new List<object>(values);
@@ -1032,7 +1089,7 @@ namespace Opc.Ua.Test
             new BoundaryValues(typeof(float), Single.Epsilon, Single.MaxValue, Single.MinValue, Single.NaN, Single.NegativeInfinity, Single.PositiveInfinity, (float)0 ),
             new BoundaryValues(typeof(double), Double.Epsilon, Double.MaxValue, Double.MinValue, Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity, (double)0 ),
             new BoundaryValues(typeof(string), null, String.Empty ),
-            new BoundaryValues(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
+            new BoundaryValues(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
             new BoundaryValues(typeof(Guid), Guid.Empty),
             new BoundaryValues(typeof(Uuid), Uuid.Empty),
             new BoundaryValues(typeof(byte[]), null, new byte[0]),
@@ -1042,7 +1099,7 @@ namespace Opc.Ua.Test
             new BoundaryValues(typeof(QualifiedName), null, QualifiedName.Null ),
             new BoundaryValues(typeof(LocalizedText), null, LocalizedText.Null ),
             new BoundaryValues(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad ),
-            new BoundaryValues(typeof(ExtensionObject), new ExtensionObject()),
+            new BoundaryValues(typeof(ExtensionObject), ExtensionObject.Null),
         };
         #endregion
 
@@ -1068,7 +1125,7 @@ namespace Opc.Ua.Test
                 }
 
                 using (StreamReader reader = new StreamReader(istrm))
-                { 
+                {
                     for (string line = reader.ReadLine(); line != null; line = reader.ReadLine())
                     {
                         string token = line.Trim();
@@ -1123,8 +1180,8 @@ namespace Opc.Ua.Test
             {
                 return null;
             }
-        
-            int index = m_random.NextInt32(boundaryValues.Length-1);
+
+            int index = m_random.NextInt32(boundaryValues.Length - 1);
 
             if (type.IsInstanceOfType(boundaryValues[index]))
             {
@@ -1154,31 +1211,33 @@ namespace Opc.Ua.Test
                 return min;
             }
 
-            return m_random.NextInt32(max-min) + min;
+            return m_random.NextInt32(max - min) + min;
         }
-        
-        
+
+
         /// <summary>
         /// Returns a random value of the specified type.
         /// </summary>
         private object GetRandom(Type expectedType)
         {
-            object value = GetRandom(TypeInfo.Construct(expectedType).BuiltInType);
+            var builtInType = TypeInfo.Construct(expectedType).BuiltInType;
+            object value = GetRandom(builtInType);
 
-            if (expectedType == typeof(Uuid))
+            if (builtInType == BuiltInType.Guid &&
+                expectedType == typeof(Guid))
             {
-                return new Uuid((Guid)value);
+                return (Guid)(Uuid)value;
             }
 
             return value;
         }
-        
+
         /// <summary>
         /// Returns a random locale.
         /// </summary>
         private string GetRandomLocale()
         {
-            int index = m_random.NextInt32(m_availableLocales.Length-1);
+            int index = m_random.NextInt32(m_availableLocales.Length - 1);
             return m_availableLocales[index];
         }
 
@@ -1198,11 +1257,11 @@ namespace Opc.Ua.Test
 
             if (isSymbol)
             {
-                length = m_random.NextInt32(2)+1;
+                length = m_random.NextInt32(2) + 1;
             }
             else
             {
-                length = m_random.NextInt32(m_maxStringLength)+1;
+                length = m_random.NextInt32(m_maxStringLength) + 1;
             }
 
             StringBuilder buffer = new StringBuilder();
@@ -1210,17 +1269,17 @@ namespace Opc.Ua.Test
             while (buffer.Length < length)
             {
                 if (!isSymbol && buffer.Length > 0)
-                {                    
+                {
                     buffer.Append(' ');
                 }
 
-                int index = m_random.NextInt32(tokens.Length-1);
+                int index = m_random.NextInt32(tokens.Length - 1);
                 buffer.Append(tokens[index]);
 
                 if (!isSymbol && m_random.NextInt32(1) != 0)
-                {                 
-                    index = m_random.NextInt32(s_Punctuation.Length-1);
-                    buffer.Append(s_Punctuation[index]);
+                {
+                    index = m_random.NextInt32(kPunctuation.Length - 1);
+                    buffer.Append(kPunctuation[index]);
                 }
             }
 
@@ -1239,10 +1298,10 @@ namespace Opc.Ua.Test
         private int m_maxXmlElementCount;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private SortedDictionary<string,object[]> m_boundaryValues;
+        private SortedDictionary<string, object[]> m_boundaryValues;
         private string[] m_availableLocales;
-        private SortedDictionary<string,string[]> m_tokenValues;        
-        private const string s_Punctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
+        private SortedDictionary<string, string[]> m_tokenValues;
+        private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
         #endregion
     }
 }

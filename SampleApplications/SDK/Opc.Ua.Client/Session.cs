@@ -355,7 +355,7 @@ namespace Opc.Ua.Client
                 bool isLocalHost = false;
                 if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
                 {
-                    if (dnsHostName.ToLowerInvariant() == "localhost")
+                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
                     {
                         isLocalHost = true;
                     }
@@ -382,8 +382,8 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < domains.Count; ii++)
                 {
-                    if (String.Compare(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) == 0 ||
-                        String.Compare(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
                     {
                         domainFound = true;
                         break;

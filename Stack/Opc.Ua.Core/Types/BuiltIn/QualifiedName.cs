@@ -183,7 +183,7 @@ namespace Opc.Ua
                 return String.CompareOrdinal(m_name, qname.m_name);
             }
             
-            return -1;
+            return 0;
         }
 
         /// <summary>

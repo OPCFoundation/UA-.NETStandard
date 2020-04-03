@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -147,9 +148,12 @@ namespace Opc.Ua.Schema.Binary
             }
             else
             {
-                // always import builtin types
-                ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
-                await Import(directive);
+                // always import builtin types, unless wellknown library
+                if (!WellKnownDictionaries.Any(n => String.Equals(n[0], Dictionary.TargetNamespace)))
+                {
+                    ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
+                    await Import(directive);
+                }
             }
 
             // import types from imported dictionaries.
@@ -159,17 +163,20 @@ namespace Opc.Ua.Schema.Binary
             }
 
             // import types from target dictionary.
-            foreach (TypeDescription description in Dictionary.Items)
+            if (Dictionary.Items != null)
             {
-                ImportDescription(description, Dictionary.TargetNamespace);
-                m_validatedDescriptions.Add(description);
-            }
+                foreach (TypeDescription description in Dictionary.Items)
+                {
+                    ImportDescription(description, Dictionary.TargetNamespace);
+                    m_validatedDescriptions.Add(description);
+                }
 
-            // validate types from target dictionary.
-            foreach (TypeDescription description in m_validatedDescriptions)
-            {
-                ValidateDescription(description);
-                m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
+                // validate types from target dictionary.
+                foreach (TypeDescription description in m_validatedDescriptions)
+                {
+                    ValidateDescription(description);
+                    m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
+                }
             }
         }
 
@@ -332,7 +339,7 @@ namespace Opc.Ua.Schema.Binary
                 return false;
             }
 
-            if (!Char.IsLetter(name[0]) && name[0] != '_')
+            if (!Char.IsLetter(name[0]) && name[0] != '_' && name[0] != '"')
             {
                 return false;
             }
@@ -344,7 +351,7 @@ namespace Opc.Ua.Schema.Binary
                     continue;
                 }
 
-                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_')
+                if (name[ii] == '.' || name[ii] == '-' || name[ii] == '_' || name[ii] == '"')
                 {
                     continue;
                 }
@@ -505,11 +512,11 @@ namespace Opc.Ua.Schema.Binary
         #endregion
 
         #region Private Fields
-        private readonly string[][] WellKnownDictionaries = new string[][]
+        protected readonly static string[][] WellKnownDictionaries = new string[][]
         {
-            new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Core.Types.Schemas.StandardTypes.bsd" },
-            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Core.Types.Schemas.BuiltInTypes.bsd"  },
-            new string[] { Namespaces.OpcUa, "Opc.Ua.Core.Schema.Opc.Ua.Types.bsd"  }
+            new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd" },
+            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"  },
+            new string[] { Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"  }
         };
 
         private Dictionary<XmlQualifiedName, TypeDescription> m_descriptions;

@@ -16,12 +16,15 @@
         <Name>CycleStepDataType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>CycleStepDataType</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -30,6 +33,15 @@
           <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>i=22</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=38</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=228</Identifier>
           </TargetId>
         </ReferenceNode>
         <ReferenceNode>
@@ -47,11 +59,12 @@
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
           <TargetId>
-            <Identifier>ns=1;i=228</Identifier>
+            <Identifier>ns=1;i=15003</Identifier>
           </TargetId>
         </ReferenceNode>
       </References>
       <IsAbstract>false</IsAbstract>
+      <DataTypeDefinition i:nil="true" />
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -63,7 +76,7 @@
         <Name>SystemCycleStartedEventType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>SystemCycleStartedEventType</Text>
       </DisplayName>
       <Description>
@@ -72,6 +85,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -104,12 +120,15 @@
         <Name>Steps</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Steps</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -148,11 +167,14 @@
         <Identifier>ns=1;i=183</Identifier>
       </DataType>
       <ValueRank>1</ValueRank>
-      <ArrayDimensions />
+      <ArrayDimensions>
+        <UInt32>0</UInt32>
+      </ArrayDimensions>
       <AccessLevel>1</AccessLevel>
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -164,7 +186,7 @@
         <Name>SystemCycleAbortedEventType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>SystemCycleAbortedEventType</Text>
       </DisplayName>
       <Description>
@@ -173,6 +195,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -205,7 +230,7 @@
         <Name>SystemCycleFinishedEventType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>SystemCycleFinishedEventType</Text>
       </DisplayName>
       <Description>
@@ -214,6 +239,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -237,12 +265,15 @@
         <Name>Default XML</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Default XML</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -284,12 +315,15 @@
         <Name>Quickstarts.SimpleEvents</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Quickstarts.SimpleEvents</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -320,6 +354,15 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
+            <Identifier>i=46</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=15001</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
             <Identifier>i=47</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
@@ -330,7 +373,18 @@
       </References>
       <Value>
         <Value>
-          <Null xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
+Zy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M
+U2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB
+LyINCiAgeG1sbnM6dG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvU2lt
+cGxlRXZlbnRzIg0KICBEZWZhdWx0Qnl0ZU9yZGVyPSJMaXR0bGVFbmRpYW4iDQogIFRhcmdldE5h
+bWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1F1aWNrc3RhcnRzL1NpbXBsZUV2ZW50
+cyINCj4NCiAgPG9wYzpJbXBvcnQgTmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcv
+VUEvIiBMb2NhdGlvbj0iT3BjLlVhLkJpbmFyeVNjaGVtYS5ic2QiLz4NCg0KICA8b3BjOlN0cnVj
+dHVyZWRUeXBlIE5hbWU9IkN5Y2xlU3RlcERhdGFUeXBlIiBCYXNlVHlwZT0idWE6RXh0ZW5zaW9u
+T2JqZWN0Ij4NCiAgICA8b3BjOkZpZWxkIE5hbWU9Ik5hbWUiIFR5cGVOYW1lPSJvcGM6U3RyaW5n
+IiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iRHVyYXRpb24iIFR5cGVOYW1lPSJvcGM6RG91Ymxl
+IiAvPg0KICA8L29wYzpTdHJ1Y3R1cmVkVHlwZT4NCg0KPC9vcGM6VHlwZURpY3Rpb25hcnk+</ByteString>
         </Value>
       </Value>
       <DataType>
@@ -342,6 +396,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -353,12 +408,15 @@
         <Name>NamespaceUri</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>NamespaceUri</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -393,6 +451,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -404,12 +463,15 @@
         <Name>CycleStepDataType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>CycleStepDataType</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -444,6 +506,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectNode">
       <NodeId>
@@ -455,12 +518,15 @@
         <Name>Default Binary</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Default Binary</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -502,12 +568,15 @@
         <Name>Quickstarts.SimpleEvents</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Quickstarts.SimpleEvents</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -538,6 +607,15 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
+            <Identifier>i=46</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=15002</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
             <Identifier>i=47</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
@@ -548,7 +626,25 @@
       </References>
       <Value>
         <Value>
-          <Null xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
+DQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54
+c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1F1aWNrc3RhcnRzL1Np
+bXBsZUV2ZW50cyINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcv
+UXVpY2tzdGFydHMvU2ltcGxlRXZlbnRzIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmll
+ZCINCj4NCiAgPHhzOmltcG9ydCBuYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9V
+QS8yMDA4LzAyL1R5cGVzLnhzZCIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iQ3ljbGVT
+dGVwRGF0YVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9
+Ik5hbWUiIHR5cGU9InhzOnN0cmluZyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4N
+CiAgICAgIDx4czplbGVtZW50IG5hbWU9IkR1cmF0aW9uIiB0eXBlPSJ4czpkb3VibGUiIG1pbk9j
+Y3Vycz0iMCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0KICA8
+eHM6ZWxlbWVudCBuYW1lPSJDeWNsZVN0ZXBEYXRhVHlwZSIgdHlwZT0idG5zOkN5Y2xlU3RlcERh
+dGFUeXBlIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZDeWNsZVN0ZXBEYXRh
+VHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQ3ljbGVT
+dGVwRGF0YVR5cGUiIHR5cGU9InRuczpDeWNsZVN0ZXBEYXRhVHlwZSIgbWluT2NjdXJzPSIwIiBt
+YXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgPC94czpzZXF1ZW5j
+ZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTGlzdE9mQ3ljbGVT
+dGVwRGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZDeWNsZVN0ZXBEYXRhVHlwZSIgbmlsbGFibGU9
+InRydWUiPjwveHM6ZWxlbWVudD4NCg0KPC94czpzY2hlbWE+</ByteString>
         </Value>
       </Value>
       <DataType>
@@ -560,6 +656,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -571,12 +668,15 @@
         <Name>NamespaceUri</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>NamespaceUri</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -611,6 +711,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -622,12 +723,15 @@
         <Name>CycleStepDataType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>CycleStepDataType</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -662,6 +766,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -673,7 +778,7 @@
         <Name>SystemCycleStatusEventType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>SystemCycleStatusEventType</Text>
       </DisplayName>
       <Description>
@@ -682,6 +787,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -750,12 +858,15 @@
         <Name>CycleId</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>CycleId</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -799,6 +910,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -810,12 +922,15 @@
         <Name>CurrentStep</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>CurrentStep</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -859,6 +974,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -870,12 +986,15 @@
         <Name>Error</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Error</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -921,6 +1040,158 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
+    </Node>
+    <Node i:type="VariableNode">
+      <NodeId>
+        <Identifier>ns=1;i=15001</Identifier>
+      </NodeId>
+      <NodeClass>Variable_2</NodeClass>
+      <BrowseName>
+        <NamespaceIndex>0</NamespaceIndex>
+        <Name>Deprecated</Name>
+      </BrowseName>
+      <DisplayName>
+        <Locale></Locale>
+        <Text>Deprecated</Text>
+      </DisplayName>
+      <Description i:nil="true" />
+      <WriteMask>0</WriteMask>
+      <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
+      <References>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=46</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>true</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=222</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=40</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>i=68</Identifier>
+          </TargetId>
+        </ReferenceNode>
+      </References>
+      <Value>
+        <Value>
+          <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
+        </Value>
+      </Value>
+      <DataType>
+        <Identifier>i=1</Identifier>
+      </DataType>
+      <ValueRank>-1</ValueRank>
+      <ArrayDimensions />
+      <AccessLevel>1</AccessLevel>
+      <UserAccessLevel>1</UserAccessLevel>
+      <MinimumSamplingInterval>0</MinimumSamplingInterval>
+      <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
+    </Node>
+    <Node i:type="VariableNode">
+      <NodeId>
+        <Identifier>ns=1;i=15002</Identifier>
+      </NodeId>
+      <NodeClass>Variable_2</NodeClass>
+      <BrowseName>
+        <NamespaceIndex>0</NamespaceIndex>
+        <Name>Deprecated</Name>
+      </BrowseName>
+      <DisplayName>
+        <Locale></Locale>
+        <Text>Deprecated</Text>
+      </DisplayName>
+      <Description i:nil="true" />
+      <WriteMask>0</WriteMask>
+      <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
+      <References>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=46</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>true</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=229</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=40</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>i=68</Identifier>
+          </TargetId>
+        </ReferenceNode>
+      </References>
+      <Value>
+        <Value>
+          <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
+        </Value>
+      </Value>
+      <DataType>
+        <Identifier>i=1</Identifier>
+      </DataType>
+      <ValueRank>-1</ValueRank>
+      <ArrayDimensions />
+      <AccessLevel>1</AccessLevel>
+      <UserAccessLevel>1</UserAccessLevel>
+      <MinimumSamplingInterval>0</MinimumSamplingInterval>
+      <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
+    </Node>
+    <Node i:type="ObjectNode">
+      <NodeId>
+        <Identifier>ns=1;i=15003</Identifier>
+      </NodeId>
+      <NodeClass>Object_1</NodeClass>
+      <BrowseName>
+        <NamespaceIndex>0</NamespaceIndex>
+        <Name>Default JSON</Name>
+      </BrowseName>
+      <DisplayName>
+        <Locale></Locale>
+        <Text>Default JSON</Text>
+      </DisplayName>
+      <Description i:nil="true" />
+      <WriteMask>0</WriteMask>
+      <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
+      <References>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=40</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>false</IsInverse>
+          <TargetId>
+            <Identifier>i=76</Identifier>
+          </TargetId>
+        </ReferenceNode>
+        <ReferenceNode>
+          <ReferenceTypeId>
+            <Identifier>i=38</Identifier>
+          </ReferenceTypeId>
+          <IsInverse>true</IsInverse>
+          <TargetId>
+            <Identifier>ns=1;i=183</Identifier>
+          </TargetId>
+        </ReferenceNode>
+      </References>
+      <EventNotifier>0</EventNotifier>
     </Node>
   </Nodes>
 </NodeSet>

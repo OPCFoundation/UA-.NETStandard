@@ -4,7 +4,7 @@
 #---------------------------------#
 
 # version format
-version: 1.3.358.{build}-{branch}
+version: 1.4.360.{build}-{branch}
 
 
 # branches to build
@@ -18,14 +18,14 @@ branches:
 #---------------------------------#
 
 # Build worker image (VM template)
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 # scripts that are called at very beginning, before repo cloning
 init:
   - git config --global core.autocrlf input
 
 # clone directory
-clone_folder: c:\projects\UA-.NetStandardLibrary
+clone_folder: c:\projects\UA-.NetStandard
 
 # set clone depth
 clone_depth: 5                      # clone entire repository history if not defined
@@ -34,9 +34,11 @@ environment:
   matrix:
   - solution_name: "UA Core Library.sln"
     test_name: "void"
+#    test_name: "Stack/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"
     param: ""
   - solution_name: "UA-NetStandard.sln"
     test_name: "void"
+#    test_name: "SampleApplications/SDK/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj"
     param: ""
   - solution_name: "UA-NetStandard.sln"
     test_name: "void"

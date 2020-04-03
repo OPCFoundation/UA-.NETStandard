@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 },
                 new object[]    // values to assign
                 {
-                    structureDefinition.DefaultEncodingId.ToString(),
+                    structureDefinition.DefaultEncodingId?.ToString(),
                     baseDataType,
                     structureDefinition.StructureType
                 });

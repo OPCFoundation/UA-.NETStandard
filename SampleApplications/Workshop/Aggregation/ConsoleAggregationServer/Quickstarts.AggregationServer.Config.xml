@@ -55,7 +55,7 @@
   </TransportQuotas>
   <ServerConfiguration>
     <BaseAddresses>
-      <ua:String>opc.tcp://localhost:62541/AggregationServer</ua:String>
+      <ua:String>opc.tcp://localhost:62530/AggregationServer</ua:String>
     </BaseAddresses>
     <SecurityPolicies>
       <ServerSecurityPolicy>

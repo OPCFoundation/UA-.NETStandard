@@ -16,12 +16,15 @@
         <Name>SetPoint</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>SetPoint</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -50,12 +53,13 @@
       <DataType>
         <Identifier>i=11</Identifier>
       </DataType>
-      <ValueRank>0</ValueRank>
+      <ValueRank>-2</ValueRank>
       <ArrayDimensions />
       <AccessLevel>1</AccessLevel>
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -67,12 +71,15 @@
         <Name>EURange</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EURange</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -107,6 +114,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -118,12 +126,15 @@
         <Name>Measurement</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Measurement</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -152,12 +163,13 @@
       <DataType>
         <Identifier>i=11</Identifier>
       </DataType>
-      <ValueRank>0</ValueRank>
+      <ValueRank>-2</ValueRank>
       <ArrayDimensions />
       <AccessLevel>1</AccessLevel>
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -169,12 +181,15 @@
         <Name>EURange</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EURange</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -209,6 +224,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
   </Nodes>
 </NodeSet>

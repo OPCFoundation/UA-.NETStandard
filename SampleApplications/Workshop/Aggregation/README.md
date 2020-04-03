@@ -25,7 +25,7 @@ Pick the Windows or the Console OPC UA Aggregation Server.
 2. Choose the project **Aggregation Server** in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
-### Build and run the Console OPC UA Aggregation Server on Windows, Linux and iOS
+### Build and run the Console OPC UA Aggregation Server on Windows, Linux and iOS (including Docker Container support!)
 This section describes how to run the **ConsoleAggregationServer**.
 
 Please follow instructions in this [article](https://docs.microsoft.com/en-us/dotnet/articles/core/tutorials/using-with-xplat-cli) to setup the dotnet command line environment for your platform. 

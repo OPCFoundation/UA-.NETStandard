@@ -244,6 +244,7 @@ namespace Opc.Ua
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
         #endregion
+
         #region Private Fields
         private ExtensionObject m_dataTypeDefinition;
         #endregion

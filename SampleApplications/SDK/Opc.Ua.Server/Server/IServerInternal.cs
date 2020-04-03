@@ -184,6 +184,12 @@ namespace Opc.Ua.Server
         ServerState CurrentState { get; set; }
 
         /// <summary>
+        /// Returns the Server object node
+        /// </summary>
+        /// <value>The Server object node.</value>
+        ServerObjectState ServerObject { get; }
+
+        /// <summary>
         /// Used to synchronize access to the server diagnostics.
         /// </summary>
         /// <value>The diagnostics lock.</value>

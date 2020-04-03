@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(authenticationToken, out session))
                 {
-                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                 }
 
                 // check if session timeout has expired.

@@ -292,6 +292,8 @@ namespace Opc.Ua.Gds.Client
             Session.SessionClosing += Session_SessionClosing;
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
+            // TODO: implement, suppress warning/error 
+            if (ServerStatusChanged != null) { }
 
             if (Session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
             {
@@ -942,7 +944,7 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                if (Object.ReferenceEquals(Session.Identity, AdminCredentials))
+                if (!Object.ReferenceEquals(Session.Identity, oldUser))
                 {
                     Session.UpdateSession(oldUser, PreferredLocales);
                 }

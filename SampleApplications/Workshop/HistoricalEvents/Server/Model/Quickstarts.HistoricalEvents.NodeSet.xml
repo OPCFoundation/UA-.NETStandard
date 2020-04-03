@@ -16,7 +16,7 @@
         <Name>WellTestReportType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>WellTestReportType</Text>
       </DisplayName>
       <Description>
@@ -25,6 +25,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -46,27 +49,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=261</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=262</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=262</Identifier>
           </TargetId>
@@ -82,27 +67,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=263</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=264</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=264</Identifier>
           </TargetId>
@@ -138,7 +105,7 @@
         <Name>NameWell</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>NameWell</Text>
       </DisplayName>
       <Description>
@@ -147,21 +114,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=251</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=251</Identifier>
           </TargetId>
@@ -199,6 +160,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -210,7 +172,7 @@
         <Name>UidWell</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>UidWell</Text>
       </DisplayName>
       <Description>
@@ -219,21 +181,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=251</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=251</Identifier>
           </TargetId>
@@ -271,6 +227,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -282,7 +239,7 @@
         <Name>TestDate</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>TestDate</Text>
       </DisplayName>
       <Description>
@@ -291,21 +248,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=251</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=251</Identifier>
           </TargetId>
@@ -343,6 +294,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -354,7 +306,7 @@
         <Name>TestReason</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>TestReason</Text>
       </DisplayName>
       <Description>
@@ -363,21 +315,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=251</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=251</Identifier>
           </TargetId>
@@ -415,6 +361,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -426,7 +373,7 @@
         <Name>FluidLevelTestReportType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>FluidLevelTestReportType</Text>
       </DisplayName>
       <Description>
@@ -435,6 +382,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -456,27 +406,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=279</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=283</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=283</Identifier>
           </TargetId>
@@ -494,7 +426,7 @@
         <Name>FluidLevel</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>FluidLevel</Text>
       </DisplayName>
       <Description>
@@ -503,21 +435,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=47</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=265</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=265</Identifier>
           </TargetId>
@@ -551,27 +477,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=304</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=282</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=282</Identifier>
           </TargetId>
@@ -591,6 +499,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -602,30 +511,21 @@
         <Name>EngineeringUnits</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EngineeringUnits</Text>
       </DisplayName>
-      <Description>
-        <Locale></Locale>
-        <Text>The unit of measure for length.</Text>
-      </Description>
+      <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=279</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=279</Identifier>
           </TargetId>
@@ -663,6 +563,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -674,7 +575,7 @@
         <Name>TestedBy</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>TestedBy</Text>
       </DisplayName>
       <Description>
@@ -683,21 +584,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=265</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=265</Identifier>
           </TargetId>
@@ -735,6 +630,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -746,7 +642,7 @@
         <Name>InjectionTestReportType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>InjectionTestReportType</Text>
       </DisplayName>
       <Description>
@@ -755,6 +651,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -776,27 +675,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=298</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=302</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=302</Identifier>
           </TargetId>
@@ -814,7 +695,7 @@
         <Name>TestDuration</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>TestDuration</Text>
       </DisplayName>
       <Description>
@@ -823,21 +704,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=47</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=284</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=284</Identifier>
           </TargetId>
@@ -871,27 +746,9 @@
         </ReferenceNode>
         <ReferenceNode>
           <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=306</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>false</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=301</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>true</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=301</Identifier>
           </TargetId>
@@ -911,6 +768,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -922,30 +780,21 @@
         <Name>EngineeringUnits</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EngineeringUnits</Text>
       </DisplayName>
-      <Description>
-        <Locale></Locale>
-        <Text>The unit of measure for time.</Text>
-      </Description>
+      <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=298</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=298</Identifier>
           </TargetId>
@@ -983,6 +832,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -994,7 +844,7 @@
         <Name>InjectedFluid</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>InjectedFluid</Text>
       </DisplayName>
       <Description>
@@ -1003,21 +853,15 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=284</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=284</Identifier>
           </TargetId>
@@ -1055,6 +899,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectNode">
       <NodeId>
@@ -1066,12 +911,15 @@
         <Name>Plaforms</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Plaforms</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -1113,27 +961,21 @@
         <Name>EURange</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EURange</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=279</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=279</Identifier>
           </TargetId>
@@ -1171,6 +1013,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -1182,27 +1025,21 @@
         <Name>EURange</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EURange</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
             <Identifier>i=46</Identifier>
           </ReferenceTypeId>
           <IsInverse>true</IsInverse>
-          <TargetId>
-            <Identifier>ns=1;i=298</Identifier>
-          </TargetId>
-        </ReferenceNode>
-        <ReferenceNode>
-          <ReferenceTypeId>
-            <Identifier>i=50</Identifier>
-          </ReferenceTypeId>
-          <IsInverse>false</IsInverse>
           <TargetId>
             <Identifier>ns=1;i=298</Identifier>
           </TargetId>
@@ -1240,6 +1077,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="ObjectTypeNode">
       <NodeId>
@@ -1251,7 +1089,7 @@
         <Name>WellType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>WellType</Text>
       </DisplayName>
       <Description>
@@ -1260,6 +1098,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>

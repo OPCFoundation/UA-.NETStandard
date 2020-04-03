@@ -6,11 +6,16 @@
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
+    <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
   </PropertyGroup>
 
   <PropertyGroup>
     <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

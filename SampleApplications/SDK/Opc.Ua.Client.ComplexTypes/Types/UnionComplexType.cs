@@ -62,7 +62,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// A value of 0 means all properties are invalid, x=1..n means the
         /// xth property is valid.
         /// </summary>
-        UInt32 SwitchField => m_switchField;
+        public UInt32 SwitchField => m_switchField;
+
+        /// <summary cref="IStructureTypeInfo.StructureType" />
+        public override StructureType StructureType => StructureType.Union;
 
         /// <summary>
         /// Makes a deep copy of the object.
@@ -82,9 +85,11 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(TypeId.NamespaceUri);
 
+            string fieldName = null;
             if (encoder.UseReversibleEncoding)
             {
                 encoder.WriteUInt32("SwitchField", m_switchField);
+                fieldName = "Value";
             }
 
             if (m_switchField != 0)
@@ -102,7 +107,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     unionSelector++;
                 }
-                EncodeProperty(encoder, unionProperty, valueRank);
+                EncodeProperty(encoder, fieldName, unionProperty, valueRank);
+            }
+            else if (!encoder.UseReversibleEncoding)
+            {
+                encoder.WriteString(null, "null");
             }
 
             encoder.PopNamespace();
@@ -122,7 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, property.PropertyInfo, property.ValueRank);
+                        DecodeProperty(decoder, "Value", property.PropertyInfo, property.ValueRank);
                         break;
                     }
                 }
@@ -316,6 +325,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 m_switchField = 0;
             }
         }
+
+        /// <summary>
+        /// Simple accessor for Union to access current Value.
+        /// </summary>
+        public object Value => (m_switchField == 0) ? null : m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
         #endregion
 
         #region Private Fields

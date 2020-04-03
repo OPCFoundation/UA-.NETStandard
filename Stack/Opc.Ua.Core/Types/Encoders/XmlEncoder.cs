@@ -288,7 +288,7 @@ namespace Opc.Ua
         {
             m_namespaces.Pop();
         }
-        
+
         /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
@@ -462,6 +462,7 @@ namespace Opc.Ua
         {       
             if (BeginField(fieldName, false, false))
             {
+                value = Utils.NormalizeToUniversalTime(value);
                 m_writer.WriteValue(value);
                 EndField(fieldName);
             }
@@ -522,9 +523,7 @@ namespace Opc.Ua
         {            
             if (BeginField(fieldName, value == null, true))
             {
-                XmlReader reader = XmlReader.Create(new StringReader(value.Value));
-                m_writer.WriteNode(reader, false);
-                reader.Dispose();
+                m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);
             }
         }

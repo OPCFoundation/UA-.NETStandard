@@ -1,8 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/Quickstarts/Engineering</Uri>
   </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Quickstarts/Engineering">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
+    </Model>
+  </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
     <Alias Alias="SByte">i=2</Alias>
@@ -40,13 +45,13 @@
     <Alias Alias="HasEncoding">i=38</Alias>
     <Alias Alias="HasDescription">i=39</Alias>
   </Aliases>
-  <UAVariable NodeId="ns=1;i=443" BrowseName="1:SerialNumber" DataType="String" ValueRank="0">
+  <UAVariable NodeId="ns=1;i=443" BrowseName="1:SerialNumber" DataType="String" ValueRank="-2">
     <DisplayName>SerialNumber</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=444" BrowseName="1:Manufacturer" DataType="String" ValueRank="0">
+  <UAVariable NodeId="ns=1;i=444" BrowseName="1:Manufacturer" DataType="String" ValueRank="-2">
     <DisplayName>Manufacturer</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

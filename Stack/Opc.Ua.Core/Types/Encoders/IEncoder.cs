@@ -20,14 +20,14 @@ namespace Opc.Ua
     /// Defines functions used to encode objects in a stream.
     /// </summary>
     public interface IEncoder
-    {        
+    {
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
         EncodingType EncodingType { get; }
 
         /// <summary>
-        /// The message context associated with the encoder.
+        /// Selects the reversible encoding type.
         /// </summary>
         bool UseReversibleEncoding { get; }
 

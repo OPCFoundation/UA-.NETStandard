@@ -166,7 +166,12 @@ namespace Opc.Ua
                     }
                 }                            
             }
-            
+
+            if (systemType == typeof(System.Byte[]))
+            {
+                return new XmlQualifiedName("ByteString");
+            }
+
             return new XmlQualifiedName(systemType.FullName);
 		}
 		#endregion

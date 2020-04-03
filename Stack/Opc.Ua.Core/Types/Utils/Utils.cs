@@ -877,7 +877,27 @@ namespace Opc.Ua
             get { return s_TimeBase; }
         }
 
-        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1);
+        private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Normalize a DateTime to UniversalTime.
+        /// </summary>
+        public static DateTime NormalizeToUniversalTime(DateTime value)
+        {
+            if (value <= DateTime.MinValue)
+            {
+                return DateTime.MinValue;
+            }
+            if (value >= DateTime.MaxValue)
+            {
+                return DateTime.MaxValue;
+            }
+            if (value.Kind != DateTimeKind.Utc)
+            {
+                return value.ToUniversalTime();
+            }
+            return value;
+        }
 
         /// <summary>
         /// Returns an absolute deadline for a timeout.
@@ -1902,6 +1922,12 @@ namespace Opc.Ua
                 return value1.Equals(value2);
             }
 
+            // check for DateTime objects
+            if (value1 is DateTime)
+            {
+                return (Utils.NormalizeToUniversalTime((DateTime)value1).CompareTo(Utils.NormalizeToUniversalTime((DateTime)value2))) == 0;
+            }
+
             // check for compareable objects.
             IComparable comparable1 = value1 as IComparable;
 
@@ -2048,7 +2074,7 @@ namespace Opc.Ua
             }
             else
             {
-                if (target.ToUpperInvariant() == pattern.ToUpperInvariant())
+                if (String.Equals(target, pattern, StringComparison.InvariantCultureIgnoreCase))
                 {
                     return true;
                 }
@@ -2618,7 +2644,7 @@ namespace Opc.Ua
             return result == 0;
         }
 
-        public class Nonce
+        public static class Nonce
         {
             static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 

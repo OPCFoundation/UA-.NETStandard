@@ -6,7 +6,7 @@
   </NamespaceUris>
   <Models>
     <Model ModelUri="http://opcfoundation.org/UA/Quickstarts/DataTypes/Instances">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.4" PublicationDate="2020-01-08T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.5" PublicationDate="2020-03-06T00:00:00Z" />
       <RequiredModel ModelUri="http://opcfoundation.org/UA/Quickstarts/DataTypes/Types" />
     </Model>
   </Models>
@@ -54,12 +54,8 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="1:ParkingLotType">
-      <Field Name="Open" Value="1">
-        <DisplayName>Open</DisplayName>
-      </Field>
-      <Field Name="Covered" Value="2">
-        <DisplayName>Covered</DisplayName>
-      </Field>
+      <Field Name="Open" Value="1" />
+      <Field Name="Covered" Value="2" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="ns=1;i=15001" BrowseName="EnumValues" ParentNodeId="ns=1;i=378" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
@@ -110,9 +106,6 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=314</Reference>
     </References>
     <Definition Name="1:TwoWheelerType">
-      <Field Name="Make" DataType="i=12" />
-      <Field Name="Model" DataType="i=12" />
-      <Field Name="Engine" DataType="ns=2;i=15006" />
       <Field Name="ManufacturerName" DataType="i=12" />
     </Definition>
   </UADataType>
@@ -122,10 +115,6 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15014</Reference>
     </References>
     <Definition Name="1:BicycleType">
-      <Field Name="Make" DataType="i=12" />
-      <Field Name="Model" DataType="i=12" />
-      <Field Name="Engine" DataType="ns=2;i=15006" />
-      <Field Name="ManufacturerName" DataType="i=12" />
       <Field Name="NoOfGears" DataType="i=7" />
     </Definition>
   </UADataType>
@@ -135,10 +124,6 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15014</Reference>
     </References>
     <Definition Name="1:ScooterType">
-      <Field Name="Make" DataType="i=12" />
-      <Field Name="Model" DataType="i=12" />
-      <Field Name="Engine" DataType="ns=2;i=15006" />
-      <Field Name="ManufacturerName" DataType="i=12" />
       <Field Name="NoOfSeats" DataType="i=7" />
     </Definition>
   </UADataType>
