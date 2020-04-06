@@ -60,8 +60,9 @@ Get-ChildItem $BuildRoot -Recurse `
         $postFix = $folder.Replace("/", "-")
         $postFix = "$($postFix)-"
     }
+    $counter = 1
     $agents.keys | ForEach-Object {
-        $jobName = "$($JobPrefix)$($postFix)$($_)"
+        $jobName = "$($JobPrefix)$($postFix)$($_)_$(counter)"
         if ([string]::IsNullOrEmpty($Agent) -or
             $Agent.equals($($_))) {
             $jobMatrix.Add($jobName, @{ 
@@ -72,6 +73,7 @@ Get-ChildItem $BuildRoot -Recurse `
                 "agent" = $($_)
             })
         }
+        $counter = $counter + 1
     }
 }
 
