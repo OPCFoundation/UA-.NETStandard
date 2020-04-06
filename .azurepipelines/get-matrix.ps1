@@ -17,6 +17,9 @@
 
  .PARAMETER JobPrefix
     Optional name prefix for each job
+
+ .PARAMETER Agent
+    Optional agent specifier for each job
 #>
 
 Param(
@@ -62,7 +65,7 @@ Get-ChildItem $BuildRoot -Recurse `
     }
     $counter = 1
     $agents.keys | ForEach-Object {
-        $jobName = "$($JobPrefix)$($postFix)$($_)_$(counter)"
+        $jobName = "$($JobPrefix)$($postFix)$($_)_$($counter)"
         if ([string]::IsNullOrEmpty($Agent) -or
             $Agent.equals($($_))) {
             $jobMatrix.Add($jobName, @{ 
