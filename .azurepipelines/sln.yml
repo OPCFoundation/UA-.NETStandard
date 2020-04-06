@@ -2,8 +2,8 @@
 # Build and test all on all platforms
 #
 jobs:
-- job: buildprep
-  displayName: Prepare Build Jobs
+- job: buildprepsln
+  displayName: Prepare Solution Build Jobs
   pool:
     vmImage: 'windows-2019'
   variables:
@@ -11,12 +11,12 @@ jobs:
   steps:
   - task: PowerShell@2
     name: buildmatrix
-    displayName: Prepare Solutions
+    displayName: Prepare Solution
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName "*.sln" -Agent "windows"
-- job: buildall
+- job: buildallsln
   displayName: Building Solutions
   dependsOn: buildprep
   strategy:
