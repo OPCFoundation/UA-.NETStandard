@@ -49,6 +49,7 @@ $agents = @{
 $jobMatrix = @{}
 
 # Traverse from build root and find all files to create job matrix
+$counter = 0
 Get-ChildItem $BuildRoot -Recurse `
     | Where-Object Name -like $FileName `
     | ForEach-Object {
@@ -63,11 +64,11 @@ Get-ChildItem $BuildRoot -Recurse `
         $postFix = $folder.Replace("/", "-")
         $postFix = "$($postFix)-"
     }
-    $counter = 1
     $agents.keys | ForEach-Object {
-        $jobName = "$($JobPrefix)$($postFix)$($_)_$($counter)"
         if ([string]::IsNullOrEmpty($Agent) -or
             $Agent.equals($($_))) {
+            $counter = $counter + 1
+            $jobName = "$($JobPrefix)$($postFix)$($_)_$($counter)"
             $jobMatrix.Add($jobName, @{ 
                 "poolImage" = $agents.Item($_)
                 "folder" = $folder 
@@ -76,7 +77,6 @@ Get-ChildItem $BuildRoot -Recurse `
                 "agent" = $($_)
             })
         }
-        $counter = $counter + 1
     }
 }
 
