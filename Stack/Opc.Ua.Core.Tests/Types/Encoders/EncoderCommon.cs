@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
             if (BuiltInType.DateTime == builtInType)
             {
-                expected = Utils.NormalizeToUniversalTime((DateTime)expected);
+                expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
             }
             Assert.AreEqual(expected, result, encodeInfo);
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
@@ -553,7 +553,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 return dateTime;
             }
-            dateTime = Utils.NormalizeToUniversalTime(dateTime);
+            dateTime = Utils.ToOpcUaUniversalTime(dateTime);
             return dateTime <= Utils.TimeBase ? DateTime.MinValue : dateTime;
         }
 
