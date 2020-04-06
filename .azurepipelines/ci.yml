@@ -18,7 +18,7 @@ jobs:
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName "NetCore*.csproj"
 - job: buildall
-  displayName: Building
+  displayName: Build
   dependsOn: buildprep
   strategy:
     matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]

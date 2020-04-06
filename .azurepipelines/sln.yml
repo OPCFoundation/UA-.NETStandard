@@ -17,8 +17,8 @@ jobs:
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName "*.sln" -Agent "windows"
 - job: buildallsln
-  displayName: Building Solutions
-  dependsOn: buildprep
+  displayName: Build 
+  dependsOn: buildprepsln
   strategy:
     matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
   pool:
