@@ -1,0 +1,45 @@
+#
+# Build and test all on all platforms
+#
+jobs:
+- job: buildprep
+  displayName: Prepare Build Jobs
+  pool:
+    vmImage: 'windows-2019'
+  variables:
+    skipComponentGovernanceDetection: true
+  steps:
+  - task: PowerShell@2
+    name: buildmatrix
+    displayName: Prepare Solutions
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/get-matrix.ps1
+      arguments: -FileName "*.sln" -Agent "windows"
+- job: buildall
+  displayName: Building Solutions
+  dependsOn: buildprep
+  strategy:
+    matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
+  pool:
+    vmImage: $(poolImage)
+  steps:
+#  - task: UseDotNet@2
+#    displayName: 'Install .NET Core SDK'
+#    inputs:
+#      packageType: sdk
+#      version: 2.1.x
+#      includePreviewVersions: false
+#      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: DotNetCoreCLI@2
+    displayName: Release Build
+    inputs:
+      command: build
+      projects: '$(file)'
+      arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Build
+    inputs:
+      command: build
+      projects: '$(file)'
+      arguments: '--configuration Debug'

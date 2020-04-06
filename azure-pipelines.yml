@@ -7,3 +7,4 @@ stages:
   displayName: 'Build and Test Code'
   jobs:
   - template: .azurepipelines/ci.yml
+  - template: .azurepipelines/sln.yml
