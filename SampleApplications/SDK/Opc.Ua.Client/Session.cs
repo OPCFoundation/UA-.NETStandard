@@ -197,7 +197,7 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "Do not have a privat key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
                         m_instanceCertificate.Subject,
                         m_instanceCertificate.Thumbprint);
                 }
