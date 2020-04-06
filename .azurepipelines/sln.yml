@@ -16,7 +16,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName "UA *.sln" -Agent "windows"
+      arguments: -FileName "*.sln" -Agent "windows"
 - job: buildallsln
   displayName: Build Solutions
   dependsOn: buildprepsln
