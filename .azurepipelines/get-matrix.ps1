@@ -63,16 +63,14 @@ Get-ChildItem $BuildRoot -Recurse `
     $agents.keys | ForEach-Object {
         $jobName = "$($JobPrefix)$($postFix)$($_)"
         if ([string]::IsNullOrEmpty($Agent) -or
-            $Agent.equals($($_))) 
-            {
-                $jobMatrix.Add($jobName, @{ 
-                    "poolImage" = $agents.Item($_)
-                    "folder" = $folder 
-                    "fullFolder" = $fullFolder 
-                    "file" = $file 
-                    "agent" = $($_)
-                })
-            }
+            $Agent.equals($($_))) {
+            $jobMatrix.Add($jobName, @{ 
+                "poolImage" = $agents.Item($_)
+                "folder" = $folder 
+                "fullFolder" = $fullFolder 
+                "file" = $file 
+                "agent" = $($_)
+            })
         }
     }
 }
