@@ -17,12 +17,12 @@ jobs:
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName "*.sln" -Agent "windows"
 - job: buildallsln
-  displayName: Build 
+  displayName: Build Solutions
   dependsOn: buildprepsln
   strategy:
     matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
   pool:
-    vmImage: $(poolImage)
+    vmImage: 'windows-2019'
   steps:
 #  - task: UseDotNet@2
 #    displayName: 'Install .NET Core SDK'
