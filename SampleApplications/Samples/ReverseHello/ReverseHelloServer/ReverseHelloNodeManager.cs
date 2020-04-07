@@ -27,14 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
-using System.Xml;
-using System.IO;
-using System.Threading;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -47,7 +40,7 @@ namespace ReverseHelloTestServer
     {
         #region Private Fields
         private long m_lastUsedId;
-        private ReverseHelloerverConfiguration m_configuration;
+        private ReverseHelloServerConfiguration m_configuration;
         #endregion
 
         #region Constructors
@@ -56,27 +49,27 @@ namespace ReverseHelloTestServer
         /// </summary>
         public ReverseHelloNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         :
-            base(server, configuration, Namespaces.Empty)
+            base(server, configuration, Namespaces.ReverseHelloServer)
         {
             SystemContext.NodeIdFactory = this;
 
             // get the configuration for the node manager.
-            m_configuration = configuration.ParseExtension<ReverseHelloerverConfiguration>();
+            m_configuration = configuration.ParseExtension<ReverseHelloServerConfiguration>();
 
             // use suitable defaults if no configuration exists.
             if (m_configuration == null)
             {
-                m_configuration = new ReverseHelloerverConfiguration();
+                m_configuration = new ReverseHelloServerConfiguration();
             }
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected override void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 // TBD
@@ -97,7 +90,7 @@ namespace ReverseHelloTestServer
             return new NodeId(id, NamespaceIndex);
         }
         #endregion
-        
+
         #region INodeManager Members
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -145,7 +138,7 @@ namespace ReverseHelloTestServer
                 handle.Validated = true;
 
                 return handle;
-            } 
+            }
         }
 
         /// <summary>
@@ -167,7 +160,7 @@ namespace ReverseHelloTestServer
             {
                 return handle.Node;
             }
-            
+
             // TBD
 
             return null;

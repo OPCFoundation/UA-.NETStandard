@@ -27,25 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.ServiceModel;
 using System.Runtime.Serialization;
-using System.Collections.Generic;
-using Opc.Ua.Server;
 
 namespace ReverseHelloTestServer
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace=Namespaces.Empty)]
-    public class ReverseHelloerverConfiguration
+    [DataContract(Namespace = Namespaces.ReverseHelloServer)]
+    public class ReverseHelloServerConfiguration
     {
         #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public ReverseHelloerverConfiguration()
+        public ReverseHelloServerConfiguration()
         {
             Initialize();
         }

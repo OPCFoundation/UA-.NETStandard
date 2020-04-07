@@ -41,6 +41,6 @@ namespace ReverseHelloTestServer
         /// <summary>
         /// The namespace for the nodes provided by the server.
         /// </summary>
-        public const string Empty = "http://opcfoundation.org/Quickstarts/Empty";
+        public const string ReverseHelloServer = "http://opcfoundation.org/Server/ReverseHello";
     }
 }

@@ -110,7 +110,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\ReverseHelloServer.log.txt</OutputFilePath>
+    <OutputFilePath>.\Logs\ReverseHelloServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
