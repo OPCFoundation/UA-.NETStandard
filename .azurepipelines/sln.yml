@@ -2,7 +2,7 @@
 # Build and test all on all platforms
 #
 jobs:
-- job: buildprepsln
+- job: prepsln
   displayName: Prepare Solution Build Jobs
   pool:
     vmImage: 'windows-2019'
@@ -19,11 +19,11 @@ jobs:
       arguments: -FileName "*.sln" -AgentTable @{ windows = "windows-2019" }
 - job: buildallsln
   displayName: Build Solutions
-  dependsOn: buildprepsln
+  dependsOn: prepsln
   strategy:
     matrix: $[dependencies.buildprep.outputs['slnmatrix.jobMatrix'] ]
   pool:
-    vmImage: $(poolImage)
+    vmImage: 'windows-2019'
   steps:
 #  - task: UseDotNet@2
 #    displayName: 'Install .NET Core SDK'
