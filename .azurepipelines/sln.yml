@@ -21,9 +21,9 @@ jobs:
   displayName: Build Solutions
   dependsOn: prepsln
   strategy:
-    matrix: $[dependencies.buildprep.outputs['slnmatrix.jobMatrix'] ]
+    matrix: $[dependencies.prepsln.outputs['slnmatrix.jobMatrix'] ]
   pool:
-    vmImage: 'windows-2019'
+    vmImage: $(poolImage)
   steps:
 #  - task: UseDotNet@2
 #    displayName: 'Install .NET Core SDK'
@@ -33,11 +33,23 @@ jobs:
 #      includePreviewVersions: false
 #      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: DotNetCoreCLI@2
+    displayName: Release Restore
+    inputs:
+      command: restore
+      projects: '$(file)'
+      arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '$(file)'
       arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Restore
+    inputs:
+      command: restore
+      projects: '$(file)'
+      arguments: '--configuration Debug'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
