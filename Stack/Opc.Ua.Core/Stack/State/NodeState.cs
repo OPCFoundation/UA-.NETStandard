@@ -3913,7 +3913,14 @@ namespace Opc.Ua
 
                     if (accessRestrictionsRef == null && value != null)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        if (value.GetType() == typeof(uint))
+                        {
+                            accessRestrictionsRef = Convert.ToUInt16(value);
+                        }
+                        else
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
                     }
 
                     if ((WriteMask & AttributeWriteMask.AccessRestrictions) == 0)
