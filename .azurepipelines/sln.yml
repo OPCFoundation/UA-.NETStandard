@@ -11,7 +11,7 @@ jobs:
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
   - task: PowerShell@2
-    name: solutionmatrix
+    name: slnmatrix
     displayName: Prepare Solution
     inputs:
       targetType: filePath
@@ -21,7 +21,7 @@ jobs:
   displayName: Build Solutions
   dependsOn: buildprepsln
   strategy:
-    matrix: $[dependencies.buildprep.outputs['solutionmatrix.jobMatrix'] ]
+    matrix: $[dependencies.buildprep.outputs['slnmatrix.jobMatrix'] ]
   pool:
     vmImage: $(poolImage)
   steps:
