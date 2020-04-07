@@ -63,9 +63,13 @@ Get-ChildItem $BuildRoot -Recurse `
     $fullFolder = $_.DirectoryName.Replace("\", "/")
     $folder = $_.DirectoryName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
     $file = $_.FullName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
+    $postFix = ""
     if ([string]::IsNullOrEmpty($folder)) {
-        $postFix = $file.Replace(".", "-")
-        $postFix = "$($postFix)-"
+        if (-not $file.contains(".yml"))
+        {
+            $postFix = $file.Replace(".", "-")
+            $postFix = "$($postFix)-"
+        }
     }
     else {
         $postFix = $folder.Replace("/", "-")
@@ -73,7 +77,7 @@ Get-ChildItem $BuildRoot -Recurse `
     }
     $agents.keys | ForEach-Object {
         $counter = $counter + 1
-        $jobName = "$($JobPrefix)$($postFix)$($_)_$($counter)"
+        $jobName = "$($JobPrefix)$($postFix)$($_)"
         $jobMatrix.Add($jobName, @{ 
             "poolImage" = $agents.Item($_)
             "folder" = $folder 
