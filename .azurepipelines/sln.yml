@@ -39,6 +39,7 @@ jobs:
     inputs:
       solution: '$(file)' 
       configuration: 'Release'
+      platform: 'AnyCPU'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
@@ -50,3 +51,24 @@ jobs:
     inputs:
       solution: '$(file)' 
       configuration: 'Debug'
+      platform: 'AnyCPU'
+- job: buildNoHttps
+  displayName: Build NoHttps
+  pool:
+    vmImage: 'vs2017-win2016'
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  steps:
+  - task: DotNetCoreCLI@2
+    displayName: Release Restore
+    inputs:
+      command: restore
+      projects: 'UA Core Library.sln'
+      arguments: '--configuration Release'
+  - task: MSBuild@1
+    displayName: MS Build Release No Https
+    inputs:
+      projects: 'UA Core Library.sln'
+      configuration: 'Release'
+      msbuildArguments: '/p:NoHttps=true'
