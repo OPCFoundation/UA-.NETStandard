@@ -64,7 +64,8 @@ Get-ChildItem $BuildRoot -Recurse `
     $folder = $_.DirectoryName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
     $file = $_.FullName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
     if ([string]::IsNullOrEmpty($folder)) {
-        $postFix = ""
+        $postFix = $file.Replace(".", "-")
+        $postFix = "$($postFix)-"
     }
     else {
         $postFix = $folder.Replace("/", "-")

@@ -25,34 +25,32 @@ jobs:
   pool:
     vmImage: $(poolImage)
   steps:
-#  - task: UseDotNet@2
-#    displayName: 'Install .NET Core SDK'
-#    inputs:
-#      packageType: sdk
-#      version: 2.1.x
-#      includePreviewVersions: false
-#      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: DotNetCoreCLI@2
     displayName: Release Restore
     inputs:
       command: restore
       projects: '$(file)'
       arguments: '--configuration Release'
-  - task: DotNetCoreCLI@2
-    displayName: Release Build
+  - task: MSBuild@1
+    displayName: MS Build Release
     inputs:
-      command: build
-      projects: '$(file)'
-      arguments: '--configuration Release'
+      solution: '$(file)' 
+      configuration: 'Release'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
       command: restore
       projects: '$(file)'
       arguments: '--configuration Debug'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Build
+  - task: MSBuild@1
+    displayName: MS Build Release
     inputs:
-      command: build
-      projects: '$(file)'
-      arguments: '--configuration Debug'
+      solution: '$(file)' 
+      configuration: 'Debug'

@@ -23,7 +23,7 @@ jobs:
       #msbuildArguments: # Optional
       clean: false # Optional
       #maximumCpuCount: false # Optional
-      restoreNugetPackages: true # Optional
+      #restoreNugetPackages: true # Optional
       #logProjectEvents: false # Optional
       #createLogFile: false # Optional
       #logFileVerbosity: 'normal' # Optional. Options: quiet, minimal, normal, detailed, diagnostic
