@@ -39,7 +39,7 @@ jobs:
     inputs:
       solution: '$(file)' 
       configuration: 'Release'
-      platform: 'AnyCPU'
+      platform: 'Any CPU'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
@@ -51,7 +51,7 @@ jobs:
     inputs:
       solution: '$(file)' 
       configuration: 'Debug'
-      platform: 'AnyCPU'
+      platform: 'Any CPU'
 - job: buildNoHttps
   displayName: Build NoHttps
   pool:
