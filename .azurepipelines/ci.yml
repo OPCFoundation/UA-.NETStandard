@@ -64,7 +64,6 @@ jobs:
   strategy:
     matrix: $[dependencies.testprep.outputs['testmatrix.jobMatrix'] ]
   variables:
-    skipComponentGovernanceDetection: true
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     disable.coverage.autogenerate: true

@@ -18,15 +18,15 @@
  .PARAMETER JobPrefix
     Optional name prefix for each job
 
- .PARAMETER Agent
-    Optional agent specifier for each job
+ .PARAMETER AgentTable
+    Table of agents for matrix
 #>
 
 Param(
     [string] $BuildRoot = $null,
     [string] $FileName = $null,
     [string] $JobPrefix = "",
-    [string] $Agent = $null
+    [hashtable] $AgentTable = $null
 )
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
@@ -40,10 +40,16 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
     $JobPrefix = "$($JobPrefix)-"
 }
 
-$agents = @{
-    windows = "windows-2019"
-    linux = "ubuntu-18.04"
-    mac = "macOS-10.15"
+if ($AgentTable -eq $null)
+{
+    $agents = @{
+        windows = "windows-2019"
+        linux = "ubuntu-18.04"
+        mac = "macOS-10.15"
+    }
+}
+else {
+    $agents = $AgentTable
 }
 
 $jobMatrix = @{}
@@ -65,8 +71,7 @@ Get-ChildItem $BuildRoot -Recurse `
         $postFix = "$($postFix)-"
     }
     $agents.keys | ForEach-Object {
-        if ([string]::IsNullOrEmpty($Agent) -or
-            $Agent.equals($($_))) {
+#        if ([string]::IsNullOrEmpty($Agent) -or $Agent.equals($($_))) {
             $counter = $counter + 1
             $jobName = "$($JobPrefix)$($postFix)$($_)_$($counter)"
             $jobMatrix.Add($jobName, @{ 
@@ -76,7 +81,7 @@ Get-ChildItem $BuildRoot -Recurse `
                 "file" = $file 
                 "agent" = $($_)
             })
-        }
+#        }
     }
 }
 
