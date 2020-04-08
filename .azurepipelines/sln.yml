@@ -52,7 +52,7 @@ jobs:
       solution: '$(file)' 
       configuration: 'Release'
       platform: 'Any CPU'
-      msbuildArguments:'$(args)'
+      msbuildArguments: '$(args)'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
@@ -65,7 +65,7 @@ jobs:
       solution: '$(file)' 
       configuration: 'Debug'
       platform: 'Any CPU'
-      msbuildArguments:'$(args)'
+      msbuildArguments: '$(args)'
 - job: buildNoHttps
   dependsOn: prepsln
   displayName: Build NoHttps
