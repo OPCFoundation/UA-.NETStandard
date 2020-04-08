@@ -1,6 +1,6 @@
 ﻿## DataTypes Server
 
-This server is build using the UA-.NETStandard stack as example, how to use data types.
+This server is build using the UA-.NETStandard stack as example of how to define and use custom data types.
 
 Additional Resources:
 
