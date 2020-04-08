@@ -94,7 +94,7 @@ jobs:
       projects: '$(file)'
       arguments: '--configuration Debug'
   - task: MSBuild@1
-    displayName: MS Build Release
+    displayName: MS Build Debug
     inputs:
       solution: '$(file)' 
       configuration: 'Debug'
