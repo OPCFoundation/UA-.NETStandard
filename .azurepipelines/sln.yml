@@ -47,12 +47,13 @@ jobs:
       projects: '$(file)'
       arguments: '--configuration Debug'
   - task: MSBuild@1
-    displayName: MS Build Release
+    displayName: MS Build Debug
     inputs:
       solution: '$(file)' 
       configuration: 'Debug'
       platform: 'Any CPU'
 - job: buildNoHttps
+  dependsOn: prepsln
   displayName: Build NoHttps
   pool:
     vmImage: 'vs2017-win2016'
@@ -61,7 +62,7 @@ jobs:
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
   - task: DotNetCoreCLI@2
-    displayName: Release Restore
+    displayName: Restore
     inputs:
       command: restore
       projects: 'UA Core Library.sln'
