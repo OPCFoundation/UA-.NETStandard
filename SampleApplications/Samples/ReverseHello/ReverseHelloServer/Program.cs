@@ -37,7 +37,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Controls;
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 { 
     static class Program
     {
@@ -61,30 +61,22 @@ namespace ReverseHelloTestServer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            ApplicationInstance application = new ApplicationInstance();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            var application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Server;
             application.ConfigSectionName = "ReverseHelloServer";
 
             try
             {
-                // process and command line arguments.
-                if (application.ProcessCommandLine())
-                {
-                    return;
-                }
-
-                // check if running as a service.
-                if (!Environment.UserInteractive)
-                {
-                    application.StartAsService(new ReverseHelloServer());
-                    return;
-                }
-
                 // load the application configuration.
                 application.LoadApplicationConfiguration(false).Wait();
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0).Wait();
+                bool certOk = application.CheckApplicationInstanceCertificate(false, 0).Result;
+                if (!certOk)
+                {
+                    throw new Exception("Application instance certificate invalid!");
+                }
 
                 // start the server.
                 var server = new ReverseHelloServer();
@@ -96,7 +88,6 @@ namespace ReverseHelloTestServer
             catch (Exception e)
             {
                 ExceptionDlg.Show(application.ApplicationName, e);
-                return;
             }
         }
     }

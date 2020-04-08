@@ -31,18 +31,13 @@ using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 {
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
     public class ReverseHelloNodeManager : CustomNodeManager2
     {
-        #region Private Fields
-        private long m_lastUsedId;
-        private ReverseHelloServerConfiguration m_configuration;
-        #endregion
-
         #region Constructors
         /// <summary>
         /// Initializes the node manager.
@@ -198,6 +193,11 @@ namespace ReverseHelloTestServer
 
             return predefinedNode;
         }
+        #endregion
+
+        #region Private Fields
+        private long m_lastUsedId;
+        private ReverseHelloServerConfiguration m_configuration;
         #endregion
     }
 }

@@ -32,7 +32,7 @@ using System.Windows.Forms;
 using Opc.Ua;
 using Opc.Ua.Client.Controls;
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 {
     /// <summary>
     /// The main form for a simple Quickstart Client application.

@@ -45,7 +45,7 @@
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
     <MaxByteStringLength>1048576</MaxByteStringLength>
-    <MaxArrayLength>131072</MaxArrayLength>
+    <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
     <ChannelLifetime>300000</ChannelLifetime>
@@ -59,6 +59,18 @@
     <SecurityPolicies>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
@@ -77,7 +89,7 @@
         <ua:TokenType>Certificate_2</ua:TokenType>
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
-    <DiagnosticsEnabled>false</DiagnosticsEnabled>
+    <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
@@ -89,11 +101,44 @@
     <MaxPublishingInterval>3600000</MaxPublishingInterval>
     <PublishingResolution>50</PublishingResolution>
     <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
-    <MaxMessageQueueSize>10</MaxMessageQueueSize>
+    <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+    <RegistrationEndpoint>
+      <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+      <ua:Server>
+        <ua:ApplicationUri>opc.tcp://localhost:4840</ua:ApplicationUri>
+        <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
+        <ua:DiscoveryUrls>
+          <ua:String>opc.tcp://localhost:4840</ua:String>
+        </ua:DiscoveryUrls>
+      </ua:Server>
+      <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+      <ua:SecurityPolicyUri />
+      <ua:UserIdentityTokens />
+    </RegistrationEndpoint>
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
+    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <MaxPublishRequestCount>20</MaxPublishRequestCount>
+    <MaxSubscriptionCount>100</MaxSubscriptionCount>
+    <MaxEventQueueSize>10000</MaxEventQueueSize>
+
+    <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
+    <ServerProfileArray>
+      <ua:String>Standard UA Server Profile</ua:String>
+    </ServerProfileArray>
+
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>DA</ua:String>
+    </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
   </ServerConfiguration>
 
   <ClientConfiguration>
@@ -103,7 +148,7 @@
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
     <EndpointCacheFilePath>ReverseHelloServer.Endpoints.xml</EndpointCacheFilePath>
-    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+
   </ClientConfiguration>
 
   <Extensions>

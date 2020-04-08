@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 {
     /// <summary>
     /// Implements a basic Quickstart Server.

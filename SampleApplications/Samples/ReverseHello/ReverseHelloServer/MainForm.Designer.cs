@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 {
     partial class MainForm
     {

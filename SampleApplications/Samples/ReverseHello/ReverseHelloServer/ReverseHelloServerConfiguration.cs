@@ -29,7 +29,7 @@
 
 using System.Runtime.Serialization;
 
-namespace ReverseHelloTestServer
+namespace ReverseHelloServer
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
