@@ -19,20 +19,21 @@ jobs:
       arguments: -FileName "*.sln" -AgentTable @{ windows = "vs2017-win2016" }
 - job: buildallsln
   displayName: Build
-#  dependsOn: prepsln
+  dependsOn: prepsln
   strategy:
 #    matrix: $[dependencies.prepsln.outputs['slnmatrix.jobMatrix'] ]
     matrix: 
-      'UA Core Library': 
+      UACoreLibrary: 
         file: 'UA Core Library.sln'
         poolImage: 'vs2017-win2016'
-      'UA Global Discovery Server': 
+      UAGlobalDiscoveryServer: 
         file: 'UA Global Discovery Server.sln'
         poolImage: 'vs2017-win2016'
-      'UA Core Library, No Https': 
+      UACoreLibrary-NoHttps: 
         file: 'UA Core Library.sln'
         poolImage: 'win2019'
         args: '/p:NoHttps=true'
+
   pool:
     vmImage: $(poolImage)
   variables:
