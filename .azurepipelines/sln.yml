@@ -61,7 +61,7 @@ jobs:
         args: '/p:NoHttps=true'
       UAUniversalWindows: 
         file: 'UA Universal Windows.sln'
-        poolImage: 'vs2017-win2016'
+        poolImage: 'windows-2019'
         args: ''
       UAXamarin: 
         file: 'UA Xamarin Client.sln'
