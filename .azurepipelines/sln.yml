@@ -2,14 +2,14 @@
 # Build and test all on all platforms
 #
 jobs:
-- job: prepsln
-  displayName: Prepare Solution Build Jobs
-  pool:
-    vmImage: 'vs2017-win2016'
-  variables:
-    DOTNET_CLI_TELEMETRY_OPTOUT: true
-    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-  steps:
+#- job: prepsln
+#  displayName: Prepare Solution Build Jobs
+#  pool:
+#    vmImage: 'vs2017-win2016'
+#  variables:
+#    DOTNET_CLI_TELEMETRY_OPTOUT: true
+#    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+#  steps:
 #  - task: PowerShell@2
 #    name: slnmatrix
 #    displayName: Prepare Solutions
