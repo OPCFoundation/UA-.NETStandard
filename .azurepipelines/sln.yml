@@ -19,9 +19,20 @@ jobs:
       arguments: -FileName "*.sln" -AgentTable @{ windows = "vs2017-win2016" }
 - job: buildallsln
   displayName: Build
-  dependsOn: prepsln
+#  dependsOn: prepsln
   strategy:
-    matrix: $[dependencies.prepsln.outputs['slnmatrix.jobMatrix'] ]
+#    matrix: $[dependencies.prepsln.outputs['slnmatrix.jobMatrix'] ]
+    matrix: 
+      'UA Core Library': 
+        file: 'UA Core Library.sln'
+        poolImage: 'vs2017-win2016'
+      'UA Global Discovery Server': 
+        file: 'UA Global Discovery Server.sln'
+        poolImage: 'vs2017-win2016'
+      'UA Core Library, No Https': 
+        file: 'UA Core Library.sln'
+        poolImage: 'win2019'
+        args: '/p:NoHttps=true'
   pool:
     vmImage: $(poolImage)
   variables:
@@ -40,6 +51,7 @@ jobs:
       solution: '$(file)' 
       configuration: 'Release'
       platform: 'Any CPU'
+      msbuildArguments:'$(args)'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
@@ -52,6 +64,7 @@ jobs:
       solution: '$(file)' 
       configuration: 'Debug'
       platform: 'Any CPU'
+      msbuildArguments:'$(args)'
 - job: buildNoHttps
   dependsOn: prepsln
   displayName: Build NoHttps
@@ -70,6 +83,6 @@ jobs:
   - task: MSBuild@1
     displayName: MS Build Release No Https
     inputs:
-      projects: 'UA Core Library.sln'
+      solution: 'UA Core Library.sln'
       configuration: 'Release'
       msbuildArguments: '/p:NoHttps=true'
