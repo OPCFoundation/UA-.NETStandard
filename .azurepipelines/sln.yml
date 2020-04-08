@@ -23,16 +23,50 @@ jobs:
   strategy:
 #    matrix: $[dependencies.prepsln.outputs['slnmatrix.jobMatrix'] ]
     matrix: 
+      UACOMInterop: 
+        file: 'UA COM Interop.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UAAggregation: 
+        file: 'SampleApplications\Workshop\Reference\UA Aggregation.sln'
+        poolImage: 'windows-2019'
+        args: ''
+      UAReferenceServer: 
+        file: 'SampleApplications\Workshop\Reference\UA Reference.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
       UACoreLibrary: 
         file: 'UA Core Library.sln'
         poolImage: 'vs2017-win2016'
+        args: ''
+      UACoreLibrary-NoHttps: 
+        file: 'UA Core Library.sln'
+        poolImage: 'windows-2019'
+        args: '/p:NoHttps=true'
       UAGlobalDiscoveryServer: 
         file: 'UA Global Discovery Server.sln'
         poolImage: 'vs2017-win2016'
-      UACoreLibrary-NoHttps: 
-        file: 'UA Core Library.sln'
-        poolImage: 'win2019'
+        args: ''
+      UAQuickstarts: 
+        file: 'UA Quickstart Applications.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UANetstandard: 
+        file: 'UA-NetStandard.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UANetstandard-NoHttps: 
+        file: 'UA-NetStandard.sln'
+        poolImage: 'windows-2019'
         args: '/p:NoHttps=true'
+      UAUniversalWindows: 
+        file: 'UA Universal Windows.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UAXamarin: 
+        file: 'UA Xamarin Client.sln'
+        poolImage: 'windows-2019'
+        args: ''
 
   pool:
     vmImage: $(poolImage)
