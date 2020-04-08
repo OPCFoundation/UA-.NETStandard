@@ -101,7 +101,6 @@ jobs:
       platform: 'Any CPU'
       msbuildArguments: '$(args)'
 - job: buildNoHttps
-  dependsOn: prepsln
   displayName: Build NoHttps
   pool:
     vmImage: 'vs2017-win2016'
