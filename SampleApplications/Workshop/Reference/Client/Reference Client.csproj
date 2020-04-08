@@ -137,10 +137,6 @@
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
   </ItemGroup>
-  <PropertyGroup>
-    <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
-    <BaseNuGetRuntimeIdentifier>win7-x64</BaseNuGetRuntimeIdentifier>
-  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
