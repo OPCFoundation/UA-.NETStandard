@@ -35,14 +35,14 @@ In case of an issue the Opc.Ua.ModelCompiler will show and error dialog, otherwi
 
 ### Use information model
 
-Extend the [DataTypesServer](./../Server/DataTypesServer.cs):
+Extend the [DataTypesServer](./Server/DataTypesServer.cs):
 
 ```csharp
 // in CreateMasterNodeManager method
 server.Factory.AddEncodeableTypes(typeof(MyNamespace.Data.Types.MyDataType).Assembly);
 ```
 
-Extend the [DataTypesNodeManager](./../Server/DataTypesNodeManager.cs):
+Extend the [DataTypesNodeManager](./Server/DataTypesNodeManager.cs):
 
 ```csharp
 // in constructor - add additional namespaces
