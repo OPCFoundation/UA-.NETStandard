@@ -55,7 +55,6 @@ else {
 $jobMatrix = @{}
 
 # Traverse from build root and find all files to create job matrix
-$counter = 0
 Get-ChildItem $BuildRoot -Recurse `
     | Where-Object Name -like $FileName `
     | ForEach-Object {
@@ -76,7 +75,6 @@ Get-ChildItem $BuildRoot -Recurse `
         $postFix = "$($postFix)-"
     }
     $agents.keys | ForEach-Object {
-        $counter = $counter + 1
         $jobName = "$($JobPrefix)$($postFix)$($_)"
         $jobMatrix.Add($jobName, @{ 
             "poolImage" = $agents.Item($_)

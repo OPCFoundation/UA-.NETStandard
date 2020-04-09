@@ -16,7 +16,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName "NetCore*.csproj"
+      arguments: -FileName "NetCore*.csproj" 
 - job: buildall
   displayName: Build
   dependsOn: buildprep
@@ -25,13 +25,6 @@ jobs:
   pool:
     vmImage: $(poolImage)
   steps:
-  - task: UseDotNet@2
-    displayName: 'Install .NET Core SDK'
-    inputs:
-      packageType: sdk
-      version: 2.1.x
-      includePreviewVersions: false
-      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
@@ -58,7 +51,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName azure-pipelines.yml
+      arguments: -FileName azure-pipelines.yml 
 - job: testall
   displayName: Run Tests for
   dependsOn: testprep
@@ -71,13 +64,6 @@ jobs:
   pool:
     vmImage: $(poolImage)
   steps:
-  - task: UseDotNet@2
-    displayName: 'Install .NET Core SDK'
-    inputs:
-      packageType: sdk
-      version: 2.1.x
-      includePreviewVersions: false
-      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: DotNetCoreCLI@2
     displayName: Test Release
     timeoutInMinutes: 20
