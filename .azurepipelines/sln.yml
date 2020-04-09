@@ -8,7 +8,7 @@ jobs:
     matrix: 
       UACOMInterop: 
         file: 'ComIOP/UA COM Interop.sln'
-        poolImage: 'windows-2019'
+        poolImage: 'vs2017-win2016'
         args: ''
       UAAggregation: 
         file: 'SampleApplications/Workshop/Aggregation/UA Aggregation.sln'
@@ -16,7 +16,7 @@ jobs:
         args: ''
       UAReferenceServer: 
         file: 'SampleApplications/Workshop/Reference/UA Reference.sln'
-        poolImage: 'windows-2019'
+        poolImage: 'vs2017-win2016'
         args: ''
       UACoreLibrary: 
         file: 'UA Core Library.sln'
@@ -28,11 +28,11 @@ jobs:
         args: '/p:NoHttps=true'
       UAGlobalDiscoveryServer: 
         file: 'UA Global Discovery Server.sln'
-        poolImage: 'windows-2019'
+        poolImage: 'vs2017-win2016'
         args: ''
       UAQuickstarts: 
         file: 'UA Quickstart Applications.sln'
-        poolImage: 'windows-2019'
+        poolImage: 'vs2017-win2016'
         args: ''
       UANetstandard: 
         file: 'UA-NetStandard.sln'
@@ -57,12 +57,12 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
-  - task: DotNetCoreCLI@2
-    displayName: Release Restore
+  - task: NuGetCommand@2
+    displayName: Restore Release
     inputs:
       command: restore
-      projects: '$(file)'
-      arguments: '--configuration Release'
+      restoreSolution: '$(file)'
+      configuration: 'Release'
   - task: MSBuild@1
     displayName: MS Build Release
     inputs:
@@ -70,12 +70,12 @@ jobs:
       configuration: 'Release'
       platform: 'Any CPU'
       msbuildArguments: '$(args)'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Restore
+  - task: NuGetCommand@2
+    displayName: Restore Debug
     inputs:
       command: restore
-      projects: '$(file)'
-      arguments: '--configuration Debug'
+      restoreSolution: '$(file)'
+      configuration: 'Debug'
   - task: MSBuild@1
     displayName: MS Build Debug
     inputs:
