@@ -10,6 +10,6 @@ stages:
 
 - stage: solutions
   displayName: 'Build Solutions'
-  dependsOn: build
+#  dependsOn: build
   jobs:
   - template: .azurepipelines/sln.yml
