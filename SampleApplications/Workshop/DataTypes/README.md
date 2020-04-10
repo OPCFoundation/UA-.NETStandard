@@ -55,21 +55,8 @@ SetNamespaces(
    MyNamespace.DataTypes.Types.Namespaces.DataTypes,
    MyNamespace.DataTypes.Instances.Namespaces.DataTypeInstances);
 
-// CreateAddressSpace - load from XML and binary (when generated for specific model)
-
-BaseDataVariableState dictionary = (BaseDataVariableState)FindPredefinedNode(
-   ExpandedNodeId.ToNodeId(MyNamespace.DataTypes.Types.VariableIds.DataTypes_BinarySchema, Server.NamespaceUris),
-   typeof(BaseDataVariableState));
-
-dictionary.Value = LoadSchemaFromResource("MyNamespace.DataTypes.Types.MyNamespace.DataTypes.Types.Types.bsd",typeof(MyNamespace.Data.Types.MyDataType).Assembly);
-
-dictionary = (BaseDataVariableState)FindPredefinedNode(
-   ExpandedNodeId.ToNodeId(MyNamespace.DataTypes.Types.VariableIds.DataTypes_XmlSchema, Server.NamespaceUris),
-   typeof(BaseDataVariableState));
-
-dictionary.Value = LoadSchemaFromResource("MyNamespace.DataTypes.Types.MyNamespace.DataTypes.Types.Types.xsd", typeof(MyNamespace.Data.Types.MyDataType).Assembly);
-
 // in LoadPredefinedNodes
+
 predefinedNodes.LoadFromBinaryResource(context, 
       "MyNamespace.DataTypes.Types.MyNamespace.DataTypes.Types.PredefinedNodes.uanodes",
       typeof(MyNamespace.DataTypes.Types.MyDataType).Assembly,
@@ -81,3 +68,5 @@ predefinedNodes.LoadFromBinaryResource(context,
 ```
 
 Compile and run the DataTypes server, you should be able to connect with any OPC UA client (e.g. DataTypes Client) and to browse your own data types.
+
+*Remark* you don't need to load schema files (*.xsd, *.bsd) because the *.uanodes files contains those information already. 
