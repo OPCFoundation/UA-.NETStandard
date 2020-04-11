@@ -46,10 +46,10 @@ jobs:
         file: 'UA Universal Windows.sln'
         poolImage: 'windows-2019'
         args: ''
-#      UAXamarin: 
-#        file: 'UA Xamarin Client.sln'
-#        poolImage: 'windows-2019'
-#        args: ''
+      UAXamarin: 
+        file: 'UA Xamarin Client.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
 
   pool:
     vmImage: $(poolImage)
@@ -59,7 +59,7 @@ jobs:
   steps:
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x''
+      versionSpec: '>=5.4.x'
   - task: NuGetCommand@2
     displayName: Restore Release
     inputs:
