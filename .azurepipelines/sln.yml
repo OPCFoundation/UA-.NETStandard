@@ -49,7 +49,7 @@ jobs:
       UAXamarin: 
         file: 'UA Xamarin Client.sln'
         poolImage: 'vs2017-win2016'
-        args: ''
+        args: '/p:NoHttps=true'
 
   pool:
     vmImage: $(poolImage)
