@@ -57,6 +57,9 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: >=5.4.x
   - task: NuGetCommand@2
     displayName: Restore Release
     inputs:
