@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -115,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
         #endregion
 
-        #region Private Methods
+        #region Protected Methods
         /// <summary>
         /// Encode data value and return encoded string.
         /// </summary>
@@ -564,10 +565,37 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             return "\"" + json + "\"";
         }
-#endregion
 
-#region Private Fields
-#endregion
+        /// <summary>
+        /// Return true if system Type is IEncodable.
+        /// </summary>
+        protected static bool IsEncodableType(System.Type systemType)
+        {
+            if (systemType == null)
+            {
+                return false;
+            }
+
+            var systemTypeInfo = systemType.GetTypeInfo();
+            if (systemTypeInfo.IsAbstract ||
+                !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+            {
+                return false;
+            }
+
+            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+            if (encodeable == null)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
     }
 
 }

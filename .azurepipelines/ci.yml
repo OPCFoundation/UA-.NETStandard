@@ -32,6 +32,9 @@ jobs:
       version: 2.1.x
       includePreviewVersions: false
       installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
@@ -78,6 +81,9 @@ jobs:
       version: 2.1.x
       includePreviewVersions: false
       installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
     displayName: Test Release
     timeoutInMinutes: 20
