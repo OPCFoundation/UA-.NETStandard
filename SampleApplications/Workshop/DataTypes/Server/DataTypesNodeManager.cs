@@ -57,7 +57,7 @@ namespace Quickstarts.DataTypes
 
             SetNamespaces(
                 Quickstarts.DataTypes.Namespaces.DataTypes,
-                Quickstarts.DataTypes.Types.Namespaces.DataTypes, 
+                Quickstarts.DataTypes.Types.Namespaces.DataTypes,
                 Quickstarts.DataTypes.Instances.Namespaces.DataTypeInstances);
 
             // get the configuration for the node manager.
@@ -116,19 +116,6 @@ namespace Quickstarts.DataTypes
             lock (Lock)
             {
                 base.CreateAddressSpace(externalReferences);
-
-                BaseDataVariableState dictionary = (BaseDataVariableState)FindPredefinedNode(
-                    ExpandedNodeId.ToNodeId(Quickstarts.DataTypes.Types.VariableIds.DataTypes_BinarySchema, Server.NamespaceUris),
-                    typeof(BaseDataVariableState));
-
-                dictionary.Value = LoadSchemaFromResource("Quickstarts.DataTypes.Types.Quickstarts.DataTypes.Types.Types.bsd",typeof(Quickstarts.DataTypes.Types.VehicleType).Assembly);
-                
-                dictionary = (BaseDataVariableState)FindPredefinedNode(
-                    ExpandedNodeId.ToNodeId(Quickstarts.DataTypes.Types.VariableIds.DataTypes_XmlSchema, Server.NamespaceUris),
-                    typeof(BaseDataVariableState));
-
-                dictionary.Value = LoadSchemaFromResource("Quickstarts.DataTypes.Types.Quickstarts.DataTypes.Types.Types.xsd", typeof(Quickstarts.DataTypes.Types.VehicleType).Assembly);
-
             }
         }
 
