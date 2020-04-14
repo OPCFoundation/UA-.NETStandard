@@ -535,7 +535,10 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(IFilterTarget e)
         {
-            m_serverObject.ReportEvent(this.DefaultSystemContext, e);
+            if (m_serverObject != null)
+            {
+                m_serverObject.ReportEvent(this.DefaultSystemContext, e);
+            }
         }
 
         /// <summary>
@@ -545,7 +548,10 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            m_serverObject.ReportEvent(context, e);
+            if (m_serverObject != null)
+            {
+                m_serverObject.ReportEvent(context, e);
+            }
         }
 
         /// <summary>
