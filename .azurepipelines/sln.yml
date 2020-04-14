@@ -1,0 +1,88 @@
+#
+# Build and test all on all platforms
+#
+jobs:
+- job: buildallsln
+  displayName: Build
+  strategy:
+    matrix: 
+      UACOMInterop: 
+        file: 'ComIOP/UA COM Interop.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UAAggregation: 
+        file: 'SampleApplications/Workshop/Aggregation/UA Aggregation.sln'
+        poolImage: 'windows-2019'
+        args: ''
+      UAReferenceServer: 
+        file: 'SampleApplications/Workshop/Reference/UA Reference.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UACoreLibrary: 
+        file: 'UA Core Library.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UACoreLibrary-NoHttps: 
+        file: 'UA Core Library.sln'
+        poolImage: 'vs2017-win2016'
+        args: '/p:NoHttps=true'
+      UAGlobalDiscoveryServer: 
+        file: 'UA Global Discovery Server.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UAQuickstarts: 
+        file: 'UA Quickstart Applications.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UANetstandard: 
+        file: 'UA-NetStandard.sln'
+        poolImage: 'vs2017-win2016'
+        args: ''
+      UANetstandard-NoHttps: 
+        file: 'UA-NetStandard.sln'
+        poolImage: 'vs2017-win2016'
+        args: '/p:NoHttps=true'
+      UAUniversalWindows: 
+        file: 'UA Universal Windows.sln'
+        poolImage: 'windows-2019'
+        args: ''
+      UAXamarin: 
+        file: 'UA Xamarin Client.sln'
+        poolImage: 'vs2017-win2016'
+        args: '/p:NoHttps=true'
+
+  pool:
+    vmImage: $(poolImage)
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  steps:
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: NuGetCommand@2
+    displayName: Restore Release
+    inputs:
+      command: restore
+      restoreSolution: '$(file)'
+      configuration: 'Release'
+  - task: MSBuild@1
+    displayName: MS Build Release
+    inputs:
+      solution: '$(file)' 
+      configuration: 'Release'
+      platform: 'Any CPU'
+      msbuildArguments: '$(args)'
+  - task: NuGetCommand@2
+    displayName: Restore Debug
+    inputs:
+      command: restore
+      restoreSolution: '$(file)'
+      configuration: 'Debug'
+  - task: MSBuild@1
+    displayName: MS Build Debug
+    inputs:
+      solution: '$(file)' 
+      configuration: 'Debug'
+      platform: 'Any CPU'
+      msbuildArguments: '$(args)'

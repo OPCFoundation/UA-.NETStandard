@@ -300,8 +300,8 @@ namespace Opc.Ua.Test
         {
             if (value1.Kind != value2.Kind)
             {
-                value1 = Utils.NormalizeToUniversalTime(value1);
-                value2 = Utils.NormalizeToUniversalTime(value2);
+                value1 = Utils.ToOpcUaUniversalTime(value1);
+                value2 = Utils.ToOpcUaUniversalTime(value2);
             }
 
             if (value1 < Utils.TimeBase)

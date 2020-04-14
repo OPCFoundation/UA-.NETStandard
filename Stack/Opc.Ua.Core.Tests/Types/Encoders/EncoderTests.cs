@@ -200,6 +200,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Verify encode and decode of a random built in type
+        /// as Variant in a DataValue.
+        /// </summary>
+        [Theory]
+        [Category("BuiltInType"), Repeat(RandomRepeats)]
+        public void ReEncodeBuiltInTypeRandomVariantInDataValue(
+            EncodingType encoderType
+            )
+        {
+            SetRepeatedRandomSeed();
+            object randomData = DataGenerator.GetRandom(BuiltInType.Variant);
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, randomData);
+        }
+
+        /// <summary>
         /// Validate integrity of non reversible Json encoding
         /// of a builtin type as Variant in a DataValue.
         /// </summary>
@@ -253,6 +268,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
             string json = EncodeDataValue(EncodingType.Json, builtInType, randomData, false);
             PrettifyAndValidateJson(json);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a VariantCollection.
+        /// </summary>
+        [Theory]
+        [Category("BuiltInType")]
+        public void ReEncodeVariantCollectionInDataValue(
+            EncodingType encoderType
+            )
+        {
+            var variant = new VariantCollection {
+                new Variant(4L),
+                new Variant("test"),
+                new Variant(new Int32[] {1, 2, 3, 4, 5 }),
+                new Variant(new Int64[] {1, 2, 3, 4, 5 }),
+                new Variant(new string[] {"1", "2", "3", "4", "5" })
+            };
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
         }
         #endregion
 

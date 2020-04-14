@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -115,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
         #endregion
 
-        #region Private Methods
+        #region Protected Methods
         /// <summary>
         /// Encode data value and return encoded string.
         /// </summary>
@@ -217,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
             if (BuiltInType.DateTime == builtInType)
             {
-                expected = Utils.NormalizeToUniversalTime((DateTime)expected);
+                expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
             }
             Assert.AreEqual(expected, result, encodeInfo);
             Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
@@ -366,7 +367,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             StatusCode statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
             DateTime sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
-            Variant variant = builtInType == BuiltInType.Variant ? (Variant)data : new Variant(data);
+            Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant) ? (Variant)data : new Variant(data);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
@@ -385,7 +386,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void Encode(IEncoder encoder, BuiltInType builtInType, string fieldName, object value)
         {
             bool isArray = (value?.GetType().IsArray ?? false) && (builtInType != BuiltInType.ByteString);
-            if (!isArray)
+            bool isCollection = (value is IList) && (builtInType != BuiltInType.ByteString);
+            if (!isArray && !isCollection)
             {
                 switch (builtInType)
                 {
@@ -439,6 +441,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Array array = value as Array;
                 switch (builtInType)
                 {
+                    case BuiltInType.Variant: { encoder.WriteVariantArray(fieldName, (VariantCollection)value); return; }
                     case BuiltInType.Enumeration:
                     {
                         if (arrayType.IsEnum)
@@ -507,11 +510,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected object AdjustExpectedBoundaryValues(EncodingType encoderType, BuiltInType builtInType, object value)
         {
+            if (value == null)
+            {
+                return value;
+            }
             if (encoderType == EncodingType.Binary)
             {
-                if (builtInType == BuiltInType.DateTime)
+                if (builtInType == BuiltInType.DateTime || builtInType == BuiltInType.Variant)
                 {
-                    Type type = value.GetType();
                     if (value.GetType() == typeof(DateTime))
                     {
                         value = AdjustExpectedDateTimeBinaryEncoding((DateTime)value);
@@ -536,28 +542,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
             }
-            if (encoderType == EncodingType.Json)
-            {
-                if (builtInType == BuiltInType.ByteString)
-                {
-                    if (value != null)
-                    {
-                        byte[] byteValue = value as byte[];
-                        if (byteValue?.Count() == 0)
-                        {
-                            return null;
-                        }
-                        byte[][] byteArrayValue = value as byte[][];
-                        if (byteArrayValue != null)
-                        {
-                            for (int i = 0; i < byteArrayValue.Length; i++)
-                            {
-                                byteArrayValue[i] = byteArrayValue[i] ?? new byte[0];
-                            }
-                        }
-                    }
-                }
-            }
             return value;
         }
 
@@ -570,7 +554,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 return dateTime;
             }
-            dateTime = Utils.NormalizeToUniversalTime(dateTime);
+            dateTime = Utils.ToOpcUaUniversalTime(dateTime);
             return dateTime <= Utils.TimeBase ? DateTime.MinValue : dateTime;
         }
 
@@ -580,6 +564,33 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected static string Quotes(string json)
         {
             return "\"" + json + "\"";
+        }
+
+        /// <summary>
+        /// Return true if system Type is IEncodable.
+        /// </summary>
+        protected static bool IsEncodableType(System.Type systemType)
+        {
+            if (systemType == null)
+            {
+                return false;
+            }
+
+            var systemTypeInfo = systemType.GetTypeInfo();
+            if (systemTypeInfo.IsAbstract ||
+                !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+            {
+                return false;
+            }
+
+            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+            if (encodeable == null)
+            {
+                return false;
+            }
+
+            return true;
         }
         #endregion
 
