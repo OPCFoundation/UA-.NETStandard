@@ -543,40 +543,24 @@ namespace Opc.Ua
                 return bytes;
             }
 
-            // check for empty body.
-            XmlDocument document = new XmlDocument();
-            string xmlString = null;
-
-            if (m_reader.IsEmptyElement)
-            {
-                xmlString = m_reader.ReadOuterXml();
-
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
-                {
-                    document.Load(reader);
-                }
-
-                return document.DocumentElement;
-            }
-
             // lookup type.
-            IEncodeable encodeable = null;
-
             Type systemType = m_context.Factory.GetSystemType(typeId);
 
             // decode known type.
             if (systemType != null)
             {
                 PushNamespace(m_reader.NamespaceURI);
-                encodeable = ReadEncodeable(m_reader.LocalName, systemType);
+                var encodeable = ReadEncodeable(m_reader.LocalName, systemType);
                 PopNamespace();
 
                 return encodeable;
             }
 
+            // check for empty body.
+            XmlDocument document = new XmlDocument();
+
             // return undecoded xml body.
-            xmlString = m_reader.ReadOuterXml();
+            var xmlString = m_reader.ReadOuterXml();
 
             using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
                 { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
@@ -1465,6 +1449,13 @@ namespace Opc.Ua
             
             // read end of extension object.
             EndField(fieldName);
+
+            // copy the type id for encodeables.
+            IEncodeable encodeable = body as IEncodeable;
+            if (encodeable != null)
+            {
+                absoluteId = encodeable.TypeId;
+            }
 
             return new ExtensionObject(absoluteId, body);
         }
