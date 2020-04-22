@@ -902,16 +902,20 @@ namespace Opc.Ua
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
                 IEncodeable encodeable = value as IEncodeable;
-
                 if (encodeable != null)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
                 ExtensionObject extension = value as ExtensionObject;
-
                 if (extension != null)
                 {
+                    encodeable = extension.Body as IEncodeable;
+                    if (encodeable != null)
+                    {
+                        return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
+                    }
+
                     return typeTree.FindDataTypeId(extension.TypeId);
                 }
 
