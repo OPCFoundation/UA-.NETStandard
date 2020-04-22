@@ -1450,10 +1450,10 @@ namespace Opc.Ua
             // read end of extension object.
             EndField(fieldName);
 
-            // copy the type id for encodeables.
             IEncodeable encodeable = body as IEncodeable;
             if (encodeable != null)
             {
+                // Set the known TypeId for encodeables.
                 absoluteId = encodeable.TypeId;
             }
 
