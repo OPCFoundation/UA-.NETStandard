@@ -35,7 +35,7 @@ jobs:
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
- - task: DotNetCoreCLI@2
+  - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
