@@ -2,9 +2,26 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+pr:
+  autoCancel: true
+  branches:
+    include:
+    - '*'
+
 stages:
 - stage: build
-  displayName: 'Build and Test Code'
+  displayName: 'Build .Net Core Code'
   jobs:
   - template: .azurepipelines/ci.yml
+- stage: solutions
+  displayName: 'Build Solutions'
+  dependsOn:
+  - build
+  jobs:
   - template: .azurepipelines/sln.yml
+- stage: test
+  dependsOn:
+  - solutions
+  displayName: 'Test'
+  jobs:
+  - template: .azurepipelines/test.yml
