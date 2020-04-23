@@ -16,7 +16,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName "NetCore*.csproj" 
+      arguments: -FileName azure-pipelines.yml  
 - job: buildall
   displayName: Build
   dependsOn: buildprep
@@ -32,32 +32,15 @@ jobs:
       version: 2.1.x
       includePreviewVersions: false
       installationPath: $(Agent.ToolsDirectory)/dotnet
-  - task: NuGetToolInstaller@1
-    inputs:
-      versionSpec: '>=5.4.x'
-  - task: DotNetCoreCLI@2
-    displayName: Release Restore
-    inputs:
-      command: restore
-      projects: '$(file)'
-      includeNuGetOrg: true
-      arguments: '--configuration Release'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
-      projects: '$(file)'
+      projects: '**/NetCore*.csproj'
       arguments: '--configuration Release'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Restore
-    inputs:
-      command: restore
-      projects: '$(file)'
-      includeNuGetOrg: true
-      arguments: '--configuration Debug'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
-      projects: '$(file)'
+      projects: '**/NetCore*.csproj'
       arguments: '--configuration Debug'
