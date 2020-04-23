@@ -10,18 +10,17 @@ pr:
 
 stages:
 - stage: build
-  displayName: 'Build .Net Core Code'
+  displayName: 'Build .Net Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
 - stage: solutions
-  displayName: 'Build Solutions'
-  dependsOn:
-  - build
+  displayName: 'Build Windows Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
 - stage: test
   dependsOn:
   - solutions
-  displayName: 'Test'
+  - build
+  displayName: 'Test Core and SDK'
   jobs:
   - template: .azurepipelines/test.yml
