@@ -18,7 +18,7 @@ script:
   - dotnet restore "UA-NetStandard.sln"
   - dotnet restore "UA Global Discovery Server.sln"
   - dotnet restore "UA Quickstart Applications.sln"
-  - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
+#  - dotnet restore "SampleApplications/Workshop/Aggregation/UA Aggregation.sln"
   - dotnet restore "SampleApplications/Workshop/Reference/UA Reference.sln"
   - echo "========== build all .Net Core samples ============"
   - dotnet build -c Debug /p:NoHttps=true SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
@@ -29,8 +29,8 @@ script:
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleClient/NetCoreConsoleClient.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreComplexClient/NetCoreComplexClient.csproj
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
-  - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
-  - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+#  - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
+#  - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
   - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
   - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer

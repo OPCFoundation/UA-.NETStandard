@@ -1,61 +1,11 @@
 #
-# Build and test all on all platforms
+# Build all solutions on windows
 #
 jobs:
 - job: buildallsln
-  displayName: Build
-  strategy:
-    matrix: 
-      UACOMInterop: 
-        file: 'ComIOP/UA COM Interop.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UAAggregation: 
-        file: 'SampleApplications/Workshop/Aggregation/UA Aggregation.sln'
-        poolImage: 'windows-2019'
-        args: ''
-      UAReferenceServer: 
-        file: 'SampleApplications/Workshop/Reference/UA Reference.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UACoreLibrary: 
-        file: 'UA Core Library.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UACoreLibrary-NoHttps: 
-        file: 'UA Core Library.sln'
-        poolImage: 'vs2017-win2016'
-        args: '/p:NoHttps=true'
-      UAGlobalDiscoveryServer: 
-        file: 'UA Global Discovery Server.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UAQuickstarts: 
-        file: 'UA Quickstart Applications.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UANetstandard: 
-        file: 'UA-NetStandard.sln'
-        poolImage: 'vs2017-win2016'
-        args: ''
-      UANetstandard-NoHttps: 
-        file: 'UA-NetStandard.sln'
-        poolImage: 'vs2017-win2016'
-        args: '/p:NoHttps=true'
-      UAUniversalWindows: 
-        file: 'UA Universal Windows.sln'
-        poolImage: 'windows-2019'
-        args: ''
-      UAXamarin: 
-        file: 'UA Xamarin Client.sln'
-        poolImage: 'vs2017-win2016'
-        args: '/p:NoHttps=true'
-
+  displayName: Build Solutions 
   pool:
-    vmImage: $(poolImage)
-  variables:
-    DOTNET_CLI_TELEMETRY_OPTOUT: true
-    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    vmImage: 'windows-2019'
   steps:
   - task: NuGetToolInstaller@1
     inputs:
@@ -64,25 +14,51 @@ jobs:
     displayName: Restore Release
     inputs:
       command: restore
-      restoreSolution: '$(file)'
+      restoreSolution: '**/*.sln'
       configuration: 'Release'
   - task: MSBuild@1
     displayName: MS Build Release
     inputs:
-      solution: '$(file)' 
+      solution: '**/*.sln' 
       configuration: 'Release'
       platform: 'Any CPU'
-      msbuildArguments: '$(args)'
+      msbuildArguments: 
   - task: NuGetCommand@2
     displayName: Restore Debug
     inputs:
       command: restore
-      restoreSolution: '$(file)'
+      restoreSolution: '**/*.sln'
       configuration: 'Debug'
   - task: MSBuild@1
     displayName: MS Build Debug
     inputs:
-      solution: '$(file)' 
+      solution: '**/*.sln'
       configuration: 'Debug'
       platform: 'Any CPU'
-      msbuildArguments: '$(args)'
+      msbuildArguments: 
+  - task: NuGetCommand@2
+    displayName: Restore UA Core NoHttps Release
+    inputs:
+      command: restore
+      restoreSolution: 'UA Core Library.sln'
+      configuration: 'Release'
+  - task: MSBuild@1
+    displayName: MS Build UA Core NoHttps Release
+    inputs:
+      solution: 'UA Core Library.sln' 
+      configuration: 'Release'
+      platform: 'Any CPU'
+      msbuildArguments: '/p:NoHttps=true'
+  - task: NuGetCommand@2
+    displayName: Restore UA Core NoHttps Debug
+    inputs:
+      command: restore
+      restoreSolution: 'UA Core Library.sln'
+      configuration: 'Debug'
+  - task: MSBuild@1
+    displayName: MS Build UA Core NoHttps Debug
+    inputs:
+      solution: 'UA Core Library.sln'
+      configuration: 'Debug'
+      platform: 'Any CPU'
+      msbuildArguments: '/p:NoHttps=true'
