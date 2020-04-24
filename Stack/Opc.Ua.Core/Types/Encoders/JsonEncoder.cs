@@ -738,7 +738,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            if (value == null || value.Length == 0)
+            if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2212,8 +2212,12 @@ namespace Opc.Ua
             // write matrix.
             else if (typeInfo.ValueRank > 1)
             {
-                WriteMatrix(null, (Matrix)value);
-                return;
+                Matrix matrix = value as Matrix;
+                if (matrix != null)
+                {
+                    WriteVariantMatrix(null, matrix);
+                    return;
+                }
             }
 
             // oops - should never happen.
@@ -2225,9 +2229,9 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
-        /// Writes an DataValue array to the stream.
+        /// Write multi dimensional array in Variant.
         /// </summary>
-        private void WriteMatrix(string fieldName, Matrix value)
+        private void WriteVariantMatrix(string fieldName, Matrix value)
         {
             PushStructure(fieldName);
             WriteVariant("Matrix", new Variant(value.Elements, new TypeInfo(value.TypeInfo.BuiltInType, ValueRanks.OneDimension)));

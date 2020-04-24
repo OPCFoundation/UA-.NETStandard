@@ -1,4 +1,4 @@
- 
+
 # Official OPC UA .Net Standard Stack and Samples from the OPC Foundation
 
 ## Overview
@@ -32,6 +32,28 @@ Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websit
 16. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .Net projects.
 17. The Core UA stack and SDK has been tested with Mono 5.4 to add support for the [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md) and the Mono console application samples.
 
+## Project Information
+
+### General Project Info
+
+[![Github top language](https://img.shields.io/github/languages/top/OPCFoundation/UA-.NETStandard)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github stars](https://img.shields.io/github/stars/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github forks](https://img.shields.io/github/forks/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github size](https://img.shields.io/github/repo-size/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
+[![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
+
+### Build Status
+
+[![Travis Build Status](https://img.shields.io/travis/OPCFoundation/UA-.NETStandard/master?label=Travis)](https://travis-ci.org/OPCFoundation/UA-.NETStandard)
+[![Build Status](https://img.shields.io/azure-devops/build/sysadmin0797/722e4f81-14ec-459b-aed2-c01ea07c7f3b/1/master?label=Azure%20Pipelines)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+[![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
+
+### Code Quality
+
+[![Test Status](https://img.shields.io/azure-devops/tests/sysadmin0797/sysadmin/1?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+[![Coverage Status](https://img.shields.io/azure-devops/coverage/sysadmin0797/sysadmin/1/master?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+
 ## Getting Started
 All the tools you need for .Net Standard come with the .Net Core tools. See [here](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
@@ -64,7 +86,7 @@ By default all sample applications are configured to register with a Local Disco
 1. Open the UA-NetStandard.sln solution file using Visual Studio 2017.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
- 
+
 ## How to build and run the console samples on Windows, Linux and iOS
 This section describes how to run the **NetCoreConsoleClient** and **NetCoreConsoleServer** sample applications.
 
@@ -72,14 +94,14 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 
 ### Prerequisites
 1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore UA-NetStandard.sln`. This command calls into NuGet to restore the tree of dependencies.
- 
+
 ### Start the server 
 1. Open a command prompt. 
 2. Navigate to the folder **SampleApplications/Samples/NetCoreConsoleServer**. 
 3. To run the server sample type `dotnet run --project NetCoreConsoleServer.csproj -a`. 
     - The server is now running and waiting for connections. 
     - The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing.
- 
+
 ### Start the client 
 1. Open a command prompt 
 2. Navigate to the folder **SampleApplications/Samples/NetCoreConsoleClient**. 

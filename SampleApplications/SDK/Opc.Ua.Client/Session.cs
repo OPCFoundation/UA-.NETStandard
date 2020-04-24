@@ -197,7 +197,7 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "Do not have a privat key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
                         m_instanceCertificate.Subject,
                         m_instanceCertificate.Thumbprint);
                 }
@@ -4359,7 +4359,13 @@ namespace Opc.Ua.Client
             }
             else
             {
+                // Delete abandoned subscription from server.
                 Utils.Trace("Received Publish Response for Unknown SubscriptionId={0}", subscriptionId);
+
+                Task.Run(() =>
+                {
+                    DeleteSubscription(subscriptionId);
+                });
             }
         }
 
@@ -4380,7 +4386,43 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Session: Unexpected rrror while raising Notification event.");
+                Utils.Trace(e, "Session: Unexpected error while raising Notification event.");
+            }
+        }
+
+        /// <summary>
+        /// Invokes a DeleteSubscriptions call for the specified subscriptionId.
+        /// </summary>
+        private void DeleteSubscription(uint subscriptionId)
+        {
+            try
+            {
+                Utils.Trace("Deleting server subscription for SubscriptionId={0}", subscriptionId);
+
+                // delete the subscription.
+                UInt32Collection subscriptionIds = new uint[] { subscriptionId };
+
+                StatusCodeCollection results;
+                DiagnosticInfoCollection diagnosticInfos;
+
+                ResponseHeader responseHeader = DeleteSubscriptions(
+                    null,
+                    subscriptionIds,
+                    out results,
+                    out diagnosticInfos);
+
+                // validate response.
+                ClientBase.ValidateResponse(results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                if (StatusCode.IsBad(results[0]))
+                {
+                    throw new ServiceResultException(ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Session: Unexpected error while deleting subscription for SubscriptionId={0}.", subscriptionId);
             }
         }
         #endregion

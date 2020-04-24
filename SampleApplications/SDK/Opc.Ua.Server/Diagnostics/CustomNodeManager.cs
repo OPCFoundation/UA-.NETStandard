@@ -1824,7 +1824,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
-                    if (errors[ii].StatusCode != StatusCodes.Good)
+                    if (!ServiceResult.IsGood(errors[ii]))
                     {
                         continue;
                     }
