@@ -1554,34 +1554,34 @@ namespace Opc.Ua.Client
         public Node ReadNode(NodeId nodeId)
         {
             // build list of attributes.
-            SortedDictionary<uint, DataValue> attributes = new SortedDictionary<uint, DataValue>();
-
-            attributes.Add(Attributes.NodeId, null);
-            attributes.Add(Attributes.NodeClass, null);
-            attributes.Add(Attributes.BrowseName, null);
-            attributes.Add(Attributes.DisplayName, null);
-            attributes.Add(Attributes.Description, null);
-            attributes.Add(Attributes.WriteMask, null);
-            attributes.Add(Attributes.UserWriteMask, null);
-            attributes.Add(Attributes.DataType, null);
-            attributes.Add(Attributes.ValueRank, null);
-            attributes.Add(Attributes.ArrayDimensions, null);
-            attributes.Add(Attributes.AccessLevel, null);
-            attributes.Add(Attributes.UserAccessLevel, null);
-            attributes.Add(Attributes.Historizing, null);
-            attributes.Add(Attributes.MinimumSamplingInterval, null);
-            attributes.Add(Attributes.EventNotifier, null);
-            attributes.Add(Attributes.Executable, null);
-            attributes.Add(Attributes.UserExecutable, null);
-            attributes.Add(Attributes.IsAbstract, null);
-            attributes.Add(Attributes.InverseName, null);
-            attributes.Add(Attributes.Symmetric, null);
-            attributes.Add(Attributes.ContainsNoLoops, null);
-            attributes.Add(Attributes.DataTypeDefinition, null);
-            attributes.Add(Attributes.RolePermissions, null);
-            attributes.Add(Attributes.UserRolePermissions, null);
-            attributes.Add(Attributes.AccessRestrictions, null);
-            attributes.Add(Attributes.AccessLevelEx, null);
+            var attributes = new SortedDictionary<uint, DataValue> {
+                { Attributes.NodeId, null },
+                { Attributes.NodeClass, null },
+                { Attributes.BrowseName, null },
+                { Attributes.DisplayName, null },
+                { Attributes.Description, null },
+                { Attributes.WriteMask, null },
+                { Attributes.UserWriteMask, null },
+                { Attributes.DataType, null },
+                { Attributes.ValueRank, null },
+                { Attributes.ArrayDimensions, null },
+                { Attributes.AccessLevel, null },
+                { Attributes.UserAccessLevel, null },
+                { Attributes.Historizing, null },
+                { Attributes.MinimumSamplingInterval, null },
+                { Attributes.EventNotifier, null },
+                { Attributes.Executable, null },
+                { Attributes.UserExecutable, null },
+                { Attributes.IsAbstract, null },
+                { Attributes.InverseName, null },
+                { Attributes.Symmetric, null },
+                { Attributes.ContainsNoLoops, null },
+                { Attributes.DataTypeDefinition, null },
+                { Attributes.RolePermissions, null },
+                { Attributes.UserRolePermissions, null },
+                { Attributes.AccessRestrictions, null },
+                { Attributes.AccessLevelEx, null }
+            };
 
             // build list of values to read.
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
@@ -1642,6 +1642,20 @@ namespace Opc.Ua.Client
                         if (values[ii].StatusCode == StatusCodes.BadAttributeIdInvalid)
                         {
                             continue;
+                        }
+
+                        // check for optional attributes for which access denied can be ignored
+                        if (values[ii].StatusCode == StatusCodes.BadUserAccessDenied)
+                        {
+                            if (attributeId == Attributes.AccessRestrictions ||
+                                attributeId == Attributes.Description ||
+                                attributeId == Attributes.RolePermissions ||
+                                attributeId == Attributes.UserRolePermissions ||
+                                attributeId == Attributes.UserWriteMask ||
+                                attributeId == Attributes.WriteMask)
+                            {
+                                continue;
+                            }
                         }
 
                         // all supported attributes must be readable.
@@ -1982,34 +1996,32 @@ namespace Opc.Ua.Client
 
             node.DisplayName = (LocalizedText)attributes[Attributes.DisplayName].GetValue(typeof(LocalizedText));
 
-            // Description Attribute
-            value = attributes[Attributes.Description];
+            // all optional attributes follow
 
-            if (value != null && value.Value != null)
+            // Description Attribute
+            if (attributes.TryGetValue(Attributes.Description, out value) &&
+                value != null && value.Value != null)
             {
                 node.Description = (LocalizedText)attributes[Attributes.Description].GetValue(typeof(LocalizedText));
             }
 
             // WriteMask Attribute
-            value = attributes[Attributes.WriteMask];
-
-            if (value != null)
+            if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
+                value != null)
             {
                 node.WriteMask = (uint)attributes[Attributes.WriteMask].GetValue(typeof(uint));
             }
 
             // UserWriteMask Attribute
-            value = attributes[Attributes.UserWriteMask];
-
-            if (value != null)
+            if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
+                value != null)
             {
                 node.WriteMask = (uint)attributes[Attributes.UserWriteMask].GetValue(typeof(uint));
             }
 
             // RolePermissions Attribute
-            value = attributes[Attributes.RolePermissions];
-
-            if (value != null)
+            if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
+                value != null)
             {
                 ExtensionObject[] rolePermissions = attributes[Attributes.RolePermissions].Value as ExtensionObject[];
 
@@ -2025,9 +2037,8 @@ namespace Opc.Ua.Client
             }
 
             // UserRolePermissions Attribute
-            value = attributes[Attributes.UserRolePermissions];
-
-            if (value != null)
+            if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
+                value != null)
             {
                 ExtensionObject[] userRolePermissions = attributes[Attributes.UserRolePermissions].Value as ExtensionObject[];
 
@@ -2043,9 +2054,8 @@ namespace Opc.Ua.Client
             }
 
             // AccessRestrictions Attribute
-            value = attributes[Attributes.AccessRestrictions];
-
-            if (value != null)
+            if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
+                value != null)
             {
                 node.AccessRestrictions = (ushort)attributes[Attributes.AccessRestrictions].GetValue(typeof(ushort));
             }
