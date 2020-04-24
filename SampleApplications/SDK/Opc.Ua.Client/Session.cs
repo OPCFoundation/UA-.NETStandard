@@ -2002,28 +2002,28 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.Description, out value) &&
                 value != null && value.Value != null)
             {
-                node.Description = (LocalizedText)attributes[Attributes.Description].GetValue(typeof(LocalizedText));
+                node.Description = (LocalizedText)value.GetValue(typeof(LocalizedText));
             }
 
             // WriteMask Attribute
             if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
                 value != null)
             {
-                node.WriteMask = (uint)attributes[Attributes.WriteMask].GetValue(typeof(uint));
+                node.WriteMask = (uint)value.GetValue(typeof(uint));
             }
 
             // UserWriteMask Attribute
             if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
                 value != null)
             {
-                node.WriteMask = (uint)attributes[Attributes.UserWriteMask].GetValue(typeof(uint));
+                node.UserWriteMask = (uint)value.GetValue(typeof(uint));
             }
 
             // RolePermissions Attribute
             if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
                 value != null)
             {
-                ExtensionObject[] rolePermissions = attributes[Attributes.RolePermissions].Value as ExtensionObject[];
+                ExtensionObject[] rolePermissions = value.Value as ExtensionObject[];
 
                 if (rolePermissions != null)
                 {
@@ -2040,7 +2040,7 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
                 value != null)
             {
-                ExtensionObject[] userRolePermissions = attributes[Attributes.UserRolePermissions].Value as ExtensionObject[];
+                ExtensionObject[] userRolePermissions = value.Value as ExtensionObject[];
 
                 if (userRolePermissions != null)
                 {
@@ -2057,7 +2057,7 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
                 value != null)
             {
-                node.AccessRestrictions = (ushort)attributes[Attributes.AccessRestrictions].GetValue(typeof(ushort));
+                node.AccessRestrictions = (ushort)value.GetValue(typeof(ushort));
             }
 
             return node;
