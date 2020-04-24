@@ -1640,6 +1640,12 @@ namespace Opc.Ua
                 m_reader.ReadBytes(unused);
             }
 
+            if (encodeable != null)
+            {
+                // Set the known TypeId for encodeables.
+                extension.TypeId = encodeable.TypeId;
+            }
+
             extension.Body = encodeable;
             return extension;
         }

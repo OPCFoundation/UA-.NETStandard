@@ -42,7 +42,7 @@ using Opc.Ua.Test;
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
-    /// Tests for the CertificateValidator class.
+    /// Base class for the encoder tests.
     /// </summary>
     [TestFixture, Category("Encoder")]
     [SetCulture("en-us")]
@@ -50,6 +50,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         protected const int RandomStart = 4840;
         protected const int RandomRepeats = 100;
+        protected const string ApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected ServiceMessageContext Context { get; private set; }
@@ -62,6 +63,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             Context = new ServiceMessageContext();
             NameSpaceUris = Context.NamespaceUris;
+            // namespace index 1 must be the ApplicationUri
+            NameSpaceUris.GetIndexOrAppend(ApplicationUri);
+            NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
         }
 
@@ -567,9 +571,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Return true if system Type is IEncodable.
+        /// Return true if system Type is IEncodeable.
         /// </summary>
-        protected static bool IsEncodableType(System.Type systemType)
+        protected static bool IsEncodeableType(System.Type systemType)
         {
             if (systemType == null)
             {

@@ -87,15 +87,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
 
@@ -103,9 +96,7 @@ namespace Opc.Ua
             {
                 // decode the actual message.
                 SessionLessServiceMessage message = new SessionLessServiceMessage();
-
                 message.Decode(decoder);
-
                 return message.Message;
             }
             finally
@@ -1579,6 +1570,7 @@ namespace Opc.Ua
                     {
                         return extension;
                     }
+
                     return new ExtensionObject(typeId, encodeable);
                 }
 
