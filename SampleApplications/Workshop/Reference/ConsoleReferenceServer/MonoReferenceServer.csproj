@@ -27,7 +27,7 @@
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <Reference Include="System.IdentityModel" />
-    <Reference Include="System.Net.Http" />
+    
   </ItemGroup>
   
   <ItemGroup>
