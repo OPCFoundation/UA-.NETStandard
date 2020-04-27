@@ -27,7 +27,7 @@
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <Reference Include="System.IdentityModel" />
-    
+    <PackageReference Include="NETStandard.Library" Version="2.0.0.0" />
   </ItemGroup>
   
   <ItemGroup>
