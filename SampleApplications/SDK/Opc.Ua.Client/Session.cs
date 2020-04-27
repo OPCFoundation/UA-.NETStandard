@@ -1644,8 +1644,8 @@ namespace Opc.Ua.Client
                             continue;
                         }
 
-                        // check for optional attributes for which access denied can be ignored
-                        if (values[ii].StatusCode == StatusCodes.BadUserAccessDenied)
+                        // ignore errors on optional attributes 
+                        if (StatusCode.IsBad(values[ii].StatusCode))
                         {
                             if (attributeId == Attributes.AccessRestrictions ||
                                 attributeId == Attributes.Description ||
