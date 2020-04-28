@@ -8,7 +8,7 @@ echo build server
 rm -r obj
 msbuild /p:configuration=Debug /t:restore,build MonoConsoleServer.csproj
 echo start server
-cd bin/Debug/net46
+cd bin/Debug/net462
 mono MonoConsoleServer.exe -t 60 -a &
 serverpid="$!"
 cd "$workdir"
@@ -18,7 +18,7 @@ echo build client
 rm -r obj
 msbuild /p:configuration=Debug /t:restore,build MonoConsoleClient.csproj
 echo start client
-cd bin/Debug/net46
+cd bin/Debug/net462
 mono MonoConsoleClient.exe -t 20 -a &
 clientpid="$!"
 cd "$workdir"
