@@ -41,7 +41,7 @@
     <Reference Include="System.IdentityModel.Selectors" />
     <Reference Include="System.Security" />
     <Reference Include="System.ServiceModel" />
-    <Reference Include="System.Net.Http" Version="4.3.0" />
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
   
   <ItemGroup Condition="$(DefineConstants.Contains('NO_HTTPS'))=='false'">
