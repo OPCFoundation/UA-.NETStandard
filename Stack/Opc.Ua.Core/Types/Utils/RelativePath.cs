@@ -11,11 +11,10 @@
 */
 
 using System;
-using System.Text;
-using System.IO;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace Opc.Ua
 {
@@ -30,7 +29,7 @@ namespace Opc.Ua
         /// </summary>
         public RelativePath(QualifiedName browseName) : this(ReferenceTypeIds.HierarchicalReferences, false, true, browseName)
         {
-        }    
+        }
 
         /// <summary>
         /// Creates a relative path to follow the forward reference type to find the specified browse name.
@@ -38,7 +37,7 @@ namespace Opc.Ua
         public RelativePath(NodeId referenceTypeId, QualifiedName browseName) : this(referenceTypeId, false, true, browseName)
         {
         }
-        
+
         /// <summary>
         /// Creates a relative path to follow the forward reference type to find the specified browse name.
         /// </summary>
@@ -49,14 +48,14 @@ namespace Opc.Ua
             RelativePathElement element = new RelativePathElement();
 
             element.ReferenceTypeId = referenceTypeId;
-            element.IsInverse       = isInverse;
+            element.IsInverse = isInverse;
             element.IncludeSubtypes = includeSubtypes;
-            element.TargetName      = browseName;
+            element.TargetName = browseName;
 
             m_elements.Add(element);
-        }                 
+        }
         #endregion
-        
+
         #region Public Members
         /// <summary>
         /// Formats the relative path as a string.
@@ -143,14 +142,14 @@ namespace Opc.Ua
 
             return relativePath;
         }
-        
+
         /// <summary>
         /// Parses a relative path formatted as a string. 
         /// </summary>
         public static RelativePath Parse(
-            string         browsePath, 
-            ITypeTable     typeTree, 
-            NamespaceTable currentTable, 
+            string browsePath,
+            ITypeTable typeTree,
+            NamespaceTable currentTable,
             NamespaceTable targetTable)
 
         {
@@ -212,7 +211,7 @@ namespace Opc.Ua
         }
         #endregion
     }
-        
+
     /// <summary>
     /// A class that stores a relative path string
     /// </summary>
@@ -227,7 +226,7 @@ namespace Opc.Ua
             m_elements = new List<Element>();
 
             if (relativePath != null)
-            {              
+            {
                 foreach (RelativePathElement element in relativePath.Elements)
                 {
                     m_elements.Add(new Element(element, typeTree));
@@ -251,10 +250,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The elements in the relative path.
         /// </remarks>
-        public List<Element> Elements
-        {
-            get { return m_elements; }
-        }
+        public List<Element> Elements => m_elements;
 
         /// <summary>
         /// Updates the namespace table with URI used in the relative path.
@@ -427,7 +423,7 @@ namespace Opc.Ua
 
             return true;
         }
-        
+
         /// <summary>
         /// Parses a string representing a relative path and translates the namespace indexes.
         /// </summary>
@@ -438,7 +434,7 @@ namespace Opc.Ua
         public static RelativePathFormatter Parse(string textToParse, NamespaceTable currentTable, NamespaceTable targetTable)
         {
             RelativePathFormatter path = Parse(textToParse);
-            
+
             if (path != null)
             {
                 path.TranslateNamespaceIndexes(currentTable, targetTable);
@@ -484,7 +480,7 @@ namespace Opc.Ua
             return path;
         }
         #endregion
-        
+
         #region Element class
         /// <summary>
         /// A element in a relative path string.
@@ -497,7 +493,7 @@ namespace Opc.Ua
             /// Initializes the object from a RelativePathElement
             /// </summary>
             public Element(RelativePathElement element, ITypeTable typeTree)
-            {                
+            {
                 if (element == null) throw new ArgumentNullException(nameof(element));
                 if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
 
@@ -699,7 +695,7 @@ namespace Opc.Ua
                     {
                         element.ElementType = ElementType.ForwardReference;
                         reader.Read();
-                        
+
                         if (reader.Peek() == '#')
                         {
                             element.IncludeSubtypes = false;
@@ -857,10 +853,10 @@ namespace Opc.Ua
                         case ':':
                         case '!':
                         case '&':
-                            {
-                                path.Append('&');
-                                break;
-                            }
+                        {
+                            path.Append('&');
+                            break;
+                        }
                     }
 
                     path.Append(name[ii]);

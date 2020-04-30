@@ -12,12 +12,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.Xml.Serialization;
-using System.Globalization;
-using System.ServiceModel;
 using System.Runtime.Serialization;
+using System.Text;
+using System.Xml.Serialization;
 
 namespace Opc.Ua
 {
@@ -92,7 +89,7 @@ namespace Opc.Ua
     /// </list>
     /// <br/></para>
     /// </remarks>
-    [DataContract(Name="StatusCode", Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
     public struct StatusCode : IComparable, IFormattable
     {
         #region Constructors
@@ -149,7 +146,7 @@ namespace Opc.Ua
             set { m_code = value; }
         }
         #endregion
-        
+
         #region public uint CodeBits
         /// <summary>
         /// The 16 code bits of the status code. 
@@ -157,10 +154,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The 16 code bits of the status code. 
         /// </remarks>
-        public uint CodeBits
-        {
-            get { return m_code & 0xFFFF0000; }
-        }
+        public uint CodeBits => m_code & 0xFFFF0000;
 
         /// <summary>
         /// Returns a copy of the status code with the Code bits set.
@@ -174,8 +168,8 @@ namespace Opc.Ua
 
             return this;
         }
-        #endregion        
-        
+        #endregion
+
         #region public uint FlagBits
         /// <summary>
         /// The 16 flag bits of the status code. 
@@ -183,10 +177,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The 16 flag bits of the status code. 
         /// </remarks>
-        public uint FlagBits
-        {
-            get { return m_code & 0x0000FFFF; }
-        }
+        public uint FlagBits => m_code & 0x0000FFFF;
 
         /// <summary>
         /// Returns a copy of the status code with the Flag bits set.
@@ -211,7 +202,7 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF000;  }
+            get { return m_code & 0x0FFF000; }
             set { m_code = 0x0FFF000 & value; }
         }
         #endregion
@@ -252,7 +243,7 @@ namespace Opc.Ua
             return this;
         }
         #endregion
-        
+
         #region public bool SemanticsChanged
         /// <summary>
         /// Set to indicate that the semantics associated with the data value have changed.
@@ -289,7 +280,7 @@ namespace Opc.Ua
             return this;
         }
         #endregion
-        
+
         #region public bool HasDataValueInfo
         /// <summary>
         /// The bits that indicate the meaning of the status code
@@ -338,7 +329,7 @@ namespace Opc.Ua
                 m_code &= ~s_LimitBits;
                 m_code |= ((uint)value & s_LimitBits);
             }
-        }             
+        }
 
         /// <summary>
         /// Returns a copy of the status code with the llimit bits set.
@@ -390,7 +381,7 @@ namespace Opc.Ua
             return this;
         }
         #endregion
-        
+
         #region public AggregateBits AggregateBits
         /// <summary>
         /// The historian bits.
@@ -882,7 +873,7 @@ namespace Opc.Ua
         {
             return ToStatusCodeCollection(values);
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>

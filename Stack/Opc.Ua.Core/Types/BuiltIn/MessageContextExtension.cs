@@ -33,7 +33,7 @@ namespace Opc.Ua
         /// </summary>
         public static MessageContextExtension Current
         {
-            get 
+            get
             {
                 OperationContext context = OperationContext.Current;
 
@@ -51,7 +51,7 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceMessageContext CurrentContext
         {
-            get 
+            get
             {
                 MessageContextExtension extension = MessageContextExtension.Current;
 
@@ -63,30 +63,24 @@ namespace Opc.Ua
                 return ServiceMessageContext.ThreadContext;
             }
         }
-            
+
         /// <summary>
         /// The message context to use.
         /// </summary>
-        public ServiceMessageContext MessageContext
-        {
-            get 
-            { 
-                return m_messageContext;
-            }
-        }
+        public ServiceMessageContext MessageContext => m_messageContext;
 
         #region IExtension<OperationContext> Members
         /// <summary cref="IExtension{T}.Attach" />
         public void Attach(OperationContext owner)
         {
         }
-        
+
         /// <summary cref="IExtension{T}.Detach" />
         public void Detach(OperationContext owner)
         {
         }
         #endregion
-    
+
         private ServiceMessageContext m_messageContext;
     }
     #endregion

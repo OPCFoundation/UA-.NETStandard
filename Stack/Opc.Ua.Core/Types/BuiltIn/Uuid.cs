@@ -12,12 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// A wrapper for a GUID used during object serialization.
     /// </summary>
@@ -29,9 +27,9 @@ namespace Opc.Ua
     public struct Uuid : IComparable, IFormattable
     {
         #region Constructors
-		/// <summary>
-		/// Initializes the object with a string.
-		/// </summary>
+        /// <summary>
+        /// Initializes the object with a string.
+        /// </summary>
         /// <remarks>
         /// Initializes the object with a string. The string will be used to create a <see cref="Guid"/>.
         /// </remarks>
@@ -41,9 +39,9 @@ namespace Opc.Ua
             m_guid = new Guid(text);
         }
 
-		/// <summary>
-		/// Initializes the object with a Guid.
-		/// </summary>
+        /// <summary>
+        /// Initializes the object with a Guid.
+        /// </summary>
         /// <remarks>
         /// Initializes the object with a Guid.
         /// </remarks>
@@ -53,7 +51,7 @@ namespace Opc.Ua
             m_guid = guid;
         }
         #endregion
-        
+
         #region Static Fields
 
         /// <summary>
@@ -65,7 +63,7 @@ namespace Opc.Ua
         public static readonly Uuid Empty = new Uuid();
 
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The GUID serialized as a string.
@@ -77,9 +75,9 @@ namespace Opc.Ua
         public string GuidString
         {
             get { return m_guid.ToString(); }
-            
-            set 
-            { 
+
+            set
+            {
                 if (String.IsNullOrEmpty(value))
                 {
                     m_guid = Guid.Empty;
@@ -91,7 +89,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Static Members
         /// <summary>
         /// Converts Uuid to a Guid structure.
@@ -100,11 +98,11 @@ namespace Opc.Ua
         /// Converts Uuid to a Guid structure.
         /// </remarks>
         /// <param name="guid">The Guid to convert to a Uuid</param>
-        public static implicit operator Guid(Uuid guid) 
+        public static implicit operator Guid(Uuid guid)
         {
             return guid.m_guid;
         }
-        
+
         /// <summary>
         /// Converts Guid to a Uuid.
         /// </summary>
@@ -112,91 +110,91 @@ namespace Opc.Ua
         /// Converts Guid to a Uuid.
         /// </remarks>
         /// <param name="guid">The <see cref="Guid"/> to convert to a <see cref="Uuid"/></param>
-        public static explicit operator Uuid(Guid guid) 
+        public static explicit operator Uuid(Guid guid)
         {
             return new Uuid(guid);
         }
-        
+
         /// <summary>
-		/// Returns true if the objects are equal.
-		/// </summary>
+        /// Returns true if the objects are equal.
+        /// </summary>
         /// <remarks>
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="a">The first object to compare</param>
         /// <param name="b">The second object to compare</param>
-		public static bool operator==(Uuid a, Uuid b) 
-		{
-			return a.Equals(b);
-		}
+        public static bool operator ==(Uuid a, Uuid b)
+        {
+            return a.Equals(b);
+        }
 
-		/// <summary>
-		/// Returns true if the objects are not equal.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the objects are not equal.
+        /// </summary>
         /// <remarks>
         /// Returns true if the objects are not equal.
         /// </remarks>
         /// <param name="a">The first object to compare</param>
         /// <param name="b">The second object being compared to</param>
-		public static bool operator!=(Uuid a, Uuid b) 
-		{
-			return !a.Equals(b);
-		}		
+        public static bool operator !=(Uuid a, Uuid b)
+        {
+            return !a.Equals(b);
+        }
 
-		/// <summary>
-		/// Returns true if the objects are not equal.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the objects are not equal.
+        /// </summary>
         /// <remarks>
         /// Returns true if the objects are not equal.
         /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
-		public static bool operator==(Uuid a, Guid b) 
-		{
-			return a.Equals(b);
-		}
+        public static bool operator ==(Uuid a, Guid b)
+        {
+            return a.Equals(b);
+        }
 
-		/// <summary>
-		/// Returns true if the objects are not equal.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the objects are not equal.
+        /// </summary>
         /// <remarks>
         /// Returns true if the objects are not equal.
         /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
-        public static bool operator !=(Uuid a, Guid b) 
-		{
-			return !a.Equals(b);
-		}	
+        public static bool operator !=(Uuid a, Guid b)
+        {
+            return !a.Equals(b);
+        }
 
-		/// <summary>
-		/// Returns true if the object a is less than object b.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the object a is less than object b.
+        /// </summary>
         /// <remarks>
         /// Returns true if the object a is less than object b.
         /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
-        public static bool operator <(Uuid a, Uuid b) 
-		{
-			return a.CompareTo(b) < 0;
-		}	
+        public static bool operator <(Uuid a, Uuid b)
+        {
+            return a.CompareTo(b) < 0;
+        }
 
-		/// <summary>
-		/// Returns true if the object a is greater than object b.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the object a is greater than object b.
+        /// </summary>
         /// <remarks>
         /// Returns true if the object a is greater than object b.
         /// </remarks>
         /// <param name="a">The first object being compared</param>
         /// <param name="b">The second object being compared to</param>
-        public static bool operator >(Uuid a, Uuid b) 
-		{
-			return a.CompareTo(b) > 0;
-		}
+        public static bool operator >(Uuid a, Uuid b)
+        {
+            return a.CompareTo(b) > 0;
+        }
         #endregion
-        
-		#region Overridden Methods
+
+        #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -205,10 +203,10 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
         public override bool Equals(object obj)
-        {	
-             return (CompareTo(obj) == 0);
+        {
+            return (CompareTo(obj) == 0);
         }
-        
+
         /// <summary>
         /// Returns a hash code for the object.
         /// </summary>
@@ -242,18 +240,18 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
 		public int CompareTo(object obj)
-		{
-			// check for reference comparisons.
-			if (Object.ReferenceEquals(this, obj))
-			{
-				return 0;
-			}
+        {
+            // check for reference comparisons.
+            if (Object.ReferenceEquals(this, obj))
+            {
+                return 0;
+            }
 
-			// check for uuids.
-			if (obj is Uuid)
-			{
-                return ((Uuid)obj).m_guid.CompareTo(m_guid);   
-			}
+            // check for uuids.
+            if (obj is Uuid)
+            {
+                return ((Uuid)obj).m_guid.CompareTo(m_guid);
+            }
 
             // compare guids.            
             if (obj is Guid)
@@ -261,9 +259,9 @@ namespace Opc.Ua
                 return m_guid.CompareTo((Guid)obj);
             }
 
-			return +1;
-		}
-		#endregion
+            return +1;
+        }
+        #endregion
 
         #region IFormattable Members
         /// <summary>
@@ -298,7 +296,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public UuidCollection() {}
+        public UuidCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -307,7 +305,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
-        public UuidCollection(IEnumerable<Uuid> collection) : base(collection) {}
+        public UuidCollection(IEnumerable<Uuid> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -316,8 +314,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The maximum size of the colletion</param>
-        public UuidCollection(int capacity) : base(capacity) {}
-        
+        public UuidCollection(int capacity) : base(capacity) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -334,7 +332,7 @@ namespace Opc.Ua
 
             return new UuidCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -346,7 +344,7 @@ namespace Opc.Ua
         {
             return ToUuidCollection(values);
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
