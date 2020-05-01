@@ -5,7 +5,7 @@ parameters:
   configuration: 'Release'
   agents: '@{}'
 jobs:
-- job: testprep
+- job: testccprep
   displayName: Prepare Test Jobs
   pool:
     vmImage: 'vs2017-win2016'
@@ -20,11 +20,11 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
-- job: testall
+- job: testccall
   displayName: Run Tests for
-  dependsOn: testprep
+  dependsOn: testccprep
   strategy:
-    matrix: $[dependencies.testprep.outputs['testmatrix.jobMatrix'] ]
+    matrix: $[dependencies.testccprep.outputs['testmatrix.jobMatrix'] ]
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -50,7 +50,7 @@ jobs:
       projects: '**/*.Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
   - task: DotNetCoreCLI@2
-    displayName: Test GDS Release
+    displayName: Test GDS ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
