@@ -3,7 +3,7 @@
 #
 parameters:
   configuration: 'Release'
-  agents: ''
+  agents: '@{}'
 jobs:
 - job: testprep
   displayName: Prepare Test Jobs
