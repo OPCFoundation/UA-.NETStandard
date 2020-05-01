@@ -6,7 +6,7 @@ parameters:
   agents: '@{}'
 jobs:
 - job: testccprep
-  displayName: Prepare Code Coverage Jobs
+  displayName: Prepare Test Code Coverage Jobs
   pool:
     vmImage: 'vs2017-win2016'
   variables:
@@ -21,7 +21,7 @@ jobs:
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
 - job: testccall
-  displayName: Run Code Coverage for
+  displayName: Run Test Code Coverage for
   dependsOn: testccprep
   strategy:
     matrix: $[dependencies.testccprep.outputs['testmatrix.jobMatrix'] ]

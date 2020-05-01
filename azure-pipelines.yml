@@ -9,14 +9,14 @@ pr:
     - '*'
 
 stages:
-#- stage: build
-#  displayName: 'Build .Net Core Samples and Solutions'
-#  jobs:
-#  - template: .azurepipelines/ci.yml
-#  - template: .azurepipelines/sln.yml
+- stage: build
+  displayName: 'Build .Net Core Samples and Solutions'
+  jobs:
+  - template: .azurepipelines/ci.yml
+  - template: .azurepipelines/sln.yml
 - stage: testrelease
-#  dependsOn:
-#  - build
+  dependsOn:
+  - build
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
@@ -28,8 +28,8 @@ stages:
       configuration: Release
       agents: '@{ linux = "ubuntu-18.04" }'
 - stage: testdebug
-#  dependsOn:
-#  - build
+  dependsOn:
+  - build
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
