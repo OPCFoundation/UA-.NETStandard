@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IdentityModel.Selectors;
 using System.IO;
@@ -35,10 +34,6 @@ using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-
-#if NETSTANDARD2_0
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-#endif
 
 
 namespace Opc.Ua.Bindings
@@ -177,7 +172,7 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-#if NETSTANDARD2_0 || NETSTANDARD2_1
+
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
@@ -191,18 +186,7 @@ namespace Opc.Ua.Bindings
                     listenOptions.UseHttps(httpsOptions);
                 });
             });
-#else
-            HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
-            httpsOptions.CheckCertificateRevocation = false;
-            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            httpsOptions.ServerCertificate = m_serverCert;
-            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            m_hostBuilder.UseKestrel(options =>
-            {
-                options.NoDelay = true;
-                options.UseHttps(httpsOptions);
-            });
-#endif
+
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
             m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
