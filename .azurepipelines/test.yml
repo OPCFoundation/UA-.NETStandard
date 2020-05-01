@@ -89,3 +89,7 @@ jobs:
       codeCoverageTool: Cobertura
       summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
       reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
+
+  - script: |
+      bash <(curl -s https://codecov.io/bash)
+    displayName: 'Upload to codecov.io'
