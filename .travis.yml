@@ -1,5 +1,5 @@
 language: csharp
-mono: 5.4.0
+mono: 6.8.0
 dotnet: 2.2.100
 os:
   - linux
@@ -66,7 +66,7 @@ script:
   - msbuild /t:restore SampleApplications/Samples/NetCoreConsoleClient/MonoConsoleClient.csproj
   - msbuild /p:configuration=Debug /t:compile,publish SampleApplications/Samples/NetCoreConsoleClient/MonoConsoleClient.csproj
   - msbuild /p:configuration=Release /t:compile,publish SampleApplications/Samples/NetCoreConsoleClient/MonoConsoleClient.csproj
-  - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/net46
+  - cd SampleApplications/Samples/NetCoreConsoleServer/bin/Debug/net462
   - mono MonoConsoleServer.exe -t 10 -a
   - cd $TRAVIS_BUILD_DIR
   - ./testmonoclientserver.sh

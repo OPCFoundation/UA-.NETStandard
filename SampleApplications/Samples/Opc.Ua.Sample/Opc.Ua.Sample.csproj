@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Sample</AssemblyName>
     <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Sample</PackageId>
@@ -20,7 +20,7 @@
     <ProjectReference Include="..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <Reference Include="System.IdentityModel" />
   </ItemGroup>
 
