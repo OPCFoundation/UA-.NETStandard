@@ -22,7 +22,7 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      agents: '@{ windows = "vs2017-win2016" mac = "macOS-10.15" }'
+      agents: '@{ windows = "vs2017-win2016", mac = "macOS-10.15" }'
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
