@@ -3,7 +3,7 @@
 #
 parameters:
   configuration: 'Release'
-  agents: '@{}'
+  agents: ''
 jobs:
 - job: testccprep
   displayName: Prepare Test Code Coverage Jobs
