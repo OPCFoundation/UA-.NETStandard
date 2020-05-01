@@ -20,3 +20,14 @@ stages:
   displayName: 'Test Core and SDK'
   jobs:
   - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "vs2017-win2016" mac = "macOS-10.15" }'
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug
+#      agents: '{ windows = "vs2017-win2016" linux = "ubuntu-18.04" }'
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      agents: '@{ linux = "ubuntu-18.04" }'

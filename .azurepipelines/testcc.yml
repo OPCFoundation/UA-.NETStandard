@@ -1,0 +1,85 @@
+#
+# Test .Net Core projects with code coverage
+#
+parameters:
+  configuration: 'Release'
+  agents: '@{}'
+jobs:
+- job: testprep
+  displayName: Prepare Test Jobs
+  pool:
+    vmImage: 'vs2017-win2016'
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  steps:
+  - task: PowerShell@2
+    name: testmatrix
+    displayName: Prepare Tests
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/get-matrix.ps1
+      arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
+- job: testall
+  displayName: Run Tests for
+  dependsOn: testprep
+  strategy:
+    matrix: $[dependencies.testprep.outputs['testmatrix.jobMatrix'] ]
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    disable.coverage.autogenerate: true
+  pool:
+    vmImage: $(poolImage)
+  steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: DotNetCoreCLI@2
+    displayName: Test ${{ parameters.configuration }}
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+  - task: DotNetCoreCLI@2
+    displayName: Test GDS Release
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/GlobalDiscoveryClientTest.csproj'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+  - task: DotNetCoreCLI@2
+    condition: eq(variables['agent'], 'linux')
+    inputs:
+      command: custom
+      custom: tool
+      arguments: install --tool-path tools dotnet-reportgenerator-globaltool 
+    displayName: Install ReportGenerator tool
+  - script: |
+      tools/reportgenerator -reports:$(Build.SourcesDirectory)/**/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
+      mv $(Build.SourcesDirectory)/CodeCoverage/summary.htm $(Build.SourcesDirectory)/CodeCoverage/index.htm 
+
+    displayName: Create Code coverage report
+    condition: eq(variables['agent'], 'linux')
+    continueOnError: true
+  - task: PublishCodeCoverageResults@1
+    condition: eq(variables['agent'], 'linux')
+    displayName: 'Publish code coverage'
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+      reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
+
+  - script: |
+      bash <(curl -s https://codecov.io/bash)
+
+    condition: eq(variables['agent'], 'linux')
+    displayName: 'Upload to codecov.io'
