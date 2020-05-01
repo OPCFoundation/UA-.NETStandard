@@ -14,20 +14,24 @@ stages:
   jobs:
   - template: .azurepipelines/ci.yml
   - template: .azurepipelines/sln.yml
-- stage: test
+- stage: testrelease
   dependsOn:
   - build
-  displayName: 'Test Core and SDK'
+  displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       agents: '@{ windows = "vs2017-win2016" mac = "macOS-10.15" }'
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Debug
-#      agents: '{ windows = "vs2017-win2016" linux = "ubuntu-18.04" }'
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
       agents: '@{ linux = "ubuntu-18.04" }'
+- stage: testdebug
+  dependsOn:
+  - build
+  displayName: 'Test Core and SDK Debug'
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug
