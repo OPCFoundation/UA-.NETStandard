@@ -65,7 +65,7 @@ jobs:
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh)
 
-    condition: ne($(CODACY_PROJECT_TOKEN), '')
+    condition: eq(variables['agent'], 'linux')
     continueOnError: true
     displayName: 'Upload to Codacy'
   - task: DotNetCoreCLI@2
