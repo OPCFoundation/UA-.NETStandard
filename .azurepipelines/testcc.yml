@@ -60,11 +60,13 @@ jobs:
       bash <(curl -s https://codecov.io/bash)
 
     condition: eq(variables['agent'], 'linux')
+    continueOnError: true
     displayName: 'Upload to codecov.io'
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh)
 
-    condition: eq(variables['agent'], 'linux')
+    condition: ne($(CODACY_PROJECT_TOKEN), '')
+    continueOnError: true
     displayName: 'Upload to Codacy'
   - task: DotNetCoreCLI@2
     condition: eq(variables['agent'], 'linux')
