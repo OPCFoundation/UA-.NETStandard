@@ -56,6 +56,11 @@ jobs:
       command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
       arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+  - script: |
+      bash <(curl -s https://codecov.io/bash)
+
+    condition: eq(variables['agent'], 'linux')
+    displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     condition: eq(variables['agent'], 'linux')
     inputs:
@@ -78,8 +83,3 @@ jobs:
       summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
       reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
 
-  - script: |
-      bash <(curl -s https://codecov.io/bash)
-
-    condition: eq(variables['agent'], 'linux')
-    displayName: 'Upload to codecov.io'
