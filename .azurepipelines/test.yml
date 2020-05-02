@@ -6,7 +6,7 @@ parameters:
   agents: '@{}'
 jobs:
 - job: testprep
-  displayName: Prepare Test Jobs
+  displayName: Prepare Test Jobs ${{ parameters.configuration }}
   pool:
     vmImage: 'vs2017-win2016'
   variables:

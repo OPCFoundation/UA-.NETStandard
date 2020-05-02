@@ -1,7 +1,7 @@
 extraction:
   csharp:
     index:
-      solution: "UA Core Library.sln"
+      solution: "UA-NetStandard.sln"
       msbuild:
         configuration: "release"
         platform: "Any CPU"

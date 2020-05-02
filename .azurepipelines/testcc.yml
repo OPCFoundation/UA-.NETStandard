@@ -6,7 +6,7 @@ parameters:
   agents: '@{}'
 jobs:
 - job: testccprep
-  displayName: Prepare Test Code Coverage Jobs
+  displayName: Prepare Code Coverage Jobs ${{ parameters.configuration }}
   pool:
     vmImage: 'vs2017-win2016'
   variables:
@@ -15,13 +15,13 @@ jobs:
   steps:
   - task: PowerShell@2
     name: testmatrix
-    displayName: Prepare Tests
+    displayName: Prepare Tests 
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
 - job: testccall
-  displayName: Run Test Code Coverage for
+  displayName: Run Code Coverage for
   dependsOn: testccprep
   strategy:
     matrix: $[dependencies.testccprep.outputs['testmatrix.jobMatrix'] ]
@@ -64,10 +64,13 @@ jobs:
       arguments: install --tool-path tools dotnet-reportgenerator-globaltool 
     displayName: Install ReportGenerator tool
   - script: |
-      tools/reportgenerator -reports:$(Build.SourcesDirectory)/**/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
+      tools/reportgenerator -reports:$(Build.SourcesDirectory)/**/coverage.cobertura.xml |
+        -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" |
+        "-title:UA .Net Standard Test Coverage" |
+        "-assemblyfilters:-*.Tests"
       mv $(Build.SourcesDirectory)/CodeCoverage/summary.htm $(Build.SourcesDirectory)/CodeCoverage/index.htm 
 
-    displayName: Create Code coverage report
+    displayName: Create Code Coverage Report
     condition: eq(variables['agent'], 'linux')
     continueOnError: true
   - task: PublishCodeCoverageResults@1
