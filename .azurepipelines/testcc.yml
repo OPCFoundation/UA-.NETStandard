@@ -5,6 +5,7 @@ parameters:
   configuration: 'Release'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
+jobs:
 - job: testcc
   displayName: Run Code Coverage for ${{ parameters.agent }}
   variables:
