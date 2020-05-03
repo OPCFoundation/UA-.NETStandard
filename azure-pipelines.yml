@@ -31,7 +31,7 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      agents: '@{ linux = "ubuntu-18.04" }'
+      poolImage: 'ubuntu-18.04'
 - stage: testdebug
   dependsOn:
   - build
