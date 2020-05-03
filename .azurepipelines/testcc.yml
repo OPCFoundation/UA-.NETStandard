@@ -6,13 +6,13 @@ parameters:
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
 - job: testcc
-  displayName: Run Code Coverage for $(agent)
+  displayName: Run Code Coverage for ${{ parameters.agent }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     disable.coverage.autogenerate: true
   pool:
-    vmImage: $(poolImage)
+    vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET Core SDK'
