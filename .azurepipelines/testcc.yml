@@ -7,7 +7,6 @@ parameters:
   poolImage: 'ubuntu-18.04'
 - job: testcc
   displayName: Run Code Coverage for $(agent)
-  dependsOn: testccprep
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
