@@ -44,14 +44,6 @@ jobs:
 
     continueOnError: true
     displayName: 'Upload to codecov.io'
-  - script: |
-      bash <(curl -Ls https://coverage.codacy.com/get.sh)
-
-    condition: ne('$(CODACY_PROJECT_TOKEN)', '')
-    env:
-      CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
-    continueOnError: true
-    displayName: 'Upload to Codacy'
   - task: DotNetCoreCLI@2
     inputs:
       command: custom
@@ -72,3 +64,12 @@ jobs:
       reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
 
     continueOnError: true
+  - script: |
+      bash <(curl -Ls https://coverage.codacy.com/get.sh) -r $REPORT_LOCATION
+
+    condition: ne('$(CODACY_PROJECT_TOKEN)', '')
+    env:
+      CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
+      REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+    continueOnError: true
+    displayName: 'Upload to Codacy'
