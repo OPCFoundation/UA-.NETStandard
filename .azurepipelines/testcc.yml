@@ -65,7 +65,7 @@ jobs:
 
     continueOnError: true
   - script: |
-      bash <(curl -Ls https://coverage.codacy.com/get.sh) -r $REPORT_LOCATION
+      bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION
 
     condition: ne('$(CODACY_PROJECT_TOKEN)', '')
     env:
