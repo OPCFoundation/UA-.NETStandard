@@ -79,7 +79,7 @@ jobs:
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
 
-    condition: ne('$(CODACY_PROJECT_TOKEN)','$(NULL_TOKEN)')
+    condition: ne($(CODACY_PROJECT_TOKEN),$(NULL_TOKEN))
     env:
       CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
       REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
