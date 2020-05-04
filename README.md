@@ -15,7 +15,25 @@ Furthermore, cloud applications and services (such as ASP.NET, DNX, Azure Websit
 
 The Core UA stack and SDK has been tested with Mono 5.4 to add support for the [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md) and the Mono console application samples.
 
-For more information, license terms and tutorials, see http://opcfoundation.github.io/UA-.NETStandard.
+For more information and license terms, see http://opcfoundation.github.io/UA-.NETStandard.
+
+##### General Project Info
+[![Github top language](https://img.shields.io/github/languages/top/OPCFoundation/UA-.NETStandard)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github stars](https://img.shields.io/github/stars/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github forks](https://img.shields.io/github/forks/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github size](https://img.shields.io/github/repo-size/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
+[![Github release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
+[![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
+
+##### Build Status
+[![Travis Build Status](https://img.shields.io/travis/OPCFoundation/UA-.NETStandard/master?label=Travis)](https://travis-ci.org/OPCFoundation/UA-.NETStandard)
+[![Build Status](https://img.shields.io/azure-devops/build/sysadmin0797/722e4f81-14ec-459b-aed2-c01ea07c7f3b/1/master?label=Azure%20Pipelines)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+[![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
+
+##### Code Quality
+[![Test Status](https://img.shields.io/azure-devops/tests/sysadmin0797/sysadmin/1?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+[![Coverage Status](https://img.shields.io/azure-devops/coverage/sysadmin0797/sysadmin/1/master?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
+
 
 ## Features included
 ##### Stack
@@ -36,25 +54,6 @@ For more information, license terms and tutorials, see http://opcfoundation.gith
 1. OPC UA [Global Discovery Client and Global Discovery Server](SampleApplications/Samples/GDS/README.md).
 1. OPC UA [Xamarin Client](SampleApplications/Samples/XamarinClient/readme.md).
 1. OPC UA [Quickstart Samples](SampleApplications/Workshop).
-
-## Project Information
-
-##### General Project Info
-[![Github top language](https://img.shields.io/github/languages/top/OPCFoundation/UA-.NETStandard)](https://github.com/OPCFoundation/UA-.NETStandard)
-[![Github stars](https://img.shields.io/github/stars/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
-[![Github forks](https://img.shields.io/github/forks/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
-[![Github size](https://img.shields.io/github/repo-size/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
-[![Github release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
-[![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-
-##### Build Status
-[![Travis Build Status](https://img.shields.io/travis/OPCFoundation/UA-.NETStandard/master?label=Travis)](https://travis-ci.org/OPCFoundation/UA-.NETStandard)
-[![Build Status](https://img.shields.io/azure-devops/build/sysadmin0797/722e4f81-14ec-459b-aed2-c01ea07c7f3b/1/master?label=Azure%20Pipelines)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
-[![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
-
-##### Code Quality
-[![Test Status](https://img.shields.io/azure-devops/tests/sysadmin0797/sysadmin/1?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
-[![Coverage Status](https://img.shields.io/azure-devops/coverage/sysadmin0797/sysadmin/1/master?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
    
 
 ## Getting Started
@@ -76,30 +75,6 @@ Following resources are for [UA-.NET-Legacy](https://github.com/OPCFoundation/UA
    - Complete walk-through from creating the project, selecting an application template, and consuming data.
 
 Please refer README.md in each sample projects as well.
-
-<a name="certificates"/>
-
-### Self signed certificates for the sample applications
-All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store.
-
-##### Windows .NET applications
-By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
-
-Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandard, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandard repository. 
-
-##### Windows UWP applications
-By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). 
-
-The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
-
-##### .NET Standard Console applications on Windows, Linux, iOS etc.
-The self signed certificates are stored in a folder called **OPC Foundation/CertificateStores/MachineDefault** with a root folder which is specified by the `SpecialFolder` variable **%LocalApplicationData%** or in a **X509Store** called **CurrentUser\\My**, depending on the configuration. For best cross platform support the personal store **CurrentUser\\My** was chosen to support all platforms with the same configuration. Some platforms, like macOS, do not support arbitrary certificate stores.
-
-The *trusted*, *issuer* and *rejected* stores remain in a shared folder called **OPC Foundation\CertificateStores** with a root folder specified by the `SpecialFolder` variable **%LocalApplicationData%**. Depending on the target platform, this folder maps to a hidden locations under the user home directory.
-
-### Local Discovery Server
-By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
-
 
 ## How to build and run samples
 #### Samples in Visual Studio on Windows
@@ -136,6 +111,32 @@ Please refer README.md in each sample projects.
 
 #### What happened to the OPC UA Web Telemetry sample?
 The web telemetry sample was removed as there is a much more complete (and better looking!) solution now available [here](https://github.com/azure/azure-iot-connected-factory). You can try this new solution, called "Connected Factory", out [here](http://www.azureiotsuite.com).
+
+
+## Remarks
+
+<a name="certificates"/>
+
+### Self signed certificates for the sample applications
+All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store.
+
+##### Windows .NET applications
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
+
+Note: Since the sample applications in the UA-.Net repository use the same storage and application names as UA-.NetStandard, but create only certificates with hostname `localhost`, it is recommended to delete all existing certificates in **MachineDefault** to recreate proper certificates for all sample applications when moving to the UA-.NetStandard repository. 
+
+##### Windows UWP applications
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). 
+
+The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\CertificateStores** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
+
+##### .NET Standard Console applications on Windows, Linux, iOS etc.
+The self signed certificates are stored in a folder called **OPC Foundation/CertificateStores/MachineDefault** with a root folder which is specified by the `SpecialFolder` variable **%LocalApplicationData%** or in a **X509Store** called **CurrentUser\\My**, depending on the configuration. For best cross platform support the personal store **CurrentUser\\My** was chosen to support all platforms with the same configuration. Some platforms, like macOS, do not support arbitrary certificate stores.
+
+The *trusted*, *issuer* and *rejected* stores remain in a shared folder called **OPC Foundation\CertificateStores** with a root folder specified by the `SpecialFolder` variable **%LocalApplicationData%**. Depending on the target platform, this folder maps to a hidden locations under the user home directory.
+
+### Local Discovery Server
+By default all sample applications are configured to register with a Local Discovery Server (LDS). A reference implementation of a LDS for Windows can be downloaded [here](https://opcfoundation.org/developer-tools/developer-kits-unified-architecture/local-discovery-server-lds). To setup trust with the LDS the certificates need to be exchanged or registration will fail.
 
 ## Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
