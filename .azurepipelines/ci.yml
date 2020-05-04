@@ -39,26 +39,14 @@ jobs:
     inputs:
       versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
-    displayName: Restore Release
-    inputs:
-      command: restore
-      projects: '**/*.Tests.csproj'
-      arguments: '--configuration Release ${{ parameters.buildoption }}'
-  - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '**/NetCore*.csproj'
-      arguments: '--no-restore --configuration Release ${{ parameters.buildoption }}'
-  - task: DotNetCoreCLI@2
-    displayName: Restore Debug
-    inputs:
-      command: restore
-      projects: '**/*.Tests.csproj'
-      arguments: '--configuration Debug ${{ parameters.buildoption }}'
+      arguments: '--configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '**/NetCore*.csproj'
-      arguments: '--no-restore --configuration Debug ${{ parameters.buildoption }}'
+      arguments: '--configuration Debug ${{ parameters.buildoption }}'

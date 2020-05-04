@@ -53,7 +53,7 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
+      arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Restore GDS ${{ parameters.configuration }}
     inputs:
@@ -66,5 +66,5 @@ jobs:
     inputs:
       command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
+      arguments: '--configuration ${{ parameters.configuration }}'
 

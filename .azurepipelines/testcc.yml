@@ -37,7 +37,7 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - task: DotNetCoreCLI@2
     displayName: Restore GDS ${{ parameters.configuration }}
     inputs:
@@ -50,7 +50,7 @@ jobs:
     inputs:
       command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
