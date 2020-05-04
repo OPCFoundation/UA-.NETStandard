@@ -14,8 +14,7 @@ stages:
   jobs:
   - template: .azurepipelines/ci.yml
 - stage: buildnohttps
-  dependsOn:
-  - build
+  dependsOn: []
   displayName: 'Build NoHttps .Net Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
@@ -23,14 +22,12 @@ stages:
       buildoption: '-p:NoHttps=true'
       agents: '@{ linux = "ubuntu-18.04" }'
 - stage: solutions
-  dependsOn:
-  - build
+  dependsOn: []
   displayName: 'Build Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
 - stage: testrelease
-  dependsOn:
-  - build
+  dependsOn: []
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
@@ -42,8 +39,7 @@ stages:
       configuration: Release
       poolImage: 'ubuntu-18.04'
 - stage: testdebug
-  dependsOn:
-  - build
+  dependsOn: []
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
