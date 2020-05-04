@@ -76,13 +76,13 @@ jobs:
       reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
 
     continueOnError: true
-  - ${{ if ne( variables.CODACY_PROJECT_TOKEN, '') }}
-    - script: |
-        bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
+  - script: |
+      bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
 
-      env:
-        CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
-        REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
-        COMMIT_UUID: '$(Build.SourceVersion)'
-      continueOnError: true
-      displayName: 'Upload to Codacy'
+    condition: ${{ ne( variables.CODACY_PROJECT_TOKEN, '') }}
+    env:
+      CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
+      REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+      COMMIT_UUID: '$(Build.SourceVersion)'
+    continueOnError: true
+    displayName: 'Upload to Codacy'
