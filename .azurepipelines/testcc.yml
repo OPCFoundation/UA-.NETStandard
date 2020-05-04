@@ -29,28 +29,15 @@ jobs:
     displayName: Restore ${{ parameters.configuration }}
     inputs:
       command: restore
-      projects: '**/*[.t]Test*.csproj'
+      projects: '**/*[.t]Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*[.t]Test*.csproj'
+      projects: '**/*[.t]Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
-  - task: DotNetCoreCLI@2
-    displayName: Restore GDS ${{ parameters.configuration }}
-    inputs:
-      command: restore
-      projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
-  - task: DotNetCoreCLI@2
-    displayName: Test GDS ${{ parameters.configuration }}
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
@@ -79,7 +66,7 @@ jobs:
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
 
-    condition: ${{ ne( variables.CODACY_PROJECT_TOKEN, '') }}
+    condition: ne( $[variables.CODACY_PROJECT_TOKEN], '')
     env:
       CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
       REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'

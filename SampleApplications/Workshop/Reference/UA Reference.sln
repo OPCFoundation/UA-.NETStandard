@@ -22,7 +22,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "..\..
 		{92AE819B-4938-4502-AC32-67063F9893CD} = {92AE819B-4938-4502-AC32-67063F9893CD}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleReferenceServer", "ConsoleReferenceServer\ConsoleReferenceServer.csproj", "{D71026ED-8452-4053-A198-C0F3260E4BAD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreReferenceServer", "ConsoleReferenceServer\NetCoreReferenceServer.csproj", "{D71026ED-8452-4053-A198-C0F3260E4BAD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{4569AAA2-710B-4E8B-A4C6-F917777814DA}"
 EndProject

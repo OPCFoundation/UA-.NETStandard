@@ -45,26 +45,12 @@ jobs:
     displayName: Restore ${{ parameters.configuration }}
     inputs:
       command: restore
-      projects: '**/*.Tests.csproj'
+      projects: '**/*[.t]Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*.Tests.csproj'
+      projects: '**/*[.t]Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
-  - task: DotNetCoreCLI@2
-    displayName: Restore GDS ${{ parameters.configuration }}
-    inputs:
-      command: restore
-      projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
-  - task: DotNetCoreCLI@2
-    displayName: Test GDS ${{ parameters.configuration }}
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
-
