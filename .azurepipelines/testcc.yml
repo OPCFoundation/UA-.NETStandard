@@ -65,7 +65,7 @@ jobs:
 
     continueOnError: true
   - script: |
-      bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit_uuid $COMMIT_UUID
+      bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
 
     condition: ne('$(CODACY_PROJECT_TOKEN)', '')
     env:
