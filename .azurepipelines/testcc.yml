@@ -29,14 +29,14 @@ jobs:
     displayName: Restore ${{ parameters.configuration }}
     inputs:
       command: restore
-      projects: '**/*.Tests.csproj'
+      projects: '**/*[.t]Test*.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*.Tests.csproj'
+      projects: '**/*[.t]Test*.csproj'
       arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - task: DotNetCoreCLI@2
     displayName: Restore GDS ${{ parameters.configuration }}
