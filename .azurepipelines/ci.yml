@@ -1,6 +1,9 @@
 #
 # Build all .Net Core projects on all platforms
 #
+parameters:
+  buildoption: ''
+  agents: '@{}'
 jobs:
 - job: buildprep
   displayName: Prepare Build Jobs
@@ -16,7 +19,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName azure-pipelines.yml  
+      arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
 - job: buildall
   displayName: Build
   dependsOn: buildprep
@@ -36,14 +39,26 @@ jobs:
     inputs:
       versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
+    displayName: Restore Release
+    inputs:
+      command: restore
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration Release ${{ parameters.buildoption }}'
+  - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '**/NetCore*.csproj'
-      arguments: '--configuration Release'
+      arguments: '--no-restore --configuration Release ${{ parameters.buildoption }}'
+  - task: DotNetCoreCLI@2
+    displayName: Restore Debug
+    inputs:
+      command: restore
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration Debug ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '**/NetCore*.csproj'
-      arguments: '--configuration Debug'
+      arguments: '--no-restore --configuration Debug ${{ parameters.buildoption }}'

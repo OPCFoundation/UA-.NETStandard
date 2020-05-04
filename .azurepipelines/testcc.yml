@@ -26,19 +26,31 @@ jobs:
     inputs:
       versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
+    displayName: Restore ${{ parameters.configuration }}
+    inputs:
+      command: restore
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration ${{ parameters.configuration }}'
+  - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+  - task: DotNetCoreCLI@2
+    displayName: Restore GDS ${{ parameters.configuration }}
+    inputs:
+      command: restore
+      projects: '**/GlobalDiscoveryClientTest.csproj'
+      arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test GDS ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 

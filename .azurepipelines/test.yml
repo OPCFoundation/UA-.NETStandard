@@ -42,11 +42,23 @@ jobs:
     inputs:
       versionSpec: '>=5.4.x'
   - task: DotNetCoreCLI@2
+    displayName: Restore ${{ parameters.configuration }}
+    inputs:
+      command: restore
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration ${{ parameters.configuration }}'
+  - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
+  - task: DotNetCoreCLI@2
+    displayName: Restore GDS ${{ parameters.configuration }}
+    inputs:
+      command: restore
+      projects: '**/GlobalDiscoveryClientTest.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test GDS ${{ parameters.configuration }}
@@ -54,5 +66,5 @@ jobs:
     inputs:
       command: test
       projects: '**/GlobalDiscoveryClientTest.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
 
