@@ -26,10 +26,10 @@ namespace Opc.Ua.Schema.Binary
         [XmlIgnore()]
         public XmlQualifiedName QName
         {
-            get { return m_qname;  }
+            get { return m_qname; }
             set { m_qname = value; }
         }
 
-        private XmlQualifiedName m_qname;       
+        private XmlQualifiedName m_qname;
     }
 }

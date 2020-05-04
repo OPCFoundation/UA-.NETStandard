@@ -13,13 +13,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using System.Globalization;
-using System.ServiceModel;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace Opc.Ua
-{   
+{
     /// <summary>
     /// Stores an identifier for a node in a server's address space.
     /// </summary>
@@ -55,7 +54,7 @@ namespace Opc.Ua
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class NodeId : IComparable, IFormattable
-    {       
+    {
         #region Constructors
         #region public NodeId()
 
@@ -88,7 +87,7 @@ namespace Opc.Ua
             m_namespaceIndex = value.m_namespaceIndex;
             m_identifierType = value.m_identifierType;
             m_identifier = Utils.Clone(value.m_identifier);
-        } 
+        }
         #endregion
         #region public NodeId(uint value)
         /// <summary>
@@ -103,7 +102,7 @@ namespace Opc.Ua
             m_namespaceIndex = 0;
             m_identifierType = IdType.Numeric;
             m_identifier = value;
-        } 
+        }
         #endregion
         #region public NodeId(uint value, ushort namespaceIndex)
         /// <summary>
@@ -124,7 +123,7 @@ namespace Opc.Ua
         }
 
         #endregion
-      
+
         #region public NodeId(string value, ushort namespaceIndex)
         /// <summary>
         /// Initializes a string node identifier with a namespace index.
@@ -139,7 +138,7 @@ namespace Opc.Ua
         {
             m_namespaceIndex = namespaceIndex;
             m_identifierType = IdType.String;
-            m_identifier     = value;
+            m_identifier = value;
         }
 
         #endregion
@@ -243,7 +242,7 @@ namespace Opc.Ua
         }
 
         #endregion
-        
+
         #region public NodeId(object value, ushort namespaceIndex)
         /// <summary>
         /// Initializes a node identifier with a namespace index.
@@ -304,10 +303,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         private void Initialize()
-        { 
-		    m_namespaceIndex = 0;
-		    m_identifierType = IdType.Numeric;
-		    m_identifier     = null;
+        {
+            m_namespaceIndex = 0;
+            m_identifierType = IdType.Numeric;
+            m_identifier = null;
         }
         #endregion
 
@@ -321,7 +320,7 @@ namespace Opc.Ua
         /// <returns>A local NodeId</returns>
         /// <exception cref="ServiceResultException">Thrown when the namespace cannot be found</exception>
         public static NodeId Create(object identifier, string namespaceUri, NamespaceTable namespaceTable)
-        {           
+        {
             int index = -1;
 
             if (namespaceTable != null)
@@ -333,7 +332,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NamespaceUri ({0}) is not in the namespace table.", namespaceUri);
             }
- 
+
             return new NodeId(identifier, (ushort)index);
         }
 
@@ -598,7 +597,7 @@ namespace Opc.Ua
             }
 
             return nodeId.IsNull;
-        } 
+        }
         #endregion
         #region public static NodeId Parse(string text)
         /// <summary>
@@ -681,14 +680,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null NodeId.
         /// </summary>
-        public static NodeId Null 
-        {
-            get { return s_Null; }
-        }
+        public static NodeId Null => s_Null;
 
         private static readonly NodeId s_Null = new NodeId();
         #endregion
-        
+
         #region Public Methods (and some Internals)
 
         #region public string Format()
@@ -715,7 +711,7 @@ namespace Opc.Ua
             Format(buffer);
             return buffer.ToString();
         }
-        
+
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
@@ -824,7 +820,7 @@ namespace Opc.Ua
         {
             m_namespaceIndex = value;
         }
-                                
+
         /// <summary>
         /// Updates the identifier.
         /// </summary>
@@ -847,7 +843,7 @@ namespace Opc.Ua
                 }
             }
         }
-        
+
         /// <summary>
         /// Updates the identifier.
         /// </summary>
@@ -858,8 +854,8 @@ namespace Opc.Ua
         }
 
         #endregion
-        
-		#region IComparable Members
+
+        #region IComparable Members
 
         #region public int CompareTo(object obj)
         /// <summary>
@@ -870,18 +866,18 @@ namespace Opc.Ua
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public int CompareTo(object obj)
-        {  
+        {
             // check for null.
             if (Object.ReferenceEquals(obj, null))
             {
-				return -1;
+                return -1;
             }
 
             // check for reference comparisons.
             if (Object.ReferenceEquals(this, obj))
             {
                 return 0;
-            }          
+            }
 
             ushort namespaceIndex = this.m_namespaceIndex;
             IdType idType = this.m_identifierType;
@@ -899,7 +895,7 @@ namespace Opc.Ua
             else
             {
                 UInt32? uid = obj as UInt32?;
-                
+
                 // check for numeric contants.
                 if (uid != null)
                 {
@@ -916,11 +912,11 @@ namespace Opc.Ua
                         return 0;
                     }
 
-                    return (id1 < id2)?-1:+1;
+                    return (id1 < id2) ? -1 : +1;
                 }
 
                 ExpandedNodeId expandedId = obj as ExpandedNodeId;
-                
+
                 if (!Object.ReferenceEquals(expandedId, null))
                 {
                     if (expandedId.IsAbsolute)
@@ -937,15 +933,15 @@ namespace Opc.Ua
             // check for different namespace.
             if (namespaceIndex != m_namespaceIndex)
             {
-                return (m_namespaceIndex < namespaceIndex)?-1:+1;
+                return (m_namespaceIndex < namespaceIndex) ? -1 : +1;
             }
 
             // check for different id type.
             if (idType != m_identifierType)
             {
-                return (m_identifierType < idType)?-1:+1;
+                return (m_identifierType < idType) ? -1 : +1;
             }
-            
+
             // check for two nulls.
             if (m_identifier == null && id == null)
             {
@@ -960,7 +956,7 @@ namespace Opc.Ua
                     case IdType.String:
                     {
                         string stringId = id as string;
-                        
+
                         if (stringId.Length == 0)
                         {
                             return 0;
@@ -996,7 +992,7 @@ namespace Opc.Ua
 
                 return -1;
             }
-            
+
             // check for a single null.
             if (m_identifier != null && id == null)
             {
@@ -1005,7 +1001,7 @@ namespace Opc.Ua
                     case IdType.String:
                     {
                         string stringId = m_identifier as string;
-                        
+
                         if (stringId.Length == 0)
                         {
                             return 0;
@@ -1017,7 +1013,7 @@ namespace Opc.Ua
                     case IdType.Opaque:
                     {
                         byte[] opaqueId = m_identifier as byte[];
-                     
+
                         if (opaqueId.Length == 0)
                         {
                             return 0;
@@ -1055,7 +1051,7 @@ namespace Opc.Ua
                         return 0;
                     }
 
-                    return (id1 < id2)?-1:+1;
+                    return (id1 < id2) ? -1 : +1;
                 }
 
                 case IdType.String:
@@ -1086,14 +1082,14 @@ namespace Opc.Ua
                         {
                             if (id1[ii] != id2[ii])
                             {
-                                return (id1[ii] < id2[ii])?-1:+1;
+                                return (id1[ii] < id2[ii]) ? -1 : +1;
                             }
                         }
 
                         return 0;
                     }
 
-                    return (id1.Length < id2.Length)?-1:+1;
+                    return (id1.Length < id2.Length) ? -1 : +1;
                 }
             }
 
@@ -1136,8 +1132,8 @@ namespace Opc.Ua
 
             return true;
         }
-        #endregion		
-                
+        #endregion
+
         #endregion
 
         #region IFormattable Members
@@ -1164,7 +1160,7 @@ namespace Opc.Ua
         #endregion
 
         #endregion
-        
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
@@ -1175,9 +1171,9 @@ namespace Opc.Ua
         {
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
-        } 
-        
-		#region Comparison Functions
+        }
+
+        #region Comparison Functions
 
         #region public override bool Equals(object obj)
         /// <summary>
@@ -1220,7 +1216,7 @@ namespace Opc.Ua
 
                     if (id.Length - ii >= 1)
                     {
-                        hash += (id[id.Length-ii-1]<<16);
+                        hash += (id[id.Length - ii - 1] << 16);
                     }
                 }
 
@@ -1269,7 +1265,7 @@ namespace Opc.Ua
 
         #endregion
 
-		#endregion
+        #endregion
 
         #region Public Properties
 
@@ -1293,7 +1289,7 @@ namespace Opc.Ua
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
                 m_identifierType = nodeId.IdType;
-                m_identifier     = nodeId.Identifier;
+                m_identifier = nodeId.Identifier;
             }
         }
 
@@ -1305,10 +1301,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The index of the namespace URI in the server's namespace array.
         /// </remarks>
-        public ushort NamespaceIndex
-        {
-            get { return m_namespaceIndex; }
-        }
+        public ushort NamespaceIndex => m_namespaceIndex;
 
         #endregion
         #region public IdType IdType
@@ -1325,10 +1318,7 @@ namespace Opc.Ua
         /// </list>
         /// </remarks>
         /// <seealso cref="IdType"/>
-        public IdType IdType
-        {
-            get { return m_identifierType; }
-        }
+        public IdType IdType => m_identifierType;
 
         #endregion
         #region public object Identifier
@@ -1379,44 +1369,44 @@ namespace Opc.Ua
                     switch (m_identifierType)
                     {
                         case IdType.Numeric:
+                        {
+                            if (!m_identifier.Equals((uint)0))
                             {
-                                if (!m_identifier.Equals((uint)0))
-                                {
-                                    return false;
-                                }
-
-                                break;
+                                return false;
                             }
+
+                            break;
+                        }
 
                         case IdType.String:
+                        {
+                            if (!String.IsNullOrEmpty((string)m_identifier))
                             {
-                                if (!String.IsNullOrEmpty((string)m_identifier))
-                                {
-                                    return false;
-                                }
-
-                                break;
+                                return false;
                             }
+
+                            break;
+                        }
 
                         case IdType.Guid:
+                        {
+                            if (!m_identifier.Equals(Guid.Empty))
                             {
-                                if (!m_identifier.Equals(Guid.Empty))
-                                {
-                                    return false;
-                                }
-
-                                break;
+                                return false;
                             }
+
+                            break;
+                        }
 
                         case IdType.Opaque:
+                        {
+                            if (m_identifier != null && ((byte[])m_identifier).Length > 0)
                             {
-                                if (m_identifier != null && ((byte[])m_identifier).Length > 0)
-                                {
-                                    return false;
-                                }
-
-                                break;
+                                return false;
                             }
+
+                            break;
+                        }
                     }
                 }
 
@@ -1440,7 +1430,7 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            
+
             if (idType1 != idType2)
             {
                 return idType1.CompareTo(idType2);
@@ -1502,9 +1492,9 @@ namespace Opc.Ua
                     }
                 }
 
-                return (id1 == null)?-1:+1;
+                return (id1 == null) ? -1 : +1;
             }
-                                    
+
             byte[] bytes1 = id1 as byte[];
 
             if (bytes1 != null)
@@ -1594,13 +1584,13 @@ namespace Opc.Ua
             }
         }
 
-		#endregion
+        #endregion
 
         #region Private Fields
         private ushort m_namespaceIndex;
-		private IdType m_identifierType;
-		private object m_identifier;
-		#endregion
+        private IdType m_identifierType;
+        private object m_identifier;
+        #endregion
     }
 
     #region NodeIdCollection Class
@@ -1662,7 +1652,7 @@ namespace Opc.Ua
             }
 
             return new NodeIdCollection();
-        } 
+        }
 
         #endregion
         #region public static implicit operator NodeIdCollection(NodeId[] values)
@@ -1679,7 +1669,7 @@ namespace Opc.Ua
         }
 
         #endregion
-        
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -1699,12 +1689,12 @@ namespace Opc.Ua
         }
     }//class
     #endregion
-    
+
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
-    public class NodeIdDictionary<T> : IDictionary<NodeId,T>
-    {        
+    public class NodeIdDictionary<T> : IDictionary<NodeId, T>
+    {
         #region Constructors
         /// <summary>
         /// Creates an empty dictionary.
@@ -1712,7 +1702,7 @@ namespace Opc.Ua
         public NodeIdDictionary()
         {
             m_version = 0;
-            m_numericIds = new SortedDictionary<ulong,T>();
+            m_numericIds = new SortedDictionary<ulong, T>();
         }
         #endregion
 
@@ -1731,7 +1721,7 @@ namespace Opc.Ua
             {
                 case IdType.Numeric:
                 {
-                    ulong id = ((ulong)key.NamespaceIndex)<<32;
+                    ulong id = ((ulong)key.NamespaceIndex) << 32;
                     id += (uint)key.Identifier;
                     m_numericIds.Add(id, value);
                     return;
@@ -1739,29 +1729,29 @@ namespace Opc.Ua
 
                 case IdType.String:
                 {
-                    IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, true);
+                    IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, true);
                     dictionary.Add((string)key.Identifier, value);
                     return;
                 }
 
                 case IdType.Guid:
                 {
-                    IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, true);
+                    IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, true);
                     dictionary.Add((Guid)key.Identifier, value);
                     return;
                 }
 
                 case IdType.Opaque:
                 {
-                    IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, true);
+                    IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, true);
                     dictionary.Add(new NodeIdDictionary<T>.ByteKey((byte[])key.Identifier), value);
                     return;
                 }
             }
-          
+
             throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
         }
-        
+
         /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
         public bool ContainsKey(NodeId key)
         {
@@ -1774,14 +1764,14 @@ namespace Opc.Ua
             {
                 case IdType.Numeric:
                 {
-                    ulong id = ((ulong)key.NamespaceIndex)<<32;
+                    ulong id = ((ulong)key.NamespaceIndex) << 32;
                     id += (uint)key.Identifier;
                     return m_numericIds.ContainsKey(id);
                 }
 
                 case IdType.String:
                 {
-                    IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
+                    IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1793,7 +1783,7 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
+                    IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1805,7 +1795,7 @@ namespace Opc.Ua
 
                 case IdType.Opaque:
                 {
-                    IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
+                    IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1815,20 +1805,20 @@ namespace Opc.Ua
                     break;
                 }
             }
-     
+
             return false;
         }
-        
+
         /// <summary cref="IDictionary{TKey,TValue}.Keys" />
         public ICollection<NodeId> Keys
         {
-            get 
-            { 
+            get
+            {
                 List<NodeId> keys = new List<NodeId>();
 
                 foreach (ulong id in m_numericIds.Keys)
                 {
-                    keys.Add(new NodeId((uint)(id&0xFFFFFFFF), (ushort)((id>>32)&0xFFFF)));
+                    keys.Add(new NodeId((uint)(id & 0xFFFFFFFF), (ushort)((id >> 32) & 0xFFFF)));
                 }
 
                 if (m_dictionarySets == null)
@@ -1869,11 +1859,11 @@ namespace Opc.Ua
                         }
                     }
                 }
-                    
+
                 return keys;
             }
         }
-        
+
         /// <summary cref="IDictionary.Remove" />
         public bool Remove(NodeId key)
         {
@@ -1888,14 +1878,14 @@ namespace Opc.Ua
             {
                 case IdType.Numeric:
                 {
-                    ulong id = ((ulong)key.NamespaceIndex)<<32;
+                    ulong id = ((ulong)key.NamespaceIndex) << 32;
                     id += (uint)key.Identifier;
                     return m_numericIds.Remove(id);
                 }
 
                 case IdType.String:
                 {
-                    IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
+                    IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1907,7 +1897,7 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
+                    IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1919,7 +1909,7 @@ namespace Opc.Ua
 
                 case IdType.Opaque:
                 {
-                    IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
+                    IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1929,10 +1919,10 @@ namespace Opc.Ua
                     break;
                 }
             }
-     
+
             return false;
         }
-        
+
         /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
         public bool TryGetValue(NodeId key, out T value)
         {
@@ -1947,14 +1937,14 @@ namespace Opc.Ua
             {
                 case IdType.Numeric:
                 {
-                    ulong id = ((ulong)key.NamespaceIndex)<<32;
+                    ulong id = ((ulong)key.NamespaceIndex) << 32;
                     id += (uint)key.Identifier;
                     return m_numericIds.TryGetValue(id, out value);
                 }
 
                 case IdType.String:
                 {
-                    IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
+                    IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1966,7 +1956,7 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
+                    IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1978,7 +1968,7 @@ namespace Opc.Ua
 
                 case IdType.Opaque:
                 {
-                    IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
+                    IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
 
                     if (dictionary != null)
                     {
@@ -1988,15 +1978,15 @@ namespace Opc.Ua
                     break;
                 }
             }
-     
+
             return false;
         }
-        
+
         /// <summary cref="IDictionary{TKey,TValue}.Values" />
         public ICollection<T> Values
         {
-            get 
-            { 
+            get
+            {
                 List<T> values = new List<T>();
                 values.AddRange(m_numericIds.Values);
 
@@ -2029,11 +2019,11 @@ namespace Opc.Ua
                         values.AddRange(dictionarySet.Opaque.Values);
                     }
                 }
-                    
+
                 return values;
             }
         }
-        
+
         /// <summary>
         /// Gets or sets the value with the specified NodeId.
         /// </summary>
@@ -2051,14 +2041,14 @@ namespace Opc.Ua
                 {
                     case IdType.Numeric:
                     {
-                        ulong id = ((ulong)key.NamespaceIndex)<<32;
+                        ulong id = ((ulong)key.NamespaceIndex) << 32;
                         id += (uint)key.Identifier;
                         return m_numericIds[id];
                     }
 
                     case IdType.String:
                     {
-                        IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
+                        IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, false);
 
                         if (dictionary != null)
                         {
@@ -2070,7 +2060,7 @@ namespace Opc.Ua
 
                     case IdType.Guid:
                     {
-                        IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
+                        IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, false);
 
                         if (dictionary != null)
                         {
@@ -2082,7 +2072,7 @@ namespace Opc.Ua
 
                     case IdType.Opaque:
                     {
-                        IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
+                        IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, false);
 
                         if (dictionary != null)
                         {
@@ -2092,7 +2082,7 @@ namespace Opc.Ua
                         break;
                     }
                 }
-         
+
                 throw new KeyNotFoundException();
             }
 
@@ -2109,7 +2099,7 @@ namespace Opc.Ua
                 {
                     case IdType.Numeric:
                     {
-                        ulong id = ((ulong)key.NamespaceIndex)<<32;
+                        ulong id = ((ulong)key.NamespaceIndex) << 32;
                         id += (uint)key.Identifier;
                         m_numericIds[id] = value;
                         return;
@@ -2117,26 +2107,26 @@ namespace Opc.Ua
 
                     case IdType.String:
                     {
-                        IDictionary<string,T> dictionary = GetStringDictionary(key.NamespaceIndex, true);
+                        IDictionary<string, T> dictionary = GetStringDictionary(key.NamespaceIndex, true);
                         dictionary[(string)key.Identifier] = value;
                         return;
                     }
 
                     case IdType.Guid:
                     {
-                        IDictionary<Guid,T> dictionary = GetGuidDictionary(key.NamespaceIndex, true);
+                        IDictionary<Guid, T> dictionary = GetGuidDictionary(key.NamespaceIndex, true);
                         dictionary[(Guid)key.Identifier] = value;
                         return;
                     }
 
                     case IdType.Opaque:
                     {
-                        IDictionary<ByteKey,T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, true);
+                        IDictionary<ByteKey, T> dictionary = GetOpaqueDictionary(key.NamespaceIndex, true);
                         dictionary[new ByteKey((byte[])key.Identifier)] = value;
                         return;
                     }
                 }
-         
+
                 throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
             }
         }
@@ -2156,7 +2146,7 @@ namespace Opc.Ua
             m_numericIds.Clear();
             m_dictionarySets = null;
         }
-        
+
         /// <summary cref="ICollection{T}.Contains" />
         public bool Contains(KeyValuePair<NodeId, T> item)
         {
@@ -2169,9 +2159,9 @@ namespace Opc.Ua
 
             return Object.Equals(value, item.Value);
         }
-        
+
         /// <summary cref="ICollection{T}.CopyTo" />
-        public void CopyTo(KeyValuePair<NodeId,T>[] array, int arrayIndex)
+        public void CopyTo(KeyValuePair<NodeId, T>[] array, int arrayIndex)
         {
             if (array == null)
             {
@@ -2183,12 +2173,12 @@ namespace Opc.Ua
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || array.Length <= arrayIndex");
             }
 
-            foreach (KeyValuePair<ulong,T> entry in m_numericIds)
+            foreach (KeyValuePair<ulong, T> entry in m_numericIds)
             {
                 CheckCopyTo(array, arrayIndex);
-                
-                array[arrayIndex++] = new KeyValuePair<NodeId,T>(
-                    new NodeId((uint)(entry.Key&0xFFFFFFFF), (ushort)((entry.Key>>32)&0xFFFF)), 
+
+                array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                    new NodeId((uint)(entry.Key & 0xFFFFFFFF), (ushort)((entry.Key >> 32) & 0xFFFF)),
                     entry.Value);
             }
 
@@ -2208,28 +2198,28 @@ namespace Opc.Ua
 
                 if (dictionarySet.String != null)
                 {
-                    foreach (KeyValuePair<string,T> entry in dictionarySet.String)
+                    foreach (KeyValuePair<string, T> entry in dictionarySet.String)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId,T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
                     }
                 }
 
                 if (dictionarySet.Guid != null)
                 {
-                    foreach (KeyValuePair<Guid,T> entry in dictionarySet.Guid)
+                    foreach (KeyValuePair<Guid, T> entry in dictionarySet.Guid)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId,T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
                     }
                 }
 
                 if (dictionarySet.Opaque != null)
                 {
-                    foreach (KeyValuePair<ByteKey,T> entry in dictionarySet.Opaque)
+                    foreach (KeyValuePair<ByteKey, T> entry in dictionarySet.Opaque)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId,T>(new NodeId(entry.Key.Bytes, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key.Bytes, (ushort)ii), entry.Value);
                     }
                 }
             }
@@ -2238,19 +2228,19 @@ namespace Opc.Ua
         /// <summary>
         /// Checks that there is enough space in the array.
         /// </summary>
-        private static void CheckCopyTo(KeyValuePair<NodeId,T>[] array, int arrayIndex)
+        private static void CheckCopyTo(KeyValuePair<NodeId, T>[] array, int arrayIndex)
         {
             if (arrayIndex >= array.Length)
             {
                 throw new ArgumentException("Not enough space in array.", nameof(array));
             }
         }
-        
+
         /// <summary cref="ICollection{T}.Count" />
         public int Count
         {
-            get 
-            { 
+            get
+            {
                 int count = m_numericIds.Count;
 
                 if (m_dictionarySets == null)
@@ -2282,17 +2272,14 @@ namespace Opc.Ua
                         count += dictionarySet.Opaque.Count;
                     }
                 }
-                    
+
                 return count;
             }
         }
-        
+
         /// <summary cref="ICollection{T}.IsReadOnly" />
-        public bool IsReadOnly
-        {
-            get { return false; }
-        }
-        
+        public bool IsReadOnly => false;
+
         /// <summary cref="ICollection{T}.Remove" />
         public bool Remove(KeyValuePair<NodeId, T> item)
         {
@@ -2315,7 +2302,7 @@ namespace Opc.Ua
             return GetEnumerator();
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Returns the dictionary set for the specified namespace.
@@ -2329,7 +2316,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                DictionarySet[] dictionarySets = new NodeIdDictionary<T>.DictionarySet[namespaceIndex+1];
+                DictionarySet[] dictionarySets = new NodeIdDictionary<T>.DictionarySet[namespaceIndex + 1];
 
                 if (m_dictionarySets != null)
                 {
@@ -2353,11 +2340,11 @@ namespace Opc.Ua
 
             return dictionarySet;
         }
-        
+
         /// <summary>
         /// Returns the dictionary set for String identifiers in the specified namespace.
         /// </summary>
-        private IDictionary<string,T> GetStringDictionary(ushort namespaceIndex, bool create)
+        private IDictionary<string, T> GetStringDictionary(ushort namespaceIndex, bool create)
         {
             DictionarySet dictionarySet = GetDictionarySet(namespaceIndex, create);
 
@@ -2366,7 +2353,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            IDictionary<string,T> dictionary = dictionarySet.String;
+            IDictionary<string, T> dictionary = dictionarySet.String;
 
             if (dictionary == null)
             {
@@ -2375,16 +2362,16 @@ namespace Opc.Ua
                     return null;
                 }
 
-                dictionary = dictionarySet.String = new SortedDictionary<string,T>();
+                dictionary = dictionarySet.String = new SortedDictionary<string, T>();
             }
 
             return dictionary;
         }
-        
+
         /// <summary>
         /// Returns the dictionary set for Guid identifiers in the specified namespace.
         /// </summary>
-        private IDictionary<Guid,T> GetGuidDictionary(ushort namespaceIndex, bool create)
+        private IDictionary<Guid, T> GetGuidDictionary(ushort namespaceIndex, bool create)
         {
             DictionarySet dictionarySet = GetDictionarySet(namespaceIndex, create);
 
@@ -2393,7 +2380,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            IDictionary<Guid,T> dictionary = dictionarySet.Guid;
+            IDictionary<Guid, T> dictionary = dictionarySet.Guid;
 
             if (dictionary == null)
             {
@@ -2402,7 +2389,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                dictionary = dictionarySet.Guid = new SortedDictionary<Guid,T>();
+                dictionary = dictionarySet.Guid = new SortedDictionary<Guid, T>();
             }
 
             return dictionary;
@@ -2411,7 +2398,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the dictionary set for Opaque identifiers in the specified namespace.
         /// </summary>
-        private IDictionary<ByteKey,T> GetOpaqueDictionary(ushort namespaceIndex, bool create)
+        private IDictionary<ByteKey, T> GetOpaqueDictionary(ushort namespaceIndex, bool create)
         {
             DictionarySet dictionarySet = GetDictionarySet(namespaceIndex, create);
 
@@ -2420,7 +2407,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            IDictionary<ByteKey,T> dictionary = dictionarySet.Opaque;
+            IDictionary<ByteKey, T> dictionary = dictionarySet.Opaque;
 
             if (dictionary == null)
             {
@@ -2429,25 +2416,25 @@ namespace Opc.Ua
                     return null;
                 }
 
-                dictionary = dictionarySet.Opaque = new SortedDictionary<ByteKey,T>();
+                dictionary = dictionarySet.Opaque = new SortedDictionary<ByteKey, T>();
             }
 
             return dictionary;
         }
         #endregion
-        
+
         #region DictionarySet Class
         /// <summary>
         /// Stores the dictionaries for a single namespace index.
         /// </summary>
         private class DictionarySet
         {
-            public SortedDictionary<string,T> String;
-            public SortedDictionary<Guid,T> Guid;
-            public SortedDictionary<ByteKey,T> Opaque;
+            public SortedDictionary<string, T> String;
+            public SortedDictionary<Guid, T> Guid;
+            public SortedDictionary<ByteKey, T> Opaque;
         }
         #endregion
-                
+
         #region ByteKey Class
         /// <summary>
         /// Wraps a byte array for use as a key in a dictionary.
@@ -2462,7 +2449,7 @@ namespace Opc.Ua
             {
                 Bytes = bytes;
             }
-          
+
             /// <summary>
             /// The array of bytes.
             /// </summary>
@@ -2501,19 +2488,19 @@ namespace Opc.Ua
             {
                 if (other.Bytes == null || Bytes == null)
                 {
-                    return (other.Bytes == null)?+1:-1;
+                    return (other.Bytes == null) ? +1 : -1;
                 }
 
                 if (other.Bytes.Length != Bytes.Length)
                 {
-                    return (other.Bytes.Length < Bytes.Length)?+1:-1;
+                    return (other.Bytes.Length < Bytes.Length) ? +1 : -1;
                 }
 
                 for (int ii = 0; ii < other.Bytes.Length; ii++)
                 {
                     if (other.Bytes[ii] != Bytes[ii])
                     {
-                        return (other.Bytes[ii] < Bytes[ii])?+1:-1;
+                        return (other.Bytes[ii] < Bytes[ii]) ? +1 : -1;
                     }
                 }
 
@@ -2527,7 +2514,7 @@ namespace Opc.Ua
         /// <summary>
         /// The enumerator for the node dictionary.
         /// </summary>
-        private class Enumerator : IEnumerator<KeyValuePair<NodeId,T>>
+        private class Enumerator : IEnumerator<KeyValuePair<NodeId, T>>
         {
             #region Constructors
             /// <summary>
@@ -2539,14 +2526,14 @@ namespace Opc.Ua
                 m_version = dictionary.m_version;
                 m_idType = 0;
                 m_namespaceIndex = 0;
-            }            
+            }
             #endregion
 
             #region IEnumerator<KeyValuePair<NodeId,T>> Members
             /// <summary cref="IEnumerator{T}.Current" />
             public KeyValuePair<NodeId, T> Current
             {
-                get 
+                get
                 {
                     CheckVersion();
 
@@ -2562,7 +2549,7 @@ namespace Opc.Ua
                         case IdType.Numeric:
                         {
                             ulong key = (ulong)m_enumerator.Key;
-                            id = new NodeId((uint)(key&0xFFFFFFFF), (ushort)((key>>32)&0xFFFF));
+                            id = new NodeId((uint)(key & 0xFFFFFFFF), (ushort)((key >> 32) & 0xFFFF));
                             break;
                         }
 
@@ -2585,7 +2572,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    return new KeyValuePair<NodeId,T>(id, (T)m_enumerator.Value);
+                    return new KeyValuePair<NodeId, T>(id, (T)m_enumerator.Value);
                 }
             }
             #endregion
@@ -2613,14 +2600,8 @@ namespace Opc.Ua
 
             #region IEnumerator Members
             /// <summary cref="IEnumerator.Current" />
-            object System.Collections.IEnumerator.Current
-            {
-                get 
-                {
-                    return this.Current;
-                }
-            }
-            
+            object System.Collections.IEnumerator.Current => this.Current;
+
             /// <summary cref="IEnumerator.MoveNext" />
             public bool MoveNext()
             {
@@ -2646,13 +2627,13 @@ namespace Opc.Ua
                     {
                         m_idType = IdType.String;
 
-                        IDictionary<string,T> dictionary = m_dictionary.GetStringDictionary(m_namespaceIndex, false);
+                        IDictionary<string, T> dictionary = m_dictionary.GetStringDictionary(m_namespaceIndex, false);
 
                         if (dictionary != null)
                         {
                             ReleaseEnumerator();
-                            m_enumerator = (IDictionaryEnumerator)dictionary.GetEnumerator();                        
-                            
+                            m_enumerator = (IDictionaryEnumerator)dictionary.GetEnumerator();
+
                             if (m_enumerator.MoveNext())
                             {
                                 return true;
@@ -2664,13 +2645,13 @@ namespace Opc.Ua
                     {
                         m_idType = IdType.Guid;
 
-                        IDictionary<Guid,T> dictionary = m_dictionary.GetGuidDictionary(m_namespaceIndex, false);
+                        IDictionary<Guid, T> dictionary = m_dictionary.GetGuidDictionary(m_namespaceIndex, false);
 
                         if (dictionary != null)
                         {
                             ReleaseEnumerator();
                             m_enumerator = (IDictionaryEnumerator)dictionary.GetEnumerator();
-        
+
                             if (m_enumerator.MoveNext())
                             {
                                 return true;
@@ -2682,7 +2663,7 @@ namespace Opc.Ua
                     {
                         m_idType = IdType.Opaque;
 
-                        IDictionary<ByteKey,T> dictionary = m_dictionary.GetOpaqueDictionary(m_namespaceIndex, false);
+                        IDictionary<ByteKey, T> dictionary = m_dictionary.GetOpaqueDictionary(m_namespaceIndex, false);
 
                         if (dictionary != null)
                         {
@@ -2692,18 +2673,18 @@ namespace Opc.Ua
                             if (m_enumerator.MoveNext())
                             {
                                 return true;
-                            } 
+                            }
                         }
                     }
-                    
+
                     m_idType = IdType.Numeric;
                     m_namespaceIndex++;
                 }
-                
+
                 ReleaseEnumerator();
                 return false;
             }
-            
+
             /// <summary cref="IEnumerator.Reset" />
             public void Reset()
             {
@@ -2713,7 +2694,7 @@ namespace Opc.Ua
                 m_namespaceIndex = 0;
             }
             #endregion
-            
+
             #region Private Methods
             /// <summary>
             /// Releases and disposes the current enumerator.
@@ -2728,9 +2709,9 @@ namespace Opc.Ua
                     {
                         diposeable.Dispose();
                     }
-                        
+
                     m_enumerator = null;
-                }                    
+                }
             }
 
             /// <summary>
@@ -2757,7 +2738,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private DictionarySet[] m_dictionarySets;
-        private SortedDictionary<ulong,T> m_numericIds;
+        private SortedDictionary<ulong, T> m_numericIds;
         private ulong m_version;
         #endregion
     }

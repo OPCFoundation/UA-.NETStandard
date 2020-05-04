@@ -12,8 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -32,7 +30,7 @@ namespace Opc.Ua
         /// The copy is not necessarily a deep copy and may reference components of the original object.
         /// The original object is not changed.
         /// </remarks>
-        ITranslatableObject Translate(ITranslationManager manager, IList<string> preferredLocales);       
+        ITranslatableObject Translate(ITranslationManager manager, IList<string> preferredLocales);
     }
 
     /// <summary>
@@ -52,12 +50,12 @@ namespace Opc.Ua
         /// If any error occur during format the unformatted text is used instead.
         /// </remarks>
         LocalizedText Translate(IList<string> preferredLocales, string key, string text, params object[] args);
-    
+
         /// <summary>
         /// Translates the LocalizedText using the information in the TranslationInfo property.
         /// </summary>
         /// <seealso cref="Translate(IList{string},string,string,object[])" />
-        LocalizedText Translate(IList<string> preferredLocales, LocalizedText text);   
+        LocalizedText Translate(IList<string> preferredLocales, LocalizedText text);
 
         /// <summary>
         /// Translates a service result.
@@ -81,7 +79,7 @@ namespace Opc.Ua
         public TranslationInfo()
         {
         }
-        
+
         /// <summary>
         /// Creates an object from a key and a LocalizedText.
         /// </summary>
@@ -106,7 +104,7 @@ namespace Opc.Ua
             m_text = String.Empty;
             m_args = args;
         }
-        
+
         /// <summary>
         /// Creates an object from a key and a text.
         /// </summary>
@@ -128,14 +126,14 @@ namespace Opc.Ua
             m_args = args;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The key used to look up translations.
         /// </summary>
         public string Key
         {
-            get { return m_key;  }
+            get { return m_key; }
             set { m_key = value; }
         }
 
@@ -144,7 +142,7 @@ namespace Opc.Ua
         /// </summary>
         public string Locale
         {
-            get { return m_locale;  }
+            get { return m_locale; }
             set { m_locale = value; }
         }
 
@@ -153,7 +151,7 @@ namespace Opc.Ua
         /// </summary>
         public string Text
         {
-            get { return m_text;  }
+            get { return m_text; }
             set { m_text = value; }
         }
 
@@ -163,7 +161,7 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public object[] Args
         {
-            get { return m_args;  }
+            get { return m_args; }
             set { m_args = value; }
         }
         #endregion

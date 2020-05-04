@@ -924,7 +924,8 @@ namespace Opc.Ua
                 XmlDocument document = new XmlDocument();
                 string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString),
+                    new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
                 {
                     document.Load(reader);
                 }
