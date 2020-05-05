@@ -32,7 +32,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTest", "SampleApplications\Samples\GDS\ClientTest\GlobalDiscoveryClientTest.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTests", "SampleApplications\Samples\GDS\ClientTest\GlobalDiscoveryClientTests.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DD2EE434-7ACE-49EF-B776-5D6BF307C9F1}"
 	ProjectSection(SolutionItems) = preProject

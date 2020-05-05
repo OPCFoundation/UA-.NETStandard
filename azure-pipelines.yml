@@ -10,13 +10,38 @@ pr:
 
 stages:
 - stage: build
-  displayName: 'Build .Net Core Samples and Solutions'
+  displayName: 'Build .Net Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
+- stage: buildnohttps
+  dependsOn: []
+  displayName: 'Build NoHttps .Net Core Samples'
+  jobs:
+  - template: .azurepipelines/ci.yml
+    parameters:
+      buildoption: '-p:NoHttps=true'
+      agents: '@{ linux = "ubuntu-18.04" }'
+- stage: solutions
+  dependsOn: []
+  displayName: 'Build Solutions'
+  jobs:
   - template: .azurepipelines/sln.yml
-- stage: test
-  dependsOn:
-  - build
-  displayName: 'Test Core and SDK'
+- stage: testrelease
+  dependsOn: []
+  displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "vs2017-win2016"; mac = "macOS-10.15" }'
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
+- stage: testdebug
+  dependsOn: []
+  displayName: 'Test Core and SDK Debug'
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug

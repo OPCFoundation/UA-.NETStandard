@@ -31,8 +31,8 @@ script:
   - dotnet build -c Release SampleApplications/Samples/NetCoreConsoleServer/NetCoreConsoleServer.csproj
 #  - dotnet build -c Debug SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
 #  - dotnet build -c Release SampleApplications/Workshop/Aggregation/ConsoleAggregationServer
-  - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
-  - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj
+  - dotnet build -c Debug SampleApplications/Workshop/Reference/ConsoleReferenceServer/NetCoreReferenceServer.csproj
+  - dotnet build -c Release SampleApplications/Workshop/Reference/ConsoleReferenceServer/NetCoreReferenceServer.csproj
   - dotnet build -c Debug SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Release SampleApplications/Samples/GDS/ConsoleServer
   - dotnet build -c Debug SampleApplications/Samples/GDS/ClientTest

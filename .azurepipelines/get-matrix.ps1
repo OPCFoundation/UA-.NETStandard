@@ -40,7 +40,7 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
     $JobPrefix = "$($JobPrefix)-"
 }
 
-if ($AgentTable -eq $null)
+if ($AgentTable -eq $null -or $AgentTable.Count -eq 0)
 {
     $agents = @{
         windows = "vs2017-win2016"

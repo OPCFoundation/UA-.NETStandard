@@ -36,29 +36,3 @@ jobs:
       configuration: 'Debug'
       platform: 'Any CPU'
       msbuildArguments: 
-  - task: NuGetCommand@2
-    displayName: Restore UA Core NoHttps Release
-    inputs:
-      command: restore
-      restoreSolution: 'UA Core Library.sln'
-      configuration: 'Release'
-  - task: MSBuild@1
-    displayName: MS Build UA Core NoHttps Release
-    inputs:
-      solution: 'UA Core Library.sln' 
-      configuration: 'Release'
-      platform: 'Any CPU'
-      msbuildArguments: '/p:NoHttps=true'
-  - task: NuGetCommand@2
-    displayName: Restore UA Core NoHttps Debug
-    inputs:
-      command: restore
-      restoreSolution: 'UA Core Library.sln'
-      configuration: 'Debug'
-  - task: MSBuild@1
-    displayName: MS Build UA Core NoHttps Debug
-    inputs:
-      solution: 'UA Core Library.sln'
-      configuration: 'Debug'
-      platform: 'Any CPU'
-      msbuildArguments: '/p:NoHttps=true'
