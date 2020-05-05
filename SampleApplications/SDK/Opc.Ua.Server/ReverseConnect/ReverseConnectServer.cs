@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class ReverseConnectServer : StandardServer
     {
-        public static int DefaultReverseConnectionTimeout = 5000;
+        public static int DefaultReverseConnectionTimeout = 15000;
         public static int DefaultMaxReverseConnections = 1;
 
         private enum ReverseConnectState
@@ -70,6 +70,7 @@ namespace Opc.Ua.Server
             public readonly int Timeout;
             public ServiceResult ServiceResult;
             public ReverseConnectState State = ReverseConnectState.Closed;
+            public DateTime RejectTime;
         }
 
         protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
@@ -198,10 +199,11 @@ namespace Opc.Ua.Server
                         if (e.ChannelStatus.Code == StatusCodes.BadTcpMessageTypeInvalid)
                         {
                             reverseConnection.State = ReverseConnectState.Rejected;
+                            reverseConnection.RejectTime = DateTime.UtcNow;
                             Utils.Trace($"Client Rejected Connection! [{reverseConnection.State}][{e.EndpointUrl}]");
                             return;
                         }
-                        else //if (e.ChannelStatus.Code != StatusCodes.BadCommunicationError)
+                        else 
                         {
                             reverseConnection.State = ReverseConnectState.Closed;
                             Utils.Trace($"Connection Error! [{reverseConnection.State}][{e.EndpointUrl}]");
@@ -213,7 +215,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    Utils.Trace($"Warning: Status changed for unknown connection: [{reverseConnection.State}][{e.EndpointUrl}]");
+                    Utils.Trace($"Warning: Status changed for unknown connection: [{e.ChannelStatus}][{e.EndpointUrl}]");
                 }
             }
         }
