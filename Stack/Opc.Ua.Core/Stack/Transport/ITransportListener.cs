@@ -82,7 +82,7 @@ namespace Opc.Ua
         Uri EndpointUrl { get; }
 
         /// <remarks/>
-        object Handle { get; set; }
+        object Handle { get; }
     }
 
     /// <summary>
@@ -106,10 +106,7 @@ namespace Opc.Ua
         public Uri EndpointUrl { get; private set; }
 
         /// <remarks/>
-        public EndpointDescription Endpoint { get; set; }
-
-        /// <remarks/>
-        public object Handle { get { return Socket; } set { } }
+        public object Handle { get { return Socket; } }
 
         /// <remarks/>
         internal object Socket { get; }

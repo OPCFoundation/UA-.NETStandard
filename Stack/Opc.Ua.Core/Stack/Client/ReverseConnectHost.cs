@@ -32,7 +32,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
-        public void CreateListener(Uri url)
+        public void CreateListener(
+            Uri url,
+            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
+            )
         {
             var listener = TransportListenerBindings.GetTransportListener(url.Scheme);
 
@@ -43,6 +47,8 @@ namespace Opc.Ua
 
             m_listener = listener;
             Url = url;
+            m_onConnectionWaiting = OnConnectionWaiting;
+            m_onConnectionStatusChanged = OnConnectionStatusChanged;
         }
 
         /// <summary>
@@ -70,39 +76,27 @@ namespace Opc.Ua
                    null
                    );
 
-                m_listener.ConnectionWaiting += OnConnectionWaiting;
-                m_listener.ConnectionStatusChanged += OnConnectionStatusChanged;
+                m_listener.ConnectionWaiting += m_onConnectionWaiting;
+                m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
+                Utils.Trace(e, "Could not open listener for {0}.", Url);
                 throw;
             }
         }
 
-        /// <summary>
-        /// Raised when a connection arrives and is waiting for a callback.
-        /// </summary>
-        protected virtual void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
-        {
-            //ConnectionWaiting?.Invoke(sender, e);
-        }
-
-        /// <summary>
-        /// Raised when a connection arrives and is waiting for a callback.
-        /// </summary>
-        protected virtual void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
-        {
-            //ConnectionStatusChanged?.Invoke(sender, e);
-        }
-
         public void Close()
         {
+            m_listener.ConnectionWaiting -= m_onConnectionWaiting;
+            m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
             m_listener.Close();
         }
 
         public Uri Url { get; private set; }
         private ITransportListener m_listener;
+        private EventHandler<ConnectionWaitingEventArgs> m_onConnectionWaiting;
+        private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
     }
-#endregion
+    #endregion
 }

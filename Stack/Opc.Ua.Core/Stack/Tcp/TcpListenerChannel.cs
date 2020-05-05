@@ -21,7 +21,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the listening side of a UA TCP channel.
     /// </summary>
-    public class TcpListenerChannel : UaSCUaBinaryChannel//, ITcpListenerChannel
+    public class TcpListenerChannel : UaSCUaBinaryChannel
     {
         #region Constructors
         /// <summary>
@@ -450,10 +450,12 @@ namespace Opc.Ua.Bindings
 
         protected virtual void NotifyMonitors(ServiceResult status, bool closed)
         {
+            // TODO: how is this used?
         }
 
-        protected virtual void CompleteReverseHello(Exception e = null)
+        protected virtual void CompleteReverseHello(Exception e)
         {
+            // TODO: if callback is only used in serverchannel, move implementation
         }
 
 

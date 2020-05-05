@@ -29,11 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Security.Cryptography.X509Certificates;
-using System.Windows.Forms;
-using System.IO;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
@@ -45,8 +42,6 @@ namespace ReverseHelloTestClient
     /// </summary>
     public partial class MainForm : Form
     {
-        private Dictionary<Uri, ConnectionWaitingEventArgs> m_connections;
-
         #region Constructors
         /// <summary>
         /// Creates an empty form.
@@ -56,36 +51,34 @@ namespace ReverseHelloTestClient
             InitializeComponent();
             this.Icon = ClientUtils.GetAppIcon();
         }
-        
+
         /// <summary>
         /// Creates a form which uses the specified client configuration.
         /// </summary>
         /// <param name="configuration">The configuration to use.</param>
         public MainForm(
             ApplicationConfiguration configuration,
-            //ConnectionManager connectionManager,
             ReverseConnectManager reverseConnectManager)
         {
             InitializeComponent();
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
-            ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:65200/";
+            ConnectServerCTRL.ServerUrl = Utils.ReplaceLocalhost("opc.tcp://localhost:65200/");
 
-            //m_connectionManager = connectionManager;
-            //m_connectionManager.ConnectionWaiting += ConnectionManager_ConnectionWaiting;
             m_connections = new Dictionary<Uri, ConnectionWaitingEventArgs>();
 
             m_reverseConnectManager = reverseConnectManager;
+            m_reverseConnectManager.RegisterWaitingConnection(null, new Uri(ConnectServerCTRL.ServerUrl), OnConnectionWaiting);
 
             this.Text = m_configuration.ApplicationName;
         }
 
-        private async void ConnectionManager_ConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        private async void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
         {
             if (InvokeRequired)
             {
-                Invoke(new EventHandler<ConnectionWaitingEventArgs>(ConnectionManager_ConnectionWaiting), sender, e);
+                Invoke(new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting), sender, e);
                 return;
             }
 
@@ -128,8 +121,8 @@ namespace ReverseHelloTestClient
         private ApplicationConfiguration m_configuration;
         private Session m_session;
         private bool m_connectedOnce;
-        //private ConnectionManager m_connectionManager;
         private ReverseConnectManager m_reverseConnectManager;
+        private Dictionary<Uri, ConnectionWaitingEventArgs> m_connections;
         #endregion
 
         #region Private Methods

@@ -114,6 +114,9 @@ namespace Opc.Ua.Server
 
         [DataMember(Order = 30)]
         public int Timeout { get; set; }
+
+        [DataMember(Order = 40)]
+        public int RejectedTimeout { get; set; }
         #endregion
     }
 

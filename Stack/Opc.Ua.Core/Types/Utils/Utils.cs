@@ -953,9 +953,7 @@ namespace Opc.Ua
             string domainName = null;
             try
             {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
                 domainName = Dns.GetHostEntry("localhost").HostName;
-#endif
             }
             catch
             {

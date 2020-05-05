@@ -39,6 +39,7 @@ namespace Opc.Ua.Server
     public class ReverseConnectServer : StandardServer
     {
         public static int DefaultReverseConnectionTimeout = 15000;
+        public static int DefaultReverseConnectionRejectedTimeout = 60000;
         public static int DefaultMaxReverseConnections = 1;
 
         private enum ReverseConnectState
@@ -58,16 +59,19 @@ namespace Opc.Ua.Server
             public ReverseConnection(
                 Uri clientUrl,
                 int maxConnections = 0,
-                int timeout = 0)
+                int timeout = 0,
+                int rejectTimeout = 0)
             {
                 ClientUrl = clientUrl;
                 MaxConnections = maxConnections != 0 ? maxConnections : DefaultMaxReverseConnections;
                 Timeout = timeout != 0 ? timeout : DefaultReverseConnectionTimeout;
+                RejectedTimeout = rejectTimeout != 0 ? rejectTimeout : DefaultReverseConnectionRejectedTimeout;
             }
 
             public readonly Uri ClientUrl;
             public readonly int MaxConnections;
             public readonly int Timeout;
+            public readonly int RejectedTimeout;
             public ServiceResult ServiceResult;
             public ReverseConnectState State = ReverseConnectState.Closed;
             public DateTime RejectTime;
@@ -161,6 +165,12 @@ namespace Opc.Ua.Server
             {
                 foreach (var reverseConnection in m_connections.Values)
                 {
+                    if (reverseConnection.State == ReverseConnectState.Rejected &&
+                        reverseConnection.RejectTime + TimeSpan.FromMilliseconds(reverseConnection.RejectedTimeout) < DateTime.UtcNow)
+                    {
+                        reverseConnection.State = ReverseConnectState.Closed;
+                    }
+
                     // TODO: use channel counter
                     if (reverseConnection.State == ReverseConnectState.Closed)
                     {
@@ -203,7 +213,7 @@ namespace Opc.Ua.Server
                             Utils.Trace($"Client Rejected Connection! [{reverseConnection.State}][{e.EndpointUrl}]");
                             return;
                         }
-                        else 
+                        else
                         {
                             reverseConnection.State = ReverseConnectState.Closed;
                             Utils.Trace($"Connection Error! [{reverseConnection.State}][{e.EndpointUrl}]");

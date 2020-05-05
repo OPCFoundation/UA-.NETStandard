@@ -68,15 +68,12 @@ namespace ReverseHelloTestClient
 
                 if (result)
                 {
-                    // start the client connection manager.
-                    //var connectionManager = new ConnectionManager();
-                    //application.Start(connectionManager).Wait();
-
+                    // start the reverse connection manager
                     var reverseConnectManager = new ReverseConnectManager();
                     reverseConnectManager.StartService(configuration);
 
                     // run the application interactively.
-                    Application.Run(new MainForm(application.ApplicationConfiguration, /*connectionManager,*/ reverseConnectManager));
+                    Application.Run(new MainForm(application.ApplicationConfiguration, reverseConnectManager));
                 }
             }
             catch (Exception e)

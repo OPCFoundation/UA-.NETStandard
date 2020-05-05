@@ -126,13 +126,13 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// Reverse client is connected, send reverse hello message.
         /// </summary>
         private void OnReverseConnectComplete(object sender, IMessageSocketAsyncEventArgs result)
         {
             var ar = (ReverseConnectAsyncResult)result.UserToken;
 
-            if (ar == null)
+            if (ar == null || m_pendingReverseHello != null)
             {
                 return;
             }
@@ -673,7 +673,8 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 SendOpenSecureChannelResponse(requestId, token, request);
 
-                CompleteReverseHello();
+                // notify reverse 
+                CompleteReverseHello(null);
 
                 // notify any monitors.
                 NotifyMonitors(ServiceResult.Good, false);
@@ -707,7 +708,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        protected override void CompleteReverseHello(Exception e = null)
+        protected override void CompleteReverseHello(Exception e)
         {
             var ar = m_pendingReverseHello;
             if (ar != null && ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))

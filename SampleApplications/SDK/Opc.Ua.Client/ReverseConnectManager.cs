@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -54,7 +55,7 @@ namespace Opc.Ua.Client
             Errored = 3
         };
 
-        private struct ReverseConnectInfo
+        private class ReverseConnectInfo
         {
             public ReverseConnectInfo(ReverseConnectHost reverseConnectHost)
             {
@@ -65,6 +66,22 @@ namespace Opc.Ua.Client
             public ReverseConnectHostState State;
         }
 
+        private class Registration
+        {
+            public Registration(
+                string serverUri,
+                Uri endpointUrl,
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
+            {
+                ServerUri = serverUri;
+                EndpointUrl = endpointUrl;
+                OnConnectionWaiting = onConnectionWaiting;
+            }
+
+            public readonly string ServerUri;
+            public readonly Uri EndpointUrl;
+            public readonly EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting;
+        }
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -72,6 +89,7 @@ namespace Opc.Ua.Client
         public ReverseConnectManager()
         {
             m_state = ReverseConnectManagerState.New;
+            m_registrations = new List<Registration>();
         }
         #endregion
 
@@ -166,7 +184,10 @@ namespace Opc.Ua.Client
                         try
                         {
                             m_endpointUrls[uri] = info;
-                            reverseConnectHost.CreateListener(uri);
+                            reverseConnectHost.CreateListener(
+                                uri,
+                                new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting),
+                                new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
                         }
                         catch (ArgumentException ae)
                         {
@@ -309,7 +330,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Called before the server stops
         /// </summary>
@@ -321,6 +341,80 @@ namespace Opc.Ua.Client
                 m_state = ReverseConnectManagerState.Stopped;
             }
         }
+
+        public int RegisterWaitingConnection(
+            string serverUri,
+            Uri endpointUrl,
+            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting
+            )
+        {
+            var registration = new Registration(serverUri, endpointUrl, OnConnectionWaiting);
+            lock (m_registrations)
+            {
+                m_registrations.Add(registration);
+            }
+            return registration.GetHashCode();
+        }
+
+        public void UnregisterWaitingConnection(int hashCode)
+        {
+            lock (m_registrations)
+            {
+                Registration toRemove = null;
+                foreach (var registration in m_registrations)
+                {
+                    if (registration.GetHashCode() == hashCode)
+                    {
+                        toRemove = registration;
+                        break;
+                    }
+                }
+                if (toRemove != null)
+                {
+                    m_registrations.Remove(toRemove);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Raised when a connection arrives, finds and calls a waiting connection.
+        /// </summary>
+        private void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        {
+            Registration callbackRegistration = null;
+            lock (m_registrations)
+            {
+                foreach (var registration in m_registrations)
+                {
+                    if (registration.ServerUri == e.ServerUri ||
+                        registration.EndpointUrl == e.EndpointUrl)
+                    {
+                        callbackRegistration = registration;
+                        e.Accepted = true;
+                        break;
+                    }
+                }
+                if (callbackRegistration != null)
+                {
+                    m_registrations.Remove(callbackRegistration);
+                }
+            }
+            if (callbackRegistration != null)
+            {
+                Task.Run(() =>
+                {
+                    callbackRegistration.OnConnectionWaiting?.Invoke(sender, e);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Raised when a connection status changes.
+        /// </summary>
+        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        {
+            Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+        }
         #endregion
 
         #region Private Fields
@@ -331,6 +425,7 @@ namespace Opc.Ua.Client
         private ReverseConnectClientConfiguration m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
+        private List<Registration> m_registrations;
         #endregion
     }
 }
