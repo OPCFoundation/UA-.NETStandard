@@ -35,7 +35,7 @@ For more information and license terms, see http://opcfoundation.github.io/UA-.N
 [![Coverage Status](https://img.shields.io/azure-devops/coverage/sysadmin0797/sysadmin/1/master?style=plastic)](https://dev.azure.com/sysadmin0797/sysadmin/_build/latest?definitionId=1&_a=summary&repositoryFilter=1&branchFilter=2)
 
 
-## Features included
+## Features Included
 #### Stack
 1. Fully ported Core UA stack and SDK
 1. X.509 certificate support for client and server authentication.
@@ -76,7 +76,7 @@ Following resources are for [UA-.NET-Legacy](https://github.com/OPCFoundation/UA
 
 Please refer README.md in each sample projects as well.
 
-## How to build and run samples
+## How to Build and Run Samples
 ### Using Visual Studio
 1. Open the UA-NetStandard.sln solution file using Visual Studio 2017 or later.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
