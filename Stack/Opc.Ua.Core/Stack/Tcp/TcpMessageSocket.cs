@@ -14,6 +14,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -206,6 +207,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocket : IMessageSocket
     {
+        private static readonly int DefaultRetryNextAddressTimeout = 1000;
+
         #region Constructors
         /// <summary>
         /// Creates an unconnected socket.
@@ -215,17 +218,14 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
+            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
 
             m_sink = sink;
             m_socket = null;
             m_bufferManager = bufferManager;
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
-            m_readComplete = new EventHandler<SocketAsyncEventArgs>(OnReadComplete);
+            m_readComplete = OnReadComplete;
             m_readState = ReadState.Ready;
         }
 
@@ -238,22 +238,15 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (socket == null)
-            {
-                throw new ArgumentNullException(nameof(socket));
-            }
-
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
+            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
 
             m_sink = sink;
             m_socket = socket;
             m_bufferManager = bufferManager;
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
-            m_readComplete = new EventHandler<SocketAsyncEventArgs>(OnReadComplete);
+            m_readComplete = OnReadComplete;
         }
         #endregion
 
@@ -288,17 +281,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public async Task<bool> BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
+        public async Task<bool> BeginConnect(
+            Uri endpointUrl,
+            EventHandler<IMessageSocketAsyncEventArgs> callback,
+            object state,
+            CancellationToken cts)
         {
-            if (endpointUrl == null)
-            {
-                throw new ArgumentNullException(nameof(endpointUrl));
-            }
-
-            if (m_socket != null)
-            {
-                throw new InvalidOperationException("The socket is already connected.");
-            }
+            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            if (m_socket != null) throw new InvalidOperationException("The socket is already connected.");
 
             SocketError error = SocketError.NotInitialized;
             CallbackAction doCallback = (SocketError socketError) => callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
@@ -372,11 +362,19 @@ namespace Opc.Ua.Bindings
                     arrayV4Index++;
                 }
 
-                moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
 
+                moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
                 if (moreAddresses && !m_tcs.Task.IsCompleted)
                 {
-                    await Task.Delay(1000).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(DefaultRetryNextAddressTimeout, cts).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // discontinue address retry loop on cancellation
+                        moreAddresses = false;
+                    }
                 }
 
                 if (!moreAddresses || m_tcs.Task.IsCompleted)
@@ -467,7 +465,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChangeSink(IMessageSink sink)
         {
-            lock (m_readLock)
+            // TODO lock (m_readLock)
             {
                 m_sink = sink;
             }

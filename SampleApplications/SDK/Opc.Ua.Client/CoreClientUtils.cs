@@ -35,21 +35,29 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
-    public class CoreClientUtils
+    public static class CoreClientUtils
     {
+        /// <summary>
+        /// The default discover operation timeout.
+        /// </summary>
+        public static readonly int DefaultDiscoverTimeout = 5000;
+
         #region Discovery
         /// <summary>
         /// Discovers the servers on the local machine.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <returns>A list of server urls.</returns>
-        public static IList<string> DiscoverServers(ApplicationConfiguration configuration)
+        public static IList<string> DiscoverServers(
+            ApplicationConfiguration configuration,
+            int discoverTimeout = -1
+            )
         {
             List<string> serverUrls = new List<string>();
 
             // set a short timeout because this is happening in the drop down event.
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
-            endpointConfiguration.OperationTimeout = 5000;
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
+            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
             using (DiscoveryClient client = DiscoveryClient.Create(new Uri("opc.tcp://localhost:4840"), endpointConfiguration))
@@ -92,9 +100,13 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <param name="operationTimeout">Optional. Operation timeout in milliseconds.</param>
+        /// <param name="discoverTimeout">Optional. Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
-        public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity, int operationTimeout = -1)
+        public static EndpointDescription SelectEndpoint(
+            string discoveryUrl,
+            bool useSecurity,
+            int discoverTimeout = -1
+            )
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
             if (discoveryUrl.StartsWith(Utils.UriSchemeHttps))
@@ -106,72 +118,154 @@ namespace Opc.Ua.Client
             }
 
             // parse the selected URL.
-            Uri uri = new Uri(discoveryUrl);
+            Uri url = new Uri(discoveryUrl);
 
-            EndpointConfiguration configuration = EndpointConfiguration.Create();
-            if (operationTimeout > 0)
-            {
-                configuration.OperationTimeout = operationTimeout;
-            }
-
-            EndpointDescription selectedEndpoint = null;
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
 
             // Connect to the server's discovery endpoint and find the available configuration.
-            using (DiscoveryClient client = DiscoveryClient.Create(uri, configuration))
+            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
-                EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+                var endpoints = client.GetEndpoints(null);
+                return SelectEndpoint(url, endpoints, useSecurity);
+            }
+        }
 
-                // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
-                for (int ii = 0; ii < endpoints.Count; ii++)
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            int discoverTimeout = -1
+            )
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+
+            using (DiscoveryClient client = DiscoveryClient.Create(application, connection, endpointConfiguration))
+            {
+                var url = new Uri(client.Endpoint.EndpointUrl);
+                var endpoints = client.GetEndpoints(null);
+                return SelectEndpoint(url, endpoints, useSecurity);
+            }
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        /// <param name="application">The application configuration.</param>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <returns>The best available endpoint.</returns>
+        public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration application,
+            string discoveryUrl,
+            bool useSecurity,
+            int discoverTimeout = -1
+            )
+        {
+            // needs to add the '/discovery' back onto non-UA TCP URLs.
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            {
+                if (!discoveryUrl.EndsWith("/discovery"))
                 {
-                    EndpointDescription endpoint = endpoints[ii];
+                    discoveryUrl += "/discovery";
+                }
+            }
 
-                    // check for a match on the URL scheme.
-                    if (endpoint.EndpointUrl.StartsWith(uri.Scheme))
+            // parse the selected URL.
+            Uri uri = new Uri(discoveryUrl);
+
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+
+            using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
+            {
+
+                // Connect to the server's discovery endpoint and find the available configuration.
+                Uri url = new Uri(client.Endpoint.EndpointUrl);
+                var endpoints = client.GetEndpoints(null);
+                var selectedEndpoint = SelectEndpoint(url, endpoints, useSecurity);
+
+                Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
+                {
+                    UriBuilder builder = new UriBuilder(endpointUrl);
+                    builder.Host = uri.DnsSafeHost;
+                    builder.Port = uri.Port;
+                    selectedEndpoint.EndpointUrl = builder.ToString();
+                }
+
+                return selectedEndpoint;
+            }
+        }
+
+        /// <summary>
+        /// Select the best supported endpoint from an
+        /// EndpointDescriptionCollection, with or without security.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="endpoints"></param>
+        /// <param name="useSecurity"></param>
+        public static EndpointDescription SelectEndpoint(
+            Uri url,
+            EndpointDescriptionCollection endpoints,
+            bool useSecurity)
+        {
+            EndpointDescription selectedEndpoint = null;
+
+            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
+            for (int ii = 0; ii < endpoints.Count; ii++)
+            {
+                EndpointDescription endpoint = endpoints[ii];
+
+                // check for a match on the URL scheme.
+                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
+                {
+                    // check if security was requested.
+                    if (useSecurity)
                     {
-                        // check if security was requested.
-                        if (useSecurity)
+                        if (endpoint.SecurityMode == MessageSecurityMode.None)
                         {
-                            if (endpoint.SecurityMode == MessageSecurityMode.None)
-                            {
-                                continue;
-                            }
-
-                            // skip unsupported security policies
-                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
-                            {
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            if (endpoint.SecurityMode != MessageSecurityMode.None)
-                            {
-                                continue;
-                            }
+                            continue;
                         }
 
-                        // pick the first available endpoint by default.
-                        if (selectedEndpoint == null)
+                        // skip unsupported security policies
+                        if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
                         {
-                            selectedEndpoint = endpoint;
-                        }
-
-                        // The security level is a relative measure assigned by the server to the 
-                        // endpoints that it returns. Clients should always pick the highest level
-                        // unless they have a reason not too.
-                        if (endpoint.SecurityLevel > selectedEndpoint.SecurityLevel)
-                        {
-                            selectedEndpoint = endpoint;
+                            continue;
                         }
                     }
-                }
+                    else
+                    {
+                        if (endpoint.SecurityMode != MessageSecurityMode.None)
+                        {
+                            continue;
+                        }
+                    }
 
-                // pick the first available endpoint by default.
-                if (selectedEndpoint == null && endpoints.Count > 0)
-                {
-                    selectedEndpoint = endpoints[0];
+                    // pick the first available endpoint by default.
+                    if (selectedEndpoint == null)
+                    {
+                        selectedEndpoint = endpoint;
+                    }
+
+                    // The security level is a relative measure assigned by the server to the 
+                    // endpoints that it returns. Clients should always pick the highest level
+                    // unless they have a reason not too.
+                    if (endpoint.SecurityLevel > selectedEndpoint.SecurityLevel)
+                    {
+                        selectedEndpoint = endpoint;
+                    }
                 }
+            }
+
+            // pick the first available endpoint by default.
+            if (selectedEndpoint == null && endpoints.Count > 0)
+            {
+                selectedEndpoint = endpoints[0];
             }
 
             // return the selected endpoint.

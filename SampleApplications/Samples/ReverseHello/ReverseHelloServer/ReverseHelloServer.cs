@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -35,20 +34,10 @@ using Opc.Ua.Server;
 namespace ReverseHelloServer
 {
     /// <summary>
-    /// Implements a basic Quickstart Server.
+    /// Implements a reverse connect Server.
     /// </summary>
-    /// <remarks>
-    /// Each server instance must have one instance of a StandardServer object which is
-    /// responsible for reading the configuration file, creating the endpoints and dispatching
-    /// incoming requests to the appropriate handler.
-    /// 
-    /// This sub-class specifies non-configurable metadata such as Product Name and initializes
-    /// the EmptyNodeManager which provides access to the data exposed by the Server.
-    /// </remarks>
-    public partial class ReverseHelloServer : StandardServer
+    public partial class ReverseHelloServer : ReverseConnectServer
     {
-        private Dictionary<Uri, ServiceResult> m_connections = new Dictionary<Uri, ServiceResult>();
-
         #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
@@ -96,53 +85,5 @@ namespace ReverseHelloServer
             return properties;
         }
         #endregion
-
-        public void StartMonitoringConnection(Uri url)
-        {
-            lock (m_connections)
-            {
-                m_connections.Add(url, null);
-            }
-
-            base.CreateConnection(url);
-        }
-
-        public void StopMonitoringConnection(Uri url)
-        {
-            lock (m_connections)
-            {
-                m_connections.Remove(url);
-            }
-        }
-
-        protected override void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
-        {
-            Utils.Trace((int)Utils.TraceMasks.Information, "Client Status Changed! [{0}]", e.ChannelStatus);
-
-            if (ServiceResult.IsBad(e.ChannelStatus))
-            {
-                lock (m_connections)
-                {
-                    if (e.ChannelStatus.Code == StatusCodes.BadTcpMessageTypeInvalid)
-                    {
-                        Utils.Trace((int)Utils.TraceMasks.Information, "Client Rejected Connection! [{0}]", e.EndpointUrl);
-                        m_connections.Remove(e.EndpointUrl);
-                        return;
-                    }
-
-                    ServiceResult priorStatus = null;
-
-                    if (m_connections.TryGetValue(e.EndpointUrl, out priorStatus))
-                    {
-                        if (e.Closed)
-                        {
-                            base.CreateConnection(e.EndpointUrl);
-                        }
-
-                        m_connections[e.EndpointUrl] = e.ChannelStatus;
-                    }
-                }
-            }
-        }
     }
 }

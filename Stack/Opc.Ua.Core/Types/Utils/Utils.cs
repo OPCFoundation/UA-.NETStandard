@@ -38,6 +38,11 @@ namespace Opc.Ua
         /// <summary>
         /// The URI scheme for the HTTPS protocol. 
         /// </summary>
+        public const string UriSchemeHttp = "http";
+
+        /// <summary>
+        /// The URI scheme for the HTTPS protocol. 
+        /// </summary>
         public const string UriSchemeHttps = "https";
 
         /// <summary>

@@ -207,15 +207,6 @@ namespace Opc.Ua.Server
         /// <value>The server diagnostics.</value>
         ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
         
-#if LEGACY_CORENODEMANAGER
-        /// <summary>
-        /// Returns the diagnostics object for the server.
-        /// </summary>
-        /// <value>The diagnostics.</value>
-        [Obsolete("No longer thread safe. Replaced by ServerDiagnostics.")]
-        ServerDiagnostics Diagnostics { get; }
-#endif
-
         /// <summary>
         /// Whether the server is collecting diagnostics.
         /// </summary>

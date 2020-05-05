@@ -59,8 +59,8 @@ namespace ReverseHelloServer
         {
             this.MenuBar = new System.Windows.Forms.MenuStrip();
             this.ConnectMI = new System.Windows.Forms.ToolStripMenuItem();
-            this.Connect_DotNetTestClientMI = new System.Windows.Forms.ToolStripMenuItem();
-            this.Disconnect_DotNetTestClientMI = new System.Windows.Forms.ToolStripMenuItem();
+            this.Connect_ReverseConnectClientMI = new System.Windows.Forms.ToolStripMenuItem();
+            this.Disconnect_ReverseConnectClientMI = new System.Windows.Forms.ToolStripMenuItem();
             this.StatusBar = new System.Windows.Forms.StatusStrip();
             this.ServerDiagnosticsCTRL = new Opc.Ua.Server.Controls.ServerDiagnosticsCtrl();
             this.MenuBar.SuspendLayout();
@@ -81,26 +81,26 @@ namespace ReverseHelloServer
             // ConnectMI
             // 
             this.ConnectMI.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.Connect_DotNetTestClientMI,
-            this.Disconnect_DotNetTestClientMI});
+            this.Connect_ReverseConnectClientMI,
+            this.Disconnect_ReverseConnectClientMI});
             this.ConnectMI.Name = "ConnectMI";
             this.ConnectMI.Size = new System.Drawing.Size(116, 36);
             this.ConnectMI.Text = "Connect";
             // 
-            // Connect_DotNetTestClientMI
+            // Connect_ReverseConnectClientMI
             // 
-            this.Connect_DotNetTestClientMI.Name = "Connect_DotNetTestClientMI";
-            this.Connect_DotNetTestClientMI.Size = new System.Drawing.Size(463, 38);
-            this.Connect_DotNetTestClientMI.Text = "Connect to .NET Test Client";
-            this.Connect_DotNetTestClientMI.Click += new System.EventHandler(this.Connect_DotNetTestClient_Click);
+            this.Connect_ReverseConnectClientMI.Name = "Connect_ReverseConnectClientMI";
+            this.Connect_ReverseConnectClientMI.Size = new System.Drawing.Size(544, 38);
+            this.Connect_ReverseConnectClientMI.Text = "Connect to Reverse Connect Client";
+            this.Connect_ReverseConnectClientMI.Click += new System.EventHandler(this.Connect_ReverseHelloClient_Click);
             // 
-            // Disconnect_DotNetTestClientMI
+            // Disconnect_ReverseConnectClientMI
             // 
-            this.Disconnect_DotNetTestClientMI.Enabled = false;
-            this.Disconnect_DotNetTestClientMI.Name = "Disconnect_DotNetTestClientMI";
-            this.Disconnect_DotNetTestClientMI.Size = new System.Drawing.Size(463, 38);
-            this.Disconnect_DotNetTestClientMI.Text = "Disconnect from .NET Test Client";
-            this.Disconnect_DotNetTestClientMI.Click += new System.EventHandler(this.Disconnect_DotNetTestClient_Click);
+            this.Disconnect_ReverseConnectClientMI.Enabled = false;
+            this.Disconnect_ReverseConnectClientMI.Name = "Disconnect_ReverseConnectClientMI";
+            this.Disconnect_ReverseConnectClientMI.Size = new System.Drawing.Size(544, 38);
+            this.Disconnect_ReverseConnectClientMI.Text = "Disconnect from Reverse Connect Client";
+            this.Disconnect_ReverseConnectClientMI.Click += new System.EventHandler(this.Disconnect_ReverseHelloClient_Click);
             // 
             // StatusBar
             // 
@@ -115,7 +115,7 @@ namespace ReverseHelloServer
             // 
             this.ServerDiagnosticsCTRL.Dock = System.Windows.Forms.DockStyle.Fill;
             this.ServerDiagnosticsCTRL.Location = new System.Drawing.Point(0, 44);
-            this.ServerDiagnosticsCTRL.Margin = new System.Windows.Forms.Padding(12, 12, 12, 12);
+            this.ServerDiagnosticsCTRL.Margin = new System.Windows.Forms.Padding(12);
             this.ServerDiagnosticsCTRL.Name = "ServerDiagnosticsCTRL";
             this.ServerDiagnosticsCTRL.Size = new System.Drawing.Size(1768, 984);
             this.ServerDiagnosticsCTRL.TabIndex = 3;
@@ -129,7 +129,7 @@ namespace ReverseHelloServer
             this.Controls.Add(this.StatusBar);
             this.Controls.Add(this.MenuBar);
             this.MainMenuStrip = this.MenuBar;
-            this.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.Margin = new System.Windows.Forms.Padding(6);
             this.Name = "MainForm";
             this.Text = "ReverseHello Server";
             this.MenuBar.ResumeLayout(false);
@@ -144,8 +144,8 @@ namespace ReverseHelloServer
         private System.Windows.Forms.MenuStrip MenuBar;
         private System.Windows.Forms.StatusStrip StatusBar;
         private System.Windows.Forms.ToolStripMenuItem ConnectMI;
-        private System.Windows.Forms.ToolStripMenuItem Connect_DotNetTestClientMI;
+        private System.Windows.Forms.ToolStripMenuItem Connect_ReverseConnectClientMI;
         private Opc.Ua.Server.Controls.ServerDiagnosticsCtrl ServerDiagnosticsCTRL;
-        private System.Windows.Forms.ToolStripMenuItem Disconnect_DotNetTestClientMI;
+        private System.Windows.Forms.ToolStripMenuItem Disconnect_ReverseConnectClientMI;
     }
 }

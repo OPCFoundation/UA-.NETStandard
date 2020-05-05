@@ -263,6 +263,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes a secure channel with the endpoint identified by the URL.
+        /// </summary>
+        /// <param name="connection">The connection to use.</param>
+        /// <param name="settings">The settings to use when creating the channel.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public void Initialize(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings)
+        {
+            throw new NotSupportedException("WCF channels must be configured when they are constructed.");
+        }
+
+        /// <summary>
         /// Opens a secure channel with the endpoint identified by the URL.
         /// </summary>
         public void Open()
@@ -665,6 +678,69 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new UA-binary transport channel if requested. Null otherwise.
         /// </summary>
+        public static ITransportChannel CreateUaBinaryChannel(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            ServiceMessageContext messageContext)
+        {
+            bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
+            bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
+
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = null;
+
+            if (useUaTcp)
+            {
+                channel = new TcpTransportChannel();
+            }
+#if !NO_HTTPS
+            else if (useHttps)
+            {
+                channel = new HttpsTransportChannel();
+            }
+#endif
+
+            if (channel == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadProtocolVersionUnsupported,
+                    "Unsupported transport profile\r\n");
+            }
+
+            // create a UA-TCP channel.
+            var settings = new TransportChannelSettings {
+                Description = description,
+                Configuration = endpointConfiguration,
+                ClientCertificate = clientCertificate,
+                ClientCertificateChain = clientCertificateChain
+            };
+
+            if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
+            {
+                settings.ServerCertificate = Utils.ParseCertificateBlob(description.ServerCertificate);
+            }
+            
+            if (configuration != null)
+            {
+                settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
+            }
+
+            settings.NamespaceUris = messageContext.NamespaceUris;
+            settings.Factory = messageContext.Factory;
+
+            channel.Initialize(connection, settings);
+            channel.Open();
+
+            return channel;
+        }
+
+        /// <summary>
+        /// Creates a new UA-binary transport channel if requested. Null otherwise.
+        /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="description">The description for the endpoint.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
@@ -702,7 +778,6 @@ namespace Opc.Ua
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
 
-
             switch (description.TransportProfileUri)
             {
                 case Profiles.UaTcpTransport:
@@ -718,28 +793,41 @@ namespace Opc.Ua
                     }
             }
 
-            // note: WCF channels are not supported
-            if (!useUaTcp
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = null;
+            if (useUaTcp)
+            {
+                if (g_CustomTransportChannel != null)
+                {
+                    channel = g_CustomTransportChannel.Create();
+                }
+                else
+                {
+                    channel = new TcpTransportChannel();
+                }
+            }
 #if !NO_HTTPS
-                && !useHttps
+            else if (useHttps)
+            {
+                channel = new HttpsTransportChannel();
+            }
 #endif
-                )
+
+            // note: WCF channels are not supported
+            if (channel == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile\r\n");
             }
 
-            // initialize the channel which will be created with the server.
-            ITransportChannel channel = null;
-
             // create a UA-TCP channel.
-            TransportChannelSettings settings = new TransportChannelSettings();
-
-            settings.Description = description;
-            settings.Configuration = endpointConfiguration;
-            settings.ClientCertificate = clientCertificate;
-            settings.ClientCertificateChain = clientCertificateChain;
+            TransportChannelSettings settings = new TransportChannelSettings {
+                Description = description,
+                Configuration = endpointConfiguration,
+                ClientCertificate = clientCertificate,
+                ClientCertificateChain = clientCertificateChain
+            };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
@@ -754,23 +842,6 @@ namespace Opc.Ua
             settings.NamespaceUris = messageContext.NamespaceUris;
             settings.Factory = messageContext.Factory;
 
-            if (useUaTcp)
-            {
-                if (g_CustomTransportChannel != null)
-                {
-                    channel = g_CustomTransportChannel.Create();
-                }
-                else
-                {
-                    channel = new TcpTransportChannel();
-                }
-            }
-            else if (useHttps)
-            {
-#if !NO_HTTPS
-                channel = new HttpsTransportChannel();
-#endif
-            }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);
             channel.Open();

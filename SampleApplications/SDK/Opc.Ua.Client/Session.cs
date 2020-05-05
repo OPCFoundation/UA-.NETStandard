@@ -29,18 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.IO;
-using System.Xml;
+using System.Runtime.Serialization;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Reflection;
-using Opc.Ua.Bindings;
+using System.Xml;
 
 namespace Opc.Ua.Client
 {
@@ -320,7 +316,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            if (identity!= null && identity.TokenType != UserTokenType.Anonymous)
+            if (identity != null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
                 if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
@@ -329,7 +325,7 @@ namespace Opc.Ua.Client
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
-                if (previousServerNonce!= null && Utils.CompareNonce(serverNonce, previousServerNonce))
+                if (previousServerNonce != null && Utils.CompareNonce(serverNonce, previousServerNonce))
                 {
                     if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
@@ -551,35 +547,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the endpoint used to connect to the server.
         /// </summary>
-        public ConfiguredEndpoint ConfiguredEndpoint
-        {
-            get
-            {
-                return m_endpoint;
-            }
-        }
+        public ConfiguredEndpoint ConfiguredEndpoint => m_endpoint;
 
         /// <summary>
         /// Gets the name assigned to the session.
         /// </summary>
-        public string SessionName
-        {
-            get
-            {
-                return m_sessionName;
-            }
-        }
+        public string SessionName => m_sessionName;
 
         /// <summary>
         /// Gets the period for wich the server will maintain the session if there is no communication from the client.
         /// </summary>
-        public double SessionTimeout
-        {
-            get
-            {
-                return m_sessionTimeout;
-            }
-        }
+        public double SessionTimeout => m_sessionTimeout;
 
         /// <summary>
         /// Gets the local handle assigned to the session
@@ -593,85 +571,52 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the user identity currently used for the session.
         /// </summary>
-        public IUserIdentity Identity
-        {
-            get
-            {
-                return m_identity;
-            }
-        }
+        public IUserIdentity Identity => m_identity;
 
         /// <summary>
         /// Gets a list of user identities that can be used to connect to the server.
         /// </summary>
-        public IEnumerable<IUserIdentity> IdentityHistory
-        {
-            get { return m_identityHistory; }
-        }
+        public IEnumerable<IUserIdentity> IdentityHistory => m_identityHistory;
 
         /// <summary>
         /// Gets the table of namespace uris known to the server.
         /// </summary>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-        }
+        public NamespaceTable NamespaceUris => m_namespaceUris;
 
         /// <summary>
         /// Gest the table of remote server uris known to the server.
         /// </summary>
-        public StringTable ServerUris
-        {
-            get { return m_serverUris; }
-        }
+        public StringTable ServerUris => m_serverUris;
 
         /// <summary>
         /// Gets the system context for use with the session.
         /// </summary>
-        public ISystemContext SystemContext
-        {
-            get { return m_systemContext; }
-        }
+        public ISystemContext SystemContext => m_systemContext;
 
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
         /// </summary>
-        public EncodeableFactory Factory
-        {
-            get { return m_factory; }
-        }
+        public EncodeableFactory Factory => m_factory;
 
         /// <summary>
         /// Gets the cache of the server's type tree.
         /// </summary>
-        public ITypeTable TypeTree
-        {
-            get { return m_nodeCache.TypeTree; }
-        }
+        public ITypeTable TypeTree => m_nodeCache.TypeTree;
 
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public NodeCache NodeCache
-        {
-            get { return m_nodeCache; }
-        }
+        public NodeCache NodeCache => m_nodeCache;
 
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
-        public FilterContext FilterContext
-        {
-            get { return new FilterContext(m_namespaceUris, m_nodeCache.TypeTree, m_preferredLocales); }
-        }
+        public FilterContext FilterContext => new FilterContext(m_namespaceUris, m_nodeCache.TypeTree, m_preferredLocales);
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
-        public StringCollection PreferredLocales
-        {
-            get { return m_preferredLocales; }
-        }
+        public StringCollection PreferredLocales => m_preferredLocales;
 
         /// <summary>
         /// Gets the data type system dictionaries in use.
@@ -760,10 +705,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the time of the last keep alive.
         /// </summary>
-        public DateTime LastKeepAliveTime
-        {
-            get { return m_lastKeepAliveTime; }
-        }
+        public DateTime LastKeepAliveTime => m_lastKeepAliveTime;
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -840,7 +782,7 @@ namespace Opc.Ua.Client
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <returns>The new session object</returns>
-        public static async Task<Session> Create(
+        public static Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -849,7 +791,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            return await Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
         }
 
         /// <summary>
@@ -864,8 +806,35 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales)
+        {
+            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
             ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
@@ -906,43 +875,35 @@ namespace Opc.Ua.Client
 
             X509Certificate2 clientCertificate = null;
             X509Certificate2Collection clientCertificateChain = null;
-
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                if (configuration.SecurityConfiguration.ApplicationCertificate == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
-                }
-
-                clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
-
-                if (clientCertificate == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
-                }
-
-                // load certificate chain.
-                if (configuration.SecurityConfiguration.SendCertificateChain)
-                {
-                    clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                    List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                    await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
-
-                    for (int i = 0; i < issuers.Count; i++)
-                    {
-                        clientCertificateChain.Add(issuers[i].Certificate);
-                    }
-                }
+                clientCertificate = await LoadCertificate(configuration);
+                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate);
             }
 
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = SessionChannel.Create(
-                 configuration,
-                 endpointDescription,
-                 endpointConfiguration,
-                 clientCertificate,
-                 clientCertificateChain,
-                 messageContext);
+            ITransportChannel channel;
+            if (connection != null)
+            {
+                channel = SessionChannel.CreateUaBinaryChannel(
+                    configuration,
+                    connection,
+                    endpointDescription,
+                    endpointConfiguration,
+                    clientCertificate,
+                    clientCertificateChain,
+                    messageContext);
+            }
+            else
+            {
+                channel = SessionChannel.Create(
+                     configuration,
+                     endpointDescription,
+                     endpointConfiguration,
+                     clientCertificate,
+                     clientCertificateChain,
+                     messageContext);
+            }
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
@@ -961,7 +922,6 @@ namespace Opc.Ua.Client
             return session;
         }
 
-
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
@@ -978,7 +938,7 @@ namespace Opc.Ua.Client
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ? 
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
                     template.m_instanceCertificateChain : null,
                 messageContext);
 
@@ -1313,7 +1273,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_serverUris.Update((string[])values[1].Value);
-            } 
+            }
         }
 
         /// <summary>
@@ -1477,7 +1437,7 @@ namespace Opc.Ua.Client
             NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, m_namespaceUris);
             if (!forceReload &&
                 m_dictionaries.TryGetValue(dictionaryId, out dictionary))
-            { 
+            {
                 return dictionary;
             }
 
@@ -1493,13 +1453,13 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="dataTypeSystem">The type system.</param>
         /// <returns></returns>
-        public async Task<Dictionary<NodeId,DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
+        public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
         {
             if (dataTypeSystem == null)
             {
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
-            else 
+            else
             if (!Utils.Equals(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
                 !Utils.Equals(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
             {
@@ -1661,294 +1621,294 @@ namespace Opc.Ua.Client
             switch ((NodeClass)nodeClass.Value)
             {
                 default:
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
-                    }
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
+                }
 
                 case NodeClass.Object:
+                {
+                    ObjectNode objectNode = new ObjectNode();
+
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
                     {
-                        ObjectNode objectNode = new ObjectNode();
-
-                        value = attributes[Attributes.EventNotifier];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
-                        }
-
-                        objectNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
-                        node = objectNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }
+
+                    objectNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
+                    node = objectNode;
+                    break;
+                }
 
                 case NodeClass.ObjectType:
+                {
+                    ObjectTypeNode objectTypeNode = new ObjectTypeNode();
+
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        ObjectTypeNode objectTypeNode = new ObjectTypeNode();
-
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
-                        }
-
-                        objectTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
-                        node = objectTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
                     }
+
+                    objectTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+                    node = objectTypeNode;
+                    break;
+                }
 
                 case NodeClass.Variable:
+                {
+                    VariableNode variableNode = new VariableNode();
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
                     {
-                        VariableNode variableNode = new VariableNode();
-
-                        // DataType Attribute
-                        value = attributes[Attributes.DataType];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
-                        }
-
-                        variableNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
-
-                        // ValueRank Attribute
-                        value = attributes[Attributes.ValueRank];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
-                        }
-
-                        variableNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
-
-                        // ArrayDimensions Attribute
-                        value = attributes[Attributes.ArrayDimensions];
-
-                        if (value != null)
-                        {
-                            if (value.Value == null)
-                            {
-                                variableNode.ArrayDimensions = new uint[0];
-                            }
-                            else
-                            {
-                                variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
-                            }
-                        }
-
-                        // AccessLevel Attribute
-                        value = attributes[Attributes.AccessLevel];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
-                        }
-
-                        variableNode.AccessLevel = (byte)attributes[Attributes.AccessLevel].GetValue(typeof(byte));
-
-                        // UserAccessLevel Attribute
-                        value = attributes[Attributes.UserAccessLevel];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
-                        }
-
-                        variableNode.UserAccessLevel = (byte)attributes[Attributes.UserAccessLevel].GetValue(typeof(byte));
-
-                        // Historizing Attribute
-                        value = attributes[Attributes.Historizing];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
-                        }
-
-                        variableNode.Historizing = (bool)attributes[Attributes.Historizing].GetValue(typeof(bool));
-
-                        // MinimumSamplingInterval Attribute
-                        value = attributes[Attributes.MinimumSamplingInterval];
-
-                        if (value != null)
-                        {
-                            variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value);
-                        }
-
-                        // AccessLevelEx Attribute
-                        value = attributes[Attributes.AccessLevelEx];
-
-                        if (value != null)
-                        {
-                            variableNode.AccessLevelEx = (uint)attributes[Attributes.AccessLevelEx].GetValue(typeof(uint));
-                        }
-
-                        node = variableNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
                     }
+
+                    variableNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
+                    }
+
+                    variableNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null)
+                    {
+                        if (value.Value == null)
+                        {
+                            variableNode.ArrayDimensions = new uint[0];
+                        }
+                        else
+                        {
+                            variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                        }
+                    }
+
+                    // AccessLevel Attribute
+                    value = attributes[Attributes.AccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
+                    }
+
+                    variableNode.AccessLevel = (byte)attributes[Attributes.AccessLevel].GetValue(typeof(byte));
+
+                    // UserAccessLevel Attribute
+                    value = attributes[Attributes.UserAccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
+                    }
+
+                    variableNode.UserAccessLevel = (byte)attributes[Attributes.UserAccessLevel].GetValue(typeof(byte));
+
+                    // Historizing Attribute
+                    value = attributes[Attributes.Historizing];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
+                    }
+
+                    variableNode.Historizing = (bool)attributes[Attributes.Historizing].GetValue(typeof(bool));
+
+                    // MinimumSamplingInterval Attribute
+                    value = attributes[Attributes.MinimumSamplingInterval];
+
+                    if (value != null)
+                    {
+                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value);
+                    }
+
+                    // AccessLevelEx Attribute
+                    value = attributes[Attributes.AccessLevelEx];
+
+                    if (value != null)
+                    {
+                        variableNode.AccessLevelEx = (uint)attributes[Attributes.AccessLevelEx].GetValue(typeof(uint));
+                    }
+
+                    node = variableNode;
+                    break;
+                }
 
                 case NodeClass.VariableType:
+                {
+                    VariableTypeNode variableTypeNode = new VariableTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        VariableTypeNode variableTypeNode = new VariableTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
-                        }
-
-                        variableTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
-
-                        // DataType Attribute
-                        value = attributes[Attributes.DataType];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
-                        }
-
-                        variableTypeNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
-
-                        // ValueRank Attribute
-                        value = attributes[Attributes.ValueRank];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
-                        }
-
-                        variableTypeNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
-
-                        // ArrayDimensions Attribute
-                        value = attributes[Attributes.ArrayDimensions];
-
-                        if (value != null && value.Value != null)
-                        {
-                            variableTypeNode.ArrayDimensions = (uint[])attributes[Attributes.ArrayDimensions].GetValue(typeof(uint[]));
-                        }
-
-                        node = variableTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
                     }
+
+                    variableTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
+                    }
+
+                    variableTypeNode.DataType = (NodeId)attributes[Attributes.DataType].GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
+                    }
+
+                    variableTypeNode.ValueRank = (int)attributes[Attributes.ValueRank].GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null && value.Value != null)
+                    {
+                        variableTypeNode.ArrayDimensions = (uint[])attributes[Attributes.ArrayDimensions].GetValue(typeof(uint[]));
+                    }
+
+                    node = variableTypeNode;
+                    break;
+                }
 
                 case NodeClass.Method:
+                {
+                    MethodNode methodNode = new MethodNode();
+
+                    // Executable Attribute
+                    value = attributes[Attributes.Executable];
+
+                    if (value == null)
                     {
-                        MethodNode methodNode = new MethodNode();
-
-                        // Executable Attribute
-                        value = attributes[Attributes.Executable];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
-                        }
-
-                        methodNode.Executable = (bool)attributes[Attributes.Executable].GetValue(typeof(bool));
-
-                        // UserExecutable Attribute
-                        value = attributes[Attributes.UserExecutable];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
-                        }
-
-                        methodNode.UserExecutable = (bool)attributes[Attributes.UserExecutable].GetValue(typeof(bool));
-
-                        node = methodNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
                     }
+
+                    methodNode.Executable = (bool)attributes[Attributes.Executable].GetValue(typeof(bool));
+
+                    // UserExecutable Attribute
+                    value = attributes[Attributes.UserExecutable];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
+                    }
+
+                    methodNode.UserExecutable = (bool)attributes[Attributes.UserExecutable].GetValue(typeof(bool));
+
+                    node = methodNode;
+                    break;
+                }
 
                 case NodeClass.DataType:
+                {
+                    DataTypeNode dataTypeNode = new DataTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        DataTypeNode dataTypeNode = new DataTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
-                        }
-
-                        dataTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
-
-                        // DataTypeDefinition Attribute
-                        value = attributes[Attributes.DataTypeDefinition];
-
-                        if (value != null)
-                        {
-                            dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
-                        }
-
-                        node = dataTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
                     }
+
+                    dataTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // DataTypeDefinition Attribute
+                    value = attributes[Attributes.DataTypeDefinition];
+
+                    if (value != null)
+                    {
+                        dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
+                    }
+
+                    node = dataTypeNode;
+                    break;
+                }
 
                 case NodeClass.ReferenceType:
+                {
+                    ReferenceTypeNode referenceTypeNode = new ReferenceTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        ReferenceTypeNode referenceTypeNode = new ReferenceTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
-                        }
-
-                        referenceTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
-
-                        // Symmetric Attribute
-                        value = attributes[Attributes.Symmetric];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
-                        }
-
-                        referenceTypeNode.Symmetric = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
-
-                        // InverseName Attribute
-                        value = attributes[Attributes.InverseName];
-
-                        if (value != null && value.Value != null)
-                        {
-                            referenceTypeNode.InverseName = (LocalizedText)attributes[Attributes.InverseName].GetValue(typeof(LocalizedText));
-                        }
-
-                        node = referenceTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
                     }
+
+                    referenceTypeNode.IsAbstract = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // Symmetric Attribute
+                    value = attributes[Attributes.Symmetric];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
+                    }
+
+                    referenceTypeNode.Symmetric = (bool)attributes[Attributes.IsAbstract].GetValue(typeof(bool));
+
+                    // InverseName Attribute
+                    value = attributes[Attributes.InverseName];
+
+                    if (value != null && value.Value != null)
+                    {
+                        referenceTypeNode.InverseName = (LocalizedText)attributes[Attributes.InverseName].GetValue(typeof(LocalizedText));
+                    }
+
+                    node = referenceTypeNode;
+                    break;
+                }
 
                 case NodeClass.View:
+                {
+                    ViewNode viewNode = new ViewNode();
+
+                    // EventNotifier Attribute
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
                     {
-                        ViewNode viewNode = new ViewNode();
-
-                        // EventNotifier Attribute
-                        value = attributes[Attributes.EventNotifier];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
-                        }
-
-                        viewNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
-
-                        // ContainsNoLoops Attribute
-                        value = attributes[Attributes.ContainsNoLoops];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
-                        }
-
-                        viewNode.ContainsNoLoops = (bool)attributes[Attributes.ContainsNoLoops].GetValue(typeof(bool));
-
-                        node = viewNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
                     }
+
+                    viewNode.EventNotifier = (byte)attributes[Attributes.EventNotifier].GetValue(typeof(byte));
+
+                    // ContainsNoLoops Attribute
+                    value = attributes[Attributes.ContainsNoLoops];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
+                    }
+
+                    viewNode.ContainsNoLoops = (bool)attributes[Attributes.ContainsNoLoops].GetValue(typeof(bool));
+
+                    node = viewNode;
+                    break;
+                }
             }
 
             // NodeId Attribute
@@ -2584,7 +2544,7 @@ namespace Opc.Ua.Client
 
                 byte[] previousServerNonce = null;
 
-                if (TransportChannel.CurrentToken!= null)
+                if (TransportChannel.CurrentToken != null)
                 {
                     previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
                 }
@@ -2718,7 +2678,7 @@ namespace Opc.Ua.Client
             string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
 
             // create the client signature.
-            byte[]  dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
+            byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, serverNonce);
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
             // choose a default token.
@@ -4112,9 +4072,9 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSessionIdInvalid:
                     case StatusCodes.BadTooManyPublishRequests:
                     case StatusCodes.BadServerHalted:
-                        {
-                            return;
-                        }
+                    {
+                        return;
+                    }
                 }
 
                 Utils.Trace(e, "PUBLISH #{0} - Unhandled error during Publish.", requestHeader.RequestHandle);
@@ -4350,8 +4310,7 @@ namespace Opc.Ua.Client
 
                     if (m_Publish != null)
                     {
-                        Task.Run(() =>
-                        {
+                        Task.Run(() => {
                             OnRaisePublishNotification(args);
                         });
                     }
@@ -4382,6 +4341,48 @@ namespace Opc.Ua.Client
             {
                 Utils.Trace(e, "Session: Unexpected rrror while raising Notification event.");
             }
+        }
+
+        /// <summary>
+        /// Load certificate chain for connection.
+        /// </summary>
+        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
+        {
+            X509Certificate2 clientCertificate;
+            if (configuration.SecurityConfiguration.ApplicationCertificate == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
+            }
+
+            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+
+            if (clientCertificate == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+            }
+            return clientCertificate;
+        }
+
+
+        /// <summary>
+        /// Load certificate chain for connection.
+        /// </summary>
+        private static async Task<X509Certificate2Collection> LoadCertificateChain(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
+        {
+            X509Certificate2Collection clientCertificateChain = null;
+            // load certificate chain.
+            if (configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
+                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
+
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    clientCertificateChain.Add(issuers[i].Certificate);
+                }
+            }
+            return clientCertificateChain;
         }
         #endregion
 
@@ -4466,26 +4467,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
-        public ServiceResult Status
-        {
-            get { return m_status; }
-        }
+        public ServiceResult Status => m_status;
 
         /// <summary>
         /// Gets the current server state.
         /// </summary>
-        public ServerState CurrentState
-        {
-            get { return m_currentState; }
-        }
+        public ServerState CurrentState => m_currentState;
 
         /// <summary>
         /// Gets the current server time.
         /// </summary>
-        public DateTime CurrentTime
-        {
-            get { return m_currentTime; }
-        }
+        public DateTime CurrentTime => m_currentTime;
 
         /// <summary>
         /// Gets or sets a flag indicating whether the session should send another keep alive.
@@ -4536,26 +4528,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
-        public Subscription Subscription
-        {
-            get { return m_subscription; }
-        }
+        public Subscription Subscription => m_subscription;
 
         /// <summary>
         /// Gets the notification message.
         /// </summary>
-        public NotificationMessage NotificationMessage
-        {
-            get { return m_notificationMessage; }
-        }
+        public NotificationMessage NotificationMessage => m_notificationMessage;
 
         /// <summary>
         /// Gets the string table returned with the notification message.
         /// </summary>
-        public IList<string> StringTable
-        {
-            get { return m_stringTable; }
-        }
+        public IList<string> StringTable => m_stringTable;
         #endregion
 
         #region Private Fields
@@ -4601,26 +4584,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
-        public ServiceResult Status
-        {
-            get { return m_status; }
-        }
+        public ServiceResult Status => m_status;
 
         /// <summary>
         /// Gets the subscription with the message that could not be republished.
         /// </summary>
-        public uint SubscriptionId
-        {
-            get { return m_subscriptionId; }
-        }
+        public uint SubscriptionId => m_subscriptionId;
 
         /// <summary>
         /// Gets the sequence number for the message that could not be republished.
         /// </summary>
-        public uint SequenceNumber
-        {
-            get { return m_sequenceNumber; }
-        }
+        public uint SequenceNumber => m_sequenceNumber;
         #endregion
 
         #region Private Fields

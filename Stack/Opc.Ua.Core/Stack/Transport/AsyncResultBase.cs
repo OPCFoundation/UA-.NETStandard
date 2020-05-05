@@ -29,11 +29,12 @@ namespace Opc.Ua
         /// <param name="callback">The callback to use when the operation completes.</param>
         /// <param name="callbackData">The callback data.</param>
         /// <param name="timeout">The timeout for the operation.</param>
-        public AsyncResultBase(AsyncCallback callback, object callbackData, int timeout)
+        public AsyncResultBase(AsyncCallback callback, object callbackData, int timeout, CancellationTokenSource cts = null)
         {
             m_callback = callback;
             m_asyncState = callbackData;
             m_deadline = DateTime.MinValue;
+            m_cts = cts;
 
             if (timeout > 0)
             {
@@ -120,6 +121,22 @@ namespace Opc.Ua
         {
             get { return m_exception; }
             set { m_exception = value; }
+        }
+
+        /// <summary>
+        /// The cancellation token associated with the operation.
+        /// </summary>
+        public CancellationToken CancellationToken
+        {
+            get
+            {
+                if (m_cts != null)
+                {
+                    return m_cts.Token;
+                }
+
+                return CancellationToken.None;
+            }
         }
 
         /// <summary>
@@ -296,6 +313,13 @@ namespace Opc.Ua
         {
             try
             {
+                m_exception = new TimeoutException();
+                
+                if (m_cts != null)
+                {
+                    m_cts.Cancel();
+                }
+
                 OperationCompleted();
             }
             catch (Exception e)
@@ -365,6 +389,7 @@ namespace Opc.Ua
         private DateTime m_deadline;
         private Timer m_timer;
         private Exception m_exception;
+        private CancellationTokenSource m_cts;
         #endregion
     }
 }

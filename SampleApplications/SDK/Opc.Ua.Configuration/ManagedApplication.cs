@@ -158,9 +158,9 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Gets or sets the trust list.
+        /// Gets or sets the base address list.
         /// </summary>
-        /// <value>The trust list.</value>
+        /// <value>The base addresses.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public StringCollection BaseAddresses
         {

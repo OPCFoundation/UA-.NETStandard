@@ -39,6 +39,9 @@ namespace ReverseHelloServer
     /// </summary>
     public partial class MainForm : Form
     {
+        // note: hardcoded for quick testing on localhost
+        public static readonly Uri DefaultReverseConnectUri = new Uri("opc.tcp://localhost:65300");
+
         #region Private Fields
         private ApplicationConfiguration m_configuration;
         private ReverseHelloServer m_server;
@@ -76,13 +79,13 @@ namespace ReverseHelloServer
         #endregion
 
         #region Event Handlers
-        private void Connect_DotNetTestClient_Click(object sender, EventArgs e)
+        private void Connect_ReverseHelloClient_Click(object sender, EventArgs e)
         {
             try
             {
-                m_server.StartMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65300"));
-                Connect_DotNetTestClientMI.Enabled = false;
-                Disconnect_DotNetTestClientMI.Enabled = true;
+                m_server.AddReverseConnection(DefaultReverseConnectUri);
+                Connect_ReverseConnectClientMI.Enabled = false;
+                Disconnect_ReverseConnectClientMI.Enabled = true;
             }
             catch (Exception exception)
             {
@@ -90,13 +93,13 @@ namespace ReverseHelloServer
             }
         }
 
-        private void Disconnect_DotNetTestClient_Click(object sender, EventArgs e)
+        private void Disconnect_ReverseHelloClient_Click(object sender, EventArgs e)
         {
             try
             {
-                m_server.StopMonitoringConnection(new Uri("opc.tcp://" + System.Net.Dns.GetHostName().ToLower() + ":65300"));
-                Connect_DotNetTestClientMI.Enabled = true;
-                Disconnect_DotNetTestClientMI.Enabled = false;
+                m_server.RemoveReverseConnection(DefaultReverseConnectUri);
+                Connect_ReverseConnectClientMI.Enabled = true;
+                Disconnect_ReverseConnectClientMI.Enabled = false;
             }
             catch (Exception exception)
             {

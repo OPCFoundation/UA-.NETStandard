@@ -109,6 +109,48 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
+
+            m_channel = new UaSCUaBinaryClientChannel(
+                Guid.NewGuid().ToString(),
+                m_bufferManager,
+                m_messageSocketFactory,
+                m_quotas,
+                m_settings.ClientCertificate,
+                m_settings.ClientCertificateChain,
+                m_settings.ServerCertificate,
+                m_settings.Description);
+        }
+
+        /// <summary>
+        /// Initializes a secure channel with the endpoint identified by the connection.
+        /// </summary>
+        /// <param name="connection">The connection to use.</param>
+        /// <param name="settings">The settings to use when creating the channel.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public void Initialize(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings)
+        {
+            SaveSettings(connection.EndpointUrl, settings);
+
+            var socket = connection.Handle as IMessageSocket;
+            if (socket == null)
+            {
+                throw new ArgumentException("Connection Handle is not of type IMessageSocket.");
+            }
+
+            m_channel = new UaSCUaBinaryClientChannel(
+                Guid.NewGuid().ToString(),
+                m_bufferManager,
+                m_messageSocketFactory,
+                m_quotas,
+                m_settings.ClientCertificate,
+                m_settings.ClientCertificateChain,
+                m_settings.ServerCertificate,
+                m_settings.Description);
+
+            m_channel.Socket = socket;
+            m_channel.Socket.ChangeSink(m_channel);
         }
 
         /// <summary>

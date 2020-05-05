@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.Controls
@@ -50,14 +50,13 @@ namespace Opc.Ua.Client.Controls
         {
             InitializeComponent();
             m_CertificateValidation = new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            m_endpoints = new Dictionary<Uri, EndpointDescription>();
         }
         #endregion
 
         #region Private Fields
         private ApplicationConfiguration m_configuration;
         private Session m_session;
-        private int m_reconnectPeriod = 10;
-        private int m_discoverTimeout = 5000;
         private SessionReconnectHandler m_reconnectHandler;
         private CertificateValidationEventHandler m_CertificateValidation;
         private EventHandler m_ReconnectComplete;
@@ -67,18 +66,26 @@ namespace Opc.Ua.Client.Controls
         private StatusStrip m_StatusStrip;
         private ToolStripItem m_ServerStatusLB;
         private ToolStripItem m_StatusUpateTimeLB;
+        private Dictionary<Uri, EndpointDescription> m_endpoints;
         #endregion
 
         #region Public Members
+        /// <summary>
+        /// Default session values.
+        /// </summary>
+        public const uint DefaultSessionTimeout = 60000;
+        public const int DefaultDiscoverTimeout = 5000;
+        public const int DefaultReconnectPeriod = 10;
+
         /// <summary>
         /// A strip used to display session status information.
         /// </summary>
         public StatusStrip StatusStrip
         {
-            get { return m_StatusStrip; }
-            
-            set 
-            { 
+            get => m_StatusStrip;
+
+            set
+            {
                 if (!Object.ReferenceEquals(m_StatusStrip, value))
                 {
                     m_StatusStrip = value;
@@ -97,13 +104,13 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// A control that contains the last time a keep alive was returned from the server.
         /// </summary>
-        public ToolStripItem ServerStatusControl { get { return m_ServerStatusLB; } set { m_ServerStatusLB = value; } }
+        public ToolStripItem ServerStatusControl { get => m_ServerStatusLB; set => m_ServerStatusLB = value; }
 
         /// <summary>
         /// A control that contains the last time a keep alive was returned from the server.
         /// </summary>
-        public ToolStripItem StatusUpateTimeControl { get { return m_StatusUpateTimeLB; } set { m_StatusUpateTimeLB = value; } }
-            
+        public ToolStripItem StatusUpateTimeControl { get => m_StatusUpateTimeLB; set => m_StatusUpateTimeLB = value; }
+
         /// <summary>
         /// The name of the session to create.
         /// </summary>
@@ -119,14 +126,14 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public string ServerUrl
         {
-            get 
+            get
             {
                 if (UrlCB.SelectedIndex >= 0)
                 {
                     return (string)UrlCB.SelectedItem;
                 }
 
-                return UrlCB.Text; 
+                return UrlCB.Text;
             }
 
             set
@@ -141,8 +148,8 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public bool UseSecurity
         {
-            get { return UseSecurityCK.Checked; }
-            set { UseSecurityCK.Checked = value; }
+            get => UseSecurityCK.Checked;
+            set => UseSecurityCK.Checked = value;
         }
 
         /// <summary>
@@ -160,9 +167,9 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public ApplicationConfiguration Configuration
         {
-            get { return m_configuration; }
-            
-            set 
+            get => m_configuration;
+
+            set
             {
                 if (!Object.ReferenceEquals(m_configuration, value))
                 {
@@ -180,24 +187,29 @@ namespace Opc.Ua.Client.Controls
                 }
             }
         }
-        
+
         /// <summary>
         /// The currently active session. 
         /// </summary>
-        public Session Session
-        {
-            get { return m_session; }
-        }
+        public Session Session => m_session;
 
         /// <summary>
         /// The number of seconds between reconnect attempts (0 means reconnect is disabled).
         /// </summary>
-        [DefaultValue(10)]
-        public int ReconnectPeriod
-        {
-            get { return m_reconnectPeriod; }
-            set { m_reconnectPeriod = value; }
-        }
+        [DefaultValue(DefaultReconnectPeriod)]
+        public int ReconnectPeriod { get; set; } = DefaultReconnectPeriod;
+
+        /// <summary>
+        /// The discover timeout.
+        /// </summary>
+        [DefaultValue(DefaultDiscoverTimeout)]
+        public int DiscoverTimeout { get; set; } = DefaultDiscoverTimeout;
+
+        /// <summary>
+        /// The session timeout.
+        /// </summary>
+        [DefaultValue(DefaultSessionTimeout)]
+        public uint SessionTimeout { get; set; } = DefaultSessionTimeout;
 
         /// <summary>
         /// Raised when a good keep alive from the server arrives.
@@ -207,7 +219,7 @@ namespace Opc.Ua.Client.Controls
             add { m_KeepAliveComplete += value; }
             remove { m_KeepAliveComplete -= value; }
         }
-        
+
         /// <summary>
         /// Raised when a reconnect operation starts.
         /// </summary>
@@ -268,37 +280,32 @@ namespace Opc.Ua.Client.Controls
         /// Creates a new session.
         /// </summary>
         /// <returns>The new session object.</returns>
-        public async Task<Session> Connect()
+        private async Task<Session> Connect(
+            ITransportWaitingConnection connection,
+            EndpointDescription endpointDescription,
+            bool useSecurity,
+            uint sessionTimeout = 0)
         {
             // disconnect from existing session.
-            Disconnect();
-
-            // determine the URL that was selected.
-            string serverUrl = UrlCB.Text;
-
-            if (UrlCB.SelectedIndex >= 0)
-            {
-                serverUrl = (string)UrlCB.SelectedItem;
-            }
-
-            if (m_configuration == null)
-            {
-                throw new ArgumentNullException("m_configuration");
-            }
+            InternalDisconnect();
 
             // select the best endpoint.
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, m_discoverTimeout);
+            if (endpointDescription == null)
+            {
+                endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, connection, useSecurity, DiscoverTimeout);
+            }
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             m_session = await Session.Create(
                 m_configuration,
+                connection,
                 endpoint,
                 false,
                 !DisableDomainCheck,
                 (String.IsNullOrEmpty(SessionName)) ? m_configuration.ApplicationName : SessionName,
-                60000,
+                sessionTimeout,
                 UserIdentity,
                 PreferredLocales);
 
@@ -308,8 +315,78 @@ namespace Opc.Ua.Client.Controls
             // raise an event.
             DoConnectComplete(null);
 
-            var typeSystemLoader = new ComplexTypeSystem(m_session);
-            await typeSystemLoader.Load();
+            try
+            {
+                var typeSystemLoader = new ComplexTypeSystem(m_session);
+                await typeSystemLoader.Load();
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Failed to load complex type system.");
+            }
+
+            // return the new session.
+            return m_session;
+        }
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        /// <returns>The new session object.</returns>
+        public Task<Session> Connect()
+        {
+            // determine the URL that was selected.
+            string serverUrl = UrlCB.Text;
+            if (UrlCB.SelectedIndex >= 0)
+            {
+                serverUrl = (string)UrlCB.SelectedItem;
+            }
+            bool useSecurity = UseSecurityCK.Checked;
+            return Connect(serverUrl, useSecurity);
+        }
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        /// <returns>The new session object.</returns>
+        private async Task<Session> Connect(
+            string serverUrl,
+            bool useSecurity,
+            uint sessionTimeout = 0)
+        {
+            // disconnect from existing session.
+            InternalDisconnect();
+
+            // select the best endpoint.
+            var endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, DiscoverTimeout);
+            var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
+            var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+
+            m_session = await Session.Create(
+                m_configuration,
+                endpoint,
+                false,
+                !DisableDomainCheck,
+                (String.IsNullOrEmpty(SessionName)) ? m_configuration.ApplicationName : SessionName,
+                sessionTimeout == 0 ? DefaultSessionTimeout : sessionTimeout,
+                UserIdentity,
+                PreferredLocales);
+
+            // set up keep alive callback.
+            m_session.KeepAlive += new KeepAliveEventHandler(Session_KeepAlive);
+
+            // raise an event.
+            DoConnectComplete(null);
+
+            try
+            {
+                var typeSystemLoader = new ComplexTypeSystem(m_session);
+                await typeSystemLoader.Load();
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Failed to load complex type system.");
+            }
 
             // return the new session.
             return m_session;
@@ -321,20 +398,78 @@ namespace Opc.Ua.Client.Controls
         /// <param name="serverUrl">The URL of a server endpoint.</param>
         /// <param name="useSecurity">Whether to use security.</param>
         /// <returns>The new session object.</returns>
-        public async Task<Session> Connect(string serverUrl, bool useSecurity)
+        public async Task<Session> ConnectAsync(
+            string serverUrl = null,
+            bool useSecurity = false,
+            uint sessionTimeout = 0
+            )
         {
-            UrlCB.Text = serverUrl;
+            if (serverUrl == null)
+            {
+                serverUrl = UrlCB.Text;
+
+                if (UrlCB.SelectedIndex >= 0)
+                {
+                    serverUrl = (string)UrlCB.SelectedItem;
+                }
+
+                useSecurity = UseSecurityCK.Checked;
+            }
+            else
+            {
+                UrlCB.Text = serverUrl;
+                UseSecurityCK.Checked = useSecurity;
+            }
+
+            return await Task.Run(() => Connect(serverUrl, useSecurity, sessionTimeout));
+        }
+
+        /// <summary>
+        /// Create a new reverse connection.
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="useSecurity"></param>
+        public async Task<Session> ConnectAsync(
+            ITransportWaitingConnection connection,
+            bool useSecurity,
+            int discoverTimeout = -1,
+            uint sessionTimeout = 0
+            )
+        {
+            if (connection.EndpointUrl == null)
+            {
+                throw new ArgumentException("Endpoint URL is not valid.");
+            }
+
+            var endpointUrl = connection.EndpointUrl.ToString();
+            UrlCB.Text = endpointUrl;
             UseSecurityCK.Checked = useSecurity;
-            return await Connect();
+
+            EndpointDescription endpointDescription = null;
+
+            if (!m_endpoints.TryGetValue(connection.EndpointUrl, out endpointDescription))
+            {
+                endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, connection, useSecurity, discoverTimeout);
+                m_endpoints[connection.EndpointUrl] = endpointDescription;
+            }
+
+            return await Connect(connection, endpointDescription, UseSecurityCK.Checked, sessionTimeout);
         }
 
         /// <summary>
         /// Disconnects from the server.
         /// </summary>
-        public void Disconnect()
+        public Task DisconnectAsync()
         {
             UpdateStatus(false, DateTime.UtcNow, "Disconnected");
+            return Task.Run(() => InternalDisconnect());
+        }
 
+        /// <summary>
+        /// Disconnects from the server.
+        /// </summary>
+        private void InternalDisconnect()
+        {
             // stop any reconnect operation.
             if (m_reconnectHandler != null)
             {
@@ -351,6 +486,17 @@ namespace Opc.Ua.Client.Controls
 
             // raise an event.
             DoConnectComplete(null);
+        }
+
+        /// <summary>
+        /// Disconnects from the server.
+        /// </summary>
+        public void Disconnect()
+        {
+            UpdateStatus(false, DateTime.UtcNow, "Disconnected");
+
+            // stop any reconnect operation.
+            InternalDisconnect();
         }
 
         /// <summary>
@@ -403,7 +549,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // return the selected endpoint.
-                return CoreClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked, m_discoverTimeout);
+                return CoreClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked, DiscoverTimeout);
             }
             finally
             {
@@ -457,13 +603,13 @@ namespace Opc.Ua.Client.Controls
                 // start reconnect sequence on communication error.
                 if (ServiceResult.IsBad(e.Status))
                 {
-                    if (m_reconnectPeriod <= 0)
+                    if (ReconnectPeriod <= 0)
                     {
                         UpdateStatus(true, e.CurrentTime, "Communication Error ({0})", e.Status);
                         return;
                     }
 
-                    UpdateStatus(true, e.CurrentTime, "Reconnecting in {0}s", m_reconnectPeriod);
+                    UpdateStatus(true, e.CurrentTime, "Reconnecting in {0}s", ReconnectPeriod);
 
                     if (m_reconnectHandler == null)
                     {
@@ -473,7 +619,7 @@ namespace Opc.Ua.Client.Controls
                         }
 
                         m_reconnectHandler = new SessionReconnectHandler();
-                        m_reconnectHandler.BeginReconnect(m_session, m_reconnectPeriod * 1000, Server_ReconnectComplete);
+                        m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod * 1000, Server_ReconnectComplete);
                     }
 
                     return;
@@ -481,7 +627,7 @@ namespace Opc.Ua.Client.Controls
 
                 // update status.
                 UpdateStatus(false, e.CurrentTime, "Connected [{0}]", session.Endpoint.EndpointUrl);
-                                
+
                 // raise any additional notifications.
                 if (m_KeepAliveComplete != null)
                 {
@@ -501,7 +647,7 @@ namespace Opc.Ua.Client.Controls
         {
             try
             {
-                await Connect();
+                await ConnectAsync();
             }
             catch (Exception exception)
             {

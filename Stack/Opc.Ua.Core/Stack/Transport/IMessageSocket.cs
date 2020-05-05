@@ -12,6 +12,7 @@
 
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -137,7 +138,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        Task<bool> BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state);
+        Task<bool> BeginConnect(
+            Uri endpointUrl,
+            EventHandler<IMessageSocketAsyncEventArgs> callback,
+            object state,
+            CancellationToken cts);
 
         /// <summary>
         /// Forcefully closes the socket.

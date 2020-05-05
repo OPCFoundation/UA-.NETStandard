@@ -12,12 +12,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
+    #region ApplicationConfiguration
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
@@ -56,16 +56,15 @@ namespace Opc.Ua
             Initialize();
         }
         #endregion
+
+        #region Public Properties
         /// <summary>
         /// Gets an object used to synchronize access to the properties dictionary.
         /// </summary>
         /// <value>
         /// The object used to synchronize access to the properties dictionary.
         /// </value>
-        public object PropertiesLock
-        {
-            get { return m_properties; }
-        }
+        public object PropertiesLock => m_properties;
 
         /// <summary>
         /// Gets a dictionary used to save state associated with the application.
@@ -73,10 +72,8 @@ namespace Opc.Ua
         /// <value>
         /// The dictionary used to save state associated with the application.
         /// </value>
-        public IDictionary<string, object> Properties
-        {
-            get { return m_properties; }
-        }
+        public IDictionary<string, object> Properties => m_properties;
+        #endregion
 
         #region Persistent Properties
         /// <summary>
@@ -137,12 +134,7 @@ namespace Opc.Ua
 
             set
             {
-                m_securityConfiguration = value;
-
-                if (m_securityConfiguration == null)
-                {
-                    m_securityConfiguration = new SecurityConfiguration();
-                }
+                m_securityConfiguration = value ?? new SecurityConfiguration();
             }
         }
 
@@ -160,12 +152,7 @@ namespace Opc.Ua
 
             set
             {
-                m_transportConfigurations = value;
-
-                if (m_transportConfigurations == null)
-                {
-                    m_transportConfigurations = new TransportConfigurationCollection();
-                }
+                m_transportConfigurations = value ?? new TransportConfigurationCollection();
             }
         }
 
@@ -270,6 +257,7 @@ namespace Opc.Ua
         private Dictionary<string, object> m_properties;
         #endregion
     }
+    #endregion
 
     #region TransportQuotas Class
     /// <summary>
@@ -804,12 +792,7 @@ namespace Opc.Ua
 
             set
             {
-                m_trustedIssuerCertificates = value;
-
-                if (m_trustedIssuerCertificates == null)
-                {
-                    m_trustedIssuerCertificates = new CertificateTrustList();
-                }
+                m_trustedIssuerCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -826,12 +809,7 @@ namespace Opc.Ua
 
             set
             {
-                m_trustedPeerCertificates = value;
-
-                if (m_trustedPeerCertificates == null)
-                {
-                    m_trustedPeerCertificates = new CertificateTrustList();
-                }
+                m_trustedPeerCertificates = value ?? new CertificateTrustList();
             }
         }
 
@@ -1780,13 +1758,14 @@ namespace Opc.Ua
         public StringCollection ServerProfileArray
         {
             get { return m_serverProfileArray; }
-            set {
-                    m_serverProfileArray = value;
-                    if (m_serverProfileArray == null)
-                    {
-                        m_serverProfileArray = new StringCollection();
-                    }
+            set
+            {
+                m_serverProfileArray = value;
+                if (m_serverProfileArray == null)
+                {
+                    m_serverProfileArray = new StringCollection();
                 }
+            }
         }
 
         /// <summary>
@@ -3236,6 +3215,7 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
+
     #region AccessControlType Enumeration
     /// <summary>
     /// The rights to an application that may be granted to the user.
@@ -3289,6 +3269,7 @@ namespace Opc.Ua
         Configure = 0x3
     }
     #endregion
+
     #region ApplicationAccessRuleCollection Class
     /// <summary>
     /// A collection of ApplicationAccessRule objects.
