@@ -28,12 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Net.Security;
 using System.Windows.Forms;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Controls;
 using Opc.Ua.Configuration;
 
 namespace ReverseHelloTestClient
@@ -50,8 +48,8 @@ namespace ReverseHelloTestClient
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            ApplicationInstance application = new ApplicationInstance();
-            application.ApplicationType   = ApplicationType.Client;
+            var application = new ApplicationInstance();
+            application.ApplicationType = ApplicationType.Client;
             application.ConfigSectionName = "ReverseHelloClient";
 
             try
@@ -61,24 +59,29 @@ namespace ReverseHelloTestClient
                 {
                     return;
                 }
-                
+
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false);
+                var configuration = application.LoadApplicationConfiguration(false).Result;
 
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0);
+                bool result = application.CheckApplicationInstanceCertificate(false, 0).Result;
 
-                // start the client connection manager.
-                var connectionManager = new ConnectionManager();
-                application.Start(connectionManager);
+                if (result)
+                {
+                    // start the client connection manager.
+                    //var connectionManager = new ConnectionManager();
+                    //application.Start(connectionManager).Wait();
 
-                // run the application interactively.
-                Application.Run(new MainForm(application.ApplicationConfiguration, connectionManager));
+                    var reverseConnectManager = new ReverseConnectManager();
+                    reverseConnectManager.StartService(configuration);
+
+                    // run the application interactively.
+                    Application.Run(new MainForm(application.ApplicationConfiguration, /*connectionManager,*/ reverseConnectManager));
+                }
             }
             catch (Exception e)
             {
-                //ExceptionDlg.Show(application.ApplicationName, e);
-                return;
+                ExceptionDlg.Show(application.ApplicationName, e);
             }
         }
     }

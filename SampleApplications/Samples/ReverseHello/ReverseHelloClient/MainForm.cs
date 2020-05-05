@@ -61,16 +61,22 @@ namespace ReverseHelloTestClient
         /// Creates a form which uses the specified client configuration.
         /// </summary>
         /// <param name="configuration">The configuration to use.</param>
-        public MainForm(ApplicationConfiguration configuration, ConnectionManager connectionManager)
+        public MainForm(
+            ApplicationConfiguration configuration,
+            //ConnectionManager connectionManager,
+            ReverseConnectManager reverseConnectManager)
         {
             InitializeComponent();
             this.Icon = ClientUtils.GetAppIcon();
 
             ConnectServerCTRL.Configuration = m_configuration = configuration;
             ConnectServerCTRL.ServerUrl = "opc.tcp://localhost:65200/";
-            m_connectionManager = connectionManager;
-            m_connectionManager.ConnectionWaiting += ConnectionManager_ConnectionWaiting;
+
+            //m_connectionManager = connectionManager;
+            //m_connectionManager.ConnectionWaiting += ConnectionManager_ConnectionWaiting;
             m_connections = new Dictionary<Uri, ConnectionWaitingEventArgs>();
+
+            m_reverseConnectManager = reverseConnectManager;
 
             this.Text = m_configuration.ApplicationName;
         }
@@ -122,7 +128,8 @@ namespace ReverseHelloTestClient
         private ApplicationConfiguration m_configuration;
         private Session m_session;
         private bool m_connectedOnce;
-        private ConnectionManager m_connectionManager;
+        //private ConnectionManager m_connectionManager;
+        private ReverseConnectManager m_reverseConnectManager;
         #endregion
 
         #region Private Methods

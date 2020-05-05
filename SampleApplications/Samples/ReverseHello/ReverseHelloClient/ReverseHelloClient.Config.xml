@@ -35,9 +35,8 @@
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
     </RejectedCertificateStore>
+    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
   </SecurityConfiguration>
-
-  <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
 
   <TransportConfigurations></TransportConfigurations>
 
@@ -69,8 +68,23 @@
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
   </ClientConfiguration>
 
+  <Extensions>
+    <ua:XmlElement>
+      <ReverseConnectClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+        <ReverseConnectClientEndpoints>
+          <ReverseConnectClientEndpoint>
+            <EndpointUrl>opc.tcp://localhost:65301</EndpointUrl>
+          </ReverseConnectClientEndpoint>
+          <ReverseConnectClientEndpoint>
+            <EndpointUrl>opc.tcp://localhost:65302</EndpointUrl>
+          </ReverseConnectClientEndpoint>
+        </ReverseConnectClientEndpoints>
+      </ReverseConnectClientConfiguration>
+    </ua:XmlElement>
+  </Extensions>
+
   <TraceConfiguration>
-    <OutputFilePath>Logs\ReverseHelloClient.log.txt</OutputFilePath>
+    <OutputFilePath>.\Logs\ReverseHelloClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
