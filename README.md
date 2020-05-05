@@ -77,13 +77,13 @@ Following resources are for [UA-.NET-Legacy](https://github.com/OPCFoundation/UA
 Please refer README.md in each sample projects as well.
 
 ## How to build and run samples
-### Samples in Visual Studio on Windows
-1. Open the UA-NetStandard.sln solution file using Visual Studio 2017.  
+### Using Visual Studio
+1. Open the UA-NetStandard.sln solution file using Visual Studio 2017 or later.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
-### Console samples on Windows, Linux and iOS
-This section describes how to run the **NetCoreConsoleClient** and **NetCoreConsoleServer** sample applications.
+### Using 'dotnet' on Windows, Linux and iOS
+This section describes how to run the **NetCoreConsoleClient** and **NetCoreConsoleServer** sample applications. For the other projects, please refer README.md in each sample projects.
 
 Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Standard 2.0 is required.
 
@@ -105,9 +105,6 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
    - To connect to another OPC UA server specify the server as first argument and type e.g. `dotnet run --project NetCoreConsoleClient.csproj -a opc.tcp://myserver:51210/UA/SampleServer`. 
 1. If not using the `-a` auto accept option, on first connection, or after certificates were renewed, the server may have refused the client certificate. Check the server and client folder **%LocalApplicationData%/OPC Foundation/CertificateStores/RejectedCertificates** for rejected certificates. To approve a certificate copy it to the **%LocalApplicationData%/OPC Foundation/CertificateStores/UA Applications** folder.
 1. Retry step 3 to connect using a secure connection.
-
-### Others
-Please refer README.md in each sample projects.
 
 ### What happened to the OPC UA Web Telemetry sample?
 The web telemetry sample was removed as there is a much more complete (and better looking!) solution now available [here](https://github.com/azure/azure-iot-connected-factory). You can try this new solution, called "Connected Factory", out [here](http://www.azureiotsuite.com).
