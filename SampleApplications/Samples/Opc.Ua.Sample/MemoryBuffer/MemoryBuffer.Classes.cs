@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,199 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace MemoryBuffer
 {
-    #region Object Identifiers
-    /// <summary>
-    /// A class that declares constants for all Objects in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class Objects
-    {
-        /// <summary>
-        /// The identifier for the MemoryBuffers Object.
-        /// </summary>
-        public const uint MemoryBuffers = 1025;
-    }
-    #endregion
-
-    #region ObjectType Identifiers
-    /// <summary>
-    /// A class that declares constants for all ObjectTypes in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class ObjectTypes
-    {
-        /// <summary>
-        /// The identifier for the MemoryBufferType ObjectType.
-        /// </summary>
-        public const uint MemoryBufferType = 1000;
-    }
-    #endregion
-
-    #region Variable Identifiers
-    /// <summary>
-    /// A class that declares constants for all Variables in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class Variables
-    {
-        /// <summary>
-        /// The identifier for the MemoryBufferType_StartAddress Variable.
-        /// </summary>
-        public const uint MemoryBufferType_StartAddress = 1003;
-
-        /// <summary>
-        /// The identifier for the MemoryBufferType_SizeInBytes Variable.
-        /// </summary>
-        public const uint MemoryBufferType_SizeInBytes = 1004;
-    }
-    #endregion
-
-    #region VariableType Identifiers
-    /// <summary>
-    /// A class that declares constants for all VariableTypes in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class VariableTypes
-    {
-        /// <summary>
-        /// The identifier for the MemoryTagType VariableType.
-        /// </summary>
-        public const uint MemoryTagType = 1018;
-    }
-    #endregion
-
-    #region Object Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all Objects in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class ObjectIds
-    {
-        /// <summary>
-        /// The identifier for the MemoryBuffers Object.
-        /// </summary>
-        public static readonly ExpandedNodeId MemoryBuffers = new ExpandedNodeId(MemoryBuffer.Objects.MemoryBuffers, MemoryBuffer.Namespaces.MemoryBuffer);
-    }
-    #endregion
-
-    #region ObjectType Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all ObjectTypes in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class ObjectTypeIds
-    {
-        /// <summary>
-        /// The identifier for the MemoryBufferType ObjectType.
-        /// </summary>
-        public static readonly ExpandedNodeId MemoryBufferType = new ExpandedNodeId(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer);
-    }
-    #endregion
-
-    #region Variable Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all Variables in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class VariableIds
-    {
-        /// <summary>
-        /// The identifier for the MemoryBufferType_StartAddress Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId MemoryBufferType_StartAddress = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_StartAddress, MemoryBuffer.Namespaces.MemoryBuffer);
-
-        /// <summary>
-        /// The identifier for the MemoryBufferType_SizeInBytes Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId MemoryBufferType_SizeInBytes = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_SizeInBytes, MemoryBuffer.Namespaces.MemoryBuffer);
-    }
-    #endregion
-
-    #region VariableType Node Identifiers
-    /// <summary>
-    /// A class that declares constants for all VariableTypes in the Model Design.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public static partial class VariableTypeIds
-    {
-        /// <summary>
-        /// The identifier for the MemoryTagType VariableType.
-        /// </summary>
-        public static readonly ExpandedNodeId MemoryTagType = new ExpandedNodeId(MemoryBuffer.VariableTypes.MemoryTagType, MemoryBuffer.Namespaces.MemoryBuffer);
-    }
-    #endregion
-
-    #region BrowseName Declarations
-    /// <summary>
-    /// Declares all of the BrowseNames used in the Model Design.
-    /// </summary>
-    public static partial class BrowseNames
-    {
-        /// <summary>
-        /// The BrowseName for the MemoryBuffers component.
-        /// </summary>
-        public const string MemoryBuffers = "MemoryBuffers";
-
-        /// <summary>
-        /// The BrowseName for the MemoryBufferType component.
-        /// </summary>
-        public const string MemoryBufferType = "MemoryBufferType";
-
-        /// <summary>
-        /// The BrowseName for the MemoryTagType component.
-        /// </summary>
-        public const string MemoryTagType = "MemoryTagType";
-
-        /// <summary>
-        /// The BrowseName for the SizeInBytes component.
-        /// </summary>
-        public const string SizeInBytes = "SizeInBytes";
-
-        /// <summary>
-        /// The BrowseName for the StartAddress component.
-        /// </summary>
-        public const string StartAddress = "StartAddress";
-    }
-    #endregion
-
-    #region Namespace Declarations
-    /// <summary>
-    /// Defines constants for all namespaces referenced by the model design.
-    /// </summary>
-    public static partial class Namespaces
-    {
-        /// <summary>
-        /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUa = "http://opcfoundation.org/UA/";
-
-        /// <summary>
-        /// The URI for the OpcUaXsd namespace (.NET code namespace is 'Opc.Ua').
-        /// </summary>
-        public const string OpcUaXsd = "http://opcfoundation.org/UA/2008/02/Types.xsd";
-
-        /// <summary>
-        /// The URI for the MemoryBuffer namespace (.NET code namespace is 'MemoryBuffer').
-        /// </summary>
-        public const string MemoryBuffer = "http://samples.org/UA/memorybuffer";
-    }
-    #endregion
-
     #region MemoryTagState Class
     #if (!OPCUA_EXCLUDE_MemoryTagState)
     /// <summary>
@@ -275,6 +88,15 @@ namespace MemoryBuffer
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -284,8 +106,8 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////xVggQACAAAAAQAVAAAA" +
-           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gMAGAEB/////wAAAAA=";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////xVgiQICAAAAAQAVAAAA" +
+           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gP6AwAAABj+////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -325,8 +147,17 @@ namespace MemoryBuffer
             base.Initialize(context);
 
             Value = default(T);
-            DataType = Opc.Ua.TypeInfo.GetDataTypeId(typeof(T));
-            ValueRank = Opc.Ua.TypeInfo.GetValueRank(typeof(T));
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
         }
         #endregion
 
@@ -388,6 +219,15 @@ namespace MemoryBuffer
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -397,18 +237,16 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////wRggAABAAAAAQAYAAAA" +
-           "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHoAwEB6AP/////AgAAABVgqQoCAAAAAQAMAAAAU3RhcnRB" +
-           "ZGRyZXNzAQHrAwAuAETrAwAABwAAAAAAB/////8BAf////8AAAAAFWCpCgIAAAABAAsAAABTaXplSW5C" +
-           "eXRlcwEB7AMALgBE7AMAAAcAEAAAAAf/////AQH/////AAAAAA==";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////wRggAIBAAAAAQAYAAAA" +
+           "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHoAwEB6APoAwAA/////wIAAAAVYKkKAgAAAAEADAAAAFN0" +
+           "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6" +
+           "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the StartAddress Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<uint> StartAddress
         {
             get
@@ -427,9 +265,7 @@ namespace MemoryBuffer
             }
         }
 
-        /// <summary>
-        /// A description for the SizeInBytes Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<uint> SizeInBytes
         {
             get

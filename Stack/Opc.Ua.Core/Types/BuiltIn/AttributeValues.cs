@@ -10,10 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Collections.Generic;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -39,7 +36,7 @@ namespace Opc.Ua
         /// The Object has an event history which may be read.
         /// </summary>
         public const byte HistoryRead = 0x4;
-        
+
         /// <summary>
         /// The Object has an event history which may be updated.
         /// </summary>
@@ -63,12 +60,12 @@ namespace Opc.Ua
         /// The current value of the Variable may be read.
         /// </summary>
         public const byte CurrentRead = 0x1;
-        
+
         /// <summary>
         /// The current value of the Variable may be written.
         /// </summary>
         public const byte CurrentWrite = 0x2;
-        
+
         /// <summary>
         /// The current value of the Variable may be read or written.
         /// </summary>
@@ -78,17 +75,17 @@ namespace Opc.Ua
         /// The history for the Variable may be read.
         /// </summary>
         public const byte HistoryRead = 0x4;
-        
+
         /// <summary>
         /// The history for the Variable may be updated.
         /// </summary>
         public const byte HistoryWrite = 0x8;
-        
+
         /// <summary>
         /// The history value of the Variable may be read or updated.
         /// </summary>
         public const byte HistoryReadOrWrite = 0xC;
-        
+
         /// <summary>
         /// Indicates if the Variable generates SemanticChangeEvents when its value changes.
         /// </summary>
@@ -104,7 +101,7 @@ namespace Opc.Ua
         /// </summary>
         public const byte TimestampWrite = 0x40;
     }
-        
+
     /// <summary>
     /// Constants defined for the ValueRank attribute.
     /// </summary>
@@ -117,12 +114,12 @@ namespace Opc.Ua
         /// The variable may be a scalar or a one dimensional array.
         /// </summary>
         public const int ScalarOrOneDimension = -3;
-        
+
         /// <summary>
         /// The variable may be a scalar or an array of any dimension.
         /// </summary>
         public const int Any = -2;
-        
+
         /// <summary>
         /// The variable is always a scalar.
         /// </summary>
@@ -142,7 +139,7 @@ namespace Opc.Ua
         /// The variable is always an array with two or more dimensions.
         /// </summary>
         public const int TwoDimensions = 2;
-        
+
         /// <summary>
         /// Checks if the actual value rank is compatible with the expected value rank.
         /// </summary>
@@ -152,7 +149,7 @@ namespace Opc.Ua
             {
                 return true;
             }
-    
+
             switch (expectedValueRank)
             {
                 case ValueRanks.Any:
@@ -188,7 +185,7 @@ namespace Opc.Ua
 
             return true;
         }
-        
+
         /// <summary>
         /// Checks if the actual array diminesions is compatible with the expected value rank and array dimensions.
         /// </summary>
@@ -249,7 +246,7 @@ namespace Opc.Ua
             return true;
         }
     }
-    
+
     /// <summary>
     /// Constants defined for the MinimumSamplingInterval attribute.
     /// </summary>

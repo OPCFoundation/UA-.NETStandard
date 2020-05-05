@@ -1,0 +1,7 @@
+extraction:
+  csharp:
+    index:
+      solution: "UA-NetStandard.sln"
+      msbuild:
+        configuration: "release"
+        platform: "Any CPU"

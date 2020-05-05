@@ -885,9 +885,9 @@ namespace Opc.Ua
         private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
-        /// Normalize a DateTime to UniversalTime.
+        /// Normalize a DateTime to Opc Ua UniversalTime.
         /// </summary>
-        public static DateTime NormalizeToUniversalTime(DateTime value)
+        public static DateTime ToOpcUaUniversalTime(DateTime value)
         {
             if (value <= DateTime.MinValue)
             {
@@ -1930,7 +1930,7 @@ namespace Opc.Ua
             // check for DateTime objects
             if (value1 is DateTime)
             {
-                return (Utils.NormalizeToUniversalTime((DateTime)value1).CompareTo(Utils.NormalizeToUniversalTime((DateTime)value2))) == 0;
+                return (Utils.ToOpcUaUniversalTime((DateTime)value1).CompareTo(Utils.ToOpcUaUniversalTime((DateTime)value2))) == 0;
             }
 
             // check for compareable objects.

@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes.Symbols</id>
-    <version>1.04.358.0</version>
+    <version>1.04.360.0</version>
     <title>OPC UA .Net Standard Complex Type Library Symbols</title>
     <description>This package contains the OPC UA complex type client symbols and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -12,7 +12,7 @@
     <licenseUrl>https://opcfoundation.org/license/redistributables/1.3/</licenseUrl>
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
-      <group targetFramework="net46" >
+      <group targetFramework="net462" >
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Symbols" version="$version$"/>
       </group>
       <group targetFramework="netcoreapp2.0" >
@@ -22,8 +22,8 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net46\Opc.Ua.Client.ComplexTypes.dll" target="lib\net46" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net46\Opc.Ua.Client.ComplexTypes.pdb" target="lib\net46" />
+    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll" target="lib\net462" />
+    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.pdb" target="lib\net462" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.dll" target="lib\netcoreapp2.0" />
     <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.pdb" target="lib\netcoreapp2.0" />
   </files>

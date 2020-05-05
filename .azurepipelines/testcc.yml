@@ -1,0 +1,75 @@
+#
+# Test .Net Core projects with code coverage
+#
+parameters:
+  configuration: 'Release'
+  agent: 'linux'
+  poolImage: 'ubuntu-18.04'
+jobs:
+- job: testcc
+  displayName: Run Code Coverage for ${{ parameters.agent }}
+  variables:
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    disable.coverage.autogenerate: true
+  pool:
+    vmImage: ${{ parameters.poolImage }}
+  steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      packageType: sdk
+      version: 2.1.x
+      includePreviewVersions: false
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: DotNetCoreCLI@2
+    displayName: Restore ${{ parameters.configuration }}
+    inputs:
+      command: restore
+      projects: '**/*[.t]Tests.csproj'
+      arguments: '--configuration ${{ parameters.configuration }}'
+  - task: DotNetCoreCLI@2
+    displayName: Test ${{ parameters.configuration }}
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/*[.t]Tests.csproj'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+  - script: |
+      bash <(curl -s https://codecov.io/bash)
+
+    continueOnError: true
+    displayName: 'Upload to codecov.io'
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: custom
+      custom: tool
+      arguments: install --tool-path tools dotnet-reportgenerator-globaltool 
+    displayName: Install ReportGenerator tool
+  - script: |
+      tools/reportgenerator -reports:$(Build.SourcesDirectory)/**/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
+      mv $(Build.SourcesDirectory)/CodeCoverage/summary.htm $(Build.SourcesDirectory)/CodeCoverage/index.htm 
+
+    displayName: Create Code Coverage Report
+    continueOnError: true
+  - task: PublishCodeCoverageResults@1
+    displayName: 'Publish code coverage'
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+      reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
+
+    continueOnError: true
+  - script: |
+      bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
+
+    condition: ne( variables['CODACY_PROJECT_TOKEN'], '')
+    env:
+      CODACY_PROJECT_TOKEN: $(CODACY_PROJECT_TOKEN)
+      REPORT_LOCATION: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
+      COMMIT_UUID: '$(Build.SourceVersion)'
+    continueOnError: true
+    displayName: 'Upload to Codacy'

@@ -220,10 +220,6 @@
           <uax:NamespaceIndex>0</uax:NamespaceIndex>
           <uax:Name>EngineeringUnits</uax:Name>
         </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>The unit of measure for length.</uax:Text>
-        </uax:Description>
         <uax:ReferenceTypeId>
           <uax:Identifier>i=46</uax:Identifier>
         </uax:ReferenceTypeId>
@@ -353,10 +349,6 @@
           <uax:NamespaceIndex>0</uax:NamespaceIndex>
           <uax:Name>EngineeringUnits</uax:Name>
         </uax:BrowseName>
-        <uax:Description>
-          <uax:Locale></uax:Locale>
-          <uax:Text>The unit of measure for time.</uax:Text>
-        </uax:Description>
         <uax:ReferenceTypeId>
           <uax:Identifier>i=46</uax:Identifier>
         </uax:ReferenceTypeId>

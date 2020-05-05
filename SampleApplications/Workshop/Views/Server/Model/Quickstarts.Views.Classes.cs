@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -55,7 +54,7 @@ namespace Quickstarts.Views
         public GenericControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -75,6 +74,15 @@ namespace Quickstarts.Views
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -83,32 +91,30 @@ namespace Quickstarts.Views
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AwAAADMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRW5naW5lZXJpbmcy" +
            "AAAAaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL09wZXJhdGlvbnMtAAAAaHR0" +
-           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAABAAAAAwAdAAAA" +
-           "R2VuZXJpY0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBA1kBAQNZAf////8EAAAAFWCJCgIAAAABAAwAAABT" +
-           "ZXJpYWxOdW1iZXIBA1oBAC4ARFoBAAAADP////8BAf////8AAAAAFWCJCgIAAAABAAwAAABNYW51ZmFj" +
-           "dHVyZXIBA1sBAC4ARFsBAAAADP////8BAf////8AAAAAFWCJCgIAAAACAAgAAABTZXRQb2ludAEDXAEA" +
-           "LwEAQAlcAQAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEDXwEALgBEXwEAAAEA" +
-           "dAP/////AQH/////AAAAABVgiQoCAAAAAgALAAAATWVhc3VyZW1lbnQBA2IBAC8BAEAJYgEAAAAL////" +
-           "/wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA2UBAC4ARGUBAAABAHQD/////wEB/////wAA" +
-           "AAA=";
+           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAIBAAAAAwAdAAAA" +
+           "R2VuZXJpY0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBA1kBAQNZAVkBAAD/////BAAAABVgiQoCAAAAAQAM" +
+           "AAAAU2VyaWFsTnVtYmVyAQNaAQAuAERaAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAMAAAATWFu" +
+           "dWZhY3R1cmVyAQNbAQAuAERbAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAgAIAAAAU2V0UG9pbnQB" +
+           "A1wBAC8BAEAJXAEAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA18BAC4ARF8B" +
+           "AAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1cmVtZW50AQNiAQAvAQBACWIBAAAA" +
+           "C/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQNlAQAuAERlAQAAAQB0A/////8BAf//" +
+           "//8AAAAA";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the SerialNumber Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> SerialNumber
         {
             get
-            { 
-                return m_serialNumber;  
+            {
+                return m_serialNumber;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_serialNumber, value))
@@ -120,16 +126,14 @@ namespace Quickstarts.Views
             }
         }
 
-        /// <summary>
-        /// A description for the Manufacturer Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> Manufacturer
         {
             get
-            { 
-                return m_manufacturer;  
+            {
+                return m_manufacturer;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_manufacturer, value))
@@ -141,16 +145,14 @@ namespace Quickstarts.Views
             }
         }
 
-        /// <summary>
-        /// A description for the SetPoint Variable.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> SetPoint
         {
             get
-            { 
-                return m_setPoint;  
+            {
+                return m_setPoint;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_setPoint, value))
@@ -162,16 +164,14 @@ namespace Quickstarts.Views
             }
         }
 
-        /// <summary>
-        /// A description for the Measurement Variable.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> Measurement
         {
             get
-            { 
-                return m_measurement;  
+            {
+                return m_measurement;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_measurement, value))
@@ -355,7 +355,7 @@ namespace Quickstarts.Views
         public FlowControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -375,6 +375,15 @@ namespace Quickstarts.Views
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -383,16 +392,17 @@ namespace Quickstarts.Views
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AwAAADMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRW5naW5lZXJpbmcy" +
            "AAAAaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL09wZXJhdGlvbnMtAAAAaHR0" +
-           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAABAAAAAwAaAAAA" +
-           "Rmxvd0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBA2gBAQNoAf////8EAAAAFWCJCgIAAAABAAwAAABTZXJp" +
-           "YWxOdW1iZXIBA2kBAC4ARGkBAAAADP////8BAf////8AAAAAFWCJCgIAAAABAAwAAABNYW51ZmFjdHVy" +
-           "ZXIBA2oBAC4ARGoBAAAADP////8BAf////8AAAAAFWCJCgIAAAACAAgAAABTZXRQb2ludAEDawEALwEA" +
-           "QAlrAQAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEDbgEALgBEbgEAAAEAdAP/" +
-           "////AQH/////AAAAABVgiQoCAAAAAgALAAAATWVhc3VyZW1lbnQBA3EBAC8BAEAJcQEAAAAL/////wEB" +
-           "/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA3QBAC4ARHQBAAABAHQD/////wEB/////wAAAAA=";
+           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAIBAAAAAwAaAAAA" +
+           "Rmxvd0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBA2gBAQNoAWgBAAD/////BAAAABVgiQoCAAAAAQAMAAAA" +
+           "U2VyaWFsTnVtYmVyAQNpAQAuAERpAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAMAAAATWFudWZh" +
+           "Y3R1cmVyAQNqAQAuAERqAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAgAIAAAAU2V0UG9pbnQBA2sB" +
+           "AC8BAEAJawEAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA24BAC4ARG4BAAAB" +
+           "AHQD/////wEB/////wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1cmVtZW50AQNxAQAvAQBACXEBAAAAC///" +
+           "//8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQN0AQAuAER0AQAAAQB0A/////8BAf////8A" +
+           "AAAA";
         #endregion
         #endif
         #endregion
@@ -425,7 +435,7 @@ namespace Quickstarts.Views
         public LevelControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -445,6 +455,15 @@ namespace Quickstarts.Views
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -453,16 +472,17 @@ namespace Quickstarts.Views
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AwAAADMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRW5naW5lZXJpbmcy" +
            "AAAAaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL09wZXJhdGlvbnMtAAAAaHR0" +
-           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAABAAAAAwAbAAAA" +
-           "TGV2ZWxDb250cm9sbGVyVHlwZUluc3RhbmNlAQN3AQEDdwH/////BAAAABVgiQoCAAAAAQAMAAAAU2Vy" +
-           "aWFsTnVtYmVyAQN4AQAuAER4AQAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAMAAAATWFudWZhY3R1" +
-           "cmVyAQN5AQAuAER5AQAAAAz/////AQH/////AAAAABVgiQoCAAAAAgAIAAAAU2V0UG9pbnQBA3oBAC8B" +
-           "AEAJegEAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA30BAC4ARH0BAAABAHQD" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1cmVtZW50AQOAAQAvAQBACYABAAAAC/////8B" +
-           "Af////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQODAQAuAESDAQAAAQB0A/////8BAf////8AAAAA";
+           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAIBAAAAAwAbAAAA" +
+           "TGV2ZWxDb250cm9sbGVyVHlwZUluc3RhbmNlAQN3AQEDdwF3AQAA/////wQAAAAVYIkKAgAAAAEADAAA" +
+           "AFNlcmlhbE51bWJlcgEDeAEALgBEeAEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAE1hbnVm" +
+           "YWN0dXJlcgEDeQEALgBEeQEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAIACAAAAFNldFBvaW50AQN6" +
+           "AQAvAQBACXoBAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQN9AQAuAER9AQAA" +
+           "AQB0A/////8BAf////8AAAAAFWCJCgIAAAACAAsAAABNZWFzdXJlbWVudAEDgAEALwEAQAmAAQAAAAv/" +
+           "////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEDgwEALgBEgwEAAAEAdAP/////AQH/////" +
+           "AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -495,7 +515,7 @@ namespace Quickstarts.Views
         public BoilerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -515,6 +535,15 @@ namespace Quickstarts.Views
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -523,46 +552,44 @@ namespace Quickstarts.Views
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AwAAADMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvUXVpY2tzdGFydHMvRW5naW5lZXJpbmcy" +
            "AAAAaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL09wZXJhdGlvbnMtAAAAaHR0" +
-           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAABAAAAAwASAAAA" +
-           "Qm9pbGVyVHlwZUluc3RhbmNlAQOGAQEDhgH/////AwAAAARggAoBAAAAAwAHAAAAV2F0ZXJJbgEDhwEA" +
-           "LwA6hwEAAP////8BAAAABGCACgEAAAADAAQAAABGbG93AQOIAQAvAQNoAYgBAAD/////BAAAABVgiQoC" +
-           "AAAAAQAMAAAAU2VyaWFsTnVtYmVyAQOJAQAuAESJAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAM" +
-           "AAAATWFudWZhY3R1cmVyAQOKAQAuAESKAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAgAIAAAAU2V0" +
-           "UG9pbnQBA4sBAC8BAEAJiwEAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA44B" +
-           "AC4ARI4BAAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1cmVtZW50AQORAQAvAQBA" +
-           "CZEBAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQOUAQAuAESUAQAAAQB0A///" +
-           "//8BAf////8AAAAABGCACgEAAAADAAgAAABTdGVhbU91dAEDlwEALwA6lwEAAP////8BAAAABGCACgEA" +
-           "AAADAAQAAABGbG93AQOYAQAvAQNoAZgBAAD/////BAAAABVgiQoCAAAAAQAMAAAAU2VyaWFsTnVtYmVy" +
-           "AQOZAQAuAESZAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAMAAAATWFudWZhY3R1cmVyAQOaAQAu" +
-           "AESaAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAgAIAAAAU2V0UG9pbnQBA5sBAC8BAEAJmwEAAAAL" +
-           "/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBA54BAC4ARJ4BAAABAHQD/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1cmVtZW50AQOhAQAvAQBACaEBAAAAC/////8BAf////8BAAAA" +
-           "FWCJCgIAAAAAAAcAAABFVVJhbmdlAQOkAQAuAESkAQAAAQB0A/////8BAf////8AAAAABGCACgEAAAAD" +
-           "AAQAAABEcnVtAQOnAQAvADqnAQAA/////wEAAAAEYIAKAQAAAAMABQAAAExldmVsAQOoAQAvAQN3AagB" +
-           "AAD/////BAAAABVgiQoCAAAAAQAMAAAAU2VyaWFsTnVtYmVyAQOpAQAuAESpAQAAAAz/////AQH/////" +
-           "AAAAABVgiQoCAAAAAQAMAAAATWFudWZhY3R1cmVyAQOqAQAuAESqAQAAAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAgAIAAAAU2V0UG9pbnQBA6sBAC8BAEAJqwEAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAA" +
-           "BwAAAEVVUmFuZ2UBA64BAC4ARK4BAAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAIACwAAAE1lYXN1" +
-           "cmVtZW50AQOxAQAvAQBACbEBAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQO0" +
-           "AQAuAES0AQAAAQB0A/////8BAf////8AAAAA";
+           "cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL1F1aWNrc3RhcnRzL1ZpZXdz/////wRggAIBAAAAAwASAAAA" +
+           "Qm9pbGVyVHlwZUluc3RhbmNlAQOGAQEDhgGGAQAA/////wMAAAAEYIAKAQAAAAMABwAAAFdhdGVySW4B" +
+           "A4cBAC8AOocBAAD/////AQAAAARggAoBAAAAAwAEAAAARmxvdwEDiAEALwEDaAGIAQAA/////wQAAAAV" +
+           "YIkKAgAAAAEADAAAAFNlcmlhbE51bWJlcgEDiQEALgBEiQEAAAAM/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAEADAAAAE1hbnVmYWN0dXJlcgEDigEALgBEigEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAIACAAA" +
+           "AFNldFBvaW50AQOLAQAvAQBACYsBAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdl" +
+           "AQOOAQAuAESOAQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAACAAsAAABNZWFzdXJlbWVudAEDkQEA" +
+           "LwEAQAmRAQAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEDlAEALgBElAEAAAEA" +
+           "dAP/////AQH/////AAAAAARggAoBAAAAAwAIAAAAU3RlYW1PdXQBA5cBAC8AOpcBAAD/////AQAAAARg" +
+           "gAoBAAAAAwAEAAAARmxvdwEDmAEALwEDaAGYAQAA/////wQAAAAVYIkKAgAAAAEADAAAAFNlcmlhbE51" +
+           "bWJlcgEDmQEALgBEmQEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAEADAAAAE1hbnVmYWN0dXJlcgED" +
+           "mgEALgBEmgEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAIACAAAAFNldFBvaW50AQObAQAvAQBACZsB" +
+           "AAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQOeAQAuAESeAQAAAQB0A/////8B" +
+           "Af////8AAAAAFWCJCgIAAAACAAsAAABNZWFzdXJlbWVudAEDoQEALwEAQAmhAQAAAAv/////AQH/////" +
+           "AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEDpAEALgBEpAEAAAEAdAP/////AQH/////AAAAAARggAoB" +
+           "AAAAAwAEAAAARHJ1bQEDpwEALwA6pwEAAP////8BAAAABGCACgEAAAADAAUAAABMZXZlbAEDqAEALwED" +
+           "dwGoAQAA/////wQAAAAVYIkKAgAAAAEADAAAAFNlcmlhbE51bWJlcgEDqQEALgBEqQEAAAAM/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAEADAAAAE1hbnVmYWN0dXJlcgEDqgEALgBEqgEAAAAM/////wEB/////wAA" +
+           "AAAVYIkKAgAAAAIACAAAAFNldFBvaW50AQOrAQAvAQBACasBAAAAC/////8BAf////8BAAAAFWCJCgIA" +
+           "AAAAAAcAAABFVVJhbmdlAQOuAQAuAESuAQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAACAAsAAABN" +
+           "ZWFzdXJlbWVudAEDsQEALwEAQAmxAQAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5n" +
+           "ZQEDtAEALgBEtAEAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the WaterIn Object.
-        /// </summary>
+        /// <remarks />
         public BaseObjectState WaterIn
         {
             get
-            { 
-                return m_waterIn;  
+            {
+                return m_waterIn;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_waterIn, value))
@@ -574,16 +601,14 @@ namespace Quickstarts.Views
             }
         }
 
-        /// <summary>
-        /// A description for the SteamOut Object.
-        /// </summary>
+        /// <remarks />
         public BaseObjectState SteamOut
         {
             get
-            { 
-                return m_steamOut;  
+            {
+                return m_steamOut;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_steamOut, value))
@@ -595,16 +620,14 @@ namespace Quickstarts.Views
             }
         }
 
-        /// <summary>
-        /// A description for the Drum Object.
-        /// </summary>
+        /// <remarks />
         public BaseObjectState Drum
         {
             get
-            { 
-                return m_drum;  
+            {
+                return m_drum;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_drum, value))

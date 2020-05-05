@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ConsoleAggregationServer": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

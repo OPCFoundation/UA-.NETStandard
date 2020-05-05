@@ -4,7 +4,7 @@
 #---------------------------------#
 
 # version format
-version: 1.4.359.{build}-{branch}
+version: 1.4.360.{build}-{branch}
 
 
 # branches to build
@@ -18,7 +18,7 @@ branches:
 #---------------------------------#
 
 # Build worker image (VM template)
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 # scripts that are called at very beginning, before repo cloning
 init:
@@ -44,7 +44,8 @@ environment:
     test_name: "void"
     param: "/p:NoHttps=true"
   - solution_name: "UA Global Discovery Server.sln"
-    test_name: "SampleApplications/Samples/GDS/ClientTest/GlobalDiscoveryClientTest.csproj"
+    test_name: "void"
+#    test_name: "SampleApplications/Samples/GDS/ClientTest/GlobalDiscoveryClientTests.csproj"
     param: ""
   - solution_name: "UA Universal Windows.sln"
     test_name: "void"

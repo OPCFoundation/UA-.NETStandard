@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -40,62 +39,58 @@ namespace Quickstarts.SimpleEvents
     #region CycleStepDataType Class
     #if (!OPCUA_EXCLUDE_CycleStepDataType)
     /// <summary>
-    /// A description for the CycleStepDataType DataType.
+    /// 
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Quickstarts.SimpleEvents.Namespaces.SimpleEvents)]
     public partial class CycleStepDataType : IEncodeable
     {
-    	#region Constructors
-    	/// <summary>
-    	/// The default constructor.
-    	/// </summary>
-    	public CycleStepDataType()
-    	{
-    		Initialize();
-    	}
-        
-    	/// <summary>
-    	/// Called by the .NET framework during deserialization.
-    	/// </summary>
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public CycleStepDataType()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
         [OnDeserializing]
-    	private void Initialize(StreamingContext context)
-    	{
-    		Initialize();
-    	}
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-    	/// <summary>
-    	/// Sets private members to default values.
-    	/// </summary>
-    	private void Initialize()
-    	{
-    		m_name = null;
-    		m_duration = (double)0;
-    	}
-    	#endregion
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_name = null;
+            m_duration = (double)0;
+        }
+        #endregion
 
-    	#region Public Properties
-    	/// <summary>
-    	/// A description for the Name field.
-    	/// </summary>
-    	[DataMember(Name = "Name", IsRequired = false, Order = 1)]
-    	public string Name
-    	{
-    		get { return m_name;  }
-    		set { m_name = value; }
-    	}
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
 
-    	/// <summary>
-    	/// A description for the Duration field.
-    	/// </summary>
-    	[DataMember(Name = "Duration", IsRequired = false, Order = 2)]
-    	public double Duration
-    	{
-    		get { return m_duration;  }
-    		set { m_duration = value; }
-    	}
-    	#endregion
+        /// <remarks />
+        [DataMember(Name = "Duration", IsRequired = false, Order = 2)]
+        public double Duration
+        {
+            get { return m_duration;  }
+            set { m_duration = value; }
+        }
+        #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
@@ -109,13 +104,13 @@ namespace Quickstarts.SimpleEvents
         {
             get { return ObjectIds.CycleStepDataType_Encoding_DefaultBinary; }
         }
-        
+
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId
         {
             get { return ObjectIds.CycleStepDataType_Encoding_DefaultXml; }
         }
-        
+
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
@@ -126,7 +121,7 @@ namespace Quickstarts.SimpleEvents
 
             encoder.PopNamespace();
         }
-        
+
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public virtual void Decode(IDecoder decoder)
         {
@@ -145,9 +140,9 @@ namespace Quickstarts.SimpleEvents
             {
                 return true;
             }
-            
+
             CycleStepDataType value = encodeable as CycleStepDataType;
-            
+
             if (value == null)
             {
                 return false;
@@ -158,11 +153,19 @@ namespace Quickstarts.SimpleEvents
 
             return true;
         }
-        
+
+        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
-            CycleStepDataType clone = (CycleStepDataType)this.MemberwiseClone();
+            return (CycleStepDataType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            CycleStepDataType clone = (CycleStepDataType)base.MemberwiseClone();
 
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_duration = (double)Utils.Clone(this.m_duration);
@@ -170,11 +173,11 @@ namespace Quickstarts.SimpleEvents
             return clone;
         }
         #endregion
-        
-    	#region Private Fields
-    	private string m_name;
-    	private double m_duration;
-    	#endregion
+
+        #region Private Fields
+        private string m_name;
+        private double m_duration;
+        #endregion
     }
 
     #region CycleStepDataTypeCollection Class
@@ -184,25 +187,29 @@ namespace Quickstarts.SimpleEvents
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCycleStepDataType", Namespace = Quickstarts.SimpleEvents.Namespaces.SimpleEvents, ItemName = "CycleStepDataType")]
+    #if !NET_STANDARD
     public partial class CycleStepDataTypeCollection : List<CycleStepDataType>, ICloneable
+    #else
+    public partial class CycleStepDataTypeCollection : List<CycleStepDataType>
+    #endif
     {
-    	#region Constructors
-    	/// <summary>
-    	/// Initializes the collection with default values.
-    	/// </summary>
-    	public CycleStepDataTypeCollection() {}
-    	
-    	/// <summary>
-    	/// Initializes the collection with an initial capacity.
-    	/// </summary>
-    	public CycleStepDataTypeCollection(int capacity) : base(capacity) {}
-    	
-    	/// <summary>
-    	/// Initializes the collection with another collection.
-    	/// </summary>
-    	public CycleStepDataTypeCollection(IEnumerable<CycleStepDataType> collection) : base(collection) {}
-    	#endregion
-                    
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public CycleStepDataTypeCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public CycleStepDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public CycleStepDataTypeCollection(IEnumerable<CycleStepDataType> collection) : base(collection) {}
+        #endregion
+
         #region Static Operators
         /// <summary>
         /// Converts an array to a collection.
@@ -216,7 +223,7 @@ namespace Quickstarts.SimpleEvents
 
             return new CycleStepDataTypeCollection();
         }
-        
+
         /// <summary>
         /// Converts a collection to an array.
         /// </summary>
@@ -231,11 +238,20 @@ namespace Quickstarts.SimpleEvents
         }
         #endregion
 
+        #if !NET_STANDARD
         #region ICloneable Methods
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
         public object Clone()
+        {
+            return (CycleStepDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
         {
             CycleStepDataTypeCollection clone = new CycleStepDataTypeCollection(this.Count);
 
@@ -246,7 +262,6 @@ namespace Quickstarts.SimpleEvents
 
             return clone;
         }
-        #endregion
     }
     #endregion
     #endif

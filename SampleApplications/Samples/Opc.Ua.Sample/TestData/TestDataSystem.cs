@@ -673,7 +673,7 @@ namespace TestData
                 value.StatusCodeValue = m_generator.GetRandom<StatusCode>(false);
                 value.VariantValue = m_generator.GetRandomVariant(false);
 
-                return new ExtensionObject(value);
+                return new ExtensionObject(value.TypeId, value);
             }
             else
             {
@@ -708,7 +708,7 @@ namespace TestData
                     value.VariantValue.Add(new Variant(values[ii]));
                 }
 
-                return new ExtensionObject(value);                
+                return new ExtensionObject(value.TypeId, value);
             }
         }
 

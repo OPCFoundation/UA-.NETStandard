@@ -85,28 +85,29 @@ namespace Opc.Ua.Bindings
 
         public void Open()
         {
+            var handler = new HttpClientHandler();
             try
             {
-                // auto validate server cert, if supported
-                // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler();
-                handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-
-                // send client certificate for servers that require TLS client authentication
-                if (m_settings.ClientCertificate != null)
+                try
                 {
-                    handler.ClientCertificates.Add(m_settings.ClientCertificate);
-                }
+                    // auto validate server cert, if supported
+                    // if unsupported, the TLS server cert must be trusted by a root CA
+                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
 
-                // OSX platform cannot auto validate certs and throws
-                // on PostAsync, do not set validation handler
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    try
+#if NETSTANDARD2_0 || NETSTANDARD2_1
+                    // send client certificate for servers that require TLS client authentication
+                    if (m_settings.ClientCertificate != null)
                     {
+                        handler.ClientCertificates.Add(m_settings.ClientCertificate);
+                    }
+
+                    // OSX platform cannot auto validate certs and throws
+                    // on PostAsync, do not set validation handler
+                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+
                         handler.ServerCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) =>
-                            {
+                            (httpRequestMessage, cert, chain, policyErrors) => {
                                 try
                                 {
                                     m_quotas.CertificateValidator?.Validate(cert);
@@ -120,11 +121,14 @@ namespace Opc.Ua.Bindings
                                 return false;
                             };
                     }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        handler.ServerCertificateCustomValidationCallback = null;
-                    }
+#endif
+                }
+                catch (PlatformNotSupportedException)
+                {
+#if NETSTANDARD2_0 || NETSTANDARD2_1
+                    // client may throw if not supported (e.g. UWP)
+                    handler.ServerCertificateCustomValidationCallback = null;
+#endif
                 }
 
                 m_client = new HttpClient(handler);

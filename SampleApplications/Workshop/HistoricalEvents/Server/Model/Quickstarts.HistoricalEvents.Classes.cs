@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -53,7 +52,7 @@ namespace Quickstarts.HistoricalEvents
         public WellTestReportState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -73,6 +72,15 @@ namespace Quickstarts.HistoricalEvents
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -81,49 +89,38 @@ namespace Quickstarts.HistoricalEvents
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADUAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvSGlzdG9yaWNhbEV2ZW50" +
-           "c/////8kYIAAAQAAAAEAGgAAAFdlbGxUZXN0UmVwb3J0VHlwZUluc3RhbmNlAQH7AAMAAAAALwAAAEEg" +
-           "cmVwb3J0IGNvbnRhaW5pbmcgdGhlIHJlc3VsdHMgb2YgYSB3ZWxsIHRlc3QuAQH7AP////8NAAAANWCJ" +
-           "CgIAAAAAAAcAAABFdmVudElkAQH8AAMAAAAAKwAAAEEgZ2xvYmFsbHkgdW5pcXVlIGlkZW50aWZpZXIg" +
-           "Zm9yIHRoZSBldmVudC4ALgBE/AAAAAAP/////wEB/////wAAAAA1YIkKAgAAAAAACQAAAEV2ZW50VHlw" +
-           "ZQEB/QADAAAAACIAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHR5cGUuAC4ARP0AAAAAEf//" +
-           "//8BAf////8AAAAANWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQH+AAMAAAAAGAAAAFRoZSBzb3VyY2Ug" +
-           "b2YgdGhlIGV2ZW50LgAuAET+AAAAABH/////AQH/////AAAAADVgiQoCAAAAAAAKAAAAU291cmNlTmFt" +
-           "ZQEB/wADAAAAACkAAABBIGRlc2NyaXB0aW9uIG9mIHRoZSBzb3VyY2Ugb2YgdGhlIGV2ZW50LgAuAET/" +
-           "AAAAAAz/////AQH/////AAAAADVgiQoCAAAAAAAEAAAAVGltZQEBAAEDAAAAABgAAABXaGVuIHRoZSBl" +
-           "dmVudCBvY2N1cnJlZC4ALgBEAAEAAAEAJgH/////AQH/////AAAAADVgiQoCAAAAAAALAAAAUmVjZWl2" +
-           "ZVRpbWUBAQEBAwAAAAA+AAAAV2hlbiB0aGUgc2VydmVyIHJlY2VpdmVkIHRoZSBldmVudCBmcm9tIHRo" +
-           "ZSB1bmRlcmx5aW5nIHN5c3RlbS4ALgBEAQEAAAEAJgH/////AQH/////AAAAADVgiQoCAAAAAAAJAAAA" +
-           "TG9jYWxUaW1lAQECAQMAAAAAPAAAAEluZm9ybWF0aW9uIGFib3V0IHRoZSBsb2NhbCB0aW1lIHdoZXJl" +
-           "IHRoZSBldmVudCBvcmlnaW5hdGVkLgAuAEQCAQAAAQDQIv////8BAf////8AAAAANWCJCgIAAAAAAAcA" +
-           "AABNZXNzYWdlAQEDAQMAAAAAJQAAAEEgbG9jYWxpemVkIGRlc2NyaXB0aW9uIG9mIHRoZSBldmVudC4A" +
-           "LgBEAwEAAAAV/////wEB/////wAAAAA1YIkKAgAAAAAACAAAAFNldmVyaXR5AQEEAQMAAAAAIQAAAElu" +
-           "ZGljYXRlcyBob3cgdXJnZW50IGFuIGV2ZW50IGlzLgAuAEQEAQAAAAX/////AQH/////AAAAADVgiQoC" +
-           "AAAAAQAIAAAATmFtZVdlbGwBAQUBAwAAAABEAAAASHVtYW4gcmVjb2duaXphYmxlIGNvbnRleHQgZm9y" +
-           "IHRoZSB3ZWxsIHRoYXQgY29udGFpbnMgdGhlIHdlbGwgdGVzdC4ALgBEBQEAAAAM/////wEB/////wAA" +
-           "AAA1YIkKAgAAAAEABwAAAFVpZFdlbGwBAQYBAwAAAABzAAAAVW5pcXVlIGlkZW50aWZpZXIgZm9yIHRo" +
-           "ZSB3ZWxsLiBUaGlzIHVuaXF1ZWx5IHJlcHJlc2VudHMgdGhlIHdlbGwgcmVmZXJlbmNlZCBieSB0aGUg" +
-           "KHBvc3NpYmx5IG5vbi11bmlxdWUpIE5hbWVXZWxsLgAuAEQGAQAAAAz/////AQH/////AAAAADVgiQoC" +
-           "AAAAAQAIAAAAVGVzdERhdGUBAQcBAwAAAAAbAAAAVGhlIGRhdGUtdGltZSBvZiB3ZWxsIHRlc3QuAC4A" +
-           "RAcBAAAADf////8BAf////8AAAAANWCJCgIAAAABAAoAAABUZXN0UmVhc29uAQEIAQMAAAAAOgAAAFRo" +
-           "ZSByZWFzb24gZm9yIHRoZSB3ZWxsIHRlc3Q6IGluaXRpYWwsIHBlcmlvZGljLCByZXZpc2lvbi4ALgBE" +
-           "CAEAAAAM/////wEB/////wAAAAA=";
+           "c/////8EYIACAQAAAAEAGgAAAFdlbGxUZXN0UmVwb3J0VHlwZUluc3RhbmNlAQH7AAEB+wD7AAAA////" +
+           "/wwAAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAfwAAC4ARPwAAAAAD/////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAAAkAAABFdmVudFR5cGUBAf0AAC4ARP0AAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABT" +
+           "b3VyY2VOb2RlAQH+AAAuAET+AAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFt" +
+           "ZQEB/wAALgBE/wAAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAQABAC4ARAABAAAB" +
+           "ACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQEBAQAuAEQBAQAAAQAmAf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQEDAQAuAEQDAQAAABX/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBAQQBAC4ARAQBAAAABf////8BAf////8AAAAANWCJCgIAAAAB" +
+           "AAgAAABOYW1lV2VsbAEBBQEDAAAAAEQAAABIdW1hbiByZWNvZ25pemFibGUgY29udGV4dCBmb3IgdGhl" +
+           "IHdlbGwgdGhhdCBjb250YWlucyB0aGUgd2VsbCB0ZXN0LgAuAEQFAQAAAAz/////AQH/////AAAAADVg" +
+           "iQoCAAAAAQAHAAAAVWlkV2VsbAEBBgEDAAAAAHMAAABVbmlxdWUgaWRlbnRpZmllciBmb3IgdGhlIHdl" +
+           "bGwuIFRoaXMgdW5pcXVlbHkgcmVwcmVzZW50cyB0aGUgd2VsbCByZWZlcmVuY2VkIGJ5IHRoZSAocG9z" +
+           "c2libHkgbm9uLXVuaXF1ZSkgTmFtZVdlbGwuAC4ARAYBAAAADP////8BAf////8AAAAANWCJCgIAAAAB" +
+           "AAgAAABUZXN0RGF0ZQEBBwEDAAAAABsAAABUaGUgZGF0ZS10aW1lIG9mIHdlbGwgdGVzdC4ALgBEBwEA" +
+           "AAAN/////wEB/////wAAAAA1YIkKAgAAAAEACgAAAFRlc3RSZWFzb24BAQgBAwAAAAA6AAAAVGhlIHJl" +
+           "YXNvbiBmb3IgdGhlIHdlbGwgdGVzdDogaW5pdGlhbCwgcGVyaW9kaWMsIHJldmlzaW9uLgAuAEQIAQAA" +
+           "AAz/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// Human recognizable context for the well that contains the well test.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> NameWell
         {
             get
-            { 
-                return m_nameWell;  
+            {
+                return m_nameWell;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_nameWell, value))
@@ -135,16 +132,14 @@ namespace Quickstarts.HistoricalEvents
             }
         }
 
-        /// <summary>
-        /// Unique identifier for the well. This uniquely represents the well referenced by the (possibly non-unique) NameWell.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> UidWell
         {
             get
-            { 
-                return m_uidWell;  
+            {
+                return m_uidWell;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_uidWell, value))
@@ -156,16 +151,14 @@ namespace Quickstarts.HistoricalEvents
             }
         }
 
-        /// <summary>
-        /// The date-time of well test.
-        /// </summary>
+        /// <remarks />
         public PropertyState<DateTime> TestDate
         {
             get
-            { 
-                return m_testDate;  
+            {
+                return m_testDate;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_testDate, value))
@@ -177,16 +170,14 @@ namespace Quickstarts.HistoricalEvents
             }
         }
 
-        /// <summary>
-        /// The reason for the well test: initial, periodic, revision.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> TestReason
         {
             get
-            { 
-                return m_testReason;  
+            {
+                return m_testReason;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_testReason, value))
@@ -370,7 +361,7 @@ namespace Quickstarts.HistoricalEvents
         public FluidLevelTestReportState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -390,6 +381,15 @@ namespace Quickstarts.HistoricalEvents
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -398,54 +398,45 @@ namespace Quickstarts.HistoricalEvents
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADUAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvSGlzdG9yaWNhbEV2ZW50" +
-           "c/////8kYIAAAQAAAAEAIAAAAEZsdWlkTGV2ZWxUZXN0UmVwb3J0VHlwZUluc3RhbmNlAQEJAQMAAAAA" +
-           "IAAAAEEgcmVwb3J0IGZvciBhIGZsdWlkIGxldmVsIHRlc3QuAQEJAf////8PAAAANWCJCgIAAAAAAAcA" +
-           "AABFdmVudElkAQEKAQMAAAAAKwAAAEEgZ2xvYmFsbHkgdW5pcXVlIGlkZW50aWZpZXIgZm9yIHRoZSBl" +
-           "dmVudC4ALgBECgEAAAAP/////wEB/////wAAAAA1YIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBCwEDAAAA" +
-           "ACIAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHR5cGUuAC4ARAsBAAAAEf////8BAf////8A" +
-           "AAAANWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQEMAQMAAAAAGAAAAFRoZSBzb3VyY2Ugb2YgdGhlIGV2" +
-           "ZW50LgAuAEQMAQAAABH/////AQH/////AAAAADVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEBDQEDAAAA" +
-           "ACkAAABBIGRlc2NyaXB0aW9uIG9mIHRoZSBzb3VyY2Ugb2YgdGhlIGV2ZW50LgAuAEQNAQAAAAz/////" +
-           "AQH/////AAAAADVgiQoCAAAAAAAEAAAAVGltZQEBDgEDAAAAABgAAABXaGVuIHRoZSBldmVudCBvY2N1" +
-           "cnJlZC4ALgBEDgEAAAEAJgH/////AQH/////AAAAADVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUBAQ8B" +
-           "AwAAAAA+AAAAV2hlbiB0aGUgc2VydmVyIHJlY2VpdmVkIHRoZSBldmVudCBmcm9tIHRoZSB1bmRlcmx5" +
-           "aW5nIHN5c3RlbS4ALgBEDwEAAAEAJgH/////AQH/////AAAAADVgiQoCAAAAAAAJAAAATG9jYWxUaW1l" +
-           "AQEQAQMAAAAAPAAAAEluZm9ybWF0aW9uIGFib3V0IHRoZSBsb2NhbCB0aW1lIHdoZXJlIHRoZSBldmVu" +
-           "dCBvcmlnaW5hdGVkLgAuAEQQAQAAAQDQIv////8BAf////8AAAAANWCJCgIAAAAAAAcAAABNZXNzYWdl" +
-           "AQERAQMAAAAAJQAAAEEgbG9jYWxpemVkIGRlc2NyaXB0aW9uIG9mIHRoZSBldmVudC4ALgBEEQEAAAAV" +
-           "/////wEB/////wAAAAA1YIkKAgAAAAAACAAAAFNldmVyaXR5AQESAQMAAAAAIQAAAEluZGljYXRlcyBo" +
-           "b3cgdXJnZW50IGFuIGV2ZW50IGlzLgAuAEQSAQAAAAX/////AQH/////AAAAADVgiQoCAAAAAQAIAAAA" +
-           "TmFtZVdlbGwBARMBAwAAAABEAAAASHVtYW4gcmVjb2duaXphYmxlIGNvbnRleHQgZm9yIHRoZSB3ZWxs" +
-           "IHRoYXQgY29udGFpbnMgdGhlIHdlbGwgdGVzdC4ALgBEEwEAAAAM/////wEB/////wAAAAA1YIkKAgAA" +
-           "AAEABwAAAFVpZFdlbGwBARQBAwAAAABzAAAAVW5pcXVlIGlkZW50aWZpZXIgZm9yIHRoZSB3ZWxsLiBU" +
-           "aGlzIHVuaXF1ZWx5IHJlcHJlc2VudHMgdGhlIHdlbGwgcmVmZXJlbmNlZCBieSB0aGUgKHBvc3NpYmx5" +
-           "IG5vbi11bmlxdWUpIE5hbWVXZWxsLgAuAEQUAQAAAAz/////AQH/////AAAAADVgiQoCAAAAAQAIAAAA" +
-           "VGVzdERhdGUBARUBAwAAAAAbAAAAVGhlIGRhdGUtdGltZSBvZiB3ZWxsIHRlc3QuAC4ARBUBAAAADf//" +
-           "//8BAf////8AAAAANWCJCgIAAAABAAoAAABUZXN0UmVhc29uAQEWAQMAAAAAOgAAAFRoZSByZWFzb24g" +
-           "Zm9yIHRoZSB3ZWxsIHRlc3Q6IGluaXRpYWwsIHBlcmlvZGljLCByZXZpc2lvbi4ALgBEFgEAAAAM////" +
-           "/wEB/////wAAAAA1YIkKAgAAAAEACgAAAEZsdWlkTGV2ZWwBARcBAwAAAABiAAAAVGhlIGZsdWlkIGxl" +
-           "dmVsIGFjaGlldmVkIGluIHRoZSB3ZWxsLiBUaGUgdmFsdWUgaXMgZ2l2ZW4gYXMgbGVuZ3RoIHVuaXRz" +
-           "IGZyb20gdGhlIHRvcCBvZiB0aGUgd2VsbC4ALwEAQAkXAQAAAAv/////AQH/////AQAAABVgiQoCAAAA" +
-           "AAAHAAAARVVSYW5nZQEBMAEALgBEMAEAAAEAdAP/////AQH/////AAAAADVgiQoCAAAAAQAIAAAAVGVz" +
-           "dGVkQnkBARsBAwAAAABLAAAAVGhlIGJ1c2luZXNzIGFzc29jaWF0ZSB0aGF0IGNvbmR1Y3RlZCB0aGUg" +
-           "dGVzdC4gVGhpcyBpcyBnZW5lcmFsbHkgYSBwZXJzb24uAC4ARBsBAAAADP////8BAf////8AAAAA";
+           "c/////8EYIACAQAAAAEAIAAAAEZsdWlkTGV2ZWxUZXN0UmVwb3J0VHlwZUluc3RhbmNlAQEJAQEBCQEJ" +
+           "AQAA/////w4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAQoBAC4ARAoBAAAAD/////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAQsBAC4ARAsBAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "AAoAAABTb3VyY2VOb2RlAQEMAQAuAEQMAQAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
+           "cmNlTmFtZQEBDQEALgBEDQEAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAQ4BAC4A" +
+           "RA4BAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVUaW1lAQEPAQAuAEQPAQAA" +
+           "AQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQERAQAuAEQRAQAAABX/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBARIBAC4ARBIBAAAABf////8BAf////8AAAAANWCJ" +
+           "CgIAAAABAAgAAABOYW1lV2VsbAEBEwEDAAAAAEQAAABIdW1hbiByZWNvZ25pemFibGUgY29udGV4dCBm" +
+           "b3IgdGhlIHdlbGwgdGhhdCBjb250YWlucyB0aGUgd2VsbCB0ZXN0LgAuAEQTAQAAAAz/////AQH/////" +
+           "AAAAADVgiQoCAAAAAQAHAAAAVWlkV2VsbAEBFAEDAAAAAHMAAABVbmlxdWUgaWRlbnRpZmllciBmb3Ig" +
+           "dGhlIHdlbGwuIFRoaXMgdW5pcXVlbHkgcmVwcmVzZW50cyB0aGUgd2VsbCByZWZlcmVuY2VkIGJ5IHRo" +
+           "ZSAocG9zc2libHkgbm9uLXVuaXF1ZSkgTmFtZVdlbGwuAC4ARBQBAAAADP////8BAf////8AAAAANWCJ" +
+           "CgIAAAABAAgAAABUZXN0RGF0ZQEBFQEDAAAAABsAAABUaGUgZGF0ZS10aW1lIG9mIHdlbGwgdGVzdC4A" +
+           "LgBEFQEAAAAN/////wEB/////wAAAAA1YIkKAgAAAAEACgAAAFRlc3RSZWFzb24BARYBAwAAAAA6AAAA" +
+           "VGhlIHJlYXNvbiBmb3IgdGhlIHdlbGwgdGVzdDogaW5pdGlhbCwgcGVyaW9kaWMsIHJldmlzaW9uLgAu" +
+           "AEQWAQAAAAz/////AQH/////AAAAADVgiQoCAAAAAQAKAAAARmx1aWRMZXZlbAEBFwEDAAAAAGIAAABU" +
+           "aGUgZmx1aWQgbGV2ZWwgYWNoaWV2ZWQgaW4gdGhlIHdlbGwuIFRoZSB2YWx1ZSBpcyBnaXZlbiBhcyBs" +
+           "ZW5ndGggdW5pdHMgZnJvbSB0aGUgdG9wIG9mIHRoZSB3ZWxsLgAvAQBACRcBAAAAC/////8BAf////8C" +
+           "AAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEwAQAuAEQwAQAAAQB0A/////8BAf////8AAAAAFWCJCgIA" +
+           "AAAAABAAAABFbmdpbmVlcmluZ1VuaXRzAQEaAQAuAEQaAQAAAQB3A/////8BAf////8AAAAANWCJCgIA" +
+           "AAABAAgAAABUZXN0ZWRCeQEBGwEDAAAAAEsAAABUaGUgYnVzaW5lc3MgYXNzb2NpYXRlIHRoYXQgY29u" +
+           "ZHVjdGVkIHRoZSB0ZXN0LiBUaGlzIGlzIGdlbmVyYWxseSBhIHBlcnNvbi4ALgBEGwEAAAAM/////wEB" +
+           "/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// The fluid level achieved in the well. The value is given as length units from the top of the well.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> FluidLevel
         {
             get
-            { 
-                return m_fluidLevel;  
+            {
+                return m_fluidLevel;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_fluidLevel, value))
@@ -457,16 +448,14 @@ namespace Quickstarts.HistoricalEvents
             }
         }
 
-        /// <summary>
-        /// The business associate that conducted the test. This is generally a person.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> TestedBy
         {
             get
-            { 
-                return m_testedBy;  
+            {
+                return m_testedBy;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_testedBy, value))
@@ -596,7 +585,7 @@ namespace Quickstarts.HistoricalEvents
         public InjectionTestReportState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -616,6 +605,15 @@ namespace Quickstarts.HistoricalEvents
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -624,53 +622,43 @@ namespace Quickstarts.HistoricalEvents
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADUAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvSGlzdG9yaWNhbEV2ZW50" +
-           "c/////8kYIAAAQAAAAEAHwAAAEluamVjdGlvblRlc3RSZXBvcnRUeXBlSW5zdGFuY2UBARwBAwAAAAAg" +
-           "AAAAQSByZXBvcnQgZm9yIGEgZmx1aWQgbGV2ZWwgdGVzdC4BARwB/////w8AAAA1YIkKAgAAAAAABwAA" +
-           "AEV2ZW50SWQBAR0BAwAAAAArAAAAQSBnbG9iYWxseSB1bmlxdWUgaWRlbnRpZmllciBmb3IgdGhlIGV2" +
-           "ZW50LgAuAEQdAQAAAA//////AQH/////AAAAADVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQEeAQMAAAAA" +
-           "IgAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdHlwZS4ALgBEHgEAAAAR/////wEB/////wAA" +
-           "AAA1YIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAR8BAwAAAAAYAAAAVGhlIHNvdXJjZSBvZiB0aGUgZXZl" +
-           "bnQuAC4ARB8BAAAAEf////8BAf////8AAAAANWCJCgIAAAAAAAoAAABTb3VyY2VOYW1lAQEgAQMAAAAA" +
-           "KQAAAEEgZGVzY3JpcHRpb24gb2YgdGhlIHNvdXJjZSBvZiB0aGUgZXZlbnQuAC4ARCABAAAADP////8B" +
-           "Af////8AAAAANWCJCgIAAAAAAAQAAABUaW1lAQEhAQMAAAAAGAAAAFdoZW4gdGhlIGV2ZW50IG9jY3Vy" +
-           "cmVkLgAuAEQhAQAAAQAmAf////8BAf////8AAAAANWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEBIgED" +
-           "AAAAAD4AAABXaGVuIHRoZSBzZXJ2ZXIgcmVjZWl2ZWQgdGhlIGV2ZW50IGZyb20gdGhlIHVuZGVybHlp" +
-           "bmcgc3lzdGVtLgAuAEQiAQAAAQAmAf////8BAf////8AAAAANWCJCgIAAAAAAAkAAABMb2NhbFRpbWUB" +
-           "ASMBAwAAAAA8AAAASW5mb3JtYXRpb24gYWJvdXQgdGhlIGxvY2FsIHRpbWUgd2hlcmUgdGhlIGV2ZW50" +
-           "IG9yaWdpbmF0ZWQuAC4ARCMBAAABANAi/////wEB/////wAAAAA1YIkKAgAAAAAABwAAAE1lc3NhZ2UB" +
-           "ASQBAwAAAAAlAAAAQSBsb2NhbGl6ZWQgZGVzY3JpcHRpb24gb2YgdGhlIGV2ZW50LgAuAEQkAQAAABX/" +
-           "////AQH/////AAAAADVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBASUBAwAAAAAhAAAASW5kaWNhdGVzIGhv" +
-           "dyB1cmdlbnQgYW4gZXZlbnQgaXMuAC4ARCUBAAAABf////8BAf////8AAAAANWCJCgIAAAABAAgAAABO" +
-           "YW1lV2VsbAEBJgEDAAAAAEQAAABIdW1hbiByZWNvZ25pemFibGUgY29udGV4dCBmb3IgdGhlIHdlbGwg" +
-           "dGhhdCBjb250YWlucyB0aGUgd2VsbCB0ZXN0LgAuAEQmAQAAAAz/////AQH/////AAAAADVgiQoCAAAA" +
-           "AQAHAAAAVWlkV2VsbAEBJwEDAAAAAHMAAABVbmlxdWUgaWRlbnRpZmllciBmb3IgdGhlIHdlbGwuIFRo" +
-           "aXMgdW5pcXVlbHkgcmVwcmVzZW50cyB0aGUgd2VsbCByZWZlcmVuY2VkIGJ5IHRoZSAocG9zc2libHkg" +
-           "bm9uLXVuaXF1ZSkgTmFtZVdlbGwuAC4ARCcBAAAADP////8BAf////8AAAAANWCJCgIAAAABAAgAAABU" +
-           "ZXN0RGF0ZQEBKAEDAAAAABsAAABUaGUgZGF0ZS10aW1lIG9mIHdlbGwgdGVzdC4ALgBEKAEAAAAN////" +
-           "/wEB/////wAAAAA1YIkKAgAAAAEACgAAAFRlc3RSZWFzb24BASkBAwAAAAA6AAAAVGhlIHJlYXNvbiBm" +
-           "b3IgdGhlIHdlbGwgdGVzdDogaW5pdGlhbCwgcGVyaW9kaWMsIHJldmlzaW9uLgAuAEQpAQAAAAz/////" +
-           "AQH/////AAAAADVgiQoCAAAAAQAMAAAAVGVzdER1cmF0aW9uAQEqAQMAAAAALAAAAFRoZSB0aW1lIGxl" +
-           "bmd0aCAod2l0aCB1b20pIG9mIHRoZSB3ZWxsIHRlc3QuAC8BAEAJKgEAAAAL/////wEB/////wEAAAAV" +
-           "YIkKAgAAAAAABwAAAEVVUmFuZ2UBATIBAC4ARDIBAAABAHQD/////wEB/////wAAAAA1YIkKAgAAAAEA" +
-           "DQAAAEluamVjdGVkRmx1aWQBAS4BAwAAAAAjAAAAVGhlIGZsdWlkIHRoYXQgaXMgYmVpbmcgaW5qZWN0" +
-           "ZWQuIC4ALgBELgEAAAAM/////wEB/////wAAAAA=";
+           "c/////8EYIACAQAAAAEAHwAAAEluamVjdGlvblRlc3RSZXBvcnRUeXBlSW5zdGFuY2UBARwBAQEcARwB" +
+           "AAD/////DgAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBHQEALgBEHQEAAAAP/////wEB/////wAAAAAV" +
+           "YIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBHgEALgBEHgEAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "CgAAAFNvdXJjZU5vZGUBAR8BAC4ARB8BAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3Vy" +
+           "Y2VOYW1lAQEgAQAuAEQgAQAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGltZQEBIQEALgBE" +
+           "IQEAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUBASIBAC4ARCIBAAAB" +
+           "ACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBASQBAC4ARCQBAAAAFf////8BAf//" +
+           "//8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBJQEALgBEJQEAAAAF/////wEB/////wAAAAA1YIkK" +
+           "AgAAAAEACAAAAE5hbWVXZWxsAQEmAQMAAAAARAAAAEh1bWFuIHJlY29nbml6YWJsZSBjb250ZXh0IGZv" +
+           "ciB0aGUgd2VsbCB0aGF0IGNvbnRhaW5zIHRoZSB3ZWxsIHRlc3QuAC4ARCYBAAAADP////8BAf////8A" +
+           "AAAANWCJCgIAAAABAAcAAABVaWRXZWxsAQEnAQMAAAAAcwAAAFVuaXF1ZSBpZGVudGlmaWVyIGZvciB0" +
+           "aGUgd2VsbC4gVGhpcyB1bmlxdWVseSByZXByZXNlbnRzIHRoZSB3ZWxsIHJlZmVyZW5jZWQgYnkgdGhl" +
+           "IChwb3NzaWJseSBub24tdW5pcXVlKSBOYW1lV2VsbC4ALgBEJwEAAAAM/////wEB/////wAAAAA1YIkK" +
+           "AgAAAAEACAAAAFRlc3REYXRlAQEoAQMAAAAAGwAAAFRoZSBkYXRlLXRpbWUgb2Ygd2VsbCB0ZXN0LgAu" +
+           "AEQoAQAAAA3/////AQH/////AAAAADVgiQoCAAAAAQAKAAAAVGVzdFJlYXNvbgEBKQEDAAAAADoAAABU" +
+           "aGUgcmVhc29uIGZvciB0aGUgd2VsbCB0ZXN0OiBpbml0aWFsLCBwZXJpb2RpYywgcmV2aXNpb24uAC4A" +
+           "RCkBAAAADP////8BAf////8AAAAANWCJCgIAAAABAAwAAABUZXN0RHVyYXRpb24BASoBAwAAAAAsAAAA" +
+           "VGhlIHRpbWUgbGVuZ3RoICh3aXRoIHVvbSkgb2YgdGhlIHdlbGwgdGVzdC4ALwEAQAkqAQAAAAv/////" +
+           "AQH/////AgAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBMgEALgBEMgEAAAEAdAP/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEBLQEALgBELQEAAAEAdwP/////AQH/////AAAA" +
+           "ADVgiQoCAAAAAQANAAAASW5qZWN0ZWRGbHVpZAEBLgEDAAAAACMAAABUaGUgZmx1aWQgdGhhdCBpcyBi" +
+           "ZWluZyBpbmplY3RlZC4gLgAuAEQuAQAAAAz/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// The time length (with uom) of the well test.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> TestDuration
         {
             get
-            { 
-                return m_testDuration;  
+            {
+                return m_testDuration;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_testDuration, value))
@@ -682,16 +670,14 @@ namespace Quickstarts.HistoricalEvents
             }
         }
 
-        /// <summary>
-        /// The fluid that is being injected. .
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> InjectedFluid
         {
             get
-            { 
-                return m_injectedFluid;  
+            {
+                return m_injectedFluid;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_injectedFluid, value))
@@ -821,7 +807,7 @@ namespace Quickstarts.HistoricalEvents
         public WellState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -841,6 +827,15 @@ namespace Quickstarts.HistoricalEvents
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -849,10 +844,9 @@ namespace Quickstarts.HistoricalEvents
         }
 
         #region Initialization String
-        private const string InitializationString = 
+        private const string InitializationString =
            "AQAAADUAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvSGlzdG9yaWNhbEV2ZW50" +
-           "c/////8kYIAAAQAAAAEAEAAAAFdlbGxUeXBlSW5zdGFuY2UBATQBAwAAAAAQAAAAQSBwaHlzaWNhbCB3" +
-           "ZWxsLgEBNAH/////AAAAAA==";
+           "c/////8EYIACAQAAAAEAEAAAAFdlbGxUeXBlSW5zdGFuY2UBATQBAQE0ATQBAAD/////AAAAAA==";
         #endregion
         #endif
         #endregion

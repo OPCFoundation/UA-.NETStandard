@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -53,7 +52,7 @@ namespace Quickstarts.Boiler
         public GenericControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -73,6 +72,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -81,28 +89,25 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAdAAAAR2VuZXJpY0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAQMAAwAAAAAYAAAAQSBnZW5lcmlj" +
-           "IFBJRCBjb250cm9sbGVyAQEDAP////8DAAAAFWCJCgIAAAABAAsAAABNZWFzdXJlbWVudAEBBAAALgBE" +
-           "BAAAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEACAAAAFNldFBvaW50AQEFAAAuAEQFAAAAAAv/////" +
-           "AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBBgAALgBEBgAAAAAL/////wEB/////wAA" +
-           "AAA=";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAdAAAAR2VuZXJpY0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAQMAAQEDAAMAAAD/////AwAAABVg" +
+           "iQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAQQAAC4ARAQAAAAAC/////8BAf////8AAAAAFWCJCgIAAAAB" +
+           "AAgAAABTZXRQb2ludAEBBQAALgBEBQAAAAAL/////wMD/////wAAAAAVYIkKAgAAAAEACgAAAENvbnRy" +
+           "b2xPdXQBAQYAAC4ARAYAAAAAC/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the Measurement Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> Measurement
         {
             get
-            { 
-                return m_measurement;  
+            {
+                return m_measurement;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_measurement, value))
@@ -114,16 +119,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the SetPoint Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> SetPoint
         {
             get
-            { 
-                return m_setPoint;  
+            {
+                return m_setPoint;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_setPoint, value))
@@ -135,16 +138,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the ControlOut Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> ControlOut
         {
             get
-            { 
-                return m_controlOut;  
+            {
+                return m_controlOut;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_controlOut, value))
@@ -301,7 +302,7 @@ namespace Quickstarts.Boiler
         public GenericSensorState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -321,6 +322,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -329,27 +339,24 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAZAAAAR2VuZXJpY1NlbnNvclR5cGVJbnN0YW5jZQEBBwADAAAAACsAAABBIGdlbmVyaWMgc2Vu" +
-           "c29yIHRoYXQgcmVhZCBhIHByb2Nlc3MgdmFsdWUuAQEHAP////8BAAAAFWCJCgIAAAABAAYAAABPdXRw" +
-           "dXQBAQgAAC8BAEAJCAAAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAQsAAC4A" +
-           "RAsAAAABAHQD/////wEB/////wAAAAA=";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAZAAAAR2VuZXJpY1NlbnNvclR5cGVJbnN0YW5jZQEBBwABAQcABwAAAP////8BAAAAFWCJCgIA" +
+           "AAABAAYAAABPdXRwdXQBAQgAAC8BAEAJCAAAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVV" +
+           "UmFuZ2UBAQsAAC4ARAsAAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the Output Variable.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> Output
         {
             get
-            { 
-                return m_output;  
+            {
+                return m_output;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_output, value))
@@ -452,7 +459,7 @@ namespace Quickstarts.Boiler
         public GenericActuatorState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -472,6 +479,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -480,27 +496,24 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAbAAAAR2VuZXJpY0FjdHVhdG9yVHlwZUluc3RhbmNlAQEOAAMAAAAAQQAAAFJlcHJlc2VudHMg" +
-           "YSBwaWVjZSBvZiBlcXVpcG1lbnQgdGhhdCBjYXVzZXMgc29tZSBhY3Rpb24gdG8gb2NjdXIuAQEOAP//" +
-           "//8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBDwAALwEAQAkPAAAAAAv/////AgL/////AQAAABVgiQoC" +
-           "AAAAAAAHAAAARVVSYW5nZQEBEgAALgBEEgAAAAEAdAP/////AQH/////AAAAAA==";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAbAAAAR2VuZXJpY0FjdHVhdG9yVHlwZUluc3RhbmNlAQEOAAEBDgAOAAAA/////wEAAAAVYIkK" +
+           "AgAAAAEABQAAAElucHV0AQEPAAAvAQBACQ8AAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABF" +
+           "VVJhbmdlAQESAAAuAEQSAAAAAQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the Input Variable.
-        /// </summary>
+        /// <remarks />
         public AnalogItemState<double> Input
         {
             get
-            { 
-                return m_input;  
+            {
+                return m_input;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_input, value))
@@ -603,7 +616,7 @@ namespace Quickstarts.Boiler
         public CustomControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -623,6 +636,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -631,28 +653,26 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAcAAAAQ3VzdG9tQ29udHJvbGxlclR5cGVJbnN0YW5jZQEBFQADAAAAACUAAABBIGN1c3RvbSBQ" +
-           "SUQgY29udHJvbGxlciB3aXRoIDMgaW5wdXRzAQEVAP////8EAAAAFWCJCgIAAAABAAYAAABJbnB1dDEB" +
-           "ARYAAC4ARBYAAAAAC/////8CAv////8AAAAAFWCJCgIAAAABAAYAAABJbnB1dDIBARcAAC4ARBcAAAAA" +
-           "C/////8CAv////8AAAAAFWCJCgIAAAABAAYAAABJbnB1dDMBARgAAC4ARBgAAAAAC/////8CAv////8A" +
-           "AAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQEZAAAuAEQZAAAAAAv/////AQH/////AAAAAA==";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAcAAAAQ3VzdG9tQ29udHJvbGxlclR5cGVJbnN0YW5jZQEBFQABARUAFQAAAP////8EAAAAFWCJ" +
+           "CgIAAAABAAYAAABJbnB1dDEBARYAAC4ARBYAAAAAC/////8CAv////8AAAAAFWCJCgIAAAABAAYAAABJ" +
+           "bnB1dDIBARcAAC4ARBcAAAAAC/////8CAv////8AAAAAFWCJCgIAAAABAAYAAABJbnB1dDMBARgAAC4A" +
+           "RBgAAAAAC/////8CAv////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQEZAAAuAEQZAAAAAAv/" +
+           "////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the Input1 Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> Input1
         {
             get
-            { 
-                return m_input1;  
+            {
+                return m_input1;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_input1, value))
@@ -664,16 +684,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the Input2 Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> Input2
         {
             get
-            { 
-                return m_input2;  
+            {
+                return m_input2;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_input2, value))
@@ -685,16 +703,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the Input3 Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> Input3
         {
             get
-            { 
-                return m_input3;  
+            {
+                return m_input3;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_input3, value))
@@ -706,16 +722,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the ControlOut Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<double> ControlOut
         {
             get
-            { 
-                return m_controlOut;  
+            {
+                return m_controlOut;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_controlOut, value))
@@ -899,7 +913,7 @@ namespace Quickstarts.Boiler
         public ValveState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -919,6 +933,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -927,12 +950,11 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQARAAAAVmFsdmVUeXBlSW5zdGFuY2UBARoAAwAAAAAyAAAAQW4gYWN0dWF0b3IgdGhhdCBjb250" +
-           "cm9scyB0aGUgZmxvdyB0aHJvdWdoIGEgcGlwZS4BARoA/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0" +
-           "AQEbAAAvAQBACRsAAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEeAAAuAEQe" +
-           "AAAAAQB0A/////8BAf////8AAAAA";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQARAAAAVmFsdmVUeXBlSW5zdGFuY2UBARoAAQEaABoAAAD/////AQAAABVgiQoCAAAAAQAFAAAA" +
+           "SW5wdXQBARsAAC8BAEAJGwAAAAAL/////wIC/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAR4A" +
+           "AC4ARB4AAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -965,7 +987,7 @@ namespace Quickstarts.Boiler
         public LevelControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -985,6 +1007,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -993,13 +1024,12 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAbAAAATGV2ZWxDb250cm9sbGVyVHlwZUluc3RhbmNlAQEhAAMAAAAAMAAAAEEgY29udHJvbGxl" +
-           "ciBmb3IgdGhlIGxldmVsIG9mIGEgZmx1aWQgaW4gYSBkcnVtLgEBIQD/////AwAAABVgiQoCAAAAAQAL" +
-           "AAAATWVhc3VyZW1lbnQBASIAAC4ARCIAAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAgAAABTZXRQ" +
-           "b2ludAEBIwAALgBEIwAAAAAL/////wMD/////wAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBASQA" +
-           "AC4ARCQAAAAAC/////8BAf////8AAAAA";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAbAAAATGV2ZWxDb250cm9sbGVyVHlwZUluc3RhbmNlAQEhAAEBIQAhAAAA/////wMAAAAVYIkK" +
+           "AgAAAAEACwAAAE1lYXN1cmVtZW50AQEiAAAuAEQiAAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAI" +
+           "AAAAU2V0UG9pbnQBASMAAC4ARCMAAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9s" +
+           "T3V0AQEkAAAuAEQkAAAAAAv/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -1032,7 +1062,7 @@ namespace Quickstarts.Boiler
         public FlowControllerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1052,6 +1082,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1060,13 +1099,12 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAaAAAARmxvd0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBASUAAwAAAAA0AAAAQSBjb250cm9sbGVy" +
-           "IGZvciB0aGUgZmxvdyBvZiBhIGZsdWlkIHRocm91Z2ggYSBwaXBlLgEBJQD/////AwAAABVgiQoCAAAA" +
-           "AQALAAAATWVhc3VyZW1lbnQBASYAAC4ARCYAAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAgAAABT" +
-           "ZXRQb2ludAEBJwAALgBEJwAAAAAL/////wMD/////wAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQB" +
-           "ASgAAC4ARCgAAAAAC/////8BAf////8AAAAA";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAaAAAARmxvd0NvbnRyb2xsZXJUeXBlSW5zdGFuY2UBASUAAQElACUAAAD/////AwAAABVgiQoC" +
+           "AAAAAQALAAAATWVhc3VyZW1lbnQBASYAAC4ARCYAAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAgA" +
+           "AABTZXRQb2ludAEBJwAALgBEJwAAAAAL/////wMD/////wAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xP" +
+           "dXQBASgAAC4ARCgAAAAAC/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -1099,7 +1137,7 @@ namespace Quickstarts.Boiler
         public LevelIndicatorState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1119,6 +1157,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1127,12 +1174,11 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAaAAAATGV2ZWxJbmRpY2F0b3JUeXBlSW5zdGFuY2UBASkAAwAAAAA2AAAAQSBzZW5zb3IgdGhh" +
-           "dCByZXBvcnRzIHRoZSBsZXZlbCBvZiBhIGxpcXVpZCBpbiBhIHRhbmsuAQEpAP////8BAAAAFWCJCgIA" +
-           "AAABAAYAAABPdXRwdXQBASoAAC8BAEAJKgAAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVV" +
-           "UmFuZ2UBAS0AAC4ARC0AAAABAHQD/////wEB/////wAAAAA=";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAaAAAATGV2ZWxJbmRpY2F0b3JUeXBlSW5zdGFuY2UBASkAAQEpACkAAAD/////AQAAABVgiQoC" +
+           "AAAAAQAGAAAAT3V0cHV0AQEqAAAvAQBACSoAAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABF" +
+           "VVJhbmdlAQEtAAAuAEQtAAAAAQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -1165,7 +1211,7 @@ namespace Quickstarts.Boiler
         public FlowTransmitterState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1185,6 +1231,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1193,12 +1248,11 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////yRggAAB" +
-           "AAAAAQAbAAAARmxvd1RyYW5zbWl0dGVyVHlwZUluc3RhbmNlAQEwAAMAAAAAOgAAAEEgc2Vuc29yIHRo" +
-           "YXQgcmVwb3J0cyB0aGUgZmxvdyBvZiBhIGxpcXVpZCB0aHJvdWdoIGEgcGlwZS4BATAA/////wEAAAAV" +
-           "YIkKAgAAAAEABgAAAE91dHB1dAEBMQAALwEAQAkxAAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAH" +
-           "AAAARVVSYW5nZQEBNAAALgBENAAAAAEAdAP/////AQH/////AAAAAA==";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAbAAAARmxvd1RyYW5zbWl0dGVyVHlwZUluc3RhbmNlAQEwAAEBMAAwAAAA/////wEAAAAVYIkK" +
+           "AgAAAAEABgAAAE91dHB1dAEBMQAALwEAQAkxAAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAA" +
+           "RVVSYW5nZQEBNAAALgBENAAAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -1231,7 +1285,7 @@ namespace Quickstarts.Boiler
         public BoilerInputPipeState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1251,6 +1305,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1259,30 +1322,28 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAAB" +
-           "AAAAAQAbAAAAQm9pbGVySW5wdXRQaXBlVHlwZUluc3RhbmNlAQFJAAEBSQABAAAAADAAAQFKAAIAAACE" +
-           "YMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAGAAAARlRYMDAxAQFKAAAvAQEwAEoAAAABAQAAAAAw" +
-           "AQEBSQABAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAUsAAC8BAEAJSwAAAAAL/////wEB/////wEAAAAV" +
-           "YIkKAgAAAAAABwAAAEVVUmFuZ2UBAU4AAC4ARE4AAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUA" +
-           "AABWYWx2ZQEACQAAAFZhbHZlWDAwMQEBUQAALwEBGgBRAAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJ" +
-           "bnB1dAEBUgAALwEAQAlSAAAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBVQAA" +
-           "LgBEVQAAAAEAdAP/////AQH/////AAAAAA==";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAbAAAAQm9pbGVySW5wdXRQaXBlVHlwZUluc3RhbmNlAQFJAAEBSQBJAAAAAQAAAAAwAAEBSgAC" +
+           "AAAAhGDACgEAAAAQAAAARmxvd1RyYW5zbWl0dGVyMQEABgAAAEZUWDAwMQEBSgAALwEBMABKAAAAAQEA" +
+           "AAAAMAEBAUkAAQAAABVgiQoCAAAAAQAGAAAAT3V0cHV0AQFLAAAvAQBACUsAAAAAC/////8BAf////8B" +
+           "AAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFOAAAuAEROAAAAAQB0A/////8BAf////8AAAAAhGDACgEA" +
+           "AAAFAAAAVmFsdmUBAAkAAABWYWx2ZVgwMDEBAVEAAC8BARoAUQAAAAH/////AQAAABVgiQoCAAAAAQAF" +
+           "AAAASW5wdXQBAVIAAC8BAEAJUgAAAAAL/////wIC/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
+           "AVUAAC4ARFUAAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the FTX001 Object.
-        /// </summary>
+        /// <remarks />
         public FlowTransmitterState FlowTransmitter1
         {
             get
-            { 
-                return m_flowTransmitter1;  
+            {
+                return m_flowTransmitter1;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_flowTransmitter1, value))
@@ -1294,16 +1355,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the ValveX001 Object.
-        /// </summary>
+        /// <remarks />
         public ValveState Valve
         {
             get
-            { 
-                return m_valve;  
+            {
+                return m_valve;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_valve, value))
@@ -1433,7 +1492,7 @@ namespace Quickstarts.Boiler
         public BoilerDrumState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1453,6 +1512,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1461,27 +1529,25 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAAB" +
-           "AAAAAQAWAAAAQm9pbGVyRHJ1bVR5cGVJbnN0YW5jZQEBWAABAVgAAQAAAAAwAAEBWQABAAAAhGDACgEA" +
-           "AAAOAAAATGV2ZWxJbmRpY2F0b3IBAAYAAABMSVgwMDEBAVkAAC8BASkAWQAAAAEBAAAAADABAQFYAAEA" +
-           "AAAVYIkKAgAAAAEABgAAAE91dHB1dAEBWgAALwEAQAlaAAAAAAv/////AQH/////AQAAABVgiQoCAAAA" +
-           "AAAHAAAARVVSYW5nZQEBXQAALgBEXQAAAAEAdAP/////AQH/////AAAAAA==";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAWAAAAQm9pbGVyRHJ1bVR5cGVJbnN0YW5jZQEBWAABAVgAWAAAAAEAAAAAMAABAVkAAQAAAIRg" +
+           "wAoBAAAADgAAAExldmVsSW5kaWNhdG9yAQAGAAAATElYMDAxAQFZAAAvAQEpAFkAAAABAQAAAAAwAQEB" +
+           "WAABAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAVoAAC8BAEAJWgAAAAAL/////wEB/////wEAAAAVYIkK" +
+           "AgAAAAAABwAAAEVVUmFuZ2UBAV0AAC4ARF0AAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the LIX001 Object.
-        /// </summary>
+        /// <remarks />
         public LevelIndicatorState LevelIndicator
         {
             get
-            { 
-                return m_levelIndicator;  
+            {
+                return m_levelIndicator;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_levelIndicator, value))
@@ -1584,7 +1650,7 @@ namespace Quickstarts.Boiler
         public BoilerOutputPipeState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1604,6 +1670,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1612,27 +1687,25 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAAB" +
-           "AAAAAQAcAAAAQm9pbGVyT3V0cHV0UGlwZVR5cGVJbnN0YW5jZQEBYAABAWAAAQAAAAAwAAEBYQABAAAA" +
-           "hGDACgEAAAAQAAAARmxvd1RyYW5zbWl0dGVyMgEABgAAAEZUWDAwMgEBYQAALwEBMABhAAAAAQEAAAAA" +
-           "MAEBAWAAAQAAABVgiQoCAAAAAQAGAAAAT3V0cHV0AQFiAAAvAQBACWIAAAAAC/////8BAf////8BAAAA" +
-           "FWCJCgIAAAAAAAcAAABFVVJhbmdlAQFlAAAuAERlAAAAAQB0A/////8BAf////8AAAAA";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////wRggAIB" +
+           "AAAAAQAcAAAAQm9pbGVyT3V0cHV0UGlwZVR5cGVJbnN0YW5jZQEBYAABAWAAYAAAAAEAAAAAMAABAWEA" +
+           "AQAAAIRgwAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAWEAAC8BATAAYQAAAAEB" +
+           "AAAAADABAQFgAAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBYgAALwEAQAliAAAAAAv/////AQH/////" +
+           "AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBZQAALgBEZQAAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the FTX002 Object.
-        /// </summary>
+        /// <remarks />
         public FlowTransmitterState FlowTransmitter2
         {
             get
-            { 
-                return m_flowTransmitter2;  
+            {
+                return m_flowTransmitter2;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_flowTransmitter2, value))
@@ -1735,7 +1808,7 @@ namespace Quickstarts.Boiler
         public BoilerState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -1755,6 +1828,15 @@ namespace Quickstarts.Boiler
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -1763,54 +1845,51 @@ namespace Quickstarts.Boiler
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////6RggAAB" +
-           "AAAAAQASAAAAQm9pbGVyVHlwZUluc3RhbmNlAQE3AAMAAAAALQAAAEEgYm9pbGVyIHVzZWQgdG8gcHJv" +
-           "ZHVjZSBzdGVhbSBmb3IgYSB0dXJiaW5lLgEBNwABAwAAAAAwAAEBOAAAMAABATkAADAAAQFBAAYAAACE" +
-           "YMAKAQAAAAkAAABJbnB1dFBpcGUBAAgAAABQaXBlWDAwMQEBOAAALwEBSQA4AAAAAQMAAAAAMAEBATcA" +
-           "ADAAAQFoAAEBAQAAAQE5AAIAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAGAAAARlRYMDAx" +
-           "AQFoAAAvAQEwAGgAAAABAQAAAAAwAQEBOAABAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAWkAAC8BAEAJ" +
-           "aQAAAAAL/////wEBAgAAAAEBAgAAAQF+AAEBAgAAAQGHAAEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
-           "AWwAAC4ARGwAAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUAAABWYWx2ZQEACQAAAFZhbHZlWDAw" +
-           "MQEBbwAALwEBGgBvAAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBcAAALwEAQAlwAAAAAAv/" +
-           "////AgIBAAAAAQECAAEBAYAAAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBcwAALgBEcwAAAAEAdAP/" +
-           "////AQH/////AAAAAIRgwAoBAAAABAAAAERydW0BAAgAAABEcnVtWDAwMQEBOQAALwEBWAA5AAAAAQQA" +
-           "AAAAMAEBATcAAQEBAAEBATgAADAAAQE6AAEBAQAAAQFBAAEAAACEYMAKAQAAAA4AAABMZXZlbEluZGlj" +
-           "YXRvcgEABgAAAExJWDAwMQEBOgAALwEBKQA6AAAAAQEAAAAAMAEBATkAAQAAABVgiQoCAAAAAQAGAAAA" +
-           "T3V0cHV0AQE7AAAvAQBACTsAAAAAC/////8BAQEAAAABAQIAAAEBggABAAAAFWCJCgIAAAAAAAcAAABF" +
-           "VVJhbmdlAQE+AAAuAEQ+AAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAKAAAAT3V0cHV0UGlwZQEA" +
-           "CAAAAFBpcGVYMDAyAQFBAAAvAQFgAEEAAAABAwAAAAAwAQEBNwABAQEAAQEBOQAAMAABAXYAAQAAAIRg" +
-           "wAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAXYAAC8BATAAdgAAAAEBAAAAADAB" +
-           "AQFBAAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBdwAALwEAQAl3AAAAAAv/////AQEBAAAAAQECAAAB" +
-           "AYgAAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBegAALgBEegAAAAEAdAP/////AQH/////AAAAAARg" +
-           "wAoBAAAADgAAAEZsb3dDb250cm9sbGVyAQAGAAAARkNYMDAxAQF9AAAvAQElAH0AAAD/////AwAAABVg" +
-           "iQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAX4AAC4ARH4AAAAAC/////8BAQEAAAABAQIAAQEBaQAAAAAA" +
-           "FWCJCgIAAAABAAgAAABTZXRQb2ludAEBfwAALgBEfwAAAAAL/////wMDAQAAAAEBAgABAQGJAAAAAAAV" +
-           "YIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAYAAAC4ARIAAAAAAC/////8BAQEAAAABAQIAAAEBcAAAAAAA" +
-           "BGDACgEAAAAPAAAATGV2ZWxDb250cm9sbGVyAQAGAAAATENYMDAxAQGBAAAvAQEhAIEAAAD/////AwAA" +
-           "ABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAYIAAC4ARIIAAAAAC/////8BAQEAAAABAQIAAQEBOwAA" +
-           "AAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBgwAALgBEgwAAAAAL/////wMD/////wAAAAAVYIkKAgAA" +
-           "AAEACgAAAENvbnRyb2xPdXQBAYQAAC4ARIQAAAAAC/////8BAQEAAAABAQIAAAEBhgAAAAAABGDACgEA" +
-           "AAAQAAAAQ3VzdG9tQ29udHJvbGxlcgEABgAAAENDWDAwMQEBhQAALwEBFQCFAAAA/////wQAAAAVYIkK" +
-           "AgAAAAEABgAAAElucHV0MQEBhgAALgBEhgAAAAAL/////wICAQAAAAEBAgABAQGEAAAAAAAVYIkKAgAA" +
-           "AAEABgAAAElucHV0MgEBhwAALgBEhwAAAAAL/////wICAQAAAAEBAgABAQFpAAAAAAAVYIkKAgAAAAEA" +
-           "BgAAAElucHV0MwEBiAAALgBEiAAAAAAL/////wICAQAAAAEBAgABAQF3AAAAAAAVYIkKAgAAAAEACgAA" +
-           "AENvbnRyb2xPdXQBAYkAAC4ARIkAAAAAC/////8BAQEAAAABAQIAAAEBfwAAAAAA";
+        private const string InitializationString =
+           "AQAAACsAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvUXVpY2tzdGFydHMvQm9pbGVy/////4RggAIB" +
+           "AAAAAQASAAAAQm9pbGVyVHlwZUluc3RhbmNlAQE3AAEBNwA3AAAAAQMAAAAAMAABATgAADAAAQE5AAAw" +
+           "AAEBQQAGAAAAhGDACgEAAAAJAAAASW5wdXRQaXBlAQAIAAAAUGlwZVgwMDEBATgAAC8BAUkAOAAAAAED" +
+           "AAAAADABAQE3AAAwAAEBaAABAQEAAAEBOQACAAAAhGDACgEAAAAQAAAARmxvd1RyYW5zbWl0dGVyMQEA" +
+           "BgAAAEZUWDAwMQEBaAAALwEBMABoAAAAAQEAAAAAMAEBATgAAQAAABVgiQoCAAAAAQAGAAAAT3V0cHV0" +
+           "AQFpAAAvAQBACWkAAAAAC/////8BAQIAAAABAQIAAAEBfgABAQIAAAEBhwABAAAAFWCJCgIAAAAAAAcA" +
+           "AABFVVJhbmdlAQFsAAAuAERsAAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAFAAAAVmFsdmUBAAkA" +
+           "AABWYWx2ZVgwMDEBAW8AAC8BARoAbwAAAAH/////AQAAABVgiQoCAAAAAQAFAAAASW5wdXQBAXAAAC8B" +
+           "AEAJcAAAAAAL/////wICAQAAAAEBAgABAQGAAAEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAXMAAC4A" +
+           "RHMAAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAQAAABEcnVtAQAIAAAARHJ1bVgwMDEBATkAAC8B" +
+           "AVgAOQAAAAEEAAAAADABAQE3AAEBAQABAQE4AAAwAAEBOgABAQEAAAEBQQABAAAAhGDACgEAAAAOAAAA" +
+           "TGV2ZWxJbmRpY2F0b3IBAAYAAABMSVgwMDEBAToAAC8BASkAOgAAAAEBAAAAADABAQE5AAEAAAAVYIkK" +
+           "AgAAAAEABgAAAE91dHB1dAEBOwAALwEAQAk7AAAAAAv/////AQEBAAAAAQECAAABAYIAAQAAABVgiQoC" +
+           "AAAAAAAHAAAARVVSYW5nZQEBPgAALgBEPgAAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAACgAAAE91" +
+           "dHB1dFBpcGUBAAgAAABQaXBlWDAwMgEBQQAALwEBYABBAAAAAQMAAAAAMAEBATcAAQEBAAEBATkAADAA" +
+           "AQF2AAEAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIyAQAGAAAARlRYMDAyAQF2AAAvAQEwAHYA" +
+           "AAABAQAAAAAwAQEBQQABAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAXcAAC8BAEAJdwAAAAAL/////wEB" +
+           "AQAAAAEBAgAAAQGIAAEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAXoAAC4ARHoAAAABAHQD/////wEB" +
+           "/////wAAAAAEYMAKAQAAAA4AAABGbG93Q29udHJvbGxlcgEABgAAAEZDWDAwMQEBfQAALwEBJQB9AAAA" +
+           "/////wMAAAAVYIkKAgAAAAEACwAAAE1lYXN1cmVtZW50AQF+AAAuAER+AAAAAAv/////AQEBAAAAAQEC" +
+           "AAEBAWkAAAAAABVgiQoCAAAAAQAIAAAAU2V0UG9pbnQBAX8AAC4ARH8AAAAAC/////8DAwEAAAABAQIA" +
+           "AQEBiQAAAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQGAAAAuAESAAAAAAAv/////AQEBAAAAAQEC" +
+           "AAABAXAAAAAAAARgwAoBAAAADwAAAExldmVsQ29udHJvbGxlcgEABgAAAExDWDAwMQEBgQAALwEBIQCB" +
+           "AAAA/////wMAAAAVYIkKAgAAAAEACwAAAE1lYXN1cmVtZW50AQGCAAAuAESCAAAAAAv/////AQEBAAAA" +
+           "AQECAAEBATsAAAAAABVgiQoCAAAAAQAIAAAAU2V0UG9pbnQBAYMAAC4ARIMAAAAAC/////8DA/////8A" +
+           "AAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQGEAAAuAESEAAAAAAv/////AQEBAAAAAQECAAABAYYA" +
+           "AAAAAARgwAoBAAAAEAAAAEN1c3RvbUNvbnRyb2xsZXIBAAYAAABDQ1gwMDEBAYUAAC8BARUAhQAAAP//" +
+           "//8EAAAAFWCJCgIAAAABAAYAAABJbnB1dDEBAYYAAC4ARIYAAAAAC/////8CAgEAAAABAQIAAQEBhAAA" +
+           "AAAAFWCJCgIAAAABAAYAAABJbnB1dDIBAYcAAC4ARIcAAAAAC/////8CAgEAAAABAQIAAQEBaQAAAAAA" +
+           "FWCJCgIAAAABAAYAAABJbnB1dDMBAYgAAC4ARIgAAAAAC/////8CAgEAAAABAQIAAQEBdwAAAAAAFWCJ" +
+           "CgIAAAABAAoAAABDb250cm9sT3V0AQGJAAAuAESJAAAAAAv/////AQEBAAAAAQECAAABAX8AAAAAAA==";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the PipeX001 Object.
-        /// </summary>
+        /// <remarks />
         public BoilerInputPipeState InputPipe
         {
             get
-            { 
-                return m_inputPipe;  
+            {
+                return m_inputPipe;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_inputPipe, value))
@@ -1822,16 +1901,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the DrumX001 Object.
-        /// </summary>
+        /// <remarks />
         public BoilerDrumState Drum
         {
             get
-            { 
-                return m_drum;  
+            {
+                return m_drum;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_drum, value))
@@ -1843,16 +1920,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the PipeX002 Object.
-        /// </summary>
+        /// <remarks />
         public BoilerOutputPipeState OutputPipe
         {
             get
-            { 
-                return m_outputPipe;  
+            {
+                return m_outputPipe;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_outputPipe, value))
@@ -1864,16 +1939,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the FCX001 Object.
-        /// </summary>
+        /// <remarks />
         public FlowControllerState FlowController
         {
             get
-            { 
-                return m_flowController;  
+            {
+                return m_flowController;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_flowController, value))
@@ -1885,16 +1958,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the LCX001 Object.
-        /// </summary>
+        /// <remarks />
         public LevelControllerState LevelController
         {
             get
-            { 
-                return m_levelController;  
+            {
+                return m_levelController;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_levelController, value))
@@ -1906,16 +1977,14 @@ namespace Quickstarts.Boiler
             }
         }
 
-        /// <summary>
-        /// A description for the CCX001 Object.
-        /// </summary>
+        /// <remarks />
         public CustomControllerState CustomController
         {
             get
-            { 
-                return m_customController;  
+            {
+                return m_customController;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_customController, value))
