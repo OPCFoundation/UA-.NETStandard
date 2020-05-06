@@ -48,16 +48,12 @@ namespace Opc.Ua.Bindings
             OpenSecureChannelRequest request);
 
         /// <summary>
-        /// Used to implement a reverse connection for a listener socket.
+        /// Used to transfer a reverse connection socket to the client.
         /// </summary>
-        /// <param name="channelId"></param>
-        /// <param name="ServerUri"></param>
-        /// <param name="EndpointUrl"></param>
-        /// <returns></returns>
-        bool NewReverseConnection(
+        bool TransferListenerChannel(
             uint channelId,
-            string ServerUri,
-            string EndpointUrl);
+            string serverUri,
+            Uri endpointUrl);
 
         /// <summary>
         /// Called when a channel closes.

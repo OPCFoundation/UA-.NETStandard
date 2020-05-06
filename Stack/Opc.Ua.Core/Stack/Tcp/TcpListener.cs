@@ -12,11 +12,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Selectors;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -345,14 +343,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Binds a new socket to an existing channel.
+        /// Transfers the channel to a waiting connection.
         /// </summary>
         /// <returns>TRUE if the channel should be kept open; FALSE otherwise.</returns>
-        public bool NewReverseConnection(
+        public bool TransferListenerChannel(
             uint channelId,
             string serverUri,
-            string endpointUrl)
+            Uri endpointUrl)
         {
+            bool accepted = false;
             TcpListenerChannel channel = null;
             lock (m_lock)
             {
@@ -360,20 +359,26 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
                 }
-
-                // remove it so it does not get cleaned up as an inactive connection.
-                m_channels.Remove(channelId);
             }
 
             // notify the application.
             if (ConnectionWaiting != null)
             {
-                var args = new ConnectionWaitingEventArgs(serverUri, new Uri(endpointUrl), channel.Socket);
+                var args = new ConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
                 ConnectionWaiting(this, args);
-                return args.Accepted;
+                accepted = args.Accepted;
             }
 
-            return false;
+            if (accepted)
+            {
+                lock(m_lock)
+                {
+                    // remove it so it does not get cleaned up as an inactive connection.
+                    m_channels.Remove(channelId);
+                }
+            }
+
+            return accepted;
         }
 
         /// <summary>

@@ -71,6 +71,11 @@ namespace Opc.Ua.Bindings
 
         #region Public Methods
         /// <summary>
+        /// The channel name used in trace output.
+        /// </summary>
+        public override string ChannelName => "TCPSERVERCHANNEL";
+
+        /// <summary>
         /// The URL used to establish a connection to the client.
         /// </summary>
         public Uri ReverseConnectionUrl { get; internal set; }
@@ -209,7 +214,7 @@ namespace Opc.Ua.Bindings
                 {
                     // replace the socket.
                     Socket = socket;
-                    Utils.Trace("TCPSERVERCHANNEL SOCKET RECONNECTED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
+                    Utils.Trace("{0} SOCKET RECONNECTED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
                     Socket.ChangeSink(this);
 
                     // need to assign a new token id.
@@ -619,7 +624,8 @@ namespace Opc.Ua.Bindings
                             request);
 
                         Utils.Trace(
-                            "TCPSERVERCHANNEL ReconnectToExistingChannel Socket={0:X8}, ChannelId={1}, TokenId={2}",
+                            "{0} ReconnectToExistingChannel Socket={0:X8}, ChannelId={1}, TokenId={2}",
+                            ChannelName,
                             (Socket != null) ? Socket.Handle : 0,
                             (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                             (CurrentToken != null) ? CurrentToken.TokenId : 0);
@@ -827,7 +833,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 Utils.Trace(
-                    "TCPSERVERCHANNEL ProcessCloseSecureChannelRequest Socket={0:X8}, ChannelId={1}, TokenId={2}",
+                    "{0} ProcessCloseSecureChannelRequest Socket={0:X8}, ChannelId={1}, TokenId={2}",
+                    ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0);

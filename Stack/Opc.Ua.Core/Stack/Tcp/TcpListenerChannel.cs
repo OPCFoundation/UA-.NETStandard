@@ -77,6 +77,11 @@ namespace Opc.Ua.Bindings
 
         #region Public Methods
         /// <summary>
+        /// The channel name used in trace output.
+        /// </summary>
+        public virtual string ChannelName => "TCPLISTENERCHANNEL";
+
+        /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
@@ -106,7 +111,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
-                Utils.Trace("TCPSERVERCHANNEL SOCKET ATTACHED: {0:X8}, ChannelId={1}", Socket.Handle, ChannelId);
+                Utils.Trace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
                 Socket.ReadNextMessage();
 
                 // automatically clean up the channel if no hello received.
@@ -223,7 +228,8 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 Utils.Trace(
-                    "TCPSERVERCHANNEL ForceChannelFault Socket={0:X8}, ChannelId={1}, TokenId={2}, Reason={3}",
+                    "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                    ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
@@ -302,7 +308,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 Utils.Trace(
-                    "TCPSERVERCHANNEL Cleanup Socket={0:X8}, ChannelId={1}, TokenId={2}, Reason={3}",
+                    "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                    ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
@@ -457,7 +464,6 @@ namespace Opc.Ua.Bindings
         {
             // TODO: if callback is only used in serverchannel, move implementation
         }
-
 
         /// <summary>
         /// Sends a fault response secured with the asymmetric keys.

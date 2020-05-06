@@ -465,7 +465,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChangeSink(IMessageSink sink)
         {
-            // TODO lock (m_readLock)
+            lock (m_readLock)
             {
                 m_sink = sink;
             }

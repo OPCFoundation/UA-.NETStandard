@@ -38,6 +38,13 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
+        #region Public Methods
+        /// <summary>
+        /// The channel name used in trace output.
+        /// </summary>
+        public override string ChannelName => "TCPREVERSECONNECTCHANNEL";
+        #endregion
+
         #region Socket Event Handlers
         /// <summary>
         /// Processes an incoming message.
@@ -51,11 +58,9 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-
                     // check for reverse hello.
                     if (messageType == TcpMessageType.ReverseHello)
                     {
-                        // TODO remove
                         Utils.Trace("Channel {0}: ProcessReverseHelloMessage", ChannelId);
                         return ProcessReverseHelloMessage(messageType, messageChunk);
                     }
@@ -63,7 +68,7 @@ namespace Opc.Ua.Bindings
                     // invalid message type - must close socket and reconnect.
                     ForceChannelFault(
                         StatusCodes.BadTcpMessageTypeInvalid,
-                        "The server does not recognize the message type: {0:X8}.",
+                        "The reverse connect handler does not recognize the message type: {0:X8}.",
                         messageType);
 
                     return false;
@@ -77,13 +82,6 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Connect/Reconnect Sequence
-        private class ReverseConnectionApproval
-        {
-            public TcpReverseConnectChannel Channel;
-            public string ServerUri;
-            public string EndpointUrl;
-        }
-
         /// <summary>
         /// Processes a ReverseHello message from the server.
         /// </summary>
@@ -104,17 +102,17 @@ namespace Opc.Ua.Bindings
 
                 // read peer information.
                 string serverUri = decoder.ReadString(null);
-                string endpointUrl = decoder.ReadString(null);
+                string endpointUrlString = decoder.ReadString(null);
+                Uri endpointUri = new Uri(endpointUrlString);
 
                 State = TcpChannelState.Connecting;
 
                 Task t = Task.Run(() => {
-                    var rca = new ReverseConnectionApproval() {
-                        Channel = this,
-                        ServerUri = serverUri,
-                        EndpointUrl = endpointUrl
-                    };
-                    OnWaitForApproval(rca);
+                    if (!m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
+                    {
+                        m_responseRequired = true;
+                        ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the server.");
+                    }
                 });
             }
             catch (Exception e)
@@ -123,16 +121,6 @@ namespace Opc.Ua.Bindings
             }
 
             return false;
-        }
-
-        private void OnWaitForApproval(ReverseConnectionApproval approval)
-        {
-            // see if the connection is accepted.
-            if (!m_listener.NewReverseConnection(this.Id, approval.ServerUri, approval.EndpointUrl))
-            {
-                m_responseRequired = true;
-                ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the server.");
-            }
         }
         #endregion
     }
