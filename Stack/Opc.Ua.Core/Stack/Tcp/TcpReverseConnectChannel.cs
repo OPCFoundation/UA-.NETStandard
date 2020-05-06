@@ -113,6 +113,11 @@ namespace Opc.Ua.Bindings
                         m_responseRequired = true;
                         ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the server.");
                     }
+                    else
+                    {
+                        // Socket is now owned by client, don't clean up
+                        CleanupTimer();
+                    }
                 });
             }
             catch (Exception e)

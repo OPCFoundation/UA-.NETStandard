@@ -711,7 +711,7 @@ namespace Opc.Ua
                     "Unsupported transport profile\r\n");
             }
 
-            // create a UA-TCP channel.
+            // create a UA channel.
             var settings = new TransportChannelSettings {
                 Description = description,
                 Configuration = endpointConfiguration,

@@ -55,6 +55,12 @@ namespace Opc.Ua.Client
             Errored = 3
         };
 
+        public enum ReverseConnectStrategy
+        {
+            Once,
+            Always
+        }
+
         private class ReverseConnectInfo
         {
             public ReverseConnectInfo(ReverseConnectHost reverseConnectHost)
@@ -76,11 +82,13 @@ namespace Opc.Ua.Client
                 ServerUri = serverUri;
                 EndpointUrl = endpointUrl;
                 OnConnectionWaiting = onConnectionWaiting;
+                ReverseConnectStrategy = ReverseConnectStrategy.Once;
             }
 
             public readonly string ServerUri;
             public readonly Uri EndpointUrl;
             public readonly EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting;
+            public ReverseConnectStrategy ReverseConnectStrategy;
         }
         #region Constructors
         /// <summary>
@@ -345,10 +353,13 @@ namespace Opc.Ua.Client
         public int RegisterWaitingConnection(
             string serverUri,
             Uri endpointUrl,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting
+            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            ReverseConnectStrategy reverseConnectStrategy
             )
         {
-            var registration = new Registration(serverUri, endpointUrl, OnConnectionWaiting);
+            var registration = new Registration(serverUri, endpointUrl, OnConnectionWaiting) {
+                ReverseConnectStrategy = reverseConnectStrategy
+            };
             lock (m_registrations)
             {
                 m_registrations.Add(registration);
@@ -394,7 +405,8 @@ namespace Opc.Ua.Client
                         break;
                     }
                 }
-                if (callbackRegistration != null)
+                if (callbackRegistration != null &&
+                    callbackRegistration.ReverseConnectStrategy == ReverseConnectStrategy.Once)
                 {
                     m_registrations.Remove(callbackRegistration);
                 }

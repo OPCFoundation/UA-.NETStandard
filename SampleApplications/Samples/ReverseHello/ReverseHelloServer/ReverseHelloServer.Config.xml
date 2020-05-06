@@ -158,9 +158,9 @@
       <ReverseConnectServerConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
         <ReverseConnectClients>
           <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen5:65400</EndpointUrl>
+            <EndpointUrl>opc.tcp://mregen5:65301</EndpointUrl>
             <MaxConnections>1</MaxConnections>
-            <Timeout>5000</Timeout>
+            <Timeout>60000</Timeout>
           </ReverseConnectClient>
           <!--
           <ReverseConnectClient>
@@ -194,7 +194,7 @@
           </ReverseConnectClient>
           -->
         </ReverseConnectClients>
-        <ConnectInterval>15000</ConnectInterval>
+        <ConnectInterval>5000</ConnectInterval>
       </ReverseConnectServerConfiguration>
     </ua:XmlElement>
   </Extensions>

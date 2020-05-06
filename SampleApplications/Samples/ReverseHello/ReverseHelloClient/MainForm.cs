@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -69,7 +68,9 @@ namespace ReverseHelloTestClient
             m_connections = new Dictionary<Uri, ConnectionWaitingEventArgs>();
 
             m_reverseConnectManager = reverseConnectManager;
-            m_reverseConnectManager.RegisterWaitingConnection(null, new Uri(ConnectServerCTRL.ServerUrl), OnConnectionWaiting);
+            m_reverseConnectManager.RegisterWaitingConnection(null,
+                new Uri(ConnectServerCTRL.ServerUrl),
+                OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.Always);
 
             this.Text = m_configuration.ApplicationName;
         }

@@ -449,8 +449,11 @@ namespace Opc.Ua.Client.Controls
 
             if (!m_endpoints.TryGetValue(connection.EndpointUrl, out endpointDescription))
             {
+                // Discovery uses the reverse connection and closes it
+                // return and wait for next reverse hello
                 endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, connection, useSecurity, discoverTimeout);
                 m_endpoints[connection.EndpointUrl] = endpointDescription;
+                return null;
             }
 
             return await Connect(connection, endpointDescription, UseSecurityCK.Checked, sessionTimeout);
