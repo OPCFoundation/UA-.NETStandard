@@ -137,10 +137,18 @@ namespace Opc.Ua.Client
 
         #region IDisposable Members
         /// <summary>
+        /// Dispose implementation.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        public void Dispose()
+        public virtual void Dispose(bool disposing)
         {
             // close the watcher.
             if (m_configurationWatcher != null)
@@ -148,6 +156,7 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_configurationWatcher);
                 m_configurationWatcher = null;
             }
+            DisposeHosts();
         }
         #endregion
 
@@ -510,14 +519,14 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ConfigurationWatcher m_configurationWatcher;
         private ApplicationType m_applicationType;
         private Type m_configType;
         private ReverseConnectClientConfiguration m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
-        private List<Registration> m_registrations;
+        private readonly List<Registration> m_registrations;
         #endregion
     }
 }

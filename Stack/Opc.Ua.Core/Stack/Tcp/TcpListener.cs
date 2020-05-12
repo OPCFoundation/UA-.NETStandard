@@ -22,17 +22,8 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
-    public class UaTcpChannelListener : ITransportListener, ITcpChannelListener
+    public class TcpListener : ITransportListener, ITcpChannelListener
     {
-        #region Constructors
-        /// <summary>
-        /// Initializes a new instance of the <see cref="UaTcpChannelListener"/> class.
-        /// </summary>
-        public UaTcpChannelListener()
-        {
-        }
-        #endregion
-
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -563,7 +554,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the URI for the listener.
         /// </summary>
-        /// TODO: is it needed?
         private void SetUri(Uri baseAddress, string relativeAddress)
         {
             if (baseAddress == null) throw new ArgumentNullException(nameof(baseAddress));

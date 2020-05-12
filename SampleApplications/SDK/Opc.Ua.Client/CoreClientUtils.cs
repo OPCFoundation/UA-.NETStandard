@@ -48,19 +48,30 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <returns>A list of server urls.</returns>
+        public static IList<string> DiscoverServers(ApplicationConfiguration configuration)
+        {
+            return DiscoverServers(configuration, DefaultDiscoverTimeout);
+        }
+
+        /// <summary>
+        /// Discovers the servers on the local machine.
+        /// </summary>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
+        /// <returns>A list of server urls.</returns>
         public static IList<string> DiscoverServers(
             ApplicationConfiguration configuration,
-            int discoverTimeout = -1
+            int discoverTimeout
             )
         {
             List<string> serverUrls = new List<string>();
 
             // set a short timeout because this is happening in the drop down event.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
-            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+            endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = DiscoveryClient.Create(new Uri("opc.tcp://localhost:4840"), endpointConfiguration))
+            using (DiscoveryClient client = DiscoveryClient.Create(new Uri(String.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
             {
                 ApplicationDescriptionCollection servers = client.FindServers(null);
 
@@ -100,12 +111,23 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <param name="discoverTimeout">Optional. Operation timeout in milliseconds.</param>
+        /// <returns>The best available endpoint.</returns>
+        public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
+        {
+            return SelectEndpoint(discoveryUrl, useSecurity, DefaultDiscoverTimeout);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
         public static EndpointDescription SelectEndpoint(
             string discoveryUrl,
             bool useSecurity,
-            int discoverTimeout = -1
+            int discoverTimeout
             )
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
@@ -121,7 +143,7 @@ namespace Opc.Ua.Client
             Uri url = new Uri(discoveryUrl);
 
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+            endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the server's discovery endpoint and find the available configuration.
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
@@ -137,8 +159,20 @@ namespace Opc.Ua.Client
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
+            bool useSecurity
+            )
+        {
+            return SelectEndpoint(application, connection, useSecurity, DefaultDiscoverTimeout);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
             bool useSecurity,
-            int discoverTimeout = -1
+            int discoverTimeout
             )
         {
             var endpointConfiguration = EndpointConfiguration.Create();
@@ -162,8 +196,23 @@ namespace Opc.Ua.Client
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration application,
             string discoveryUrl,
+            bool useSecurity)
+        {
+            return SelectEndpoint(application, discoveryUrl, useSecurity, DefaultDiscoverTimeout);
+        }
+
+        /// <summary>
+        /// Finds the endpoint that best matches the current settings.
+        /// </summary>
+        /// <param name="application">The application configuration.</param>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <returns>The best available endpoint.</returns>
+        public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration application,
+            string discoveryUrl,
             bool useSecurity,
-            int discoverTimeout = -1
+            int discoverTimeout
             )
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
@@ -179,7 +228,7 @@ namespace Opc.Ua.Client
             Uri uri = new Uri(discoveryUrl);
 
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+            endpointConfiguration.OperationTimeout = discoverTimeout;
 
             using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
             {

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -73,9 +72,9 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Default session values.
         /// </summary>
-        public const uint DefaultSessionTimeout = 60000;
-        public const int DefaultDiscoverTimeout = 5000;
-        public const int DefaultReconnectPeriod = 10;
+        public static readonly uint DefaultSessionTimeout = 60000;
+        public static readonly int DefaultDiscoverTimeout = 5000;
+        public static readonly int DefaultReconnectPeriod = 10;
 
         /// <summary>
         /// A strip used to display session status information.
@@ -210,19 +209,16 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// The number of seconds between reconnect attempts (0 means reconnect is disabled).
         /// </summary>
-        [DefaultValue(DefaultReconnectPeriod)]
         public int ReconnectPeriod { get; set; } = DefaultReconnectPeriod;
 
         /// <summary>
         /// The discover timeout.
         /// </summary>
-        [DefaultValue(DefaultDiscoverTimeout)]
         public int DiscoverTimeout { get; set; } = DefaultDiscoverTimeout;
 
         /// <summary>
         /// The session timeout.
         /// </summary>
-        [DefaultValue(DefaultSessionTimeout)]
         public uint SessionTimeout { get; set; } = DefaultSessionTimeout;
 
         /// <summary>
@@ -374,7 +370,7 @@ namespace Opc.Ua.Client.Controls
             InternalDisconnect();
 
             // select the best endpoint.
-            var endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, UseSecurityCK.Checked, DiscoverTimeout);
+            var endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, useSecurity, DiscoverTimeout);
             var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 

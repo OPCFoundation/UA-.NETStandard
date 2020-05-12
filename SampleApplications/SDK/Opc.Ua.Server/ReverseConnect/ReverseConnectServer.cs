@@ -38,9 +38,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public class ReverseConnectServer : StandardServer
     {
-        public static int DefaultReverseConnectionTimeout = 15000;
-        public static int DefaultReverseConnectionRejectedTimeout = 60000;
-        public static int DefaultMaxReverseConnections = 1;
+        public static int DefaultReverseConnectionTimeout => 15000;
+        public static int DefaultReverseConnectionRejectedTimeout => 60000;
 
         private enum ReverseConnectState
         {
@@ -58,18 +57,15 @@ namespace Opc.Ua.Server
         {
             public ReverseConnection(
                 Uri clientUrl,
-                int maxConnections = 0,
                 int timeout = 0,
                 int rejectTimeout = 0)
             {
                 ClientUrl = clientUrl;
-                MaxConnections = maxConnections != 0 ? maxConnections : DefaultMaxReverseConnections;
                 Timeout = timeout != 0 ? timeout : DefaultReverseConnectionTimeout;
                 RejectedTimeout = rejectTimeout != 0 ? rejectTimeout : DefaultReverseConnectionRejectedTimeout;
             }
 
             public readonly Uri ClientUrl;
-            public readonly int MaxConnections;
             public readonly int Timeout;
             public readonly int RejectedTimeout;
             public ServiceResult ServiceResult;
@@ -80,33 +76,15 @@ namespace Opc.Ua.Server
         protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
             base.OnUpdateConfiguration(configuration);
+            lock (m_connections)
+            {
+                m_connections.Clear();
+            }
+            UpdateConfiguration(configuration);
         }
 
-        /// <summary>
-        /// Starts the server application.
-        /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
-        protected override void StartApplication(ApplicationConfiguration configuration)
+        private void UpdateConfiguration(ApplicationConfiguration configuration)
         {
-            base.StartApplication(configuration);
-            StartTimer(false);
-        }
-
-        /// <summary>
-        /// Called before the server stops
-        /// </summary>
-        protected override void OnServerStopping()
-        {
-            base.OnServerStopping();
-        }
-
-        /// <summary>
-        /// Called before the server starts.
-        /// </summary>
-        protected override void OnServerStarting(ApplicationConfiguration configuration)
-        {
-            base.OnServerStarting(configuration);
-
             // get the configuration for the reverse connections.
             m_configuration = configuration.ParseExtension<ReverseConnectServerConfiguration>();
 
@@ -129,11 +107,39 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Starts the server application.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        protected override void StartApplication(ApplicationConfiguration configuration)
+        {
+            base.StartApplication(configuration);
+            StartTimer(false);
+        }
+
+        /// <summary>
+        /// Called before the server stops
+        /// </summary>
+        protected override void OnServerStopping()
+        {
+            DisposeTimer();
+            base.OnServerStopping();
+        }
+
+        /// <summary>
+        /// Called before the server starts.
+        /// </summary>
+        protected override void OnServerStarting(ApplicationConfiguration configuration)
+        {
+            base.OnServerStarting(configuration);
+            UpdateConfiguration(configuration);
+        }
+
+        /// <summary>
         /// Add a reverse connection url.
         /// </summary>
-        public virtual void AddReverseConnection(Uri url, int maxConnections = 0, int timeout = 0)
+        public virtual void AddReverseConnection(Uri url, int timeout = 0, int rejectTimeout = 0)
         {
-            var reverseConnection = new ReverseConnection(url, maxConnections, timeout);
+            var reverseConnection = new ReverseConnection(url, timeout, rejectTimeout);
             lock (m_connections)
             {
                 m_connections.Add(url, reverseConnection);
@@ -171,7 +177,6 @@ namespace Opc.Ua.Server
                         reverseConnection.State = ReverseConnectState.Closed;
                     }
 
-                    // TODO: use channel counter
                     if (reverseConnection.State == ReverseConnectState.Closed)
                     {
                         try

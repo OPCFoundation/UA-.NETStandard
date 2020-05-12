@@ -121,7 +121,7 @@ namespace Opc.Ua.Bindings
                             CleanupTimer();
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         m_responseRequired = true;
                         ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");

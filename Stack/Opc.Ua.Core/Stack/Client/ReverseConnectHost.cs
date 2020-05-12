@@ -23,13 +23,6 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Create a host for reverse connections.
-        /// </summary>
-        public ReverseConnectHost()
-        {
-        }
-
-        /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
         public void CreateListener(

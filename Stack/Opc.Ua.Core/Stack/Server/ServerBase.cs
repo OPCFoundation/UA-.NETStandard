@@ -815,7 +815,7 @@ namespace Opc.Ua
                         settings.ServerCertificateChain = this.InstanceCertificateChain;
                     }
 
-                    ITransportListener listener = new Opc.Ua.Bindings.UaTcpChannelListener();
+                    ITransportListener listener = new Opc.Ua.Bindings.TcpListener();
 
                     listener.Open(
                        uri.Uri,
