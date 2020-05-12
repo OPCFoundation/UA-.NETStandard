@@ -158,43 +158,12 @@
       <ReverseConnectServerConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
         <ReverseConnectClients>
           <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen5:65301</EndpointUrl>
+            <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
             <MaxConnections>1</MaxConnections>
             <Timeout>60000</Timeout>
           </ReverseConnectClient>
-          <!--
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen5:65300</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-            <Timeout>5000</Timeout>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen.ddns.net:65300</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://localhost:48010</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen1:65300</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://mregen5.europe.corp.microsoft.com:48020</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://fritz.box:65300</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          <ReverseConnectClient>
-            <EndpointUrl>https://localhost:65301</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-          </ReverseConnectClient>
-          -->
         </ReverseConnectClients>
-        <ConnectInterval>5000</ConnectInterval>
+        <ConnectInterval>15000</ConnectInterval>
       </ReverseConnectServerConfiguration>
     </ua:XmlElement>
   </Extensions>

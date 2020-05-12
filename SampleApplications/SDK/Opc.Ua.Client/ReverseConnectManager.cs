@@ -30,13 +30,21 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
+using System.Linq;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// The implementation of a reverse connect client host.
+    /// The implementation of a reverse connect client manager.
     /// </summary>
+    /// <remarks>
+    /// This reverse connect manager allows to register for reverse connections
+    /// with various strategies:
+    /// i) take any connection.
+    /// ii) filter for a specific application Uri and Url scheme.
+    /// iii) filter for the Url.
+    /// Second, any filter can be combined with the Once or Always flag.
+    /// </remarks>
     public class ReverseConnectManager : IDisposable
     {
         private enum ReverseConnectManagerState
@@ -55,10 +63,36 @@ namespace Opc.Ua.Client
             Errored = 3
         };
 
+        [Flags]
         public enum ReverseConnectStrategy
         {
-            Once,
-            Always
+            /// <summary>
+            /// Remove entry after reverse connect callback.
+            /// </summary>
+            Once = 1,
+
+            /// <summary>
+            /// Always callback on matching url or uri.
+            /// </summary>
+            Always = 2,
+
+            /// <summary>
+            /// Flag for masking any.
+            /// </summary>
+            Any = 0x80,
+
+            /// <summary>
+            /// Respond to any incoming reverse connection,
+            /// remove entry after reverse connect callback.
+            /// </summary>
+            AnyOnce = Any | Once,
+
+            /// <summary>
+            /// Respond to any incoming reverse connection,
+            /// always callback.
+            /// </summary>
+            AnyAlways = Any | Always
+
         }
 
         private class ReverseConnectInfo
@@ -343,6 +377,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void StopService()
         {
+            ClearWaitingConnections();
             lock (m_lock)
             {
                 CloseHosts();
@@ -350,6 +385,25 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Clears all waiting reverse connectino handlers.
+        /// </summary>
+        public void ClearWaitingConnections()
+        {
+            lock (m_registrations)
+            {
+                m_registrations.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Register for a waiting reverse connection.
+        /// </summary>
+        /// <param name="serverUri">The server application Uri of the reverse connection.</param>
+        /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
+        /// <param name="OnConnectionWaiting">The callback</param>
+        /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
+        /// <returns></returns>
         public int RegisterWaitingConnection(
             string serverUri,
             Uri endpointUrl,
@@ -367,6 +421,10 @@ namespace Opc.Ua.Client
             return registration.GetHashCode();
         }
 
+        /// <summary>
+        /// Unregister reverse connection callback.
+        /// </summary>
+        /// <param name="hashCode">The hashcode returned by the registration.</param>
         public void UnregisterWaitingConnection(int hashCode)
         {
             lock (m_registrations)
@@ -388,35 +446,57 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Raised when a connection arrives, finds and calls a waiting connection.
+        /// Raised when a reverse connection is waiting,
+        /// finds and calls a waiting connection.
         /// </summary>
         private void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
         {
             Registration callbackRegistration = null;
             lock (m_registrations)
             {
-                foreach (var registration in m_registrations)
+                // first try to match single registrations
+                foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
                 {
-                    if (registration.ServerUri == e.ServerUri ||
+                    if (registration.ServerUri == e.ServerUri &&
+                        registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.InvariantCulture) ||
                         registration.EndpointUrl == e.EndpointUrl)
                     {
                         callbackRegistration = registration;
                         e.Accepted = true;
+                        Utils.Trace("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                         break;
                     }
                 }
-                if (callbackRegistration != null &&
-                    callbackRegistration.ReverseConnectStrategy == ReverseConnectStrategy.Once)
+
+                // now try any registrations.
+                if (callbackRegistration == null)
                 {
-                    m_registrations.Remove(callbackRegistration);
+                    foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0))
+                    {
+                        if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.InvariantCulture))
+                        {
+                            callbackRegistration = registration;
+                            e.Accepted = true;
+                            Utils.Trace("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
+                            break;
+                        }
+                    }
+                }
+
+                if (callbackRegistration != null)
+                {
+                    if ((callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
+                    {
+                        m_registrations.Remove(callbackRegistration);
+                    }
                 }
             }
-            if (callbackRegistration != null)
+
+            callbackRegistration?.OnConnectionWaiting?.Invoke(sender, e);
+
+            if (!e.Accepted)
             {
-                Task.Run(() =>
-                {
-                    callbackRegistration.OnConnectionWaiting?.Invoke(sender, e);
-                });
+                Utils.Trace("Rejected reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
             }
         }
 

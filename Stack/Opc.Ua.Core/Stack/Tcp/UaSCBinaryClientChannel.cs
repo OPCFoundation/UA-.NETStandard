@@ -804,7 +804,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Utils.Trace("Channel {0}: Scheduled Handshake Starting: TokenId={1}", ChannelId, CurrentToken.TokenId);
+                Utils.Trace("Channel {0}: Scheduled Handshake Starting: TokenId={1}", ChannelId, CurrentToken?.TokenId);
 
                 Task task;
                 lock (DataLock)

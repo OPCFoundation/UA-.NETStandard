@@ -859,10 +859,9 @@ namespace Opc.Ua.Client
             ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
-            if (endpoint.UpdateBeforeConnect)
+            if (endpoint.UpdateBeforeConnect && connection == null)
             {
                 endpoint.UpdateFromServer();
-
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }

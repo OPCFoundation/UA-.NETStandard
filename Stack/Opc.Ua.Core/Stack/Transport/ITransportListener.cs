@@ -90,12 +90,10 @@ namespace Opc.Ua
     /// </summary>
     public class ConnectionWaitingEventArgs : EventArgs, ITransportWaitingConnection
     {
-        // TODO: fix object socket??
-        internal ConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl, object socket)
+        protected ConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl)
         {
             ServerUri = serverUrl;
             EndpointUrl = endpointUrl;
-            Socket = socket;
             Accepted = false;
         }
 
@@ -106,10 +104,7 @@ namespace Opc.Ua
         public Uri EndpointUrl { get; private set; }
 
         /// <remarks/>
-        public object Handle { get { return Socket; } }
-
-        /// <remarks/>
-        internal object Socket { get; }
+        public virtual object Handle => null;
 
         /// <remarks/>
         public bool Accepted { get; set; }

@@ -73,10 +73,7 @@
       <ReverseConnectClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
         <ReverseConnectClientEndpoints>
           <ReverseConnectClientEndpoint>
-            <EndpointUrl>opc.tcp://localhost:65301</EndpointUrl>
-          </ReverseConnectClientEndpoint>
-          <ReverseConnectClientEndpoint>
-            <EndpointUrl>opc.tcp://localhost:65302</EndpointUrl>
+            <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
           </ReverseConnectClientEndpoint>
         </ReverseConnectClientEndpoints>
       </ReverseConnectClientConfiguration>

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -68,9 +69,7 @@ namespace ReverseHelloTestClient
             m_connections = new Dictionary<Uri, ConnectionWaitingEventArgs>();
 
             m_reverseConnectManager = reverseConnectManager;
-            m_reverseConnectManager.RegisterWaitingConnection(null,
-                new Uri(ConnectServerCTRL.ServerUrl),
-                OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.Always);
+            RegisterWaitingConnection();
 
             this.Text = m_configuration.ApplicationName;
         }
@@ -90,15 +89,20 @@ namespace ReverseHelloTestClient
 
                 if (!m_connections.TryGetValue(e.EndpointUrl, out pending))
                 {
-                    if (pending != null)
+                    m_connections[e.EndpointUrl] = null;
+
+                    if (MessageBox.Show(
+                        $"Server requested a connection. Accept?\nUrl: {e.EndpointUrl}\nUri: {e.ServerUri}", "Reverse connection",
+                        MessageBoxButtons.YesNo) != DialogResult.Yes)
                     {
                         e.Accepted = false;
                         return;
                     }
-
-                    m_connections[e.EndpointUrl] = null;
-
-                    if (MessageBox.Show("Server requested a connection. Accept?", "Server Connection", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                }
+                else
+                {
+                    // was already rejected
+                    if (pending == null)
                     {
                         e.Accepted = false;
                         return;
@@ -109,12 +113,73 @@ namespace ReverseHelloTestClient
 
                 // closing the connection should cause the server to immediately re-connect.
                 m_connections[e.EndpointUrl] = e;
+                // on a known endpoint, ask for user Identity if anonymous is unsupported.
+                var endpointDescription = ConnectServerCTRL.GetEndpointDescription(e.EndpointUrl);
+                if (endpointDescription != null)
+                {
+                    IUserIdentity userIdentity = null;
+                    foreach (var userIdentityToken in endpointDescription.UserIdentityTokens)
+                    {
+                        switch (userIdentityToken.TokenType)
+                        {
+                            case UserTokenType.Anonymous:
+                                userIdentity = new UserIdentity();
+                                break;
+                            case UserTokenType.UserName:
+                                var userNameDialog = new UserNamePasswordDlg();
+                                userIdentity = userNameDialog.ShowDialog(ConnectServerCTRL.UserIdentity, "Server needs username/password");
+                                break;
+                            case UserTokenType.Certificate:
+                                // not supported yet
+                                break;
+                        }
+                        if (userIdentity != null)
+                        {
+                            break;
+                        }
+                    }
+                    ConnectServerCTRL.UserIdentity = userIdentity;
+                }
+                else
+                {
+                    ConnectServerCTRL.UserIdentity = null;
+                }
+
                 m_session = await ConnectServerCTRL.ConnectAsync(e, ConnectServerCTRL.UseSecurity);
             }
             catch (Exception exception)
             {
                 ClientUtils.HandleException(this.Text, exception);
             }
+            finally
+            {
+                if (m_session == null)
+                {
+                    RegisterWaitingConnection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Register for new reverse connection.
+        /// </summary>
+        private void RegisterWaitingConnection()
+        {
+            if (m_connections.Count != 0)
+            {
+                var registration = m_connections.Where(r => r.Value != null).FirstOrDefault();
+                if (registration.Value != null)
+                {
+                    m_reverseConnectManager.RegisterWaitingConnection(
+                        registration.Value.ServerUri, registration.Value.EndpointUrl,
+                        OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.Once);
+                    return;
+                }
+            }
+
+            m_reverseConnectManager.RegisterWaitingConnection(
+                null, new Uri(ConnectServerCTRL.ServerUrl),
+                OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.AnyOnce);
         }
         #endregion
 
@@ -156,6 +221,8 @@ namespace ReverseHelloTestClient
 
                 // force the client to prompt again if the server re-connects.
                 m_connections.Clear();
+
+                RegisterWaitingConnection();
             }
             catch (Exception exception)
             {

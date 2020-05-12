@@ -18,6 +18,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Bindings
 {
+
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
@@ -364,14 +365,14 @@ namespace Opc.Ua.Bindings
             // notify the application.
             if (ConnectionWaiting != null)
             {
-                var args = new ConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
+                var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
                 ConnectionWaiting(this, args);
                 accepted = args.Accepted;
             }
 
             if (accepted)
             {
-                lock(m_lock)
+                lock (m_lock)
                 {
                     // remove it so it does not get cleaned up as an inactive connection.
                     m_channels.Remove(channelId);
@@ -597,7 +598,6 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private object m_lock = new object();
-
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
@@ -612,5 +612,23 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
         #endregion
+    }
+
+    /// <summary>
+    /// The Tcp specific arguments passed to the ConnectionWaiting event. 
+    /// </summary>
+    public class TcpConnectionWaitingEventArgs : ConnectionWaitingEventArgs
+    {
+        internal TcpConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl, IMessageSocket socket)
+            : base(serverUrl, endpointUrl)
+        {
+            Socket = socket;
+        }
+
+        /// <remarks/>
+        public override object Handle => Socket;
+
+        /// <remarks/>
+        internal IMessageSocket Socket { get; }
     }
 }

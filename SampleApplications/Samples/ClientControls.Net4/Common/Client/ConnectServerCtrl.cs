@@ -122,6 +122,20 @@ namespace Opc.Ua.Client.Controls
         public bool DisableDomainCheck { get; set; }
 
         /// <summary>
+        /// Gets the cached EndpointDescription for a Url.
+        /// </summary>
+        /// <returns></returns>
+        public EndpointDescription GetEndpointDescription(Uri url)
+        {
+            EndpointDescription endpointDescription;
+            if (m_endpoints.TryGetValue(url, out endpointDescription))
+            {
+                return endpointDescription;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// The URL displayed in the control.
         /// </summary>
         public string ServerUrl
